@@ -1,0 +1,130 @@
+---
+import { directusFetchItems, fileUrl } from '../../lib/directus';
+
+export async function getStaticPaths() {
+  const games = await directusFetchItems('games', {
+    fields: ['slug'],
+    limit: 500,
+    sort: ['sort', 'title'],
+  });
+
+  return games
+    .filter((g) => !!g.slug)
+    .map((g) => ({ params: { slug: g.slug } }));
+}
+
+const { slug } = Astro.params;
+
+const games = await directusFetchItems('games', {
+  fields: [
+    'id',
+    'title',
+    'slug',
+    'release_year',
+    'download_url',
+    'player_status',
+    'game_status',
+    'cover_image.id',
+    'cover_image.filename_disk',
+    'genres.id',
+    'genres.genres_id.id',
+    'genres.genres_id.name',
+    'engines.id',
+    'engines.engines_id.id',
+    'engines.engines_id.title',
+  ],
+  filter: { slug: { _eq: slug } },
+  limit: 1,
+});
+
+const game = games?.[0];
+if (!game) {
+  throw new Error(`Game not found for slug: ${slug}`);
+}
+
+const cover = fileUrl(game.cover_image);
+const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
+const genres = (game.genres ?? []).map((genre) => genre?.genres_id?.name).filter(Boolean);
+const engines = (game.engines ?? []).map((engine) => engine?.engines_id?.title).filter(Boolean);
+const reviews = await directusFetchItems('reviews', {
+  fields: ['id', 'title', 'slug', 'published_at'],
+  filter: { status: { _eq: "published" }, game: { _eq: game.id } },
+  sort: ['-published_at'],
+  limit: 100,
+});
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{game.title}</title>
+    <style>
+      body { background: #0b0b0b; color: #eaeaea; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
+      header{position:sticky;top:0;background:#0d0d0d;border-bottom:1px solid #1e1e1e;padding:16px 24px;z-index:10;}
+      nav{display:flex;gap:16px;flex-wrap:wrap;}
+      .container { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+      .header { display: flex; gap: 1rem; align-items: center; }
+      .cover { width: 320px; background: #000; border: 1px solid #2b2b2b; border-radius: 10px; padding: 10px; }
+      .cover img { width: 100%; height: auto; object-fit: contain; display: block; }
+      a { color: #8ab4f8; }
+      .meta { opacity: 0.9; }
+      .section{margin-top:1.5rem;}
+      .label{opacity:.7;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;}
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/games/index.html">Games</a>
+        <a href="/reviews/index.html">Reviews</a>
+        <a href="/tiers/index.html">Tiers</a>
+      </nav>
+    </header>
+    <main class="container">
+      <section class="header">
+        <div class="cover">
+          {cover ? <img src={cover} alt={game.title} loading="lazy" /> : null}
+        </div>
+        <div>
+          <h1>{game.title}</h1>
+          {game.release_year ? <div class="meta">Release year: {game.release_year}</div> : null}
+          {game.download_url ? (
+            <div class="meta">
+              <a href={game.download_url} rel="noopener noreferrer" target="_blank">Download</a>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <div class="section">
+        <div class="label">Details</div>
+        <ul>
+          {game.release_year ? <li>Release year: {game.release_year}</li> : null}
+          {game.player_status ? <li>Player status: {labelize(game.player_status)}</li> : null}
+          {game.game_status ? <li>Game status: {labelize(game.game_status)}</li> : null}
+          {genres.length ? <li>Genres: {genres.join(", ")}</li> : null}
+          {engines.length ? <li>Engines: {engines.join(", ")}</li> : null}
+        </ul>
+      </div>
+
+      {reviews.length ? (
+        <div class="section">
+          <div class="label">Reviews</div>
+          <ul>
+            {reviews.map((review) => (
+              <li>
+                <a href={`/reviews/${review.slug}/index.html`}>{review.title}</a>
+                {review.published_at ? (
+                  <span style="opacity:.7;margin-left:.5rem;">({new Date(review.published_at).toLocaleDateString()})</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </main>
+  </body>
+</html>

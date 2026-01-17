@@ -1,0 +1,71 @@
+---
+import type { APIContext } from "astro";
+import { getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl } from "../../lib/directus";
+import "../../styles/tierlist.css";
+
+// Static generation: /tiers/<slug> for each published tier list
+export async function getStaticPaths() {
+  const slugs = await listPublishedTierListSlugs();
+  return slugs.map((slug) => ({ params: { slug } }));
+}
+
+const { slug } = Astro.params;
+if (!slug) throw new Error("Missing slug param");
+
+const tierList = await getPublishedTierListBySlug(slug);
+if (!tierList) return Astro.redirect("/404");
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{tierList.title}</title>
+    <meta name="description" content={tierList.description ?? tierList.title} />
+  </head>
+  <body style="background:#0b0b0b;margin:0;">
+    <header style="position:sticky;top:0;background:#0d0d0d;border-bottom:1px solid #1e1e1e;padding:16px 24px;z-index:10;">
+      <nav style="display:flex;gap:16px;flex-wrap:wrap;">
+        <a href="/" style="color:#9aa6ff;text-decoration:none;">Home</a>
+        <a href="/games/index.html" style="color:#9aa6ff;text-decoration:none;">Games</a>
+        <a href="/reviews/index.html" style="color:#9aa6ff;text-decoration:none;">Reviews</a>
+        <a href="/tiers/index.html" style="color:#9aa6ff;text-decoration:none;">Tiers</a>
+      </nav>
+    </header>
+    <main class="tier-page">
+      <h1 class="tier-title">{tierList.title}</h1>
+      {tierList.description && <p class="tier-desc">{tierList.description}</p>}
+
+      <section class="tier-board" aria-label="Tier list">
+        {tierList.tier_rows.map((row) => (
+          <div class="tier-row">
+            <div class="tier-label" style={`background:${row.color};`}>
+              {row.label}
+            </div>
+
+            <div class="tier-cells">
+              {row.tier_entries.length === 0 ? (
+                <div class="tier-empty">No entries</div>
+              ) : (
+                row.tier_entries.map((entry) => {
+                  const img = fileUrl(entry.game.cover_image);
+                  return (
+                    <a class="tier-thumb" href={`/games/${entry.game.slug}/index.html`} title={entry.game.title}>
+                      {img ? (
+                        <img src={img} alt={entry.game.title} loading="lazy" />
+                      ) : (
+                        <span style="display:flex;align-items:center;justify-content:center;height:100%;color:#aaa;font-size:12px;">
+                          No image
+                        </span>
+                      )}
+                    </a>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        ))}
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,135 @@
+version: "3.9"
+
+# TrueNAS / Docker Compose stack:
+# - directus: local-only CMS admin UI (put behind VPN / don't expose publicly)
+# - db: Postgres for Directus
+# - builder: webhook receiver that rebuilds Astro and publishes to S3 + (optional) CloudFront invalidation
+#
+# Expected folder layout on the TrueNAS host:
+#   ./docker-compose.yml
+#   ./builder/Dockerfile
+#   ./builder/server.js
+#   ./builder/run-build.sh
+#   ./site/              (your Astro project repo; contains package.json)
+#
+# Notes:
+# - Directus storage for media is configured via env vars (S3). Directus does NOT need local uploads storage.
+# - The builder container mounts ./site read-only and produces /tmp build output inside the container.
+# - Use a reverse proxy (or TrueNAS ingress) if you want a nice local URL; otherwise access by IP:port.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cms-db
+    environment:
+      POSTGRES_DB: directus
+      POSTGRES_USER: directus
+      POSTGRES_PASSWORD: ${DIRECTUS_DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U directus -d directus"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - cms_net
+
+  directus:
+    image: directus/directus:latest
+    container_name: cms-directus
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Core
+      KEY: ${DIRECTUS_KEY}
+      SECRET: ${DIRECTUS_SECRET}
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD}
+
+      # Database
+      DB_CLIENT: pg
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: directus
+      DB_USER: directus
+      DB_PASSWORD: ${DIRECTUS_DB_PASSWORD}
+
+      # App
+      PUBLIC_URL: ${DIRECTUS_PUBLIC_URL}
+
+      # Storage (S3) for uploaded files (screenshots, etc.)
+      STORAGE_LOCATIONS: s3
+      STORAGE_S3_DRIVER: s3
+      STORAGE_S3_KEY: ${AWS_ACCESS_KEY_ID}
+      STORAGE_S3_SECRET: ${AWS_SECRET_ACCESS_KEY}
+      STORAGE_S3_BUCKET: ${AWS_S3_BUCKET}
+      STORAGE_S3_REGION: ${AWS_REGION}
+      # Optional custom endpoint if you ever move to S3-compatible storage (e.g., MinIO/R2):
+      # STORAGE_S3_ENDPOINT:
+      # STORAGE_S3_FORCE_PATH_STYLE: "true"
+
+      # Optional prefix for uploaded media. Directus will store objects under this prefix.
+      STORAGE_S3_ROOT: media
+
+      # Optional: make Directus return CloudFront URLs for assets instead of raw S3 URLs
+      # (Recommended) Set this to your CloudFront domain, e.g. https://d123.cloudfront.net
+      ASSETS_URL: ${ASSETS_URL}
+
+    # Expose locally only. On TrueNAS you can bind to a LAN interface if you want.
+    ports:
+      - "8055:8055"
+    restart: unless-stopped
+    networks:
+      - cms_net
+
+  builder:
+    build:
+      context: ./builder
+      dockerfile: Dockerfile
+    container_name: site-builder
+    depends_on:
+      - directus
+    environment:
+      # Webhook auth shared secret. Set to a long random value in your .env.
+      WEBHOOK_SECRET: ${BUILDER_WEBHOOK_SECRET}
+
+      # Where the Astro project lives in the container
+      ASTRO_DIR: /work/site
+
+      # Optional: if you want to pass the Directus URL into build-time env (Astro can read it)
+      DIRECTUS_URL: ${DIRECTUS_PUBLIC_URL}
+
+      # Publish target
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+
+      # Optional CloudFront invalidation:
+      CLOUDFRONT_DISTRIBUTION_ID: ${CLOUDFRONT_DISTRIBUTION_ID}
+
+      # Build behavior
+      # If true, invalidates /* after publishing (counts as 1 path)
+      INVALIDATE_ON_PUBLISH: ${INVALIDATE_ON_PUBLISH:-true}
+      # Debounce window in seconds; multiple CMS events within this window result in one build
+      DEBOUNCE_SECONDS: ${DEBOUNCE_SECONDS:-20}
+
+    volumes:
+      # Your Astro project source (mounted read-only for safety)
+      - ./site:/work/site:ro
+    ports:
+      # Local-only webhook receiver; do NOT expose this publicly
+      - "8099:8099"
+    restart: unless-stopped
+    networks:
+      - cms_net
+
+volumes:
+  db_data:
+
+networks:
+  cms_net:
+    driver: bridge

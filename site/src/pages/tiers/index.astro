@@ -1,0 +1,57 @@
+---
+import { directusFetchItems } from "../../lib/directus";
+
+const tiers = await directusFetchItems("tier_lists", {
+  fields: ["id", "title", "slug", "description", "updated_at"],
+  filter: { status: { _eq: "published" } },
+  sort: ["-updated_at", "title"],
+  limit: 500,
+});
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tier Lists</title>
+    <style>
+      body{background:#0b0b0b;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
+      header{position:sticky;top:0;background:#0d0d0d;border-bottom:1px solid #1e1e1e;padding:16px 24px;z-index:10;}
+      nav{display:flex;gap:16px;flex-wrap:wrap;}
+      main{padding:24px;}
+      a{color:#9aa6ff;}
+      .list{max-width:980px;margin:0 auto;}
+      .item{border:1px solid #222;border-radius:10px;padding:16px;margin:12px 0;background:#111;}
+      .desc{opacity:.85;margin-top:.4rem;}
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/games/index.html">Games</a>
+        <a href="/reviews/index.html">Reviews</a>
+        <a href="/tiers/index.html">Tiers</a>
+      </nav>
+    </header>
+    <main>
+      <div class="list">
+        <h1>Tier Lists</h1>
+        {tiers.length === 0 ? (
+          <p>No tier lists yet.</p>
+        ) : (
+          tiers.map((t) => (
+            <div class="item">
+              <a href={`/tiers/${t.slug}/index.html`}>{t.title}</a>
+              {t.updated_at ? (
+                <div class="desc">Updated: {new Date(t.updated_at).toLocaleDateString()}</div>
+              ) : null}
+              {t.description ? <div class="desc">{t.description}</div> : null}
+            </div>
+          ))
+        )}
+      </div>
+    </main>
+  </body>
+</html>

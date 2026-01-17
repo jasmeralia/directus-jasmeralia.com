@@ -1,0 +1,206 @@
+---
+import { marked } from "marked";
+import { directusFetchItems, fileUrl } from "../../lib/directus";
+
+export async function getStaticPaths() {
+  const reviews = await directusFetchItems("reviews", {
+    fields: ["slug"],
+    filter: { status: { _eq: "published" } },
+    limit: 500,
+    sort: ["-published_at"],
+  });
+
+  return reviews
+    .filter((r) => !!r.slug)
+    .map((r) => ({ params: { slug: r.slug } }));
+}
+
+const { slug } = Astro.params;
+
+const reviews = await directusFetchItems("reviews", {
+  fields: [
+    "id",
+    "title",
+    "slug",
+    "rating",
+    "summary",
+    "body",
+    "published_at",
+    "game.id",
+    "game.title",
+    "game.slug",
+    "game.cover_image.id",
+    "game.cover_image.filename_disk",
+  ],
+  filter: { slug: { _eq: slug }, status: { _eq: "published" } },
+  limit: 1,
+});
+
+const review = reviews?.[0];
+if (!review) {
+  throw new Error(`Review not found for slug: ${slug}`);
+}
+
+const cover = fileUrl(review.game?.cover_image);
+const published = review.published_at;
+const screenshots = await directusFetchItems("review_screenshots", {
+  fields: ["id", "sort", "caption", "file.id", "file.filename_disk"],
+  filter: { review: { _eq: review.id } },
+  sort: ["sort"],
+  limit: 200,
+});
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{review.title}</title>
+    <style>
+      body { background: #0b0b0b; color: #eaeaea; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
+      header{position:sticky;top:0;background:#0d0d0d;border-bottom:1px solid #1e1e1e;padding:16px 24px;z-index:10;}
+      nav{display:flex;gap:16px;flex-wrap:wrap;}
+      a { color: #8ab4f8; }
+      .container { max-width: 980px; margin: 0 auto; padding: 24px; }
+      .hero { display: block; }
+      .cover { width: 320px; background: #000; border: 1px solid #2b2b2b; border-radius: 12px; padding: 10px; }
+      .cover img { width: 100%; height: auto; object-fit: contain; display: block; }
+      .meta { opacity: .8; margin-top: .35rem; }
+      .content :global(p){line-height:1.6;}
+      .content :global(a){color:#8ab4f8;}
+      .content :global(code){background:#222;padding:2px 4px;border-radius:4px;}
+      .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:1rem;}
+      .shot{background:#0e0e0e;border:1px solid #222;border-radius:10px;overflow:hidden;}
+      .shot img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;}
+      .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:100;}
+      .lightbox.open{display:flex;}
+      .lightbox img{max-width:92vw;max-height:90vh;object-fit:contain;}
+      .lightbox-controls{position:fixed;top:16px;right:16px;display:flex;gap:8px;}
+      .lightbox-btn{background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:.4rem .6rem;cursor:pointer;}
+      .lightbox-nav{position:fixed;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;pointer-events:none;}
+      .lightbox-nav button{pointer-events:auto;}
+      .lightbox-caption{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;color:#eaeaea;text-align:center;font-size:.95rem;background:rgba(0,0,0,.6);padding:.4rem .75rem;border-radius:8px;border:1px solid #222;}
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/games/index.html">Games</a>
+        <a href="/reviews/index.html">Reviews</a>
+        <a href="/tiers/index.html">Tiers</a>
+      </nav>
+    </header>
+    <main class="container">
+      <section class="hero">
+        <h1>{review.title}</h1>
+        {review.game ? (
+          <div class="meta">
+            Game: <a href={`/games/${review.game.slug}/index.html`}>{review.game.title}</a>
+          </div>
+        ) : null}
+        {cover ? (
+          <div class="cover" style="margin-top:1rem;">
+            <img src={cover} alt={review.title} loading="lazy" />
+          </div>
+        ) : null}
+        {typeof review.rating === "number" ? <div class="meta" style="margin-top:.75rem;">Rating: {review.rating}/10</div> : null}
+        {published ? <div class="meta">Published: {new Date(published).toLocaleDateString()}</div> : null}
+      </section>
+
+      {review.summary ? (
+        <p class="meta" style="margin-top:1rem;">{review.summary}</p>
+      ) : null}
+
+      {review.body ? (
+        <div class="content" set:html={marked.parse(review.body)} />
+      ) : (
+        <p>No review body yet.</p>
+      )}
+
+      {screenshots.length ? (
+        <section style="margin-top:2rem;">
+          <h2>Screenshots</h2>
+          <div class="shots">
+            {screenshots.map((shot) => {
+              const img = fileUrl(shot.file);
+              return (
+                <div class="shot">
+                  {img ? <img src={img} alt={review.title} loading="lazy" data-shot data-src={img} data-caption={shot.caption || ""} /> : null}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+    </main>
+    <div class="lightbox" id="lightbox" aria-hidden="true">
+      <div class="lightbox-nav">
+        <button class="lightbox-btn" id="lightbox-prev" type="button">Prev</button>
+        <button class="lightbox-btn" id="lightbox-next" type="button">Next</button>
+      </div>
+      <img id="lightbox-img" alt="" />
+      <div class="lightbox-caption" id="lightbox-caption" hidden></div>
+      <div class="lightbox-controls">
+        <button class="lightbox-btn" id="lightbox-close" type="button">Close</button>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const shots = Array.from(document.querySelectorAll("[data-shot]"));
+        if (shots.length === 0) return;
+
+        const box = document.getElementById("lightbox");
+        const img = document.getElementById("lightbox-img");
+        const closeBtn = document.getElementById("lightbox-close");
+        const prevBtn = document.getElementById("lightbox-prev");
+        const nextBtn = document.getElementById("lightbox-next");
+        const caption = document.getElementById("lightbox-caption");
+        let index = 0;
+
+        const open = (i) => {
+          index = i;
+          const src = shots[index].getAttribute("data-src");
+          if (!src) return;
+          img.src = src;
+          const cap = shots[index].getAttribute("data-caption") || "";
+          if (caption) {
+            caption.textContent = cap;
+            caption.hidden = !cap;
+          }
+          box.classList.add("open");
+          box.setAttribute("aria-hidden", "false");
+        };
+        const close = () => {
+          box.classList.remove("open");
+          box.setAttribute("aria-hidden", "true");
+          img.removeAttribute("src");
+          if (caption) {
+            caption.textContent = "";
+            caption.hidden = true;
+          }
+        };
+        const next = () => open((index + 1) % shots.length);
+        const prev = () => open((index - 1 + shots.length) % shots.length);
+
+        shots.forEach((el, i) => {
+          el.addEventListener("click", () => open(i));
+        });
+
+        closeBtn.addEventListener("click", close);
+        box.addEventListener("click", (e) => {
+          if (e.target === box) close();
+        });
+        nextBtn.addEventListener("click", (e) => { e.stopPropagation(); next(); });
+        prevBtn.addEventListener("click", (e) => { e.stopPropagation(); prev(); });
+        document.addEventListener("keydown", (e) => {
+          if (!box.classList.contains("open")) return;
+          if (e.key === "Escape") close();
+          if (e.key === "ArrowRight") next();
+          if (e.key === "ArrowLeft") prev();
+        });
+      })();
+    </script>
+  </body>
+</html>
