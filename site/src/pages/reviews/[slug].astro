@@ -75,9 +75,13 @@ const screenshots = await directusFetchItems("review_screenshots", {
       .lightbox-nav{position:fixed;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;pointer-events:none;}
       .lightbox-nav button{pointer-events:auto;}
       .lightbox-caption{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;color:#eaeaea;text-align:center;font-size:.95rem;background:rgba(0,0,0,.6);padding:.4rem .75rem;border-radius:8px;border:1px solid #222;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
     </style>
   </div>
   <main class="container">
+      <div class="panel">
       <section class="hero">
         <h1>{review.title}</h1>
         {review.game ? (
@@ -122,6 +126,7 @@ const screenshots = await directusFetchItems("review_screenshots", {
       {published ? (
         <div class="meta" style="margin-top:1.5rem;">Published: {formatDate(published)}</div>
       ) : null}
+      </div>
 
   </main>
   <div class="lightbox" id="lightbox" aria-hidden="true">

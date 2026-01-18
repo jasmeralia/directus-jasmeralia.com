@@ -15,23 +15,28 @@ const reviews = await directusFetchItems('reviews', {
   <div slot="head">
     <style>
       main{max-width:1100px;margin:0 auto;padding:24px;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
     </style>
   </div>
   <main>
-      <h1>Reviews</h1>
-      {reviews.length === 0 ? (
-        <p>No reviews yet.</p>
-      ) : (
-        <ul>
-          {reviews.map((r) => (
-            <li>
-              <a href={`/reviews/${r.slug}/index.html`}>{r.title}</a>
-              {typeof r.rating === "number" ? <span> (Rating: {r.rating}/10)</span> : null}
-              {r.published_at ? <span style="opacity:.6;margin-left:.5rem;">Published: {formatDate(r.published_at)}</span> : null}
-              {r.summary ? <div style="opacity:.85;margin:.35rem 0 1rem 0;">{r.summary}</div> : null}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div class="panel">
+        <h1>Reviews</h1>
+        {reviews.length === 0 ? (
+          <p>No reviews yet.</p>
+        ) : (
+          <ul>
+            {reviews.map((r) => (
+              <li>
+                <a href={`/reviews/${r.slug}/index.html`}>{r.title}</a>
+                {typeof r.rating === "number" ? <span> (Rating: {r.rating}/10)</span> : null}
+                {r.published_at ? <span style="opacity:.6;margin-left:.5rem;">Published: {formatDate(r.published_at)}</span> : null}
+                {r.summary ? <div style="opacity:.85;margin:.35rem 0 1rem 0;">{r.summary}</div> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
   </main>
 </BaseLayout>

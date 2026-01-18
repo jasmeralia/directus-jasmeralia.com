@@ -72,6 +72,11 @@ const reviews = await directusFetchItems('reviews', {
       .meta { opacity: 0.9; }
       .section{margin-top:1.5rem;}
       .label{opacity:.7;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+      .meta a{color:#9aa6ff;}
+      .meta a:visited{color:#9aa6ff;}
     </style>
   </div>
   <main class="container">
@@ -89,19 +94,23 @@ const reviews = await directusFetchItems('reviews', {
         </div>
       </section>
 
-      <div class="section">
+      <div class="section panel">
         <div class="label">Details</div>
         <ul>
-          {game.release_year ? <li>Release year: {game.release_year}</li> : null}
-          {game.player_status ? <li>Player status: {labelize(game.player_status)}</li> : null}
+          {game.release_year ? <li><strong>Release year:</strong> {game.release_year}</li> : null}
+          {game.player_status ? (
+            <li>
+              <strong>Player status:</strong> <a href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
+            </li>
+          ) : null}
           {game.game_status ? (
             <li>
-              Game status: <a href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
+              <strong>Game status:</strong> <a href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
             </li>
           ) : null}
           {genres.length ? (
             <li>
-              Genres: {genres.map((genre, index) => (
+              <strong>Genres:</strong> {genres.map((genre, index) => (
                 <span>
                   <a href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
                   {index < genres.length - 1 ? ", " : ""}
@@ -111,7 +120,7 @@ const reviews = await directusFetchItems('reviews', {
           ) : null}
           {engines.length ? (
             <li>
-              Engines: {engines.map((engine, index) => (
+              <strong>Engines:</strong> {engines.map((engine, index) => (
                 <span>
                   <a href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
                   {index < engines.length - 1 ? ", " : ""}
