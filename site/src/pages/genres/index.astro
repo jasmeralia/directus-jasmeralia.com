@@ -1,0 +1,41 @@
+---
+import Nav from "../../components/Nav.astro";
+import { directusFetchItems } from "../../lib/directus";
+
+const genres = await directusFetchItems("genres", {
+  fields: ["id", "name", "slug"],
+  sort: ["name"],
+  limit: 500,
+});
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Genres</title>
+    <style>
+      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
+      main{max-width:980px;margin:0 auto;padding:24px;}
+      a{color:#9aa6ff;}
+      ul{list-style:disc;padding-left:20px;}
+    </style>
+      <link rel="icon" href="/favicon.ico" sizes="any" />
+  </head>
+  <body>
+    <Nav />
+    <main>
+      <h1>Genres</h1>
+      {genres.length === 0 ? (
+        <p>No genres yet.</p>
+      ) : (
+        <ul>
+          {genres.map((genre) => (
+            <li><a href={`/genres/${genre.slug}/index.html`}>{genre.name}</a></li>
+          ))}
+        </ul>
+      )}
+    </main>
+  </body>
+</html>

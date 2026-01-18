@@ -1,4 +1,5 @@
 ---
+import Nav from "../../components/Nav.astro";
 import { directusFetchItems, fileUrl } from '../../lib/directus';
 
 const games = await directusFetchItems('games', {
@@ -32,32 +33,24 @@ const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Games</title>
     <style>
-      body{background:#0b0b0b;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0;}
-      header{position:sticky;top:0;background:#0d0d0d;border-bottom:1px solid #1e1e1e;padding:16px 24px;z-index:10;}
-      nav{display:flex;gap:16px;flex-wrap:wrap;}
+      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0;}
       a{color:#9aa7ff;}
       main{padding:2rem;}
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
       .card{border:1px solid #2b2b2b;border-radius:12px;overflow:hidden;background:#111;}
       .card a{color:inherit;text-decoration:none;display:block;}
-      .thumb{aspect-ratio:16/9;background:#000;display:flex;align-items:center;justify-content:center;}
-      .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+      .thumb{aspect-ratio:2/3;background:#000;display:flex;align-items:center;justify-content:center;}
+      .thumb img{width:100%;height:100%;object-fit:contain;display:block;}
       .meta{padding:.75rem 1rem;}
       .title{font-weight:700;}
       .year{opacity:.75;font-size:.9rem;}
       .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem;}
       .tag{font-size:.75rem;padding:.2rem .5rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;opacity:.9;}
     </style>
+      <link rel="icon" href="/favicon.ico" sizes="any" />
   </head>
   <body>
-    <header>
-      <nav>
-        <a href="/">Home</a>
-        <a href="/games/index.html">Games</a>
-        <a href="/reviews/index.html">Reviews</a>
-        <a href="/tiers/index.html">Tiers</a>
-      </nav>
-    </header>
+    <Nav />
     <main>
       <h1>Games</h1>
       <div class="grid">

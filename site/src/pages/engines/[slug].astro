@@ -1,0 +1,85 @@
+---
+import Nav from "../../components/Nav.astro";
+import { directusFetchItems, fileUrl } from "../../lib/directus";
+
+export async function getStaticPaths() {
+  const engines = await directusFetchItems("engines", {
+    fields: ["slug"],
+    limit: 500,
+    sort: ["title"],
+  });
+
+  return engines
+    .filter((engine) => !!engine.slug)
+    .map((engine) => ({ params: { slug: engine.slug } }));
+}
+
+const { slug } = Astro.params;
+
+const engines = await directusFetchItems("engines", {
+  fields: ["id", "title", "slug"],
+  filter: { slug: { _eq: slug } },
+  limit: 1,
+});
+
+const engine = engines?.[0];
+if (!engine) {
+  throw new Error(`Engine not found for slug: ${slug}`);
+}
+
+const games = await directusFetchItems("games", {
+  fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk"],
+  filter: { engines: { engines_id: { slug: { _eq: slug } } } },
+  sort: ["title"],
+  limit: 500,
+});
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{engine.title}</title>
+    <style>
+      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0;}
+      a{color:#9aa7ff;}
+      main{padding:2rem;max-width:1100px;margin:0 auto;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .card{border:1px solid #2b2b2b;border-radius:12px;overflow:hidden;background:#111;}
+      .card a{color:inherit;text-decoration:none;display:block;}
+      .thumb{aspect-ratio:2/3;background:#000;display:flex;align-items:center;justify-content:center;}
+      .thumb img{width:100%;height:100%;object-fit:contain;display:block;}
+      .meta{padding:.75rem 1rem;}
+      .title{font-weight:700;}
+    </style>
+      <link rel="icon" href="/favicon.ico" sizes="any" />
+  </head>
+  <body>
+    <Nav />
+    <main>
+      <h1>{engine.title}</h1>
+      {games.length === 0 ? (
+        <p>No games found for this engine.</p>
+      ) : (
+        <div class="grid">
+          {games.map((g) => {
+            const img = g.cover_image ? fileUrl(g.cover_image as any) : null;
+            return (
+              <div class="card">
+                <a href={`/games/${g.slug}/index.html`}>
+                  <div class="thumb">
+                    {img ? <img src={img} alt={g.title} loading="lazy" /> : <span>No cover</span>}
+                  </div>
+                  <div class="meta">
+                    <div class="title">{g.title}</div>
+                  </div>
+                </a>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </main>
+  </body>
+</html>

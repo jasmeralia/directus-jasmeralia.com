@@ -1,4 +1,5 @@
 ---
+import Nav from "../../components/Nav.astro";
 import { directusFetchItems } from "../../lib/directus";
 
 const tiers = await directusFetchItems("tier_lists", {
@@ -16,25 +17,17 @@ const tiers = await directusFetchItems("tier_lists", {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tier Lists</title>
     <style>
-      body{background:#0b0b0b;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
-      header{position:sticky;top:0;background:#0d0d0d;border-bottom:1px solid #1e1e1e;padding:16px 24px;z-index:10;}
-      nav{display:flex;gap:16px;flex-wrap:wrap;}
+      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
       main{padding:24px;}
       a{color:#9aa6ff;}
       .list{max-width:980px;margin:0 auto;}
       .item{border:1px solid #222;border-radius:10px;padding:16px;margin:12px 0;background:#111;}
       .desc{opacity:.85;margin-top:.4rem;}
     </style>
+      <link rel="icon" href="/favicon.ico" sizes="any" />
   </head>
   <body>
-    <header>
-      <nav>
-        <a href="/">Home</a>
-        <a href="/games/index.html">Games</a>
-        <a href="/reviews/index.html">Reviews</a>
-        <a href="/tiers/index.html">Tiers</a>
-      </nav>
-    </header>
+    <Nav />
     <main>
       <div class="list">
         <h1>Tier Lists</h1>

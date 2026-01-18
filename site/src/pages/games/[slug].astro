@@ -1,4 +1,5 @@
 ---
+import Nav from "../../components/Nav.astro";
 import { directusFetchItems, fileUrl } from '../../lib/directus';
 
 export async function getStaticPaths() {
@@ -29,9 +30,11 @@ const games = await directusFetchItems('games', {
     'genres.id',
     'genres.genres_id.id',
     'genres.genres_id.name',
+    'genres.genres_id.slug',
     'engines.id',
     'engines.engines_id.id',
     'engines.engines_id.title',
+    'engines.engines_id.slug',
   ],
   filter: { slug: { _eq: slug } },
   limit: 1,
@@ -44,8 +47,12 @@ if (!game) {
 
 const cover = fileUrl(game.cover_image);
 const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
-const genres = (game.genres ?? []).map((genre) => genre?.genres_id?.name).filter(Boolean);
-const engines = (game.engines ?? []).map((engine) => engine?.engines_id?.title).filter(Boolean);
+const genres = (game.genres ?? [])
+  .map((genre) => genre?.genres_id)
+  .filter((value) => value && value.name && value.slug);
+const engines = (game.engines ?? [])
+  .map((engine) => engine?.engines_id)
+  .filter((value) => value && value.title && value.slug);
 const reviews = await directusFetchItems('reviews', {
   fields: ['id', 'title', 'slug', 'published_at'],
   filter: { status: { _eq: "published" }, game: { _eq: game.id } },
@@ -61,9 +68,7 @@ const reviews = await directusFetchItems('reviews', {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{game.title}</title>
     <style>
-      body { background: #0b0b0b; color: #eaeaea; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
-      header{position:sticky;top:0;background:#0d0d0d;border-bottom:1px solid #1e1e1e;padding:16px 24px;z-index:10;}
-      nav{display:flex;gap:16px;flex-wrap:wrap;}
+      body { background: #000010; color: #eaeaea; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
       .container { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
       .header { display: flex; gap: 1rem; align-items: center; }
       .cover { width: 320px; background: #000; border: 1px solid #2b2b2b; border-radius: 10px; padding: 10px; }
@@ -73,16 +78,10 @@ const reviews = await directusFetchItems('reviews', {
       .section{margin-top:1.5rem;}
       .label{opacity:.7;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;}
     </style>
+      <link rel="icon" href="/favicon.ico" sizes="any" />
   </head>
   <body>
-    <header>
-      <nav>
-        <a href="/">Home</a>
-        <a href="/games/index.html">Games</a>
-        <a href="/reviews/index.html">Reviews</a>
-        <a href="/tiers/index.html">Tiers</a>
-      </nav>
-    </header>
+    <Nav />
     <main class="container">
       <section class="header">
         <div class="cover">
@@ -104,9 +103,31 @@ const reviews = await directusFetchItems('reviews', {
         <ul>
           {game.release_year ? <li>Release year: {game.release_year}</li> : null}
           {game.player_status ? <li>Player status: {labelize(game.player_status)}</li> : null}
-          {game.game_status ? <li>Game status: {labelize(game.game_status)}</li> : null}
-          {genres.length ? <li>Genres: {genres.join(", ")}</li> : null}
-          {engines.length ? <li>Engines: {engines.join(", ")}</li> : null}
+          {game.game_status ? (
+            <li>
+              Game status: <a href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
+            </li>
+          ) : null}
+          {genres.length ? (
+            <li>
+              Genres: {genres.map((genre, index) => (
+                <span>
+                  <a href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
+                  {index < genres.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </li>
+          ) : null}
+          {engines.length ? (
+            <li>
+              Engines: {engines.map((engine, index) => (
+                <span>
+                  <a href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
+                  {index < engines.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </li>
+          ) : null}
         </ul>
       </div>
 

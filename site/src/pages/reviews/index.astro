@@ -1,8 +1,9 @@
 ---
+import Nav from "../../components/Nav.astro";
 import { directusFetchItems } from '../../lib/directus';
 
 const reviews = await directusFetchItems('reviews', {
-  fields: ['id', 'title', 'slug', 'published_at', 'summary'],
+  fields: ['id', 'title', 'slug', 'published_at', 'summary', 'rating'],
   filter: { status: { _eq: "published" } },
   sort: ['-published_at', 'title'],
   limit: 500,
@@ -16,22 +17,14 @@ const reviews = await directusFetchItems('reviews', {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Reviews</title>
     <style>
-      body{background:#0b0b0b;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
-      header{position:sticky;top:0;background:#0d0d0d;border-bottom:1px solid #1e1e1e;padding:16px 24px;z-index:10;}
-      nav{display:flex;gap:16px;flex-wrap:wrap;}
+      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
       main{max-width:1100px;margin:0 auto;padding:24px;}
       a{color:#9aa6ff;}
     </style>
+      <link rel="icon" href="/favicon.ico" sizes="any" />
   </head>
   <body>
-    <header>
-      <nav>
-        <a href="/">Home</a>
-        <a href="/games/index.html">Games</a>
-        <a href="/reviews/index.html">Reviews</a>
-        <a href="/tiers/index.html">Tiers</a>
-      </nav>
-    </header>
+    <Nav />
     <main>
       <h1>Reviews</h1>
       {reviews.length === 0 ? (
@@ -41,6 +34,7 @@ const reviews = await directusFetchItems('reviews', {
           {reviews.map((r) => (
             <li>
               <a href={`/reviews/${r.slug}/index.html`}>{r.title}</a>
+              {typeof r.rating === "number" ? <span> (Rating: {r.rating}/10)</span> : null}
               {r.published_at ? <span style="opacity:.6;margin-left:.5rem;">({new Date(r.published_at).toLocaleDateString()})</span> : null}
               {r.summary ? <div style="opacity:.85;margin:.35rem 0 1rem 0;">{r.summary}</div> : null}
             </li>

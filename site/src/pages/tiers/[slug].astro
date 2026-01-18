@@ -1,5 +1,6 @@
 ---
 import type { APIContext } from "astro";
+import Nav from "../../components/Nav.astro";
 import { getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl } from "../../lib/directus";
 import "../../styles/tierlist.css";
 
@@ -22,16 +23,10 @@ if (!tierList) return Astro.redirect("/404");
     <meta name="viewport" content="width=device-width" />
     <title>{tierList.title}</title>
     <meta name="description" content={tierList.description ?? tierList.title} />
+      <link rel="icon" href="/favicon.ico" sizes="any" />
   </head>
-  <body style="background:#0b0b0b;margin:0;">
-    <header style="position:sticky;top:0;background:#0d0d0d;border-bottom:1px solid #1e1e1e;padding:16px 24px;z-index:10;">
-      <nav style="display:flex;gap:16px;flex-wrap:wrap;">
-        <a href="/" style="color:#9aa6ff;text-decoration:none;">Home</a>
-        <a href="/games/index.html" style="color:#9aa6ff;text-decoration:none;">Games</a>
-        <a href="/reviews/index.html" style="color:#9aa6ff;text-decoration:none;">Reviews</a>
-        <a href="/tiers/index.html" style="color:#9aa6ff;text-decoration:none;">Tiers</a>
-      </nav>
-    </header>
+  <body style="background:#000010;margin:0;">
+    <Nav />
     <main class="tier-page">
       <h1 class="tier-title">{tierList.title}</h1>
       {tierList.description && <p class="tier-desc">{tierList.description}</p>}

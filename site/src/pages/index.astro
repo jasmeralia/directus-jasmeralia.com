@@ -1,12 +1,16 @@
 ---
 import { marked } from "marked";
-import { directusFetchItems } from "../lib/directus";
+import Nav from "../components/Nav.astro";
+import { directusFetchItems, fileUrl } from "../lib/directus";
 
 const news = await directusFetchItems<{ id: number; date_created: string; body: string }>("news", {
+  // Shared homepage image stored in Directus
   fields: ["id", "date_created", "body"],
   sort: ["-date_created"],
   limit: 50,
 });
+
+const heroImage = fileUrl({ id: "dbb5a08e-b388-46f3-9841-674fb82337f0", filename_disk: "dbb5a08e-b388-46f3-9841-674fb82337f0.png" });
 ---
 
 <!doctype html>
@@ -16,28 +20,27 @@ const news = await directusFetchItems<{ id: number; date_created: string; body: 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Games</title>
     <style>
-      body{background:#0b0b0b;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
+      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
       a{color:#9aa6ff;text-decoration:none;}
-      header{padding:24px;border-bottom:1px solid #1e1e1e;background:#0d0d0d;position:sticky;top:0;}
-      nav{display:flex;gap:16px;flex-wrap:wrap;}
       main{max-width:960px;margin:0 auto;padding:24px;}
       .news-item{border:1px solid #232323;border-radius:12px;padding:16px;margin:16px 0;background:#111;}
       .news-date{font-size:.85rem;opacity:.7;margin-bottom:8px;}
       .news-body :global(p){margin:0 0 12px 0;}
       .news-body :global(a){color:#8ab4f8;}
       .news-body :global(code){background:#222;padding:2px 4px;border-radius:4px;}
+      .hero-image{margin:1.25rem 0 1.75rem 0;}
+      .hero-image img{width:100%;max-width:720px;height:auto;display:block;margin:0 auto;border-radius:12px;}
     </style>
+      <link rel="icon" href="/favicon.ico" sizes="any" />
   </head>
   <body>
-    <header>
-      <nav>
-        <a href="/">Home</a>
-        <a href="/games/index.html">Games</a>
-        <a href="/reviews/index.html">Reviews</a>
-        <a href="/tiers/index.html">Tiers</a>
-      </nav>
-    </header>
+    <Nav />
     <main>
+      {heroImage ? (
+        <div class="hero-image">
+          <img src={heroImage} alt="Jasmeralia" loading="lazy" />
+        </div>
+      ) : null}
       <h1>News</h1>
       {news.length === 0 ? (
         <p>No news yet.</p>

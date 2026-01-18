@@ -1,5 +1,6 @@
 ---
 import { marked } from "marked";
+import Nav from "../../components/Nav.astro";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
 
 export async function getStaticPaths() {
@@ -58,9 +59,7 @@ const screenshots = await directusFetchItems("review_screenshots", {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{review.title}</title>
     <style>
-      body { background: #0b0b0b; color: #eaeaea; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
-      header{position:sticky;top:0;background:#0d0d0d;border-bottom:1px solid #1e1e1e;padding:16px 24px;z-index:10;}
-      nav{display:flex;gap:16px;flex-wrap:wrap;}
+      body { background: #000010; color: #eaeaea; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
       a { color: #8ab4f8; }
       .container { max-width: 980px; margin: 0 auto; padding: 24px; }
       .hero { display: block; }
@@ -82,16 +81,10 @@ const screenshots = await directusFetchItems("review_screenshots", {
       .lightbox-nav button{pointer-events:auto;}
       .lightbox-caption{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;color:#eaeaea;text-align:center;font-size:.95rem;background:rgba(0,0,0,.6);padding:.4rem .75rem;border-radius:8px;border:1px solid #222;}
     </style>
+      <link rel="icon" href="/favicon.ico" sizes="any" />
   </head>
   <body>
-    <header>
-      <nav>
-        <a href="/">Home</a>
-        <a href="/games/index.html">Games</a>
-        <a href="/reviews/index.html">Reviews</a>
-        <a href="/tiers/index.html">Tiers</a>
-      </nav>
-    </header>
+    <Nav />
     <main class="container">
       <section class="hero">
         <h1>{review.title}</h1>
@@ -106,7 +99,7 @@ const screenshots = await directusFetchItems("review_screenshots", {
           </div>
         ) : null}
         {typeof review.rating === "number" ? <div class="meta" style="margin-top:.75rem;">Rating: {review.rating}/10</div> : null}
-        {published ? <div class="meta">Published: {new Date(published).toLocaleDateString()}</div> : null}
+        {published ? <div class="meta" style="margin-top:.35rem;">Published: {new Date(published).toLocaleDateString()}</div> : null}
       </section>
 
       {review.summary ? (
