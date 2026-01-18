@@ -1,5 +1,5 @@
 ---
-import Nav from "../../components/Nav.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
 
 export async function getStaticPaths() {
@@ -35,15 +35,9 @@ const games = await directusFetchItems("games", {
 });
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{engine.title}</title>
+<BaseLayout title={engine.title}>
+  <div slot="head">
     <style>
-      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0;}
-      a{color:#9aa7ff;}
       main{padding:2rem;max-width:1100px;margin:0 auto;}
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
       .card{border:1px solid #2b2b2b;border-radius:12px;overflow:hidden;background:#111;}
@@ -53,11 +47,8 @@ const games = await directusFetchItems("games", {
       .meta{padding:.75rem 1rem;}
       .title{font-weight:700;}
     </style>
-      <link rel="icon" href="/favicon.ico" sizes="any" />
-  </head>
-  <body>
-    <Nav />
-    <main>
+  </div>
+  <main>
       <h1>{engine.title}</h1>
       {games.length === 0 ? (
         <p>No games found for this engine.</p>
@@ -80,6 +71,5 @@ const games = await directusFetchItems("games", {
           })}
         </div>
       )}
-    </main>
-  </body>
-</html>
+  </main>
+</BaseLayout>

@@ -1,6 +1,7 @@
 ---
-import Nav from "../../components/Nav.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from '../../lib/directus';
+import { formatDate } from "../../lib/date";
 
 const reviews = await directusFetchItems('reviews', {
   fields: ['id', 'title', 'slug', 'published_at', 'summary', 'rating'],
@@ -10,22 +11,13 @@ const reviews = await directusFetchItems('reviews', {
 });
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Reviews</title>
+<BaseLayout title="Reviews">
+  <div slot="head">
     <style>
-      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
       main{max-width:1100px;margin:0 auto;padding:24px;}
-      a{color:#9aa6ff;}
     </style>
-      <link rel="icon" href="/favicon.ico" sizes="any" />
-  </head>
-  <body>
-    <Nav />
-    <main>
+  </div>
+  <main>
       <h1>Reviews</h1>
       {reviews.length === 0 ? (
         <p>No reviews yet.</p>
@@ -35,12 +27,11 @@ const reviews = await directusFetchItems('reviews', {
             <li>
               <a href={`/reviews/${r.slug}/index.html`}>{r.title}</a>
               {typeof r.rating === "number" ? <span> (Rating: {r.rating}/10)</span> : null}
-              {r.published_at ? <span style="opacity:.6;margin-left:.5rem;">({new Date(r.published_at).toLocaleDateString()})</span> : null}
+              {r.published_at ? <span style="opacity:.6;margin-left:.5rem;">Published: {formatDate(r.published_at)}</span> : null}
               {r.summary ? <div style="opacity:.85;margin:.35rem 0 1rem 0;">{r.summary}</div> : null}
             </li>
           ))}
         </ul>
       )}
-    </main>
-  </body>
-</html>
+  </main>
+</BaseLayout>

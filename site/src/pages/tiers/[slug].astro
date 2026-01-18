@@ -1,6 +1,6 @@
 ---
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import type { APIContext } from "astro";
-import Nav from "../../components/Nav.astro";
 import { getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl } from "../../lib/directus";
 import "../../styles/tierlist.css";
 
@@ -17,17 +17,8 @@ const tierList = await getPublishedTierListBySlug(slug);
 if (!tierList) return Astro.redirect("/404");
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>{tierList.title}</title>
-    <meta name="description" content={tierList.description ?? tierList.title} />
-      <link rel="icon" href="/favicon.ico" sizes="any" />
-  </head>
-  <body style="background:#000010;margin:0;">
-    <Nav />
-    <main class="tier-page">
+<BaseLayout title={tierList.title} description={tierList.description ?? tierList.title}>
+<main class="tier-page">
       <h1 class="tier-title">{tierList.title}</h1>
       {tierList.description && <p class="tier-desc">{tierList.description}</p>}
 
@@ -42,7 +33,9 @@ if (!tierList) return Astro.redirect("/404");
               {row.tier_entries.length === 0 ? (
                 <div class="tier-empty">No entries</div>
               ) : (
-                row.tier_entries.map((entry) => {
+                [...row.tier_entries]
+                  .sort((a, b) => (a.game?.title || "").localeCompare(b.game?.title || ""))
+                  .map((entry) => {
                   const img = fileUrl(entry.game.cover_image);
                   return (
                     <a class="tier-thumb" href={`/games/${entry.game.slug}/index.html`} title={entry.game.title}>
@@ -62,5 +55,4 @@ if (!tierList) return Astro.redirect("/404");
         ))}
       </section>
     </main>
-  </body>
-</html>
+</BaseLayout>

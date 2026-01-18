@@ -1,4 +1,5 @@
 ---
+const base = (import.meta.env.ASSETS_BASE_URL ?? import.meta.env.ASSETS_URL ?? "").toString().replace(/\/$/, "");
 const links = [
   { href: "/", label: "Home" },
   { href: "/engines/index.html", label: "Engines" },
@@ -13,7 +14,7 @@ const links = [
 <header class="site-nav">
   <nav class="site-nav__inner">
     {links.map((link) => (
-      <a href={link.href}>{link.label}</a>
+      <a href={base ? `${base}${link.href}` : link.href}>{link.label}</a>
     ))}
   </nav>
 </header>

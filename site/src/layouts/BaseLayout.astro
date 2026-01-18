@@ -1,0 +1,24 @@
+---
+import Nav from "../components/Nav.astro";
+const { title = "Jasmeralia", description = "" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {description ? <meta name="description" content={description} /> : null}
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <style>
+      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
+      a{color:#9aa6ff;}
+    </style>
+    <slot name="head" />
+  </head>
+  <body>
+    <Nav />
+    <slot />
+  </body>
+</html>

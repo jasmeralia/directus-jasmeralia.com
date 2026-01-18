@@ -1,7 +1,8 @@
 ---
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { marked } from "marked";
-import Nav from "../../components/Nav.astro";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
+import { formatDate } from "../../lib/date";
 
 export async function getStaticPaths() {
   const reviews = await directusFetchItems("reviews", {
@@ -52,15 +53,9 @@ const screenshots = await directusFetchItems("review_screenshots", {
 });
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{review.title}</title>
+<BaseLayout title={review.title}>
+  <div slot="head">
     <style>
-      body { background: #000010; color: #eaeaea; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
-      a { color: #8ab4f8; }
       .container { max-width: 980px; margin: 0 auto; padding: 24px; }
       .hero { display: block; }
       .cover { width: 320px; background: #000; border: 1px solid #2b2b2b; border-radius: 12px; padding: 10px; }
@@ -81,11 +76,8 @@ const screenshots = await directusFetchItems("review_screenshots", {
       .lightbox-nav button{pointer-events:auto;}
       .lightbox-caption{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;color:#eaeaea;text-align:center;font-size:.95rem;background:rgba(0,0,0,.6);padding:.4rem .75rem;border-radius:8px;border:1px solid #222;}
     </style>
-      <link rel="icon" href="/favicon.ico" sizes="any" />
-  </head>
-  <body>
-    <Nav />
-    <main class="container">
+  </div>
+  <main class="container">
       <section class="hero">
         <h1>{review.title}</h1>
         {review.game ? (
@@ -99,7 +91,6 @@ const screenshots = await directusFetchItems("review_screenshots", {
           </div>
         ) : null}
         {typeof review.rating === "number" ? <div class="meta" style="margin-top:.75rem;">Rating: {review.rating}/10</div> : null}
-        {published ? <div class="meta" style="margin-top:.35rem;">Published: {new Date(published).toLocaleDateString()}</div> : null}
       </section>
 
       {review.summary ? (
@@ -127,8 +118,13 @@ const screenshots = await directusFetchItems("review_screenshots", {
           </div>
         </section>
       ) : null}
-    </main>
-    <div class="lightbox" id="lightbox" aria-hidden="true">
+
+      {published ? (
+        <div class="meta" style="margin-top:1.5rem;">Published: {formatDate(published)}</div>
+      ) : null}
+
+  </main>
+  <div class="lightbox" id="lightbox" aria-hidden="true">
       <div class="lightbox-nav">
         <button class="lightbox-btn" id="lightbox-prev" type="button">Prev</button>
         <button class="lightbox-btn" id="lightbox-next" type="button">Next</button>
@@ -139,7 +135,7 @@ const screenshots = await directusFetchItems("review_screenshots", {
         <button class="lightbox-btn" id="lightbox-close" type="button">Close</button>
       </div>
     </div>
-    <script>
+  <script>
       (() => {
         const shots = Array.from(document.querySelectorAll("[data-shot]"));
         if (shots.length === 0) return;
@@ -195,5 +191,4 @@ const screenshots = await directusFetchItems("review_screenshots", {
         });
       })();
     </script>
-  </body>
-</html>
+</BaseLayout>

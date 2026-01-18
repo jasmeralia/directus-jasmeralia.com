@@ -1,34 +1,37 @@
 ---
-import Nav from "../../components/Nav.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
 
 const tiers = await directusFetchItems("tier_lists", {
-  fields: ["id", "title", "slug", "description", "updated_at"],
+  fields: [
+    "id",
+    "title",
+    "slug",
+    "description",
+    "updated_at",
+    "tier_rows.id",
+    "tier_rows.tier_entries.id",
+  ],
   filter: { status: { _eq: "published" } },
   sort: ["-updated_at", "title"],
   limit: 500,
 });
+const countTierEntries = (tier) => {
+  const rows = tier?.tier_rows ?? [];
+  return rows.reduce((sum, row) => sum + ((row?.tier_entries ?? []).length), 0);
+};
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tier Lists</title>
+<BaseLayout title="Tier Lists">
+  <div slot="head">
     <style>
-      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
       main{padding:24px;}
-      a{color:#9aa6ff;}
       .list{max-width:980px;margin:0 auto;}
       .item{border:1px solid #222;border-radius:10px;padding:16px;margin:12px 0;background:#111;}
       .desc{opacity:.85;margin-top:.4rem;}
     </style>
-      <link rel="icon" href="/favicon.ico" sizes="any" />
-  </head>
-  <body>
-    <Nav />
-    <main>
+  </div>
+  <main>
       <div class="list">
         <h1>Tier Lists</h1>
         {tiers.length === 0 ? (
@@ -37,6 +40,7 @@ const tiers = await directusFetchItems("tier_lists", {
           tiers.map((t) => (
             <div class="item">
               <a href={`/tiers/${t.slug}/index.html`}>{t.title}</a>
+              <span style="opacity:.7;"> ({countTierEntries(t)})</span>
               {t.updated_at ? (
                 <div class="desc">Updated: {new Date(t.updated_at).toLocaleDateString()}</div>
               ) : null}
@@ -45,6 +49,5 @@ const tiers = await directusFetchItems("tier_lists", {
           ))
         )}
       </div>
-    </main>
-  </body>
-</html>
+  </main>
+</BaseLayout>

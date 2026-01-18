@@ -1,5 +1,5 @@
 ---
-import Nav from "../../components/Nav.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl } from '../../lib/directus';
 
 const games = await directusFetchItems('games', {
@@ -26,15 +26,9 @@ const games = await directusFetchItems('games', {
 const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Games</title>
+<BaseLayout title="Games">
+  <div slot="head">
     <style>
-      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0;}
-      a{color:#9aa7ff;}
       main{padding:2rem;}
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
       .card{border:1px solid #2b2b2b;border-radius:12px;overflow:hidden;background:#111;}
@@ -47,11 +41,8 @@ const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c
       .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem;}
       .tag{font-size:.75rem;padding:.2rem .5rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;opacity:.9;}
     </style>
-      <link rel="icon" href="/favicon.ico" sizes="any" />
-  </head>
-  <body>
-    <Nav />
-    <main>
+  </div>
+  <main>
       <h1>Games</h1>
       <div class="grid">
         {games.map((g) => {
@@ -79,6 +70,5 @@ const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c
           );
         })}
       </div>
-    </main>
-  </body>
-</html>
+  </main>
+</BaseLayout>

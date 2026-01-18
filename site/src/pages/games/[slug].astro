@@ -1,6 +1,7 @@
 ---
-import Nav from "../../components/Nav.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl } from '../../lib/directus';
+import { formatDate } from "../../lib/date";
 
 export async function getStaticPaths() {
   const games = await directusFetchItems('games', {
@@ -61,36 +62,26 @@ const reviews = await directusFetchItems('reviews', {
 });
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{game.title}</title>
+<BaseLayout title={game.title}>
+  <div slot="head">
     <style>
-      body { background: #000010; color: #eaeaea; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
       .container { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
       .header { display: flex; gap: 1rem; align-items: center; }
       .cover { width: 320px; background: #000; border: 1px solid #2b2b2b; border-radius: 10px; padding: 10px; }
       .cover img { width: 100%; height: auto; object-fit: contain; display: block; }
-      a { color: #8ab4f8; }
       .meta { opacity: 0.9; }
       .section{margin-top:1.5rem;}
       .label{opacity:.7;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;}
     </style>
-      <link rel="icon" href="/favicon.ico" sizes="any" />
-  </head>
-  <body>
-    <Nav />
-    <main class="container">
+  </div>
+  <main class="container">
       <section class="header">
         <div class="cover">
           {cover ? <img src={cover} alt={game.title} loading="lazy" /> : null}
         </div>
         <div>
           <h1>{game.title}</h1>
-          {game.release_year ? <div class="meta">Release year: {game.release_year}</div> : null}
-          {game.download_url ? (
+                    {game.download_url ? (
             <div class="meta">
               <a href={game.download_url} rel="noopener noreferrer" target="_blank">Download</a>
             </div>
@@ -139,13 +130,12 @@ const reviews = await directusFetchItems('reviews', {
               <li>
                 <a href={`/reviews/${review.slug}/index.html`}>{review.title}</a>
                 {review.published_at ? (
-                  <span style="opacity:.7;margin-left:.5rem;">({new Date(review.published_at).toLocaleDateString()})</span>
+                  <span style="opacity:.7;margin-left:.5rem;">({formatDate(review.published_at)})</span>
                 ) : null}
               </li>
             ))}
           </ul>
         </div>
       ) : null}
-    </main>
-  </body>
-</html>
+  </main>
+</BaseLayout>

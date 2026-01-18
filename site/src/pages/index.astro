@@ -1,6 +1,6 @@
 ---
+import BaseLayout from "../layouts/BaseLayout.astro";
 import { marked } from "marked";
-import Nav from "../components/Nav.astro";
 import { directusFetchItems, fileUrl } from "../lib/directus";
 
 const news = await directusFetchItems<{ id: number; date_created: string; body: string }>("news", {
@@ -13,15 +13,9 @@ const news = await directusFetchItems<{ id: number; date_created: string; body: 
 const heroImage = fileUrl({ id: "dbb5a08e-b388-46f3-9841-674fb82337f0", filename_disk: "dbb5a08e-b388-46f3-9841-674fb82337f0.png" });
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Games</title>
+<BaseLayout title="Jasmeralia">
+  <div slot="head">
     <style>
-      body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
-      a{color:#9aa6ff;text-decoration:none;}
       main{max-width:960px;margin:0 auto;padding:24px;}
       .news-item{border:1px solid #232323;border-radius:12px;padding:16px;margin:16px 0;background:#111;}
       .news-date{font-size:.85rem;opacity:.7;margin-bottom:8px;}
@@ -31,11 +25,8 @@ const heroImage = fileUrl({ id: "dbb5a08e-b388-46f3-9841-674fb82337f0", filename
       .hero-image{margin:1.25rem 0 1.75rem 0;}
       .hero-image img{width:100%;max-width:720px;height:auto;display:block;margin:0 auto;border-radius:12px;}
     </style>
-      <link rel="icon" href="/favicon.ico" sizes="any" />
-  </head>
-  <body>
-    <Nav />
-    <main>
+  </div>
+  <main>
       {heroImage ? (
         <div class="hero-image">
           <img src={heroImage} alt="Jasmeralia" loading="lazy" />
@@ -52,6 +43,5 @@ const heroImage = fileUrl({ id: "dbb5a08e-b388-46f3-9841-674fb82337f0", filename
           </article>
         ))
       )}
-    </main>
-  </body>
-</html>
+  </main>
+</BaseLayout>
