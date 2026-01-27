@@ -1,0 +1,212 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { directusFetchItems } from "../../lib/directus";
+
+const games = await directusFetchItems("games", {
+  fields: ["id", "release_year"],
+  limit: 1000,
+});
+
+const yearCounts = new Map();
+let unknownCount = 0;
+
+for (const game of games) {
+  const raw = game.release_year;
+  const rawString = raw === null || raw === undefined ? "" : String(raw).trim();
+  if (!rawString) {
+    unknownCount += 1;
+    continue;
+  }
+  const year = Number(rawString);
+  if (!Number.isFinite(year)) {
+    unknownCount += 1;
+    continue;
+  }
+  yearCounts.set(year, (yearCounts.get(year) || 0) + 1);
+}
+
+const years = Array.from(yearCounts.keys()).sort((a, b) => a - b);
+const items = years.map((year) => ({ year, count: yearCounts.get(year) || 0 }));
+const maxCount = items.reduce((max, item) => Math.max(max, item.count), 1);
+
+const chartWidth = 600;
+const chartHeight = 220;
+const paddingTop = 24;
+const paddingRight = 24;
+const paddingBottom = 50;
+const paddingLeft = 56;
+const innerWidth = chartWidth - paddingLeft - paddingRight;
+const innerHeight = chartHeight - paddingTop - paddingBottom;
+const axisLabelOffset = 28;
+
+const unique = (values) => Array.from(new Set(values));
+const xTickIndices = items.map((_, index) => index);
+const yTickCount = 5;
+const yTicks = unique(
+  Array.from({ length: yTickCount }, (_, i) =>
+    Math.round((maxCount * i) / (yTickCount - 1)),
+  ),
+);
+
+const points = items
+  .map((item, index) => {
+    const x = items.length === 1
+      ? paddingLeft + innerWidth / 2
+      : paddingLeft + (innerWidth * (index / (items.length - 1)));
+    const y = paddingTop + innerHeight - (innerHeight * (item.count / maxCount));
+    return `${x},${y}`;
+  })
+  .join(" ");
+---
+
+<BaseLayout title="Release Years">
+  <div slot="head">
+    <style>
+      main{max-width:980px;margin:0 auto;padding:24px;}
+      ul{list-style:disc;padding-left:20px;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+      .chart-wrap{position:relative;}
+      .chart{width:100%;height:auto;display:block;margin-top:12px;}
+      .chart line{stroke:#2b2b2b;stroke-width:1;}
+      .chart polyline{fill:none;stroke:#d3a43b;stroke-width:2;}
+      .chart circle{fill:#d3a43b;pointer-events:all;cursor:pointer;}
+      .chart text{fill:#9aa6ff;font-size:10px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+      .chart .tick{stroke:#2b2b2b;stroke-width:1;}
+      .chart .grid{stroke:#1f1f1f;stroke-width:1;}
+      .chart-tooltip{
+        position:absolute;
+        background:#111;
+        border:1px solid #333;
+        color:#eaeaea;
+        padding:4px 6px;
+        font-size:12px;
+        border-radius:6px;
+        pointer-events:none;
+        opacity:0;
+        transform:translate(-50%,-110%);
+        transition:opacity .15s ease;
+        white-space:nowrap;
+      }
+      .chart-tooltip.show{opacity:1;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <h1>Release Years</h1>
+      {items.length === 0 && unknownCount === 0 ? (
+        <p>No games yet.</p>
+      ) : (
+        <ul>
+          {items.map((item) => (
+            <li>
+              <a href={`/releases/${item.year}/index.html`}>{item.year}</a>
+              <span style="opacity:.7;"> ({item.count})</span>
+            </li>
+          ))}
+          <li>
+            <a href="/releases/unknown/index.html">Unknown</a>
+            <span style="opacity:.7;"> ({unknownCount})</span>
+          </li>
+        </ul>
+      )}
+      {items.length === 0 ? (
+        <p>No games with release years yet.</p>
+      ) : (
+        <div class="chart-wrap">
+          <svg class="chart" viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Game count by release year">
+            <line x1={paddingLeft} y1={paddingTop + innerHeight} x2={paddingLeft + innerWidth} y2={paddingTop + innerHeight} />
+            <line x1={paddingLeft} y1={paddingTop} x2={paddingLeft} y2={paddingTop + innerHeight} />
+            {xTickIndices.map((index) => {
+              const x = items.length === 1
+                ? paddingLeft + innerWidth / 2
+                : paddingLeft + (innerWidth * (index / (items.length - 1)));
+              const y = paddingTop + innerHeight;
+              const year = items[index]?.year;
+              return (
+                <>
+                  <line class="grid" x1={x} y1={paddingTop} x2={x} y2={paddingTop + innerHeight} />
+                  <line class="tick" x1={x} y1={y} x2={x} y2={y + 4} />
+                  <text x={x} y={y + 14} text-anchor="middle">{year}</text>
+                </>
+              );
+            })}
+            {yTicks.map((count) => {
+              const y = paddingTop + innerHeight - (innerHeight * (count / maxCount));
+              return (
+                <>
+                  <line class="grid" x1={paddingLeft} y1={y} x2={paddingLeft + innerWidth} y2={y} />
+                  <line class="tick" x1={paddingLeft - 4} y1={y} x2={paddingLeft} y2={y} />
+                  <text x={paddingLeft - 12} y={y + 3} text-anchor="end">{count}</text>
+                </>
+              );
+            })}
+            <polyline points={points} />
+            {items.map((item, index) => {
+              const x = items.length === 1
+                ? paddingLeft + innerWidth / 2
+                : paddingLeft + (innerWidth * (index / (items.length - 1)));
+              const y = paddingTop + innerHeight - (innerHeight * (item.count / maxCount));
+              return (
+                <circle cx={x} cy={y} r="4" data-year={item.year} data-count={item.count} />
+              );
+            })}
+            <text x={paddingLeft + innerWidth / 2} y={paddingTop + innerHeight + axisLabelOffset + 14} text-anchor="middle">Release Year</text>
+            <text
+              x={paddingLeft - axisLabelOffset}
+              y={paddingTop + innerHeight / 2}
+              text-anchor="middle"
+              transform={`rotate(-90 ${paddingLeft - axisLabelOffset} ${paddingTop + innerHeight / 2})`}
+            >
+              Games
+            </text>
+          </svg>
+          <div class="chart-tooltip" id="release-chart-tooltip" aria-hidden="true"></div>
+        </div>
+      )}
+    </div>
+  </main>
+</BaseLayout>
+
+<script>
+  (() => {
+    const tooltip = document.getElementById("release-chart-tooltip");
+    const chart = tooltip?.previousElementSibling;
+    if (!tooltip || !(chart instanceof SVGElement)) return;
+
+    const show = (target) => {
+      const count = target.getAttribute("data-count");
+      const year = target.getAttribute("data-year");
+      if (!count || !year) return;
+      tooltip.textContent = `${year}: ${count} games`;
+      const targetRect = target.getBoundingClientRect();
+      const chartRect = chart.getBoundingClientRect();
+      const x = targetRect.left + targetRect.width / 2 - chartRect.left;
+      const y = targetRect.top - chartRect.top;
+      tooltip.style.left = `${x}px`;
+      tooltip.style.top = `${y}px`;
+      tooltip.classList.add("show");
+      tooltip.setAttribute("aria-hidden", "false");
+    };
+
+    const hide = () => {
+      tooltip.classList.remove("show");
+      tooltip.setAttribute("aria-hidden", "true");
+    };
+
+    const dots = Array.from(chart.querySelectorAll("circle[data-count]"));
+    dots.forEach((dot) => {
+      dot.addEventListener("pointerenter", () => show(dot));
+      dot.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        show(dot);
+      });
+      dot.addEventListener("pointerleave", hide);
+    });
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!event.target || !chart.contains(event.target)) hide();
+    });
+  })();
+</script>

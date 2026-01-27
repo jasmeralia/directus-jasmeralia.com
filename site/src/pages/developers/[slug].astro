@@ -1,0 +1,185 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { marked } from "marked";
+import { directusFetchItems, fileUrl } from "../../lib/directus";
+import { formatDate } from "../../lib/date";
+
+export async function getStaticPaths() {
+  const developers = await directusFetchItems("developers", {
+    fields: ["slug"],
+    limit: 500,
+    sort: ["name"],
+  });
+
+  return developers
+    .filter((developer) => !!developer.slug)
+    .map((developer) => ({ params: { slug: developer.slug } }))
+    .concat([{ params: { slug: "unknown" } }]);
+}
+
+const { slug } = Astro.params;
+
+let title = "Unknown";
+let developer = null;
+let games = [];
+let reviews = [];
+
+if (slug === "unknown") {
+  const allGames = await directusFetchItems("games", {
+    fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk", "developers.id"],
+    sort: ["title"],
+    limit: 1000,
+  });
+  games = allGames.filter((game) => (game.developers ?? []).length === 0);
+} else {
+  const developers = await directusFetchItems("developers", {
+    fields: ["*", "logo.id", "logo.filename_disk"],
+    filter: { slug: { _eq: slug } },
+    limit: 1,
+  });
+
+  developer = developers?.[0];
+  if (!developer) {
+    throw new Error(`Developer not found for slug: ${slug}`);
+  }
+  title = developer.name ?? developer.title ?? title;
+
+  games = await directusFetchItems("games", {
+    fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk"],
+    filter: { developers: { developers_id: { slug: { _eq: slug } } } },
+    sort: ["title"],
+    limit: 500,
+  });
+}
+
+const logo = developer?.logo ? fileUrl(developer.logo) : null;
+const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
+if (gameIds.length) {
+  reviews = await directusFetchItems("reviews", {
+    fields: ["id", "title", "slug", "published_at", "rating", "game.id"],
+    filter: { status: { _eq: "published" }, game: { _in: gameIds } },
+    sort: ["-published_at", "title"],
+    limit: 500,
+  });
+}
+const reviewedGameIds = new Set(
+  (reviews ?? [])
+    .map((review) => review?.game?.id)
+    .filter((id) => typeof id === "number"),
+);
+const excludedFields = new Set([
+  "id",
+  "slug",
+  "name",
+  "title",
+  "logo",
+  "status",
+  "sort",
+  "date_created",
+  "date_updated",
+  "user_created",
+  "user_updated",
+]);
+const markdownFields = ["description", "body", "notes"];
+const markdownContent = markdownFields
+  .map((key) => developer?.[key])
+  .find((value) => typeof value === "string" && value.trim());
+const detailEntries = developer
+  ? Object.entries(developer)
+      .filter(([key, value]) => value !== null && value !== undefined)
+      .filter(([key]) => !excludedFields.has(key))
+      .filter(([key]) => !markdownFields.includes(key))
+      .filter(([, value]) => ["string", "number", "boolean"].includes(typeof value))
+  : [];
+const formatLabel = (value) =>
+  value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const isUrl = (value) => typeof value === "string" && /^https?:\/\//.test(value);
+---
+
+<BaseLayout title={`Developers | ${title}`}>
+  <div slot="head">
+    <style>
+      main{max-width:980px;margin:0 auto;padding:24px;}
+      ul{list-style:disc;padding-left:20px;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+      .label{opacity:.7;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;}
+      .card{border:1px solid #2b2b2b;border-radius:12px;overflow:hidden;background:#111;}
+      .card.reviewed{border-color:#d3a43b;box-shadow:0 0 0 1px rgba(211,164,59,.25);}
+      .card a{color:inherit;text-decoration:none;display:block;}
+      .thumb{aspect-ratio:2/3;background:#000;display:flex;align-items:center;justify-content:center;}
+      .thumb img{width:100%;height:100%;object-fit:contain;display:block;}
+      .meta{padding:.75rem 1rem;}
+      .title{font-weight:700;}
+      .logo{max-width:200px;margin:12px 0;}
+      .logo img{width:100%;height:auto;display:block;}
+    </style>
+  </div>
+  <main>
+    <h1>{title}</h1>
+    {logo ? (
+      <div class="logo">
+        <img src={logo} alt={`${title} logo`} loading="lazy" />
+      </div>
+    ) : null}
+    {detailEntries.length ? (
+      <div class="panel">
+        <div class="label">Details</div>
+        <ul>
+          {detailEntries.map(([key, value]) => (
+            <li>
+              <strong>{formatLabel(key)}:</strong>{" "}
+              {isUrl(value) ? <a href={value}>{value}</a> : String(value)}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null}
+    {markdownContent ? (
+      <div class="panel" set:html={marked.parse(markdownContent)} />
+    ) : null}
+    <div class="panel">
+      <div class="label">Games</div>
+      {games.length === 0 ? (
+        <p>No games found for this developer.</p>
+      ) : (
+        <div class="grid">
+          {games.map((game) => {
+            const img = game.cover_image ? fileUrl(game.cover_image) : null;
+            const reviewed = reviewedGameIds.has(game.id);
+            return (
+              <div class={`card${reviewed ? " reviewed" : ""}`}>
+                <a href={`/games/${game.slug}/index.html`}>
+                  <div class="thumb">
+                    {img ? <img src={img} alt={game.title} loading="lazy" /> : <span>No cover</span>}
+                  </div>
+                  <div class="meta">
+                    <div class="title">{game.title}</div>
+                  </div>
+                </a>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+    <div class="panel">
+      <div class="label">Reviews</div>
+      {reviews.length === 0 ? (
+        <p>No reviews for this developer yet.</p>
+      ) : (
+        <ul>
+          {reviews.map((review) => (
+            <li>
+              <a href={`/reviews/${review.slug}/index.html`}>{review.title}</a>
+              {typeof review.rating === "number" ? <span> (Rating: {review.rating}/10)</span> : null}
+              {review.published_at ? <span style="opacity:.6;margin-left:.5rem;">Published: {formatDate(review.published_at)}</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </main>
+</BaseLayout>

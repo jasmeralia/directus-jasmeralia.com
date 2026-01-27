@@ -1,6 +1,7 @@
 ---
 import Nav from "../components/Nav.astro";
 const { title = "Jasmeralia", description = "" } = Astro.props;
+const year = new Date().getFullYear();
 ---
 
 <!doctype html>
@@ -14,11 +15,32 @@ const { title = "Jasmeralia", description = "" } = Astro.props;
     <style>
       body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
       a{color:#9aa6ff;}
+      footer{color:#c6c6c6;font-size:0.9rem;padding:28px 16px;text-align:center;}
+      .footer-links{align-items:center;display:inline-flex;gap:14px;margin-left:10px;}
+      .footer-link{align-items:center;display:inline-flex;gap:6px;text-decoration:none;}
+      .footer-link svg{height:16px;width:16px;}
     </style>
     <slot name="head" />
   </head>
   <body>
     <Nav />
     <slot />
+    <footer>
+      (c) {year} by Morgan Blackthorne
+      <span class="footer-links">
+        <a class="footer-link" href="https://twitter.com/jasmeralia" aria-label="Twitter: jasmeralia">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M19.94 7.12c.01.17.01.34.01.51 0 5.25-4 11.29-11.29 11.29-2.25 0-4.34-.66-6.1-1.79h.92c1.86 0 3.58-.63 4.95-1.7a4 4 0 0 1-3.73-2.77c.25.04.49.06.75.06.35 0 .7-.05 1.02-.13a4 4 0 0 1-3.2-3.92v-.05c.54.3 1.16.49 1.82.51a4 4 0 0 1-1.24-5.34 11.34 11.34 0 0 0 8.23 4.17 4.01 4.01 0 0 1 6.82-3.65 8.1 8.1 0 0 0 2.54-.97 4 4 0 0 1-1.76 2.21 8.03 8.03 0 0 0 2.3-.62 8.6 8.6 0 0 1-2 2.07Z"/>
+          </svg>
+          @jasmeralia
+        </a>
+        <a class="footer-link" href="https://discord.gg/Seyngsh5MF" aria-label="Discord invite">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M20.32 4.37A19.3 19.3 0 0 0 15.67 3a13.6 13.6 0 0 0-.63 1.3 18.1 18.1 0 0 0-5.08 0A13.6 13.6 0 0 0 9.33 3a19.1 19.1 0 0 0-4.66 1.37C1.92 8.7 1.25 12.9 1.57 17.03a19.2 19.2 0 0 0 5.64 2.87c.46-.62.87-1.28 1.23-1.97a12.2 12.2 0 0 1-1.93-.93c.16-.12.32-.24.47-.36 3.72 1.73 7.76 1.73 11.43 0 .15.12.31.24.47.36-.61.35-1.26.67-1.93.93.36.69.77 1.35 1.23 1.97a19.1 19.1 0 0 0 5.64-2.87c.42-4.76-.7-8.92-3.33-12.66ZM8.58 14.55c-1.02 0-1.85-.94-1.85-2.1 0-1.16.82-2.1 1.85-2.1 1.03 0 1.86.95 1.85 2.1 0 1.16-.82 2.1-1.85 2.1Zm6.84 0c-1.02 0-1.85-.94-1.85-2.1 0-1.16.82-2.1 1.85-2.1 1.03 0 1.86.95 1.85 2.1 0 1.16-.82 2.1-1.85 2.1Z"/>
+          </svg>
+          Discord
+        </a>
+      </span>
+    </footer>
   </body>
 </html>

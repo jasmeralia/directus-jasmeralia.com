@@ -1,0 +1,33 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { marked } from "marked";
+import { directusFetchItems } from "../../lib/directus";
+
+const aboutItems = await directusFetchItems<any>("about", {
+  fields: ["id", "body"],
+  sort: ["-date_updated", "-date_created"],
+  limit: 1,
+});
+
+const about = Array.isArray(aboutItems) ? aboutItems[0] : aboutItems;
+---
+
+<BaseLayout title="About">
+  <div slot="head">
+    <style>
+      main{max-width:960px;margin:0 auto;padding:24px;}
+      .about-panel{border:1px solid #232323;border-radius:12px;padding:16px;margin:16px 0;background:#111;}
+      .about-panel :global(p){margin:0 0 12px 0;}
+      .about-panel :global(a){color:#8ab4f8;}
+      .about-panel :global(code){background:#222;padding:2px 4px;border-radius:4px;}
+    </style>
+  </div>
+  <main>
+    <h1>About</h1>
+    {about ? (
+      <div class="about-panel" set:html={marked.parse(about.body ?? "")} />
+    ) : (
+      <p>No about content yet.</p>
+    )}
+  </main>
+</BaseLayout>

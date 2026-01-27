@@ -3,48 +3,58 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
 
 export async function getStaticPaths() {
-  const genres = await directusFetchItems("genres", {
-    fields: ["slug"],
-    limit: 500,
-    sort: ["name"],
+  const games = await directusFetchItems("games", {
+    fields: ["id", "release_year"],
+    limit: 1000,
   });
 
-  return genres
-    .filter((genre) => !!genre.slug)
-    .map((genre) => ({ params: { slug: genre.slug } }))
-    .concat([{ params: { slug: "unknown" } }]);
+  const years = new Set();
+  for (const game of games) {
+    const raw = game.release_year;
+    const rawString = raw === null || raw === undefined ? "" : String(raw).trim();
+    if (!rawString) {
+      continue;
+    }
+    const year = Number(rawString);
+    if (Number.isFinite(year)) {
+      years.add(year);
+    }
+  }
+
+  const paths = Array.from(years)
+    .sort((a, b) => a - b)
+    .map((year) => ({ params: { slug: String(year) } }));
+
+  paths.push({ params: { slug: "unknown" } });
+  return paths;
 }
 
 const { slug } = Astro.params;
-
 let title = "Unknown";
 let games = [];
 
 if (slug === "unknown") {
   const allGames = await directusFetchItems("games", {
-    fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk", "genres.id"],
+    fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk", "release_year"],
     sort: ["title"],
     limit: 1000,
   });
-  games = allGames.filter((game) => (game.genres ?? []).length === 0);
-} else {
-  const genres = await directusFetchItems("genres", {
-    fields: ["id", "name", "slug"],
-    filter: { slug: { _eq: slug } },
-    limit: 1,
+  games = allGames.filter((game) => {
+    const raw = game.release_year;
+    const rawString = raw === null || raw === undefined ? "" : String(raw).trim();
+    return !rawString;
   });
-
-  const genre = genres?.[0];
-  if (!genre) {
-    throw new Error(`Genre not found for slug: ${slug}`);
+} else {
+  const year = Number(slug);
+  if (!Number.isFinite(year)) {
+    throw new Error(`Invalid release year slug: ${slug}`);
   }
-  title = genre.name;
-
+  title = String(year);
   games = await directusFetchItems("games", {
-    fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk"],
-    filter: { genres: { genres_id: { slug: { _eq: slug } } } },
+    fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk", "release_year"],
+    filter: { release_year: { _eq: year } },
     sort: ["title"],
-    limit: 500,
+    limit: 1000,
   });
 }
 
@@ -63,10 +73,13 @@ if (gameIds.length) {
 }
 ---
 
-<BaseLayout title={`Genres | ${title}`}>
+<BaseLayout title={`Release Years | ${title}`}>
   <div slot="head">
     <style>
       main{padding:2rem;max-width:1100px;margin:0 auto;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
       .card{border:1px solid #2b2b2b;border-radius:12px;overflow:hidden;background:#111;}
       .card.reviewed{border-color:#d3a43b;box-shadow:0 0 0 1px rgba(211,164,59,.25);}
@@ -78,9 +91,10 @@ if (gameIds.length) {
     </style>
   </div>
   <main>
-      <h1>{title}</h1>
+    <h1>{title}</h1>
+    <div class="panel">
       {games.length === 0 ? (
-        <p>No games found for this genre.</p>
+        <p>No games found for this release year.</p>
       ) : (
         <div class="grid">
           {games.map((g) => {
@@ -101,5 +115,6 @@ if (gameIds.length) {
           })}
         </div>
       )}
+    </div>
   </main>
 </BaseLayout>

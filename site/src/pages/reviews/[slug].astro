@@ -25,7 +25,6 @@ const reviews = await directusFetchItems("reviews", {
     "title",
     "slug",
     "rating",
-    "summary",
     "body",
     "published_at",
     "game.id",
@@ -33,6 +32,9 @@ const reviews = await directusFetchItems("reviews", {
     "game.slug",
     "game.cover_image.id",
     "game.cover_image.filename_disk",
+    "game.developers.id",
+    "game.developers.developers_id.name",
+    "game.developers.developers_id.slug",
   ],
   filter: { slug: { _eq: slug }, status: { _eq: "published" } },
   limit: 1,
@@ -43,6 +45,10 @@ if (!review) {
   throw new Error(`Review not found for slug: ${slug}`);
 }
 
+const developers = (review.game?.developers ?? [])
+  .map((developer) => developer?.developers_id)
+  .filter((value) => value && value.name && value.slug)
+  .sort((a, b) => a.name.localeCompare(b.name));
 const cover = fileUrl(review.game?.cover_image);
 const published = review.published_at;
 const screenshots = await directusFetchItems("review_screenshots", {
@@ -53,7 +59,7 @@ const screenshots = await directusFetchItems("review_screenshots", {
 });
 ---
 
-<BaseLayout title={review.title}>
+<BaseLayout title={`Reviews | ${review.title}`}>
   <div slot="head">
     <style>
       .container { max-width: 980px; margin: 0 auto; padding: 24px; }
@@ -86,7 +92,21 @@ const screenshots = await directusFetchItems("review_screenshots", {
         <h1>{review.title}</h1>
         {review.game ? (
           <div class="meta">
-            Game: <a href={`/games/${review.game.slug}/index.html`}>{review.game.title}</a>
+            <div>
+              <strong>Game:</strong>{" "}
+              <a href={`/games/${review.game.slug}/index.html`}>{review.game.title}</a>
+            </div>
+            {developers.length ? (
+              <div>
+                <strong>Developers:</strong>{" "}
+                {developers.map((developer, index) => (
+                  <span>
+                    <a href={`/developers/${developer.slug}/index.html`}>{developer.name}</a>
+                    {index < developers.length - 1 ? ", " : ""}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
         {cover ? (
@@ -96,10 +116,6 @@ const screenshots = await directusFetchItems("review_screenshots", {
         ) : null}
         {typeof review.rating === "number" ? <div class="meta" style="margin-top:.75rem;">Rating: {review.rating}/10</div> : null}
       </section>
-
-      {review.summary ? (
-        <p class="meta" style="margin-top:1rem;">{review.summary}</p>
-      ) : null}
 
       {review.body ? (
         <div class="content" set:html={marked.parse(review.body)} />

@@ -3,22 +3,60 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
 
 const engines = await directusFetchItems("engines", {
-  fields: ["id", "title", "slug"],
+  fields: ["id", "title", "slug", "engine_type"],
   sort: ["title"],
   limit: 500,
 });
 const games = await directusFetchItems("games", {
-  fields: ["id", "engines.engines_id.slug"],
+  fields: ["id", "engines.engines_id.slug", "engines.engines_id.engine_type"],
   limit: 1000,
 });
 const engineCounts = new Map();
+let unknownCount = 0;
 for (const game of games) {
-  for (const entry of game.engines ?? []) {
+  const entries = game.engines ?? [];
+  if (!entries.length) {
+    unknownCount += 1;
+    continue;
+  }
+  for (const entry of entries) {
     const slug = entry?.engines_id?.slug;
     if (!slug) continue;
     engineCounts.set(slug, (engineCounts.get(slug) || 0) + 1);
   }
 }
+
+const renderEngines = engines.filter((engine) => engine.engine_type === "rendering");
+const gamingEngines = engines.filter((engine) => engine.engine_type === "gaming");
+
+const pieColors = ["#d3a43b", "#4aa3ff", "#7fe29a", "#ff7a7a", "#c788ff", "#ffd966", "#7bd3ff", "#e6a8ff"];
+const buildPie = (items) => {
+  const total = items.reduce((sum, item) => {
+    if (item.slug === "__unknown__") return sum + unknownCount;
+    return sum + (engineCounts.get(item.slug) || 0);
+  }, 0) || 1;
+  let current = 0;
+  const segments = items.map((item, index) => {
+    const value = item.slug === "__unknown__" ? unknownCount : (engineCounts.get(item.slug) || 0);
+    const start = current;
+    const pct = (value / total) * 100;
+    current += pct;
+    return {
+      title: item.title,
+      value,
+      color: pieColors[index % pieColors.length],
+      start,
+      end: current,
+    };
+  });
+  const gradient = segments.length
+    ? `conic-gradient(${segments.map((s) => `${s.color} ${s.start}% ${s.end}%`).join(", ")})`
+    : "conic-gradient(#2b2b2b 0 100%)";
+  return { segments, total, gradient };
+};
+
+const renderingPie = buildPie(renderEngines);
+const gamingPie = buildPie([...gamingEngines, { title: "Unknown", slug: "__unknown__" }]);
 ---
 
 <BaseLayout title="Engines">
@@ -29,6 +67,12 @@ for (const game of games) {
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px;}
+      .chart{display:flex;flex-direction:column;gap:8px;align-items:flex-start;}
+      .pie{width:180px;height:180px;border-radius:50%;border:1px solid #2b2b2b;}
+      .legend{list-style:none;padding:0;margin:0;}
+      .legend li{display:flex;align-items:center;gap:8px;font-size:.9rem;}
+      .swatch{width:12px;height:12px;border-radius:3px;display:inline-block;}
     </style>
   </div>
   <main>
@@ -38,14 +82,44 @@ for (const game of games) {
           <p>No engines yet.</p>
         ) : (
           <ul>
-            {engines.map((engine) => (
-              <li>
-                <a href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
-                <span style="opacity:.7;"> ({engineCounts.get(engine.slug) || 0})</span>
-              </li>
-            ))}
-          </ul>
-        )}
+          {engines.map((engine) => (
+            <li>
+              <a href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
+              <span style="opacity:.7;"> ({engineCounts.get(engine.slug) || 0})</span>
+            </li>
+          ))}
+          <li>
+            <a href="/engines/unknown/index.html">Unknown</a>
+            <span style="opacity:.7;"> ({unknownCount})</span>
+          </li>
+        </ul>
+      )}
+        <div class="charts">
+          <div class="chart">
+            <strong>Rendering Engines</strong>
+            <div class="pie" style={`background:${renderingPie.gradient};`} role="img" aria-label="Rendering engines breakdown"></div>
+            <ul class="legend">
+              {renderingPie.segments.map((segment) => (
+                <li>
+                  <span class="swatch" style={`background:${segment.color};`}></span>
+                  {segment.title} ({segment.value})
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div class="chart">
+            <strong>Gaming Engines</strong>
+            <div class="pie" style={`background:${gamingPie.gradient};`} role="img" aria-label="Gaming engines breakdown"></div>
+            <ul class="legend">
+              {gamingPie.segments.map((segment) => (
+                <li>
+                  <span class="swatch" style={`background:${segment.color};`}></span>
+                  {segment.title} ({segment.value})
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
   </main>
 </BaseLayout>

@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import type { APIContext } from "astro";
-import { getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl } from "../../lib/directus";
+import { directusFetchItems, getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl } from "../../lib/directus";
 import "../../styles/tierlist.css";
 
 // Static generation: /tiers/<slug> for each published tier list
@@ -15,9 +14,27 @@ if (!slug) throw new Error("Missing slug param");
 
 const tierList = await getPublishedTierListBySlug(slug);
 if (!tierList) return Astro.redirect("/404");
+
+const gameIds = tierList.tier_rows
+  .flatMap((row) => row.tier_entries ?? [])
+  .map((entry) => entry?.game?.id)
+  .filter((id) => typeof id === "number");
+
+const reviewedGameIds = new Set();
+if (gameIds.length) {
+  const reviews = await directusFetchItems("reviews", {
+    fields: ["game.id"],
+    filter: { status: { _eq: "published" }, game: { _in: gameIds } },
+    limit: 500,
+  });
+  for (const review of reviews ?? []) {
+    const id = review?.game?.id;
+    if (typeof id === "number") reviewedGameIds.add(id);
+  }
+}
 ---
 
-<BaseLayout title={tierList.title} description={tierList.description ?? tierList.title}>
+<BaseLayout title={`Tier Lists | ${tierList.title}`} description={tierList.description ?? tierList.title}>
 <main class="tier-page">
       <h1 class="tier-title">{tierList.title}</h1>
       {tierList.description && <p class="tier-desc">{tierList.description}</p>}
@@ -26,7 +43,7 @@ if (!tierList) return Astro.redirect("/404");
         {tierList.tier_rows.map((row) => (
           <div class="tier-row">
             <div class="tier-label" style={`background:${row.color};`}>
-              {row.label}
+              {row.label === "U" ? "Too Early" : row.label}
             </div>
 
             <div class="tier-cells">
@@ -37,8 +54,13 @@ if (!tierList) return Astro.redirect("/404");
                   .sort((a, b) => (a.game?.title || "").localeCompare(b.game?.title || ""))
                   .map((entry) => {
                   const img = fileUrl(entry.game.cover_image);
+                  const reviewed = reviewedGameIds.has(entry.game.id);
                   return (
-                    <a class="tier-thumb" href={`/games/${entry.game.slug}/index.html`} title={entry.game.title}>
+                    <a
+                      class={`tier-thumb${reviewed ? " reviewed" : ""}`}
+                      href={`/games/${entry.game.slug}/index.html`}
+                      title={entry.game.title}
+                    >
                       {img ? (
                         <img src={img} alt={entry.game.title} loading="lazy" />
                       ) : (
@@ -54,5 +76,6 @@ if (!tierList) return Astro.redirect("/404");
           </div>
         ))}
       </section>
+      <p style="opacity:.75;margin-top:1rem;">Gold borders indicate games with reviews.</p>
     </main>
 </BaseLayout>

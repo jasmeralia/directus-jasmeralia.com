@@ -24,6 +24,7 @@ const games = await directusFetchItems('games', {
     'slug',
     'release_year',
     'download_url',
+    'walkthrough_url',
     'player_status',
     'game_status',
     'cover_image.id',
@@ -36,6 +37,10 @@ const games = await directusFetchItems('games', {
     'engines.engines_id.id',
     'engines.engines_id.title',
     'engines.engines_id.slug',
+    'developers.id',
+    'developers.developers_id.id',
+    'developers.developers_id.name',
+    'developers.developers_id.slug',
   ],
   filter: { slug: { _eq: slug } },
   limit: 1,
@@ -48,21 +53,50 @@ if (!game) {
 
 const cover = fileUrl(game.cover_image);
 const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
+const tierLabel = (value) => value === "U" ? "Too Early" : (value ?? "");
 const genres = (game.genres ?? [])
   .map((genre) => genre?.genres_id)
   .filter((value) => value && value.name && value.slug);
 const engines = (game.engines ?? [])
   .map((engine) => engine?.engines_id)
   .filter((value) => value && value.title && value.slug);
+const developers = (game.developers ?? [])
+  .map((developer) => developer?.developers_id)
+  .filter((value) => value && (value.name || value.title) && value.slug)
+  .sort((a, b) => (a.name ?? a.title ?? "").localeCompare(b.name ?? b.title ?? ""));
 const reviews = await directusFetchItems('reviews', {
   fields: ['id', 'title', 'slug', 'published_at'],
   filter: { status: { _eq: "published" }, game: { _eq: game.id } },
   sort: ['-published_at'],
   limit: 100,
 });
+const tierEntries = await directusFetchItems('tier_entries', {
+  fields: [
+    'id',
+    'tier_row.id',
+    'tier_row.label',
+    'tier_row.tier_list.id',
+    'tier_row.tier_list.title',
+    'tier_row.tier_list.slug',
+  ],
+  filter: { game: { _eq: game.id }, tier_row: { tier_list: { status: { _eq: "published" } } } },
+  sort: ['tier_row.tier_list.title'],
+  limit: 200,
+});
+const tierListsMap = new Map();
+for (const entry of (tierEntries ?? [])) {
+  const row = entry?.tier_row;
+  const list = row?.tier_list;
+  if (!list?.slug || !list?.title) continue;
+  if (!tierListsMap.has(list.slug)) {
+    tierListsMap.set(list.slug, { slug: list.slug, title: list.title, label: row?.label ?? "" });
+  }
+}
+const tierLists = Array.from(tierListsMap.values())
+  .sort((a, b) => a.title.localeCompare(b.title));
 ---
 
-<BaseLayout title={game.title}>
+<BaseLayout title={`Games | ${game.title}`}>
   <div slot="head">
     <style>
       .container { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
@@ -97,10 +131,24 @@ const reviews = await directusFetchItems('reviews', {
       <div class="section panel">
         <div class="label">Details</div>
         <ul>
-          {game.release_year ? <li><strong>Release year:</strong> {game.release_year}</li> : null}
-          {game.player_status ? (
+          {developers.length ? (
             <li>
-              <strong>Player status:</strong> <a href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
+              <strong>Developers:</strong> {developers.map((developer, index) => (
+                <span>
+                  <a href={`/developers/${developer.slug}/index.html`}>{developer.name ?? developer.title}</a>
+                  {index < developers.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </li>
+          ) : null}
+          {engines.length ? (
+            <li>
+              <strong>Engines:</strong> {engines.map((engine, index) => (
+                <span>
+                  <a href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
+                  {index < engines.length - 1 ? ", " : ""}
+                </span>
+              ))}
             </li>
           ) : null}
           {game.game_status ? (
@@ -118,21 +166,39 @@ const reviews = await directusFetchItems('reviews', {
               ))}
             </li>
           ) : null}
-          {engines.length ? (
+          {game.player_status ? (
             <li>
-              <strong>Engines:</strong> {engines.map((engine, index) => (
+              <strong>Player status:</strong> <a href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
+            </li>
+          ) : null}
+          {game.release_year ? (
+            <li>
+              <strong>Release year:</strong>{" "}
+              <a href={`/releases/${game.release_year}/index.html`}>{game.release_year}</a>
+            </li>
+          ) : null}
+          {tierLists.length ? (
+            <li>
+              <strong>Tier lists:</strong> {tierLists.map((tier, index) => (
                 <span>
-                  <a href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
-                  {index < engines.length - 1 ? ", " : ""}
+                  <a href={`/tiers/${tier.slug}/index.html`}>{tier.title}</a>
+                  {tier.label ? ` (${tierLabel(tier.label)})` : ""}
+                  {index < tierLists.length - 1 ? ", " : ""}
                 </span>
               ))}
+            </li>
+          ) : null}
+          {game.walkthrough_url ? (
+            <li>
+              <strong>Walkthrough:</strong>{" "}
+              <a href={game.walkthrough_url} rel="noopener noreferrer" target="_blank">Walkthrough</a>
             </li>
           ) : null}
         </ul>
       </div>
 
       {reviews.length ? (
-        <div class="section">
+        <div class="section panel">
           <div class="label">Reviews</div>
           <ul>
             {reviews.map((review) => (

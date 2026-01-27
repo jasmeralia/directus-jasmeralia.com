@@ -10,7 +10,7 @@ const news = await directusFetchItems<{ id: number; date_created: string; body: 
   limit: 50,
 });
 
-const heroImage = fileUrl({ id: "dbb5a08e-b388-46f3-9841-674fb82337f0", filename_disk: "dbb5a08e-b388-46f3-9841-674fb82337f0.png" });
+const heroImage = fileUrl({ id: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c", filename_disk: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c.png" });
 ---
 
 <BaseLayout title="Jasmeralia">
@@ -22,7 +22,7 @@ const heroImage = fileUrl({ id: "dbb5a08e-b388-46f3-9841-674fb82337f0", filename
       .news-body :global(p){margin:0 0 12px 0;}
       .news-body :global(a){color:#8ab4f8;}
       .news-body :global(code){background:#222;padding:2px 4px;border-radius:4px;}
-      .hero-image{margin:1.25rem 0 1.75rem 0;}
+      .hero-image{margin:1.25rem 0 12px 0;}
       .hero-image img{width:100%;max-width:720px;height:auto;display:block;margin:0 auto;border-radius:12px;}
     </style>
   </div>

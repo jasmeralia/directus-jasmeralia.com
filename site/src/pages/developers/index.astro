@@ -2,32 +2,32 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
 
-const genres = await directusFetchItems("genres", {
+const developers = await directusFetchItems("developers", {
   fields: ["id", "name", "slug"],
   sort: ["name"],
   limit: 500,
 });
 const games = await directusFetchItems("games", {
-  fields: ["id", "genres.genres_id.slug"],
+  fields: ["id", "developers.developers_id.slug"],
   limit: 1000,
 });
-const genreCounts = new Map();
+const developerCounts = new Map();
 let unknownCount = 0;
 for (const game of games) {
-  const entries = game.genres ?? [];
+  const entries = game.developers ?? [];
   if (!entries.length) {
     unknownCount += 1;
     continue;
   }
   for (const entry of entries) {
-    const slug = entry?.genres_id?.slug;
+    const slug = entry?.developers_id?.slug;
     if (!slug) continue;
-    genreCounts.set(slug, (genreCounts.get(slug) || 0) + 1);
+    developerCounts.set(slug, (developerCounts.get(slug) || 0) + 1);
   }
 }
 ---
 
-<BaseLayout title="Genres">
+<BaseLayout title="Developers">
   <div slot="head">
     <style>
       main{max-width:980px;margin:0 auto;padding:24px;}
@@ -38,24 +38,24 @@ for (const game of games) {
     </style>
   </div>
   <main>
-      <div class="panel">
-        <h1>Genres</h1>
-        {genres.length === 0 ? (
-          <p>No genres yet.</p>
-        ) : (
-          <ul>
-          {genres.map((genre) => (
+    <div class="panel">
+      <h1>Developers</h1>
+      {developers.length === 0 ? (
+        <p>No developers yet.</p>
+      ) : (
+        <ul>
+          {developers.map((developer) => (
             <li>
-              <a href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
-              <span style="opacity:.7;"> ({genreCounts.get(genre.slug) || 0})</span>
+              <a href={`/developers/${developer.slug}/index.html`}>{developer.name}</a>
+              <span style="opacity:.7;"> ({developerCounts.get(developer.slug) || 0})</span>
             </li>
           ))}
           <li>
-            <a href="/genres/unknown/index.html">Unknown</a>
+            <a href="/developers/unknown/index.html">Unknown</a>
             <span style="opacity:.7;"> ({unknownCount})</span>
           </li>
         </ul>
       )}
-      </div>
+    </div>
   </main>
 </BaseLayout>

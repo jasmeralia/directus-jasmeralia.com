@@ -65,6 +65,11 @@
   display: block;
 }
 
+.tier-thumb.reviewed {
+  border-color: #d3a43b;
+  box-shadow: 0 0 0 1px rgba(211, 164, 59, 0.25);
+}
+
 .tier-thumb img {
   width: 100%;
   height: 100%;
