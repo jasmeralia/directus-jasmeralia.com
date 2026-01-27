@@ -15,7 +15,7 @@ const { spawn } = require("child_process");
 
 const PORT = parseInt(process.env.PORT || "8099", 10);
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || "";
-const DEBOUNCE_SECONDS = parseInt(process.env.DEBOUNCE_SECONDS || "20", 10);
+const DEBOUNCE_SECONDS = parseInt(process.env.DEBOUNCE_SECONDS || "300", 10);
 
 if (!WEBHOOK_SECRET || WEBHOOK_SECRET.length < 16) {
   console.error("ERROR: WEBHOOK_SECRET must be set (and should be long/random).");
@@ -65,6 +65,23 @@ function scheduleBuild(delaySeconds) {
   }, Math.max(0, delaySeconds) * 1000);
 }
 
+function extractReason(body) {
+  if (!body) return null;
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed.reason === "string") return parsed.reason;
+  } catch (err) {
+    // Fall through to form parsing.
+  }
+  try {
+    const params = new URLSearchParams(body);
+    const reason = params.get("reason");
+    return typeof reason === "string" ? reason : null;
+  } catch (err) {
+    return null;
+  }
+}
+
 const server = http.createServer((req, res) => {
   if (req.method === "POST" && req.url === "/build") {
     const secret = req.headers["x-webhook-secret"];
@@ -74,11 +91,22 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    // Drain body (ignored) to avoid socket hangups
-    req.on("data", () => {});
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 1024 * 1024) {
+        req.socket.destroy();
+      }
+    });
     req.on("end", () => {
-      log("Build requested via webhook.");
-      scheduleBuild(DEBOUNCE_SECONDS);
+      const reason = extractReason(body);
+      if (reason === "manual") {
+        log("Build requested via webhook (manual; bypass debounce).");
+        scheduleBuild(0);
+      } else {
+        log("Build requested via webhook (debounced).");
+        scheduleBuild(DEBOUNCE_SECONDS);
+      }
       res.writeHead(202, { "Content-Type": "text/plain" });
       res.end("Accepted\n");
     });

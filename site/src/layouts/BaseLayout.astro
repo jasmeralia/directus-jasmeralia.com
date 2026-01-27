@@ -2,6 +2,12 @@
 import Nav from "../components/Nav.astro";
 const { title = "Jasmeralia", description = "" } = Astro.props;
 const year = new Date().getFullYear();
+const SITE_TIMEZONE = import.meta.env.SITE_TIMEZONE || "America/Los_Angeles";
+const publishedLabel = new Date().toLocaleString("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: SITE_TIMEZONE,
+});
 ---
 
 <!doctype html>
@@ -19,6 +25,7 @@ const year = new Date().getFullYear();
       .footer-links{align-items:center;display:inline-flex;gap:14px;margin-left:10px;}
       .footer-link{align-items:center;display:inline-flex;gap:6px;text-decoration:none;}
       .footer-link svg{height:16px;width:16px;}
+      .footer-meta{display:block;font-size:0.75rem;margin-top:8px;opacity:0.8;}
     </style>
     <slot name="head" />
   </head>
@@ -41,6 +48,7 @@ const year = new Date().getFullYear();
           Discord
         </a>
       </span>
+      <span class="footer-meta">Site last published on {publishedLabel}</span>
     </footer>
   </body>
 </html>
