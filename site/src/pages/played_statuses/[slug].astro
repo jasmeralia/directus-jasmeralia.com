@@ -1,6 +1,8 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { directusFetchItems, fileUrl } from "../../lib/directus";
+import GameThumbCard from "../../components/GameThumbCard.astro";
+import { directusFetchItems } from "../../lib/directus";
+import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
 
 export async function getStaticPaths() {
   const games = await directusFetchItems("games", {
@@ -21,7 +23,7 @@ const labelize = (value) =>
   value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 
 const games = await directusFetchItems("games", {
-  fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk"],
+  fields: GAME_THUMB_FIELDS,
   filter: { player_status: { _eq: slug } },
   sort: ["title"],
   limit: 500,
@@ -45,15 +47,8 @@ if (gameIds.length) {
 <BaseLayout title={`Played Statuses | ${labelize(slug)}`}>
   <div slot="head">
     <style>
-      main{padding:2rem;max-width:1100px;margin:0 auto;}
+      main{padding:2rem;}
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
-      .card{border:1px solid #2b2b2b;border-radius:12px;overflow:hidden;background:#111;}
-      .card.reviewed{border-color:#d3a43b;box-shadow:0 0 0 1px rgba(211,164,59,.25);}
-      .card a{color:inherit;text-decoration:none;display:block;}
-      .thumb{aspect-ratio:2/3;background:#000;display:flex;align-items:center;justify-content:center;}
-      .thumb img{width:100%;height:100%;object-fit:contain;display:block;}
-      .meta{padding:.75rem 1rem;}
-      .title{font-weight:700;}
     </style>
   </div>
   <main>
@@ -63,19 +58,9 @@ if (gameIds.length) {
       ) : (
         <div class="grid">
           {games.map((g) => {
-            const img = g.cover_image ? fileUrl(g.cover_image as any) : null;
             const reviewed = reviewedGameIds.has(g.id);
             return (
-              <div class={`card${reviewed ? " reviewed" : ""}`}>
-                <a href={`/games/${g.slug}/index.html`}>
-                  <div class="thumb">
-                    {img ? <img src={img} alt={g.title} loading="lazy" /> : <span>No cover</span>}
-                  </div>
-                  <div class="meta">
-                    <div class="title">{g.title}</div>
-                  </div>
-                </a>
-              </div>
+              <GameThumbCard game={g} reviewed={reviewed} />
             );
           })}
         </div>

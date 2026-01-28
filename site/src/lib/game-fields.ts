@@ -1,0 +1,16 @@
+export const GAME_THUMB_FIELDS = [
+  "id",
+  "title",
+  "slug",
+  "release_year",
+  "game_status",
+  "player_status",
+  "cover_image.id",
+  "cover_image.filename_disk",
+  "genres.id",
+  "genres.genres_id.id",
+  "genres.genres_id.name",
+  "engines.id",
+  "engines.engines_id.id",
+  "engines.engines_id.title",
+];

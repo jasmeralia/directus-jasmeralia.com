@@ -6,7 +6,7 @@ const statuses = [
   { value: "unreleased", label: "Unreleased" },
   { value: "in_development", label: "In Development" },
   { value: "abandoned", label: "Abandoned" },
-  { value: "completed", label: "Completed" },
+  { value: "released", label: "Released" },
 ];
 const games = await directusFetchItems("games", {
   fields: ["id", "game_status"],
@@ -18,6 +18,64 @@ for (const game of games) {
   if (!value) continue;
   statusCounts.set(value, (statusCounts.get(value) || 0) + 1);
 }
+
+const palette = ["#3f76ff", "#24c2a0", "#f2b04f", "#e36b6b", "#9b7bff", "#6fb1ff"];
+const segments = statuses.map((status, index) => ({
+  label: status.label,
+  value: statusCounts.get(status.value) || 0,
+  color: palette[index % palette.length],
+}));
+const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+const size = 220;
+const radius = 100;
+const cx = size / 2;
+const cy = size / 2;
+const polarToCartesian = (centerX, centerY, radiusValue, angleInDegrees) => {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+  return {
+    x: centerX + radiusValue * Math.cos(angleInRadians),
+    y: centerY + radiusValue * Math.sin(angleInRadians),
+  };
+};
+const describeArc = (x, y, radiusValue, startAngle, endAngle) => {
+  const start = polarToCartesian(x, y, radiusValue, endAngle);
+  const end = polarToCartesian(x, y, radiusValue, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return [
+    "M",
+    x,
+    y,
+    "L",
+    start.x,
+    start.y,
+    "A",
+    radiusValue,
+    radiusValue,
+    0,
+    largeArcFlag,
+    0,
+    end.x,
+    end.y,
+    "Z",
+  ].join(" ");
+};
+const arcSegments = (() => {
+  if (!total) return [];
+  const result = [];
+  let startAngle = 0;
+  for (const segment of segments) {
+    if (!segment.value) continue;
+    const angle = (segment.value / total) * 360;
+    const endAngle = startAngle + angle;
+    result.push({
+      ...segment,
+      startAngle,
+      endAngle,
+    });
+    startAngle = endAngle;
+  }
+  return result;
+})();
 ---
 
 <BaseLayout title="Game Statuses">
@@ -28,6 +86,11 @@ for (const game of games) {
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .pie-wrap{display:flex;justify-content:center;margin-top:16px;}
+      .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;}
+      .legend{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;margin-top:12px;padding:0;list-style:none;}
+      .legend-item{display:flex;align-items:center;gap:8px;font-size:.85rem;opacity:.9;}
+      .legend-swatch{width:12px;height:12px;border-radius:3px;border:1px solid #2b2b2b;display:inline-block;}
     </style>
   </div>
   <main>
@@ -38,6 +101,31 @@ for (const game of games) {
             <li>
               <a href={`/game_statuses/${status.value}/index.html`}>{status.label}</a>
               <span style="opacity:.7;"> ({statusCounts.get(status.value) || 0})</span>
+            </li>
+          ))}
+        </ul>
+        <div class="pie-wrap">
+          <svg class="pie" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Game status distribution">
+            {arcSegments.length === 0 ? (
+              <circle cx={cx} cy={cy} r={radius} fill="#222" />
+            ) : arcSegments.length === 1 ? (
+              <circle cx={cx} cy={cy} r={radius} fill={arcSegments[0].color}>
+                <title>{arcSegments[0].label} ({arcSegments[0].value})</title>
+              </circle>
+            ) : (
+              arcSegments.map((segment) => (
+                <path d={describeArc(cx, cy, radius, segment.startAngle, segment.endAngle)} fill={segment.color}>
+                  <title>{segment.label} ({segment.value})</title>
+                </path>
+              ))
+            )}
+          </svg>
+        </div>
+        <ul class="legend" aria-label="Legend">
+          {segments.map((segment) => (
+            <li class="legend-item">
+              <span class="legend-swatch" style={`background:${segment.color};`}></span>
+              <span>{segment.label} ({segment.value})</span>
             </li>
           ))}
         </ul>
