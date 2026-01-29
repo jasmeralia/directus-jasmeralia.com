@@ -36,6 +36,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Read Astro package version
+        id: pkg
+        run: echo "version=$(node -p \"require('./site/package.json').version\")" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -44,6 +48,7 @@ jobs:
           tags: |
             type=sha
             type=raw,value=latest
+            type=raw,value=${{ steps.pkg.outputs.version }}
 
       - name: Build and push
         uses: docker/build-push-action@v6

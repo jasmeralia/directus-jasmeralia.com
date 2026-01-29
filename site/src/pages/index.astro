@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { marked } from "marked";
+import { renderMarkdown } from "../lib/markdown";
 import { directusFetchItems, fileUrl } from "../lib/directus";
 
 const news = await directusFetchItems<{ id: number; date_created: string; body: string }>("news", {
@@ -39,7 +39,7 @@ const heroImage = fileUrl({ id: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c", filename
         news.map((item) => (
           <article class="news-item">
             <div class="news-date">{new Date(item.date_created).toLocaleDateString()}</div>
-            <div class="news-body" set:html={marked.parse(item.body ?? "")} />
+            <div class="news-body" set:html={renderMarkdown(item.body ?? "")} />
           </article>
         ))
       )}

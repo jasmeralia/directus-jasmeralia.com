@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { marked } from "marked";
+import { renderMarkdown } from "../../lib/markdown";
 import { directusFetchItems } from "../../lib/directus";
 
 const aboutItems = await directusFetchItems<any>("about", {
@@ -25,7 +25,7 @@ const about = Array.isArray(aboutItems) ? aboutItems[0] : aboutItems;
   <main>
     <h1>About</h1>
     {about ? (
-      <div class="about-panel" set:html={marked.parse(about.body ?? "")} />
+      <div class="about-panel" set:html={renderMarkdown(about.body ?? "")} />
     ) : (
       <p>No about content yet.</p>
     )}

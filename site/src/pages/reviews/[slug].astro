@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { marked } from "marked";
+import { renderMarkdown } from "../../lib/markdown";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
 import { formatDate } from "../../lib/date";
 
@@ -118,7 +118,7 @@ const screenshots = await directusFetchItems("review_screenshots", {
       </section>
 
       {review.body ? (
-        <div class="content" set:html={marked.parse(review.body)} />
+        <div class="content" set:html={renderMarkdown(review.body)} />
       ) : (
         <p>No review body yet.</p>
       )}

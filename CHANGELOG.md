@@ -1,8 +1,11 @@
 # Changelog
 
+## [1.0.11] - 2026-01-28
+- Open external markdown and developer links in new tabs.
+- Tag builder image with Astro package version in GHCR workflow.
+
 ## [1.0.10] - 2026-01-28
 - Fail builder builds when `npm audit` reports vulnerabilities.
-- General code cleanup on `run-build.sh`.
 
 ## [1.0.9] - 2026-01-28
 - Add CSV download links to all game-thumbnail pages and include relationship data in exports.
