@@ -13,6 +13,9 @@ RUN apt-get update \
   && /tmp/aws/install \
   && rm -rf /var/lib/apt/lists/* /tmp/aws /tmp/awscliv2.zip
 
+# Pin npm to avoid lockfile format mismatches.
+RUN npm install -g npm@11.8.0
+
 WORKDIR /srv
 
 COPY server.js /srv/server.js

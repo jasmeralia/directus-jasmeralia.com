@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.14] - 2026-01-28
+- Pin npm 11.8.0 in builder image to avoid lockfile mismatches.
+
 ## [1.0.13] - 2026-01-28
 - Show distinct and total counts for superset genres on composite filter index.
 - Ensure composite filter genre pages include total matches for superset genres.
