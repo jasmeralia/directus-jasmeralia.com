@@ -1,12 +1,17 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
+import { compareLabels, formatUnknown } from "../../lib/list-format";
 
 const engines = await directusFetchItems("engines", {
   fields: ["id", "title", "slug", "engine_type"],
   sort: ["title"],
   limit: 500,
 });
+const sortedEngines = [...engines].sort((a, b) =>
+  compareLabels(a.title ?? "", b.title ?? ""),
+);
+const unknownLabel = formatUnknown("unknown", "Engine");
 const games = await directusFetchItems("games", {
   fields: ["id", "engines.engines_id.slug", "engines.engines_id.engine_type"],
   limit: 1000,
@@ -91,7 +96,8 @@ const buildArcSegments = (items, total) => {
 };
 
 const renderingPie = buildPie(renderEngines);
-const gamingPie = buildPie([...gamingEngines, { title: "Unknown", slug: "__unknown__" }]);
+const unknownEngineItem = unknownCount > 0 ? [{ title: formatUnknown("unknown", "Engine"), slug: "__unknown__" }] : [];
+const gamingPie = buildPie([...gamingEngines, ...unknownEngineItem]);
 const renderingArcs = buildArcSegments(renderingPie.segments, renderingPie.total);
 const gamingArcs = buildArcSegments(gamingPie.segments, gamingPie.total);
 ---
@@ -119,16 +125,18 @@ const gamingArcs = buildArcSegments(gamingPie.segments, gamingPie.total);
           <p>No engines yet.</p>
         ) : (
           <ul>
-          {engines.map((engine) => (
+          {sortedEngines.map((engine) => (
             <li>
               <a href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
               <span style="opacity:.7;"> ({engineCounts.get(engine.slug) || 0})</span>
             </li>
           ))}
-          <li>
-            <a href="/engines/unknown/index.html">Unknown</a>
-            <span style="opacity:.7;"> ({unknownCount})</span>
-          </li>
+          {unknownCount > 0 ? (
+            <li>
+              <a href="/engines/unknown/index.html">{unknownLabel}</a>
+              <span style="opacity:.7;"> ({unknownCount})</span>
+            </li>
+          ) : null}
         </ul>
       )}
         <div class="charts">

@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
 import { normalizeGenreSlugs } from "../../lib/genre-supersets";
+import { formatUnknown } from "../../lib/list-format";
 
 const engines = await directusFetchItems("engines", {
   fields: ["slug", "title"],
@@ -112,9 +113,14 @@ for (const game of games ?? []) {
   }
 }
 
-const formatUnknown = (value) => (value === "unknown" ? "Unknown" : value);
 const labelize = (value) =>
   value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
+const unknownLast = (a, b, key) => {
+  const aUnknown = a[key]?.startsWith("<Unknown ");
+  const bUnknown = b[key]?.startsWith("<Unknown ");
+  if (aUnknown !== bUnknown) return aUnknown ? 1 : -1;
+  return 0;
+};
 
 const engineGenreEntries = Array.from(engineGenreCounts.entries())
   .map(([key, count]) => {
@@ -123,12 +129,15 @@ const engineGenreEntries = Array.from(engineGenreCounts.entries())
       engine,
       genre,
       count,
-      engineLabel: engineLabel.get(engine) ?? formatUnknown(engine),
-      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre),
+      engineLabel: engineLabel.get(engine) ?? formatUnknown(engine, "Engine"),
+      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
     };
   })
   .sort((a, b) =>
-    a.engineLabel.localeCompare(b.engineLabel) || a.genreLabel.localeCompare(b.genreLabel));
+    unknownLast(a, b, "engineLabel") ||
+    a.engineLabel.localeCompare(b.engineLabel) ||
+    unknownLast(a, b, "genreLabel") ||
+    a.genreLabel.localeCompare(b.genreLabel));
 
 const developerGenreEntries = Array.from(developerGenreCounts.entries())
   .map(([key, count]) => {
@@ -137,12 +146,15 @@ const developerGenreEntries = Array.from(developerGenreCounts.entries())
       developer,
       genre,
       count,
-      developerLabel: developerLabel.get(developer) ?? formatUnknown(developer),
-      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre),
+      developerLabel: developerLabel.get(developer) ?? formatUnknown(developer, "Developer"),
+      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
     };
   })
   .sort((a, b) =>
-    a.developerLabel.localeCompare(b.developerLabel) || a.genreLabel.localeCompare(b.genreLabel));
+    unknownLast(a, b, "developerLabel") ||
+    a.developerLabel.localeCompare(b.developerLabel) ||
+    unknownLast(a, b, "genreLabel") ||
+    a.genreLabel.localeCompare(b.genreLabel));
 
 const engineStatusEntries = Array.from(engineStatusCounts.entries())
   .map(([key, count]) => {
@@ -151,12 +163,14 @@ const engineStatusEntries = Array.from(engineStatusCounts.entries())
       engine,
       status,
       count,
-      engineLabel: engineLabel.get(engine) ?? formatUnknown(engine),
+      engineLabel: engineLabel.get(engine) ?? formatUnknown(engine, "Engine"),
       statusLabel: labelize(status),
     };
   })
   .sort((a, b) =>
-    a.engineLabel.localeCompare(b.engineLabel) || a.statusLabel.localeCompare(b.statusLabel));
+    unknownLast(a, b, "engineLabel") ||
+    a.engineLabel.localeCompare(b.engineLabel) ||
+    a.statusLabel.localeCompare(b.statusLabel));
 
 const developerStatusEntries = Array.from(developerStatusCounts.entries())
   .map(([key, count]) => {
@@ -165,12 +179,14 @@ const developerStatusEntries = Array.from(developerStatusCounts.entries())
       developer,
       status,
       count,
-      developerLabel: developerLabel.get(developer) ?? formatUnknown(developer),
+      developerLabel: developerLabel.get(developer) ?? formatUnknown(developer, "Developer"),
       statusLabel: labelize(status),
     };
   })
   .sort((a, b) =>
-    a.developerLabel.localeCompare(b.developerLabel) || a.statusLabel.localeCompare(b.statusLabel));
+    unknownLast(a, b, "developerLabel") ||
+    a.developerLabel.localeCompare(b.developerLabel) ||
+    a.statusLabel.localeCompare(b.statusLabel));
 
 const genreStatusEntries = Array.from(genreStatusCounts.entries())
   .map(([key, count]) => {
@@ -179,12 +195,14 @@ const genreStatusEntries = Array.from(genreStatusCounts.entries())
       genre,
       status,
       count,
-      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre),
+      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
       statusLabel: labelize(status),
     };
   })
   .sort((a, b) =>
-    a.genreLabel.localeCompare(b.genreLabel) || a.statusLabel.localeCompare(b.statusLabel));
+    unknownLast(a, b, "genreLabel") ||
+    a.genreLabel.localeCompare(b.genreLabel) ||
+    a.statusLabel.localeCompare(b.statusLabel));
 
 const enginePlayedEntries = Array.from(enginePlayedCounts.entries())
   .map(([key, count]) => {
@@ -193,12 +211,14 @@ const enginePlayedEntries = Array.from(enginePlayedCounts.entries())
       engine,
       status,
       count,
-      engineLabel: engineLabel.get(engine) ?? formatUnknown(engine),
+      engineLabel: engineLabel.get(engine) ?? formatUnknown(engine, "Engine"),
       statusLabel: labelize(status),
     };
   })
   .sort((a, b) =>
-    a.engineLabel.localeCompare(b.engineLabel) || a.statusLabel.localeCompare(b.statusLabel));
+    unknownLast(a, b, "engineLabel") ||
+    a.engineLabel.localeCompare(b.engineLabel) ||
+    a.statusLabel.localeCompare(b.statusLabel));
 
 const developerPlayedEntries = Array.from(developerPlayedCounts.entries())
   .map(([key, count]) => {
@@ -207,12 +227,14 @@ const developerPlayedEntries = Array.from(developerPlayedCounts.entries())
       developer,
       status,
       count,
-      developerLabel: developerLabel.get(developer) ?? formatUnknown(developer),
+      developerLabel: developerLabel.get(developer) ?? formatUnknown(developer, "Developer"),
       statusLabel: labelize(status),
     };
   })
   .sort((a, b) =>
-    a.developerLabel.localeCompare(b.developerLabel) || a.statusLabel.localeCompare(b.statusLabel));
+    unknownLast(a, b, "developerLabel") ||
+    a.developerLabel.localeCompare(b.developerLabel) ||
+    a.statusLabel.localeCompare(b.statusLabel));
 
 const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
   .map(([key, count]) => {
@@ -221,12 +243,14 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
       genre,
       status,
       count,
-      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre),
+      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
       statusLabel: labelize(status),
     };
   })
   .sort((a, b) =>
-    a.genreLabel.localeCompare(b.genreLabel) || a.statusLabel.localeCompare(b.statusLabel));
+    unknownLast(a, b, "genreLabel") ||
+    a.genreLabel.localeCompare(b.genreLabel) ||
+    a.statusLabel.localeCompare(b.statusLabel));
 ---
 
 <BaseLayout title="Filters">
@@ -245,7 +269,7 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
       <p>Composite filter pages generated at build time.</p>
     </div>
     <div class="panel">
-      <h2>Engine + Genre</h2>
+      <h2>Engine + Genre ({engineGenreEntries.length} combinations)</h2>
       {engineGenreEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
@@ -262,7 +286,7 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
       )}
     </div>
     <div class="panel">
-      <h2>Developer + Genre</h2>
+      <h2>Developer + Genre ({developerGenreEntries.length} combinations)</h2>
       {developerGenreEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
@@ -279,7 +303,7 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
       )}
     </div>
     <div class="panel">
-      <h2>Engine + Game Status</h2>
+      <h2>Engine + Game Status ({engineStatusEntries.length} combinations)</h2>
       {engineStatusEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
@@ -296,7 +320,7 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
       )}
     </div>
     <div class="panel">
-      <h2>Developer + Game Status</h2>
+      <h2>Developer + Game Status ({developerStatusEntries.length} combinations)</h2>
       {developerStatusEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
@@ -313,7 +337,7 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
       )}
     </div>
     <div class="panel">
-      <h2>Genre + Game Status</h2>
+      <h2>Genre + Game Status ({genreStatusEntries.length} combinations)</h2>
       {genreStatusEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
@@ -330,7 +354,7 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
       )}
     </div>
     <div class="panel">
-      <h2>Engine + Played Status</h2>
+      <h2>Engine + Played Status ({enginePlayedEntries.length} combinations)</h2>
       {enginePlayedEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
@@ -347,7 +371,7 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
       )}
     </div>
     <div class="panel">
-      <h2>Developer + Played Status</h2>
+      <h2>Developer + Played Status ({developerPlayedEntries.length} combinations)</h2>
       {developerPlayedEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
@@ -364,7 +388,7 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
       )}
     </div>
     <div class="panel">
-      <h2>Genre + Played Status</h2>
+      <h2>Genre + Played Status ({genrePlayedEntries.length} combinations)</h2>
       {genrePlayedEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (

@@ -113,7 +113,7 @@ const isUrl = (value) => typeof value === "string" && /^https?:\/\//.test(value)
     </style>
   </div>
   <main>
-    <h1>{title}</h1>
+    <h1>{title} ({games.length})</h1>
     {logo ? (
       <div class="logo">
         <img src={logo} alt={`${title} logo`} loading="lazy" />

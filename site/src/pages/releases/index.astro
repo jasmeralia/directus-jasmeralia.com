@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
+import { formatUnknown } from "../../lib/list-format";
 
 const games = await directusFetchItems("games", {
   fields: ["id", "release_year"],
@@ -105,10 +106,12 @@ const points = items
               <span style="opacity:.7;"> ({item.count})</span>
             </li>
           ))}
-          <li>
-            <a href="/releases/unknown/index.html">Unknown</a>
-            <span style="opacity:.7;"> ({unknownCount})</span>
-          </li>
+          {unknownCount > 0 ? (
+            <li>
+              <a href="/releases/unknown/index.html">{formatUnknown("unknown", "Release Year")}</a>
+              <span style="opacity:.7;"> ({unknownCount})</span>
+            </li>
+          ) : null}
         </ul>
       )}
       {items.length === 0 ? (

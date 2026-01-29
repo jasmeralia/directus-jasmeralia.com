@@ -1,12 +1,17 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
+import { compareLabels, formatUnknown } from "../../lib/list-format";
 
 const developers = await directusFetchItems("developers", {
   fields: ["id", "name", "slug"],
   sort: ["name"],
   limit: 500,
 });
+const sortedDevelopers = [...developers].sort((a, b) =>
+  compareLabels(a.name ?? "", b.name ?? ""),
+);
+const unknownLabel = formatUnknown("unknown", "Developer");
 const games = await directusFetchItems("games", {
   fields: ["id", "developers.developers_id.slug"],
   limit: 1000,
@@ -44,16 +49,18 @@ for (const game of games) {
         <p>No developers yet.</p>
       ) : (
         <ul>
-          {developers.map((developer) => (
+          {sortedDevelopers.map((developer) => (
             <li>
               <a href={`/developers/${developer.slug}/index.html`}>{developer.name}</a>
               <span style="opacity:.7;"> ({developerCounts.get(developer.slug) || 0})</span>
             </li>
           ))}
-          <li>
-            <a href="/developers/unknown/index.html">Unknown</a>
-            <span style="opacity:.7;"> ({unknownCount})</span>
-          </li>
+          {unknownCount > 0 ? (
+            <li>
+              <a href="/developers/unknown/index.html">{unknownLabel}</a>
+              <span style="opacity:.7;"> ({unknownCount})</span>
+            </li>
+          ) : null}
         </ul>
       )}
     </div>

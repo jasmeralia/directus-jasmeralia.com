@@ -1,17 +1,24 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
+import { compareLabels, formatUnknown } from "../../lib/list-format";
+import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 
 const genres = await directusFetchItems("genres", {
   fields: ["id", "name", "slug"],
   sort: ["name"],
   limit: 500,
 });
+const sortedGenres = [...genres].sort((a, b) =>
+  compareLabels(a.name ?? "", b.name ?? ""),
+);
+const unknownLabel = formatUnknown("unknown", "Genre");
 const games = await directusFetchItems("games", {
   fields: ["id", "genres.genres_id.slug"],
   limit: 1000,
 });
 const genreCounts = new Map();
+const totalGenreCounts = new Map();
 let unknownCount = 0;
 for (const game of games) {
   const entries = game.genres ?? [];
@@ -19,12 +26,82 @@ for (const game of games) {
     unknownCount += 1;
     continue;
   }
-  for (const entry of entries) {
-    const slug = entry?.genres_id?.slug;
+  const rawSlugs = entries.map((entry) => entry?.genres_id?.slug).filter(Boolean);
+  for (const slug of rawSlugs) {
+    if (!slug) continue;
+    totalGenreCounts.set(slug, (totalGenreCounts.get(slug) || 0) + 1);
+  }
+  const slugs = normalizeGenreSlugs(rawSlugs);
+  for (const slug of slugs) {
     if (!slug) continue;
     genreCounts.set(slug, (genreCounts.get(slug) || 0) + 1);
   }
 }
+
+const palette = ["#3f76ff", "#24c2a0", "#f2b04f", "#e36b6b", "#9b7bff", "#6fb1ff"];
+const segments = sortedGenres.map((genre, index) => ({
+  label: genre.name,
+  value: genreCounts.get(genre.slug) || 0,
+  color: palette[index % palette.length],
+}));
+if (unknownCount > 0) {
+  segments.push({
+    label: formatUnknown("unknown", "Genre"),
+    value: unknownCount,
+    color: "#7a7a7a",
+  });
+}
+const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+const size = 220;
+const radius = 100;
+const cx = size / 2;
+const cy = size / 2;
+const polarToCartesian = (centerX, centerY, radiusValue, angleInDegrees) => {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+  return {
+    x: centerX + radiusValue * Math.cos(angleInRadians),
+    y: centerY + radiusValue * Math.sin(angleInRadians),
+  };
+};
+const describeArc = (x, y, radiusValue, startAngle, endAngle) => {
+  const start = polarToCartesian(x, y, radiusValue, endAngle);
+  const end = polarToCartesian(x, y, radiusValue, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return [
+    "M",
+    x,
+    y,
+    "L",
+    start.x,
+    start.y,
+    "A",
+    radiusValue,
+    radiusValue,
+    0,
+    largeArcFlag,
+    0,
+    end.x,
+    end.y,
+    "Z",
+  ].join(" ");
+};
+const arcSegments = (() => {
+  if (!total) return [];
+  const result = [];
+  let startAngle = 0;
+  for (const segment of segments) {
+    if (!segment.value) continue;
+    const angle = (segment.value / total) * 360;
+    const endAngle = startAngle + angle;
+    result.push({
+      ...segment,
+      startAngle,
+      endAngle,
+    });
+    startAngle = endAngle;
+  }
+  return result;
+})();
 ---
 
 <BaseLayout title="Genres">
@@ -35,6 +112,11 @@ for (const game of games) {
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .pie-wrap{display:flex;justify-content:center;margin-top:16px;}
+      .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;}
+      .legend{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;margin-top:12px;padding:0;list-style:none;}
+      .legend-item{display:flex;align-items:center;gap:8px;font-size:.85rem;opacity:.9;}
+      .legend-swatch{width:12px;height:12px;border-radius:3px;border:1px solid #2b2b2b;display:inline-block;}
     </style>
   </div>
   <main>
@@ -44,18 +126,54 @@ for (const game of games) {
           <p>No genres yet.</p>
         ) : (
           <ul>
-          {genres.map((genre) => (
+          {sortedGenres.map((genre) => {
+            const distinctCount = genreCounts.get(genre.slug) || 0;
+            const totalCount = totalGenreCounts.get(genre.slug) || 0;
+            const isSuperset = Object.prototype.hasOwnProperty.call(GENRE_SUPERSETS, genre.slug);
+            return (
+              <li>
+                <a href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
+                {isSuperset ? (
+                  <span style="opacity:.7;"> ({distinctCount} distinct, {totalCount} total)</span>
+                ) : (
+                  <span style="opacity:.7;"> ({distinctCount})</span>
+                )}
+              </li>
+            );
+          })}
+          {unknownCount > 0 ? (
             <li>
-              <a href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
-              <span style="opacity:.7;"> ({genreCounts.get(genre.slug) || 0})</span>
+              <a href="/genres/unknown/index.html">{unknownLabel}</a>
+              <span style="opacity:.7;"> ({unknownCount})</span>
             </li>
-          ))}
-          <li>
-            <a href="/genres/unknown/index.html">Unknown</a>
-            <span style="opacity:.7;"> ({unknownCount})</span>
-          </li>
+          ) : null}
         </ul>
       )}
+      <div class="pie-wrap">
+        <svg class="pie" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Genre distribution">
+          {arcSegments.length === 0 ? (
+            <circle cx={cx} cy={cy} r={radius} fill="#222" />
+          ) : arcSegments.length === 1 ? (
+            <circle cx={cx} cy={cy} r={radius} fill={arcSegments[0].color}>
+              <title>{arcSegments[0].label} ({arcSegments[0].value})</title>
+            </circle>
+          ) : (
+            arcSegments.map((segment) => (
+              <path d={describeArc(cx, cy, radius, segment.startAngle, segment.endAngle)} fill={segment.color}>
+                <title>{segment.label} ({segment.value})</title>
+              </path>
+            ))
+          )}
+        </svg>
+      </div>
+      <ul class="legend" aria-label="Legend">
+        {segments.map((segment) => (
+          <li class="legend-item">
+            <span class="legend-swatch" style={`background:${segment.color};`}></span>
+            <span>{segment.label} ({segment.value})</span>
+          </li>
+        ))}
+      </ul>
       </div>
   </main>
 </BaseLayout>
