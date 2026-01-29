@@ -34,6 +34,9 @@ else
   npm install
 fi
 
+# Fail the build if npm audit reports any vulnerabilities.
+npm audit
+
 # Provide DIRECTUS_URL to the build if your Astro code reads it.
 # Example in Astro: import.meta.env.DIRECTUS_URL (via env prefix rules) or process.env.DIRECTUS_URL.
 # You may want to map this to PUBLIC_ variables depending on your Astro config.
@@ -46,16 +49,9 @@ if [[ ! -d dist ]]; then
 fi
 
 echo "==> Publishing dist/ to s3://$AWS_S3_BUCKET/"
-# aws s3 sync ./dist/ "s3://${AWS_S3_BUCKET}/" --delete --region "$AWS_REGION"
 
 # IMPORTANT: do not delete media/ when syncing site root.
-# If your site build does NOT include media/, the sync above could remove it if it isn't present in dist/.
-# To avoid that, ensure your Astro build does not write to media/, and add an exclude rule here:
 aws s3 sync ./dist/ "s3://${AWS_S3_BUCKET}/" --delete --exclude "media/*" --region "$AWS_REGION"
-#
-# By default, this script assumes your dist/ does NOT include a media/ directory.
-# Uncomment the next line and comment the previous aws s3 sync if you want to guarantee media safety:
-# aws s3 sync ./dist/ "s3://${AWS_S3_BUCKET}/" --delete --exclude "media/*" --region "$AWS_REGION"
 
 if [[ "$INVALIDATE_ON_PUBLISH" == "true" ]]; then
   if [[ -z "$CLOUDFRONT_DISTRIBUTION_ID" ]]; then
