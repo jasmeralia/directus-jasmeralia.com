@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.6] - 2026-01-28
+- Add README.md for the `directus-jasmeralia` stack.
+
 ## [1.0.5] - 2026-01-28
 - Add game counts to headers on slug pages that render game thumbnail grids (including composite filters).
 
@@ -15,4 +18,3 @@
 - Hide unknown list items on index pages when count is zero.
 - Fix filter build issues (deep import paths, developer title field).
 - Rename Astro package to `astro-jasmeralia` and bump version to 1.0.0, then subsequent bumps to 1.0.3.
-- Update npm packages to pass `npm audit`.
