@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.7] - 2026-01-28
+- Linkify jasmeralia.com in README.
+
 ## [1.0.6] - 2026-01-28
 - Add README.md for the `directus-jasmeralia` stack.
 
