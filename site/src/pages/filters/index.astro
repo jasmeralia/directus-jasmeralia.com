@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
-import { normalizeGenreSlugs } from "../../lib/genre-supersets";
+import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown } from "../../lib/list-format";
 
 const engines = await directusFetchItems("engines", {
@@ -47,38 +47,55 @@ for (const developer of developers ?? []) {
 }
 
 const engineGenreCounts = new Map();
+const engineGenreTotalCounts = new Map();
 const developerGenreCounts = new Map();
+const developerGenreTotalCounts = new Map();
 const engineStatusCounts = new Map();
 const developerStatusCounts = new Map();
 const genreStatusCounts = new Map();
+const genreStatusTotalCounts = new Map();
 const enginePlayedCounts = new Map();
 const developerPlayedCounts = new Map();
 const genrePlayedCounts = new Map();
+const genrePlayedTotalCounts = new Map();
 
 for (const game of games ?? []) {
   const engineSlugs =
     (game.engines ?? []).map((entry) => entry?.engines_id?.slug).filter(Boolean);
   const rawGenreSlugs =
     (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
-  const genreSlugs = normalizeGenreSlugs(rawGenreSlugs);
+  const distinctGenreSlugs = normalizeGenreSlugs(rawGenreSlugs);
   const developerSlugs =
     (game.developers ?? []).map((entry) => entry?.developers_id?.slug).filter(Boolean);
 
   const enginesForGame = engineSlugs.length ? engineSlugs : ["unknown"];
-  const genresForGame = genreSlugs.length ? genreSlugs : ["unknown"];
+  const totalGenresForGame = rawGenreSlugs.length ? rawGenreSlugs : ["unknown"];
+  const distinctGenresForGame = distinctGenreSlugs.length ? distinctGenreSlugs : ["unknown"];
   const developersForGame = developerSlugs.length ? developerSlugs : ["unknown"];
 
   for (const engine of enginesForGame) {
-    for (const genre of genresForGame) {
+    for (const genre of distinctGenresForGame) {
       const key = `${engine}::${genre}`;
       engineGenreCounts.set(key, (engineGenreCounts.get(key) || 0) + 1);
     }
   }
+  for (const engine of enginesForGame) {
+    for (const genre of totalGenresForGame) {
+      const key = `${engine}::${genre}`;
+      engineGenreTotalCounts.set(key, (engineGenreTotalCounts.get(key) || 0) + 1);
+    }
+  }
 
   for (const developer of developersForGame) {
-    for (const genre of genresForGame) {
+    for (const genre of distinctGenresForGame) {
       const key = `${developer}::${genre}`;
       developerGenreCounts.set(key, (developerGenreCounts.get(key) || 0) + 1);
+    }
+  }
+  for (const developer of developersForGame) {
+    for (const genre of totalGenresForGame) {
+      const key = `${developer}::${genre}`;
+      developerGenreTotalCounts.set(key, (developerGenreTotalCounts.get(key) || 0) + 1);
     }
   }
 
@@ -91,9 +108,13 @@ for (const game of games ?? []) {
       const key = `${developer}::${game.game_status}`;
       developerStatusCounts.set(key, (developerStatusCounts.get(key) || 0) + 1);
     }
-    for (const genre of genresForGame) {
+    for (const genre of distinctGenresForGame) {
       const key = `${genre}::${game.game_status}`;
       genreStatusCounts.set(key, (genreStatusCounts.get(key) || 0) + 1);
+    }
+    for (const genre of totalGenresForGame) {
+      const key = `${genre}::${game.game_status}`;
+      genreStatusTotalCounts.set(key, (genreStatusTotalCounts.get(key) || 0) + 1);
     }
   }
 
@@ -106,9 +127,13 @@ for (const game of games ?? []) {
       const key = `${developer}::${game.player_status}`;
       developerPlayedCounts.set(key, (developerPlayedCounts.get(key) || 0) + 1);
     }
-    for (const genre of genresForGame) {
+    for (const genre of distinctGenresForGame) {
       const key = `${genre}::${game.player_status}`;
       genrePlayedCounts.set(key, (genrePlayedCounts.get(key) || 0) + 1);
+    }
+    for (const genre of totalGenresForGame) {
+      const key = `${genre}::${game.player_status}`;
+      genrePlayedTotalCounts.set(key, (genrePlayedTotalCounts.get(key) || 0) + 1);
     }
   }
 }
@@ -121,14 +146,17 @@ const unknownLast = (a, b, key) => {
   if (aUnknown !== bUnknown) return aUnknown ? 1 : -1;
   return 0;
 };
+const isSupersetGenre = (slug) =>
+  Object.prototype.hasOwnProperty.call(GENRE_SUPERSETS, slug);
 
-const engineGenreEntries = Array.from(engineGenreCounts.entries())
-  .map(([key, count]) => {
+const engineGenreEntries = Array.from(engineGenreTotalCounts.entries())
+  .map(([key, totalCount]) => {
     const [engine, genre] = key.split("::");
     return {
       engine,
       genre,
-      count,
+      count: engineGenreCounts.get(key) || 0,
+      totalCount,
       engineLabel: engineLabel.get(engine) ?? formatUnknown(engine, "Engine"),
       genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
     };
@@ -139,13 +167,14 @@ const engineGenreEntries = Array.from(engineGenreCounts.entries())
     unknownLast(a, b, "genreLabel") ||
     a.genreLabel.localeCompare(b.genreLabel));
 
-const developerGenreEntries = Array.from(developerGenreCounts.entries())
-  .map(([key, count]) => {
+const developerGenreEntries = Array.from(developerGenreTotalCounts.entries())
+  .map(([key, totalCount]) => {
     const [developer, genre] = key.split("::");
     return {
       developer,
       genre,
-      count,
+      count: developerGenreCounts.get(key) || 0,
+      totalCount,
       developerLabel: developerLabel.get(developer) ?? formatUnknown(developer, "Developer"),
       genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
     };
@@ -188,13 +217,14 @@ const developerStatusEntries = Array.from(developerStatusCounts.entries())
     a.developerLabel.localeCompare(b.developerLabel) ||
     a.statusLabel.localeCompare(b.statusLabel));
 
-const genreStatusEntries = Array.from(genreStatusCounts.entries())
-  .map(([key, count]) => {
+const genreStatusEntries = Array.from(genreStatusTotalCounts.entries())
+  .map(([key, totalCount]) => {
     const [genre, status] = key.split("::");
     return {
       genre,
       status,
-      count,
+      count: genreStatusCounts.get(key) || 0,
+      totalCount,
       genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
       statusLabel: labelize(status),
     };
@@ -236,13 +266,14 @@ const developerPlayedEntries = Array.from(developerPlayedCounts.entries())
     a.developerLabel.localeCompare(b.developerLabel) ||
     a.statusLabel.localeCompare(b.statusLabel));
 
-const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
-  .map(([key, count]) => {
+const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
+  .map(([key, totalCount]) => {
     const [genre, status] = key.split("::");
     return {
       genre,
       status,
-      count,
+      count: genrePlayedCounts.get(key) || 0,
+      totalCount,
       genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
       statusLabel: labelize(status),
     };
@@ -279,7 +310,11 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
               <a href={`/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`}>
                 {entry.engineLabel} + {entry.genreLabel}
               </a>
-              <span style="opacity:.7;"> ({entry.count})</span>
+              {isSupersetGenre(entry.genre) ? (
+                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
+              ) : (
+                <span style="opacity:.7;"> ({entry.count})</span>
+              )}
             </li>
           ))}
         </ul>
@@ -296,7 +331,11 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
               <a href={`/filters/developer/${entry.developer}/genre/${entry.genre}/index.html`}>
                 {entry.developerLabel} + {entry.genreLabel}
               </a>
-              <span style="opacity:.7;"> ({entry.count})</span>
+              {isSupersetGenre(entry.genre) ? (
+                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
+              ) : (
+                <span style="opacity:.7;"> ({entry.count})</span>
+              )}
             </li>
           ))}
         </ul>
@@ -347,7 +386,11 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
               <a href={`/filters/genre/${entry.genre}/game_status/${entry.status}/index.html`}>
                 {entry.genreLabel} + {entry.statusLabel}
               </a>
-              <span style="opacity:.7;"> ({entry.count})</span>
+              {isSupersetGenre(entry.genre) ? (
+                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
+              ) : (
+                <span style="opacity:.7;"> ({entry.count})</span>
+              )}
             </li>
           ))}
         </ul>
@@ -398,7 +441,11 @@ const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
               <a href={`/filters/genre/${entry.genre}/played_status/${entry.status}/index.html`}>
                 {entry.genreLabel} + {entry.statusLabel}
               </a>
-              <span style="opacity:.7;"> ({entry.count})</span>
+              {isSupersetGenre(entry.genre) ? (
+                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
+              ) : (
+                <span style="opacity:.7;"> ({entry.count})</span>
+              )}
             </li>
           ))}
         </ul>

@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.13] - 2026-01-28
+- Show distinct and total counts for superset genres on composite filter index.
+- Ensure composite filter genre pages include total matches for superset genres.
+
 ## [1.0.12] - 2026-01-28
 - Fix GHCR workflow version tag extraction step.
 
