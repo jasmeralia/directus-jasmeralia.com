@@ -1,6 +1,6 @@
 # directus-jasmeralia
 
-Directus + Astro stack for https://jasmeralia.com. This folder contains:
+[Directus](https://directus.io/) + [Astro](https://astro.build/) stack for https://jasmeralia.com. This folder contains:
 
 - `builder/`: webhook receiver + build/publish scripts for Astro
 - `site/`: Astro project source (static build)

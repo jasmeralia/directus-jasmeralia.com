@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.8] - 2026-01-28
+- Add Directus and Astro links to README.
+
 ## [1.0.7] - 2026-01-28
 - Linkify jasmeralia.com in README.
 
