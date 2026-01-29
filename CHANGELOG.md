@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.9] - 2026-01-28
+- Add CSV download links to all game-thumbnail pages and include relationship data in exports.
+- Add shared CSV helpers and extend game fields to include developer data.
+
 ## [1.0.8] - 2026-01-28
 - Add Directus and Astro links to README.
 

@@ -13,4 +13,8 @@ export const GAME_THUMB_FIELDS = [
   "engines.id",
   "engines.engines_id.id",
   "engines.engines_id.title",
+  "developers.id",
+  "developers.developers_id.id",
+  "developers.developers_id.name",
+  "developers.developers_id.slug",
 ];
