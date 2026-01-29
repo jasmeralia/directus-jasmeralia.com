@@ -1,0 +1,384 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { directusFetchItems } from "../../lib/directus";
+import { normalizeGenreSlugs } from "../../lib/genre-supersets";
+
+const engines = await directusFetchItems("engines", {
+  fields: ["slug", "title"],
+  sort: ["title"],
+  limit: 500,
+});
+const genres = await directusFetchItems("genres", {
+  fields: ["slug", "name"],
+  sort: ["name"],
+  limit: 500,
+});
+const developers = await directusFetchItems("developers", {
+  fields: ["slug", "name"],
+  sort: ["name"],
+  limit: 500,
+});
+const games = await directusFetchItems("games", {
+  fields: [
+    "id",
+    "game_status",
+    "player_status",
+    "engines.engines_id.slug",
+    "genres.genres_id.slug",
+    "developers.developers_id.slug",
+  ],
+  limit: 1000,
+});
+
+const engineLabel = new Map();
+for (const engine of engines ?? []) {
+  if (engine?.slug) engineLabel.set(engine.slug, engine.title ?? engine.slug);
+}
+const genreLabel = new Map();
+for (const genre of genres ?? []) {
+  if (genre?.slug) genreLabel.set(genre.slug, genre.name ?? genre.slug);
+}
+const developerLabel = new Map();
+for (const developer of developers ?? []) {
+  if (developer?.slug) {
+    developerLabel.set(developer.slug, developer.name ?? developer.slug);
+  }
+}
+
+const engineGenreCounts = new Map();
+const developerGenreCounts = new Map();
+const engineStatusCounts = new Map();
+const developerStatusCounts = new Map();
+const genreStatusCounts = new Map();
+const enginePlayedCounts = new Map();
+const developerPlayedCounts = new Map();
+const genrePlayedCounts = new Map();
+
+for (const game of games ?? []) {
+  const engineSlugs =
+    (game.engines ?? []).map((entry) => entry?.engines_id?.slug).filter(Boolean);
+  const rawGenreSlugs =
+    (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
+  const genreSlugs = normalizeGenreSlugs(rawGenreSlugs);
+  const developerSlugs =
+    (game.developers ?? []).map((entry) => entry?.developers_id?.slug).filter(Boolean);
+
+  const enginesForGame = engineSlugs.length ? engineSlugs : ["unknown"];
+  const genresForGame = genreSlugs.length ? genreSlugs : ["unknown"];
+  const developersForGame = developerSlugs.length ? developerSlugs : ["unknown"];
+
+  for (const engine of enginesForGame) {
+    for (const genre of genresForGame) {
+      const key = `${engine}::${genre}`;
+      engineGenreCounts.set(key, (engineGenreCounts.get(key) || 0) + 1);
+    }
+  }
+
+  for (const developer of developersForGame) {
+    for (const genre of genresForGame) {
+      const key = `${developer}::${genre}`;
+      developerGenreCounts.set(key, (developerGenreCounts.get(key) || 0) + 1);
+    }
+  }
+
+  if (game.game_status) {
+    for (const engine of enginesForGame) {
+      const key = `${engine}::${game.game_status}`;
+      engineStatusCounts.set(key, (engineStatusCounts.get(key) || 0) + 1);
+    }
+    for (const developer of developersForGame) {
+      const key = `${developer}::${game.game_status}`;
+      developerStatusCounts.set(key, (developerStatusCounts.get(key) || 0) + 1);
+    }
+    for (const genre of genresForGame) {
+      const key = `${genre}::${game.game_status}`;
+      genreStatusCounts.set(key, (genreStatusCounts.get(key) || 0) + 1);
+    }
+  }
+
+  if (game.player_status) {
+    for (const engine of enginesForGame) {
+      const key = `${engine}::${game.player_status}`;
+      enginePlayedCounts.set(key, (enginePlayedCounts.get(key) || 0) + 1);
+    }
+    for (const developer of developersForGame) {
+      const key = `${developer}::${game.player_status}`;
+      developerPlayedCounts.set(key, (developerPlayedCounts.get(key) || 0) + 1);
+    }
+    for (const genre of genresForGame) {
+      const key = `${genre}::${game.player_status}`;
+      genrePlayedCounts.set(key, (genrePlayedCounts.get(key) || 0) + 1);
+    }
+  }
+}
+
+const formatUnknown = (value) => (value === "unknown" ? "Unknown" : value);
+const labelize = (value) =>
+  value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
+
+const engineGenreEntries = Array.from(engineGenreCounts.entries())
+  .map(([key, count]) => {
+    const [engine, genre] = key.split("::");
+    return {
+      engine,
+      genre,
+      count,
+      engineLabel: engineLabel.get(engine) ?? formatUnknown(engine),
+      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre),
+    };
+  })
+  .sort((a, b) =>
+    a.engineLabel.localeCompare(b.engineLabel) || a.genreLabel.localeCompare(b.genreLabel));
+
+const developerGenreEntries = Array.from(developerGenreCounts.entries())
+  .map(([key, count]) => {
+    const [developer, genre] = key.split("::");
+    return {
+      developer,
+      genre,
+      count,
+      developerLabel: developerLabel.get(developer) ?? formatUnknown(developer),
+      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre),
+    };
+  })
+  .sort((a, b) =>
+    a.developerLabel.localeCompare(b.developerLabel) || a.genreLabel.localeCompare(b.genreLabel));
+
+const engineStatusEntries = Array.from(engineStatusCounts.entries())
+  .map(([key, count]) => {
+    const [engine, status] = key.split("::");
+    return {
+      engine,
+      status,
+      count,
+      engineLabel: engineLabel.get(engine) ?? formatUnknown(engine),
+      statusLabel: labelize(status),
+    };
+  })
+  .sort((a, b) =>
+    a.engineLabel.localeCompare(b.engineLabel) || a.statusLabel.localeCompare(b.statusLabel));
+
+const developerStatusEntries = Array.from(developerStatusCounts.entries())
+  .map(([key, count]) => {
+    const [developer, status] = key.split("::");
+    return {
+      developer,
+      status,
+      count,
+      developerLabel: developerLabel.get(developer) ?? formatUnknown(developer),
+      statusLabel: labelize(status),
+    };
+  })
+  .sort((a, b) =>
+    a.developerLabel.localeCompare(b.developerLabel) || a.statusLabel.localeCompare(b.statusLabel));
+
+const genreStatusEntries = Array.from(genreStatusCounts.entries())
+  .map(([key, count]) => {
+    const [genre, status] = key.split("::");
+    return {
+      genre,
+      status,
+      count,
+      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre),
+      statusLabel: labelize(status),
+    };
+  })
+  .sort((a, b) =>
+    a.genreLabel.localeCompare(b.genreLabel) || a.statusLabel.localeCompare(b.statusLabel));
+
+const enginePlayedEntries = Array.from(enginePlayedCounts.entries())
+  .map(([key, count]) => {
+    const [engine, status] = key.split("::");
+    return {
+      engine,
+      status,
+      count,
+      engineLabel: engineLabel.get(engine) ?? formatUnknown(engine),
+      statusLabel: labelize(status),
+    };
+  })
+  .sort((a, b) =>
+    a.engineLabel.localeCompare(b.engineLabel) || a.statusLabel.localeCompare(b.statusLabel));
+
+const developerPlayedEntries = Array.from(developerPlayedCounts.entries())
+  .map(([key, count]) => {
+    const [developer, status] = key.split("::");
+    return {
+      developer,
+      status,
+      count,
+      developerLabel: developerLabel.get(developer) ?? formatUnknown(developer),
+      statusLabel: labelize(status),
+    };
+  })
+  .sort((a, b) =>
+    a.developerLabel.localeCompare(b.developerLabel) || a.statusLabel.localeCompare(b.statusLabel));
+
+const genrePlayedEntries = Array.from(genrePlayedCounts.entries())
+  .map(([key, count]) => {
+    const [genre, status] = key.split("::");
+    return {
+      genre,
+      status,
+      count,
+      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre),
+      statusLabel: labelize(status),
+    };
+  })
+  .sort((a, b) =>
+    a.genreLabel.localeCompare(b.genreLabel) || a.statusLabel.localeCompare(b.statusLabel));
+---
+
+<BaseLayout title="Filters">
+  <div slot="head">
+    <style>
+      main{max-width:980px;margin:0 auto;padding:24px;}
+      ul{list-style:disc;padding-left:20px;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <h1>Filters</h1>
+      <p>Composite filter pages generated at build time.</p>
+    </div>
+    <div class="panel">
+      <h2>Engine + Genre</h2>
+      {engineGenreEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {engineGenreEntries.map((entry) => (
+            <li>
+              <a href={`/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`}>
+                {entry.engineLabel} + {entry.genreLabel}
+              </a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    <div class="panel">
+      <h2>Developer + Genre</h2>
+      {developerGenreEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {developerGenreEntries.map((entry) => (
+            <li>
+              <a href={`/filters/developer/${entry.developer}/genre/${entry.genre}/index.html`}>
+                {entry.developerLabel} + {entry.genreLabel}
+              </a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    <div class="panel">
+      <h2>Engine + Game Status</h2>
+      {engineStatusEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {engineStatusEntries.map((entry) => (
+            <li>
+              <a href={`/filters/engine/${entry.engine}/game_status/${entry.status}/index.html`}>
+                {entry.engineLabel} + {entry.statusLabel}
+              </a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    <div class="panel">
+      <h2>Developer + Game Status</h2>
+      {developerStatusEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {developerStatusEntries.map((entry) => (
+            <li>
+              <a href={`/filters/developer/${entry.developer}/game_status/${entry.status}/index.html`}>
+                {entry.developerLabel} + {entry.statusLabel}
+              </a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    <div class="panel">
+      <h2>Genre + Game Status</h2>
+      {genreStatusEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {genreStatusEntries.map((entry) => (
+            <li>
+              <a href={`/filters/genre/${entry.genre}/game_status/${entry.status}/index.html`}>
+                {entry.genreLabel} + {entry.statusLabel}
+              </a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    <div class="panel">
+      <h2>Engine + Played Status</h2>
+      {enginePlayedEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {enginePlayedEntries.map((entry) => (
+            <li>
+              <a href={`/filters/engine/${entry.engine}/played_status/${entry.status}/index.html`}>
+                {entry.engineLabel} + {entry.statusLabel}
+              </a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    <div class="panel">
+      <h2>Developer + Played Status</h2>
+      {developerPlayedEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {developerPlayedEntries.map((entry) => (
+            <li>
+              <a href={`/filters/developer/${entry.developer}/played_status/${entry.status}/index.html`}>
+                {entry.developerLabel} + {entry.statusLabel}
+              </a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    <div class="panel">
+      <h2>Genre + Played Status</h2>
+      {genrePlayedEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {genrePlayedEntries.map((entry) => (
+            <li>
+              <a href={`/filters/genre/${entry.genre}/played_status/${entry.status}/index.html`}>
+                {entry.genreLabel} + {entry.statusLabel}
+              </a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </main>
+</BaseLayout>

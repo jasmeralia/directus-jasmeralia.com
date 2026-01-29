@@ -1,0 +1,132 @@
+---
+import BaseLayout from "../../../../../layouts/BaseLayout.astro";
+import GameThumbCard from "../../../../../components/GameThumbCard.astro";
+import { directusFetchItems } from "../../../../../lib/directus";
+import { GAME_THUMB_FIELDS } from "../../../../../lib/game-fields";
+import { normalizeGenreSlugs, shouldExcludeSuperset } from "../../../../../lib/genre-supersets";
+
+export async function getStaticPaths() {
+  const games = await directusFetchItems("games", {
+    fields: [
+      "id",
+      "developers.developers_id.slug",
+      "genres.genres_id.slug",
+    ],
+    limit: 1000,
+  });
+
+  const comboCounts = new Map();
+  for (const game of games ?? []) {
+    const developerSlugs =
+      (game.developers ?? []).map((entry) => entry?.developers_id?.slug).filter(Boolean);
+    const rawGenreSlugs =
+      (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
+    const genreSlugs = normalizeGenreSlugs(rawGenreSlugs);
+    const developersForGame = developerSlugs.length ? developerSlugs : ["unknown"];
+    const genresForGame = genreSlugs.length ? genreSlugs : ["unknown"];
+    for (const developer of developersForGame) {
+      for (const genre of genresForGame) {
+        const key = `${developer}::${genre}`;
+        comboCounts.set(key, (comboCounts.get(key) || 0) + 1);
+      }
+    }
+  }
+
+  return Array.from(comboCounts.keys()).map((key) => {
+    const [developer, genre] = key.split("::");
+    return { params: { developer, genre } };
+  });
+}
+
+const { developer, genre } = Astro.params;
+
+const developers = await directusFetchItems("developers", {
+  fields: ["slug", "name"],
+  filter: { slug: { _eq: developer } },
+  limit: 1,
+});
+const genres = await directusFetchItems("genres", {
+  fields: ["slug", "name"],
+  filter: { slug: { _eq: genre } },
+  limit: 1,
+});
+
+const developerLabel =
+  developer === "unknown"
+    ? "Unknown"
+    : (developers?.[0]?.name ?? developer);
+const genreLabel = genre === "unknown" ? "Unknown" : (genres?.[0]?.name ?? genre);
+
+const filter = {};
+if (developer !== "unknown") {
+  filter.developers = { developers_id: { slug: { _eq: developer } } };
+}
+if (genre !== "unknown") {
+  filter.genres = { genres_id: { slug: { _eq: genre } } };
+}
+
+let games = await directusFetchItems("games", {
+  fields: [...GAME_THUMB_FIELDS, "developers.id"],
+  filter: Object.keys(filter).length ? filter : undefined,
+  sort: ["title"],
+  limit: 1000,
+});
+
+if (developer === "unknown") {
+  games = games.filter((game) => (game.developers ?? []).length === 0);
+}
+if (genre === "unknown") {
+  games = games.filter((game) => (game.genres ?? []).length === 0);
+}
+games = games.filter((game) =>
+  !shouldExcludeSuperset(
+    genre,
+    (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean),
+  ),
+);
+
+const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
+const reviewedGameIds = new Set();
+if (gameIds.length) {
+  const reviews = await directusFetchItems("reviews", {
+    fields: ["game.id"],
+    filter: { status: { _eq: "published" }, game: { _in: gameIds } },
+    limit: 500,
+  });
+  for (const review of reviews ?? []) {
+    const id = review?.game?.id;
+    if (typeof id === "number") reviewedGameIds.add(id);
+  }
+}
+---
+
+<BaseLayout title={`Filters | ${developerLabel} + ${genreLabel}`}>
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <h1>{developerLabel} + {genreLabel}</h1>
+      <p>
+        Developer: <strong>{developerLabel}</strong> &nbsp;|&nbsp;
+        Genre: <strong>{genreLabel}</strong>
+      </p>
+    </div>
+    {games.length === 0 ? (
+      <p>No games found for this combination.</p>
+    ) : (
+      <div class="grid">
+        {games.map((game) => {
+          const reviewed = reviewedGameIds.has(game.id);
+          return <GameThumbCard game={game} reviewed={reviewed} />;
+        })}
+      </div>
+    )}
+  </main>
+</BaseLayout>

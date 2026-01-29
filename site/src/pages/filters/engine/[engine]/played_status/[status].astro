@@ -1,0 +1,103 @@
+---
+import BaseLayout from "../../../../../layouts/BaseLayout.astro";
+import GameThumbCard from "../../../../../components/GameThumbCard.astro";
+import { directusFetchItems } from "../../../../../lib/directus";
+import { GAME_THUMB_FIELDS } from "../../../../../lib/game-fields";
+
+export async function getStaticPaths() {
+  const games = await directusFetchItems("games", {
+    fields: ["id", "player_status", "engines.engines_id.slug"],
+    limit: 1000,
+  });
+
+  const comboCounts = new Map();
+  for (const game of games ?? []) {
+    if (!game.player_status) continue;
+    const engineSlugs =
+      (game.engines ?? []).map((entry) => entry?.engines_id?.slug).filter(Boolean);
+    const enginesForGame = engineSlugs.length ? engineSlugs : ["unknown"];
+    for (const engine of enginesForGame) {
+      const key = `${engine}::${game.player_status}`;
+      comboCounts.set(key, (comboCounts.get(key) || 0) + 1);
+    }
+  }
+
+  return Array.from(comboCounts.keys()).map((key) => {
+    const [engine, status] = key.split("::");
+    return { params: { engine, status } };
+  });
+}
+
+const { engine, status } = Astro.params;
+const labelize = (value) =>
+  value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
+
+const engines = await directusFetchItems("engines", {
+  fields: ["slug", "title"],
+  filter: { slug: { _eq: engine } },
+  limit: 1,
+});
+const engineLabel = engine === "unknown" ? "Unknown" : (engines?.[0]?.title ?? engine);
+const statusLabel = labelize(status);
+
+const filter = { player_status: { _eq: status } };
+if (engine !== "unknown") {
+  filter.engines = { engines_id: { slug: { _eq: engine } } };
+}
+
+let games = await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  filter,
+  sort: ["title"],
+  limit: 1000,
+});
+
+if (engine === "unknown") {
+  games = games.filter((game) => (game.engines ?? []).length === 0);
+}
+
+const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
+const reviewedGameIds = new Set();
+if (gameIds.length) {
+  const reviews = await directusFetchItems("reviews", {
+    fields: ["game.id"],
+    filter: { status: { _eq: "published" }, game: { _in: gameIds } },
+    limit: 500,
+  });
+  for (const review of reviews ?? []) {
+    const id = review?.game?.id;
+    if (typeof id === "number") reviewedGameIds.add(id);
+  }
+}
+---
+
+<BaseLayout title={`Filters | ${engineLabel} + ${statusLabel}`}>
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <h1>{engineLabel} + {statusLabel}</h1>
+      <p>
+        Engine: <strong>{engineLabel}</strong> &nbsp;|&nbsp;
+        Played status: <strong>{statusLabel}</strong>
+      </p>
+    </div>
+    {games.length === 0 ? (
+      <p>No games found for this combination.</p>
+    ) : (
+      <div class="grid">
+        {games.map((game) => {
+          const reviewed = reviewedGameIds.has(game.id);
+          return <GameThumbCard game={game} reviewed={reviewed} />;
+        })}
+      </div>
+    )}
+  </main>
+</BaseLayout>
