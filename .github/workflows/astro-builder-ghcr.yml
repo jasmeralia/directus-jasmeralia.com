@@ -38,7 +38,9 @@ jobs:
 
       - name: Read Astro package version
         id: pkg
-        run: echo "version=$(node -p \"require('./site/package.json').version\")" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION=$(node -e "process.stdout.write(require('./site/package.json').version)")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata
         id: meta

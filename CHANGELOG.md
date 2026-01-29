@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.12] - 2026-01-28
+- Fix GHCR workflow version tag extraction step.
+
 ## [1.0.11] - 2026-01-28
 - Open external markdown and developer links in new tabs.
 - Tag builder image with Astro package version in GHCR workflow.
