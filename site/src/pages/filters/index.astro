@@ -53,11 +53,13 @@ const developerStatusCounts = new Map();
 const developerStatusValues = new Map();
 const genreStatusCounts = new Map();
 const genreStatusTotalCounts = new Map();
+const genreStatusValues = new Map();
 const enginePlayedCounts = new Map();
 const developerPlayedCounts = new Map();
 const developerPlayedValues = new Map();
 const genrePlayedCounts = new Map();
 const genrePlayedTotalCounts = new Map();
+const genrePlayedValues = new Map();
 
 for (const game of games ?? []) {
   const engineSlugs =
@@ -102,6 +104,10 @@ for (const game of games ?? []) {
     for (const genre of distinctGenresForGame) {
       const key = `${genre}::${game.game_status}`;
       genreStatusCounts.set(key, (genreStatusCounts.get(key) || 0) + 1);
+      if (!genreStatusValues.has(genre)) {
+        genreStatusValues.set(genre, new Set());
+      }
+      genreStatusValues.get(genre).add(game.game_status);
     }
     for (const genre of totalGenresForGame) {
       const key = `${genre}::${game.game_status}`;
@@ -125,6 +131,10 @@ for (const game of games ?? []) {
     for (const genre of distinctGenresForGame) {
       const key = `${genre}::${game.player_status}`;
       genrePlayedCounts.set(key, (genrePlayedCounts.get(key) || 0) + 1);
+      if (!genrePlayedValues.has(genre)) {
+        genrePlayedValues.set(genre, new Set());
+      }
+      genrePlayedValues.get(genre).add(game.player_status);
     }
     for (const genre of totalGenresForGame) {
       const key = `${genre}::${game.player_status}`;
@@ -208,6 +218,7 @@ const genreStatusEntries = Array.from(genreStatusTotalCounts.entries())
       statusLabel: labelize(status),
     };
   })
+  .filter((entry) => (genreStatusValues.get(entry.genre)?.size ?? 0) > 1)
   .sort((a, b) =>
     unknownLast(a, b, "genreLabel") ||
     a.genreLabel.localeCompare(b.genreLabel) ||
@@ -258,6 +269,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
       statusLabel: labelize(status),
     };
   })
+  .filter((entry) => (genrePlayedValues.get(entry.genre)?.size ?? 0) > 1)
   .sort((a, b) =>
     unknownLast(a, b, "genreLabel") ||
     a.genreLabel.localeCompare(b.genreLabel) ||
@@ -336,6 +348,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
     </div>
     <div class="panel">
       <h2>Genre + Game Status ({genreStatusEntries.length} combinations)</h2>
+      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per genre are hidden.</p>
       {genreStatusEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
@@ -391,6 +404,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
     </div>
     <div class="panel">
       <h2>Genre + Played Status ({genrePlayedEntries.length} combinations)</h2>
+      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per genre are hidden.</p>
       {genrePlayedEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (

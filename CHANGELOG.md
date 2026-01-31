@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.19] - 2026-01-31
+- Hide genre + status composite filters when only one status exists per genre, with a note.
+
 ## [1.0.18] - 2026-01-31
 - Add a developer index pie chart with tooltip-only labels.
 
