@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.23] - 2026-01-31
+- Note superset-genre filtering on the composite filters index.
+
 ## [1.0.22] - 2026-01-31
 - Skip superset-genre composite filter pages when distinct count is zero.
 

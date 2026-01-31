@@ -306,6 +306,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
     </div>
     <div class="panel">
       <h2>Engine + Genre ({engineGenreEntries.length} combinations)</h2>
+      <p style="opacity:.7;margin-top:-8px;">Superset genres with zero distinct matches are hidden.</p>
       {engineGenreEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
