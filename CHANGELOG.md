@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.20] - 2026-01-31
+- Add filtering notes to all status-based composite filter sections.
+
 ## [1.0.19] - 2026-01-31
 - Hide genre + status composite filters when only one status exists per genre, with a note.
 
