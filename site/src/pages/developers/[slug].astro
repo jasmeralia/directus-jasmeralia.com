@@ -22,13 +22,14 @@ export async function getStaticPaths() {
 }
 
 const { slug } = Astro.params;
+const isUnknown = slug === "unknown";
 
 let title = "Unknown";
 let developer = null;
 let games = [];
 let reviews = [];
 
-if (slug === "unknown") {
+if (isUnknown) {
   const allGames = await directusFetchItems("games", {
     fields: [...GAME_THUMB_FIELDS, "developers.id"],
     sort: ["title"],
@@ -142,36 +143,44 @@ const csvHref = csvDataUri(gamesToCsv(games));
     {markdownContent ? (
       <div class="panel" set:html={renderMarkdown(markdownContent)} />
     ) : null}
-    <div class="panel">
-      <div class="label">Games</div>
-      {games.length === 0 ? (
-        <p>No games found for this developer.</p>
-      ) : (
-        <div class="grid">
-          {games.map((game) => {
-            const reviewed = reviewedGameIds.has(game.id);
-            return (
-              <GameThumbCard game={game} reviewed={reviewed} />
-            );
-          })}
+    {isUnknown && games.length === 0 ? (
+      <div class="panel">
+        <p>No games have an unknown developer.</p>
+      </div>
+    ) : (
+      <>
+        <div class="panel">
+          <div class="label">Games</div>
+          {games.length === 0 ? (
+            <p>No games found for this developer.</p>
+          ) : (
+            <div class="grid">
+              {games.map((game) => {
+                const reviewed = reviewedGameIds.has(game.id);
+                return (
+                  <GameThumbCard game={game} reviewed={reviewed} />
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
-    </div>
-    <div class="panel">
-      <div class="label">Reviews</div>
-      {reviews.length === 0 ? (
-        <p>No reviews for games from this developer yet.</p>
-      ) : (
-        <ul>
-          {reviews.map((review) => (
-            <li>
-              <a href={`/reviews/${review.slug}/index.html`}>{review.title}</a>
-              {typeof review.rating === "number" ? <span> (Rating: {review.rating}/10)</span> : null}
-              {review.published_at ? <span style="opacity:.6;margin-left:.5rem;">Published: {formatDate(review.published_at)}</span> : null}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+        <div class="panel">
+          <div class="label">Reviews</div>
+          {reviews.length === 0 ? (
+            <p>No reviews for games from this developer yet.</p>
+          ) : (
+            <ul>
+              {reviews.map((review) => (
+                <li>
+                  <a href={`/reviews/${review.slug}/index.html`}>{review.title}</a>
+                  {typeof review.rating === "number" ? <span> (Rating: {review.rating}/10)</span> : null}
+                  {review.published_at ? <span style="opacity:.6;margin-left:.5rem;">Published: {formatDate(review.published_at)}</span> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </>
+    )}
   </main>
 </BaseLayout>

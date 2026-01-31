@@ -50,10 +50,12 @@ const engineGenreCounts = new Map();
 const engineGenreTotalCounts = new Map();
 const engineStatusCounts = new Map();
 const developerStatusCounts = new Map();
+const developerStatusValues = new Map();
 const genreStatusCounts = new Map();
 const genreStatusTotalCounts = new Map();
 const enginePlayedCounts = new Map();
 const developerPlayedCounts = new Map();
+const developerPlayedValues = new Map();
 const genrePlayedCounts = new Map();
 const genrePlayedTotalCounts = new Map();
 
@@ -92,6 +94,10 @@ for (const game of games ?? []) {
     for (const developer of developersForGame) {
       const key = `${developer}::${game.game_status}`;
       developerStatusCounts.set(key, (developerStatusCounts.get(key) || 0) + 1);
+      if (!developerStatusValues.has(developer)) {
+        developerStatusValues.set(developer, new Set());
+      }
+      developerStatusValues.get(developer).add(game.game_status);
     }
     for (const genre of distinctGenresForGame) {
       const key = `${genre}::${game.game_status}`;
@@ -111,6 +117,10 @@ for (const game of games ?? []) {
     for (const developer of developersForGame) {
       const key = `${developer}::${game.player_status}`;
       developerPlayedCounts.set(key, (developerPlayedCounts.get(key) || 0) + 1);
+      if (!developerPlayedValues.has(developer)) {
+        developerPlayedValues.set(developer, new Set());
+      }
+      developerPlayedValues.get(developer).add(game.player_status);
     }
     for (const genre of distinctGenresForGame) {
       const key = `${genre}::${game.player_status}`;
@@ -180,6 +190,7 @@ const developerStatusEntries = Array.from(developerStatusCounts.entries())
       statusLabel: labelize(status),
     };
   })
+  .filter((entry) => (developerStatusValues.get(entry.developer)?.size ?? 0) > 1)
   .sort((a, b) =>
     unknownLast(a, b, "developerLabel") ||
     a.developerLabel.localeCompare(b.developerLabel) ||
@@ -229,6 +240,7 @@ const developerPlayedEntries = Array.from(developerPlayedCounts.entries())
       statusLabel: labelize(status),
     };
   })
+  .filter((entry) => (developerPlayedValues.get(entry.developer)?.size ?? 0) > 1)
   .sort((a, b) =>
     unknownLast(a, b, "developerLabel") ||
     a.developerLabel.localeCompare(b.developerLabel) ||
