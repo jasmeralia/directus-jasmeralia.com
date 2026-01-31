@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.24] - 2026-01-31
+- Filter out superset genre status combos with zero distinct matches and note it.
+
 ## [1.0.23] - 2026-01-31
 - Note superset-genre filtering on the composite filters index.
 

@@ -231,6 +231,7 @@ const genreStatusEntries = Array.from(genreStatusTotalCounts.entries())
     };
   })
   .filter((entry) => (genreStatusValues.get(entry.genre)?.size ?? 0) > 1)
+  .filter((entry) => !(isSupersetGenre(entry.genre) && entry.count === 0))
   .sort((a, b) =>
     unknownLast(a, b, "genreLabel") ||
     a.genreLabel.localeCompare(b.genreLabel) ||
@@ -283,6 +284,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
     };
   })
   .filter((entry) => (genrePlayedValues.get(entry.genre)?.size ?? 0) > 1)
+  .filter((entry) => !(isSupersetGenre(entry.genre) && entry.count === 0))
   .sort((a, b) =>
     unknownLast(a, b, "genreLabel") ||
     a.genreLabel.localeCompare(b.genreLabel) ||
@@ -364,7 +366,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
     </div>
     <div class="panel">
       <h2>Genre + Game Status ({genreStatusEntries.length} combinations)</h2>
-      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per genre are hidden.</p>
+      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per genre are hidden. Superset genres with zero distinct matches are hidden.</p>
       {genreStatusEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
@@ -422,7 +424,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
     </div>
     <div class="panel">
       <h2>Genre + Played Status ({genrePlayedEntries.length} combinations)</h2>
-      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per genre are hidden.</p>
+      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per genre are hidden. Superset genres with zero distinct matches are hidden.</p>
       {genrePlayedEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
