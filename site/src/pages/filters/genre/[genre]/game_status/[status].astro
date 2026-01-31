@@ -13,21 +13,31 @@ export async function getStaticPaths() {
   });
 
   const comboCounts = new Map();
+  const genreStatusValues = new Map();
   for (const game of games ?? []) {
     if (!game.game_status) continue;
-  const genreSlugs =
-    (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
+    const genreSlugs =
+      (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
     const genresForGame = genreSlugs.length ? genreSlugs : ["unknown"];
     for (const genre of genresForGame) {
       const key = `${genre}::${game.game_status}`;
       comboCounts.set(key, (comboCounts.get(key) || 0) + 1);
+      if (!genreStatusValues.has(genre)) {
+        genreStatusValues.set(genre, new Set());
+      }
+      genreStatusValues.get(genre).add(game.game_status);
     }
   }
 
-  return Array.from(comboCounts.keys()).map((key) => {
-    const [genre, status] = key.split("::");
-    return { params: { genre, status } };
-  });
+  return Array.from(comboCounts.keys())
+    .filter((key) => {
+      const [genre] = key.split("::");
+      return (genreStatusValues.get(genre)?.size ?? 0) > 1;
+    })
+    .map((key) => {
+      const [genre, status] = key.split("::");
+      return { params: { genre, status } };
+    });
 }
 
 const { genre, status } = Astro.params;

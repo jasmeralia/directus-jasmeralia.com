@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.21] - 2026-01-31
+- Suppress status-based composite filter pages when only one status exists per dimension.
+
 ## [1.0.20] - 2026-01-31
 - Add filtering notes to all status-based composite filter sections.
 

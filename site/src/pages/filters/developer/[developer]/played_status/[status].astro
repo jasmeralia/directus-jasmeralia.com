@@ -13,6 +13,7 @@ export async function getStaticPaths() {
   });
 
   const comboCounts = new Map();
+  const developerStatusValues = new Map();
   for (const game of games ?? []) {
     if (!game.player_status) continue;
     const developerSlugs =
@@ -21,13 +22,22 @@ export async function getStaticPaths() {
     for (const developer of developersForGame) {
       const key = `${developer}::${game.player_status}`;
       comboCounts.set(key, (comboCounts.get(key) || 0) + 1);
+      if (!developerStatusValues.has(developer)) {
+        developerStatusValues.set(developer, new Set());
+      }
+      developerStatusValues.get(developer).add(game.player_status);
     }
   }
 
-  return Array.from(comboCounts.keys()).map((key) => {
-    const [developer, status] = key.split("::");
-    return { params: { developer, status } };
-  });
+  return Array.from(comboCounts.keys())
+    .filter((key) => {
+      const [developer] = key.split("::");
+      return (developerStatusValues.get(developer)?.size ?? 0) > 1;
+    })
+    .map((key) => {
+      const [developer, status] = key.split("::");
+      return { params: { developer, status } };
+    });
 }
 
 const { developer, status } = Astro.params;

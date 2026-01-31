@@ -13,6 +13,7 @@ export async function getStaticPaths() {
   });
 
   const comboCounts = new Map();
+  const engineStatusValues = new Map();
   for (const game of games ?? []) {
     if (!game.player_status) continue;
     const engineSlugs =
@@ -21,13 +22,22 @@ export async function getStaticPaths() {
     for (const engine of enginesForGame) {
       const key = `${engine}::${game.player_status}`;
       comboCounts.set(key, (comboCounts.get(key) || 0) + 1);
+      if (!engineStatusValues.has(engine)) {
+        engineStatusValues.set(engine, new Set());
+      }
+      engineStatusValues.get(engine).add(game.player_status);
     }
   }
 
-  return Array.from(comboCounts.keys()).map((key) => {
-    const [engine, status] = key.split("::");
-    return { params: { engine, status } };
-  });
+  return Array.from(comboCounts.keys())
+    .filter((key) => {
+      const [engine] = key.split("::");
+      return (engineStatusValues.get(engine)?.size ?? 0) > 1;
+    })
+    .map((key) => {
+      const [engine, status] = key.split("::");
+      return { params: { engine, status } };
+    });
 }
 
 const { engine, status } = Astro.params;
