@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.25] - 2026-01-31
+- Remove underlined whitespace in composite filter links.
+
 ## [1.0.24] - 2026-01-31
 - Filter out superset genre status combos with zero distinct matches and note it.
 

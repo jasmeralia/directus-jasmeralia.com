@@ -315,9 +315,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
         <ul>
           {engineGenreEntries.map((entry) => (
             <li>
-              <a href={`/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`}>
-                {entry.engineLabel} + {entry.genreLabel}
-              </a>
+              <a href={`/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`}>{entry.engineLabel} + {entry.genreLabel}</a>
               {isSupersetGenre(entry.genre) ? (
                 <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
               ) : (
@@ -337,9 +335,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
         <ul>
           {engineStatusEntries.map((entry) => (
             <li>
-              <a href={`/filters/engine/${entry.engine}/game_status/${entry.status}/index.html`}>
-                {entry.engineLabel} + {entry.statusLabel}
-              </a>
+              <a href={`/filters/engine/${entry.engine}/game_status/${entry.status}/index.html`}>{entry.engineLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
             </li>
           ))}
@@ -355,9 +351,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
         <ul>
           {developerStatusEntries.map((entry) => (
             <li>
-              <a href={`/filters/developer/${entry.developer}/game_status/${entry.status}/index.html`}>
-                {entry.developerLabel} + {entry.statusLabel}
-              </a>
+              <a href={`/filters/developer/${entry.developer}/game_status/${entry.status}/index.html`}>{entry.developerLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
             </li>
           ))}
@@ -373,9 +367,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
         <ul>
           {genreStatusEntries.map((entry) => (
             <li>
-              <a href={`/filters/genre/${entry.genre}/game_status/${entry.status}/index.html`}>
-                {entry.genreLabel} + {entry.statusLabel}
-              </a>
+              <a href={`/filters/genre/${entry.genre}/game_status/${entry.status}/index.html`}>{entry.genreLabel} + {entry.statusLabel}</a>
               {isSupersetGenre(entry.genre) ? (
                 <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
               ) : (
@@ -395,9 +387,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
         <ul>
           {enginePlayedEntries.map((entry) => (
             <li>
-              <a href={`/filters/engine/${entry.engine}/played_status/${entry.status}/index.html`}>
-                {entry.engineLabel} + {entry.statusLabel}
-              </a>
+              <a href={`/filters/engine/${entry.engine}/played_status/${entry.status}/index.html`}>{entry.engineLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
             </li>
           ))}
@@ -413,9 +403,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
         <ul>
           {developerPlayedEntries.map((entry) => (
             <li>
-              <a href={`/filters/developer/${entry.developer}/played_status/${entry.status}/index.html`}>
-                {entry.developerLabel} + {entry.statusLabel}
-              </a>
+              <a href={`/filters/developer/${entry.developer}/played_status/${entry.status}/index.html`}>{entry.developerLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
             </li>
           ))}
@@ -431,9 +419,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
         <ul>
           {genrePlayedEntries.map((entry) => (
             <li>
-              <a href={`/filters/genre/${entry.genre}/played_status/${entry.status}/index.html`}>
-                {entry.genreLabel} + {entry.statusLabel}
-              </a>
+              <a href={`/filters/genre/${entry.genre}/played_status/${entry.status}/index.html`}>{entry.genreLabel} + {entry.statusLabel}</a>
               {isSupersetGenre(entry.genre) ? (
                 <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
               ) : (
