@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.15] - 2026-01-31
+- Remove developer + genre composite filter pages and index section.
+
 ## [1.0.14] - 2026-01-28
 - Pin npm 11.8.0 in builder image to avoid lockfile mismatches.
 

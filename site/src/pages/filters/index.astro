@@ -48,8 +48,6 @@ for (const developer of developers ?? []) {
 
 const engineGenreCounts = new Map();
 const engineGenreTotalCounts = new Map();
-const developerGenreCounts = new Map();
-const developerGenreTotalCounts = new Map();
 const engineStatusCounts = new Map();
 const developerStatusCounts = new Map();
 const genreStatusCounts = new Map();
@@ -83,19 +81,6 @@ for (const game of games ?? []) {
     for (const genre of totalGenresForGame) {
       const key = `${engine}::${genre}`;
       engineGenreTotalCounts.set(key, (engineGenreTotalCounts.get(key) || 0) + 1);
-    }
-  }
-
-  for (const developer of developersForGame) {
-    for (const genre of distinctGenresForGame) {
-      const key = `${developer}::${genre}`;
-      developerGenreCounts.set(key, (developerGenreCounts.get(key) || 0) + 1);
-    }
-  }
-  for (const developer of developersForGame) {
-    for (const genre of totalGenresForGame) {
-      const key = `${developer}::${genre}`;
-      developerGenreTotalCounts.set(key, (developerGenreTotalCounts.get(key) || 0) + 1);
     }
   }
 
@@ -167,23 +152,6 @@ const engineGenreEntries = Array.from(engineGenreTotalCounts.entries())
     unknownLast(a, b, "genreLabel") ||
     a.genreLabel.localeCompare(b.genreLabel));
 
-const developerGenreEntries = Array.from(developerGenreTotalCounts.entries())
-  .map(([key, totalCount]) => {
-    const [developer, genre] = key.split("::");
-    return {
-      developer,
-      genre,
-      count: developerGenreCounts.get(key) || 0,
-      totalCount,
-      developerLabel: developerLabel.get(developer) ?? formatUnknown(developer, "Developer"),
-      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
-    };
-  })
-  .sort((a, b) =>
-    unknownLast(a, b, "developerLabel") ||
-    a.developerLabel.localeCompare(b.developerLabel) ||
-    unknownLast(a, b, "genreLabel") ||
-    a.genreLabel.localeCompare(b.genreLabel));
 
 const engineStatusEntries = Array.from(engineStatusCounts.entries())
   .map(([key, count]) => {
@@ -309,27 +277,6 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
             <li>
               <a href={`/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`}>
                 {entry.engineLabel} + {entry.genreLabel}
-              </a>
-              {isSupersetGenre(entry.genre) ? (
-                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
-              ) : (
-                <span style="opacity:.7;"> ({entry.count})</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-    <div class="panel">
-      <h2>Developer + Genre ({developerGenreEntries.length} combinations)</h2>
-      {developerGenreEntries.length === 0 ? (
-        <p>No combinations yet.</p>
-      ) : (
-        <ul>
-          {developerGenreEntries.map((entry) => (
-            <li>
-              <a href={`/filters/developer/${entry.developer}/genre/${entry.genre}/index.html`}>
-                {entry.developerLabel} + {entry.genreLabel}
               </a>
               {isSupersetGenre(entry.genre) ? (
                 <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
