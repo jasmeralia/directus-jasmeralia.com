@@ -20,11 +20,12 @@ export async function getStaticPaths() {
 }
 
 const { slug } = Astro.params;
+const isUnknown = slug === "unknown";
 
 let title = "Unknown";
 let games = [];
 
-if (slug === "unknown") {
+if (isUnknown) {
   const allGames = await directusFetchItems("games", {
     fields: GAME_THUMB_FIELDS,
     sort: ["title"],
@@ -80,7 +81,7 @@ const csvHref = csvDataUri(gamesToCsv(games));
   <main>
       <CsvHeader title={title} count={games.length} csvHref={csvHref} csvName={csvName} />
       {games.length === 0 ? (
-        <p>No games found for this genre.</p>
+        <p>{isUnknown ? "No games have an unknown genre." : "No games found for this genre."}</p>
       ) : (
         <div class="grid">
           {games.map((g) => {

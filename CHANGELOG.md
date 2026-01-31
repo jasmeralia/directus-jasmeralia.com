@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.17] - 2026-01-31
+- Show a dedicated unknown-genre message when no games are missing genres.
+
 ## [1.0.16] - 2026-01-31
 - Hide developer + status composite filters when only one status exists per developer.
 - Show a single unknown developer message when no games are missing developers.
