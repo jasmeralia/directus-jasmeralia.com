@@ -30,6 +30,84 @@ for (const game of games) {
     developerCounts.set(slug, (developerCounts.get(slug) || 0) + 1);
   }
 }
+const pieColors = [
+  "#d3a43b",
+  "#4aa3ff",
+  "#7fe29a",
+  "#ff7a7a",
+  "#c788ff",
+  "#ffd966",
+  "#7bd3ff",
+  "#e6a8ff",
+  "#ffb370",
+  "#8fd3a9",
+  "#f3a6c6",
+  "#b8a8ff",
+];
+const size = 240;
+const radius = 100;
+const cx = size / 2;
+const cy = size / 2;
+const developerEntries = sortedDevelopers
+  .map((developer) => ({
+    label: developer.name ?? "",
+    value: developerCounts.get(developer.slug) || 0,
+  }))
+  .filter((entry) => entry.value > 0);
+if (unknownCount > 0) {
+  developerEntries.push({ label: unknownLabel, value: unknownCount });
+}
+const segments = developerEntries.map((entry, index) => ({
+  ...entry,
+  color: pieColors[index % pieColors.length],
+}));
+const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+const polarToCartesian = (centerX, centerY, r, angle) => {
+  const rad = (angle - 90) * (Math.PI / 180);
+  return {
+    x: centerX + r * Math.cos(rad),
+    y: centerY + r * Math.sin(rad),
+  };
+};
+const describeArc = (centerX, centerY, r, startAngle, endAngle) => {
+  const start = polarToCartesian(centerX, centerY, r, endAngle);
+  const end = polarToCartesian(centerX, centerY, r, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return [
+    "M",
+    start.x,
+    start.y,
+    "A",
+    r,
+    r,
+    0,
+    largeArcFlag,
+    0,
+    end.x,
+    end.y,
+    "L",
+    centerX,
+    centerY,
+    "Z",
+  ].join(" ");
+};
+const arcSegments = (() => {
+  if (!total) return [];
+  const result = [];
+  let startAngle = 0;
+  for (const segment of segments) {
+    if (!segment.value) continue;
+    const angle = (segment.value / total) * 360;
+    const endAngle = startAngle + angle;
+    result.push({
+      ...segment,
+      startAngle,
+      endAngle,
+    });
+    startAngle = endAngle;
+  }
+  return result;
+})();
 ---
 
 <BaseLayout title="Developers">
@@ -40,6 +118,9 @@ for (const game of games) {
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .pie-wrap{display:flex;justify-content:center;margin-top:16px;}
+      .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;}
+      .note{opacity:.7;font-size:.85rem;margin-top:12px;text-align:center;}
     </style>
   </div>
   <main>
@@ -63,6 +144,28 @@ for (const game of games) {
           ) : null}
         </ul>
       )}
+      {segments.length ? (
+        <>
+          <div class="pie-wrap">
+            <svg class="pie" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Developer distribution">
+              {arcSegments.length === 0 ? (
+                <circle cx={cx} cy={cy} r={radius} fill="#222" />
+              ) : arcSegments.length === 1 ? (
+                <circle cx={cx} cy={cy} r={radius} fill={arcSegments[0].color}>
+                  <title>{arcSegments[0].label} ({arcSegments[0].value})</title>
+                </circle>
+              ) : (
+                arcSegments.map((segment) => (
+                  <path d={describeArc(cx, cy, radius, segment.startAngle, segment.endAngle)} fill={segment.color}>
+                    <title>{segment.label} ({segment.value})</title>
+                  </path>
+                ))
+              )}
+            </svg>
+          </div>
+          <p class="note">Hover the chart to see details.</p>
+        </>
+      ) : null}
     </div>
   </main>
 </BaseLayout>

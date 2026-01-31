@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.18] - 2026-01-31
+- Add a developer index pie chart with tooltip-only labels.
+
 ## [1.0.17] - 2026-01-31
 - Show a dedicated unknown-genre message when no games are missing genres.
 
