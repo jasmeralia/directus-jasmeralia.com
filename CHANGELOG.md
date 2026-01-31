@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.22] - 2026-01-31
+- Skip superset-genre composite filter pages when distinct count is zero.
+
 ## [1.0.21] - 2026-01-31
 - Suppress status-based composite filter pages when only one status exists per dimension.
 

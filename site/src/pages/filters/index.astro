@@ -176,6 +176,7 @@ const engineGenreEntries = Array.from(engineGenreTotalCounts.entries())
       genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
     };
   })
+  .filter((entry) => !(isSupersetGenre(entry.genre) && entry.count === 0))
   .sort((a, b) =>
     unknownLast(a, b, "engineLabel") ||
     a.engineLabel.localeCompare(b.engineLabel) ||
