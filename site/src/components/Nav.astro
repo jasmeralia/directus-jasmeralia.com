@@ -18,8 +18,11 @@ const links = [
 
 <header class="site-nav">
   <nav class="site-nav__inner">
-    {links.map((link) => (
-      <a href={base ? `${base}${link.href}` : link.href}>{link.label}</a>
+    {links.map((link, index) => (
+      <>
+        {index > 0 ? <span class="site-nav__divider"> | </span> : null}
+        <a href={base ? `${base}${link.href}` : link.href}>{link.label}</a>
+      </>
     ))}
   </nav>
 </header>
@@ -38,11 +41,16 @@ const links = [
     display: flex;
     gap: 16px;
     flex-wrap: wrap;
+    align-items: center;
   }
 
   .site-nav__inner a {
     font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     color: #9aa6ff;
     text-decoration: none;
+  }
+
+  .site-nav__divider {
+    color: #5f667a;
   }
 </style>

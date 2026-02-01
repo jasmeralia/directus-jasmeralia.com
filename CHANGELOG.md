@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.26] - 2026-02-01
+- Add pipe separators between navbar links.
+
 ## [1.0.25] - 2026-01-31
 - Remove underlined whitespace in composite filter links.
 
