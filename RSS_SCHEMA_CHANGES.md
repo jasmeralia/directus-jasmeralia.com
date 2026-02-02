@@ -65,9 +65,20 @@ Operations:
    - Purpose: check published state
 
 3. **Condition**
-   - Expression: tier list status is published
-   - Example expression:
-     - `{{ $last[0].status == "published" }}`
+   - In the Condition operation, use **Filter Rules JSON** (not a template expression).
+   - Example (if the previous operation key is `read_tier_list`):
+     ```json
+     {
+       "read_tier_list": {
+         "status": {
+           "_eq": "published"
+         }
+       }
+     }
+     ```
+   - If your `Read Data` payload is an array, either:
+     - set `Read Data` to return a single item by ID, or
+     - add a small Run Script step that returns a boolean and condition on that boolean key.
 
 4. **Update Data: tier_lists**
    - Collection: `tier_lists`
@@ -118,7 +129,16 @@ Operations:
      ```
 
 4. **Condition**
-   - `status == "published"`
+   - Example Filter Rules JSON (if operation key is `read_tier_list`):
+     ```json
+     {
+       "read_tier_list": {
+         "status": {
+           "_eq": "published"
+         }
+       }
+     }
+     ```
 
 5. **Update Data: tier_lists**
    - Set `rss_updated_at = {{ $now }}`
@@ -155,6 +175,34 @@ Operations:
    - Emit Events: false
 
 This ensures newly-published tier lists appear in the feed even before child entry changes.
+
+### Condition JSON tip (important)
+
+Directus Condition operations evaluate **Filter Rules JSON** against the data chain, not inline template expressions.
+
+- ❌ Not recommended in Condition rules:
+  - `{{ $last[0].status == "published" }}`
+- ✅ Use rule JSON keyed by operation key:
+  ```json
+  {
+    "read_tier_list": {
+      "status": {
+        "_eq": "published"
+      }
+    }
+  }
+  ```
+
+If this is still awkward in your UI, use this robust pattern:
+1. Add **Run Script** operation (key `is_published`) returning `true/false`.
+2. Condition rules:
+   ```json
+   {
+     "is_published": {
+       "_eq": true
+     }
+   }
+   ```
 
 ## 5) Access policy for Astro readonly token
 

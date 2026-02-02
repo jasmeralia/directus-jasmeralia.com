@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.35] - 2026-02-02
+- Clarify RSS flow Condition setup with proper Filter Rules JSON examples.
+
 ## [1.0.34] - 2026-02-02
 - Add JSON query examples to RSS flow doc Read Data steps.
 
