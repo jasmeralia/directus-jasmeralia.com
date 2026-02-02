@@ -45,13 +45,23 @@ Operations:
 1. **Read Data: tier_rows**
    - Collection: `tier_rows`
    - IDs: `{{ $trigger.payload.tier_row }}`
-   - Fields: `id,tier_list`
+   - Query:
+     ```json
+     {
+       "fields": ["id", "tier_list"]
+     }
+     ```
    - Purpose: map tier entry -> parent tier list
 
 2. **Read Data: tier_lists**
    - Collection: `tier_lists`
    - IDs: `{{ $last[0].tier_list }}`
-   - Fields: `id,status`
+   - Query:
+     ```json
+     {
+       "fields": ["id", "status"]
+     }
+     ```
    - Purpose: check published state
 
 3. **Condition**
@@ -91,11 +101,21 @@ Operations:
 
 2. **Read Data: tier_rows**
    - IDs from delete payload relation (if available)
-   - Fields: `id,tier_list`
+   - Query:
+     ```json
+     {
+       "fields": ["id", "tier_list"]
+     }
+     ```
 
 3. **Read Data: tier_lists**
    - IDs: resolved parent tier list id
-   - Fields: `id,status`
+   - Query:
+     ```json
+     {
+       "fields": ["id", "status"]
+     }
+     ```
 
 4. **Condition**
    - `status == "published"`

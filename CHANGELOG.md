@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.34] - 2026-02-02
+- Add JSON query examples to RSS flow doc Read Data steps.
+
 ## [1.0.33] - 2026-02-02
 - Expand RSS schema doc with step-by-step flow configuration and validation guidance.
 
