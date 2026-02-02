@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.38] - 2026-02-02
+- Remove reviews.summary usage from feed query and docs (field not present in schema).
+
 ## [1.0.37] - 2026-02-02
 - Fix feed games query to use id-based ordering instead of unavailable date_created.
 - Update RSS schema doc to reflect games id fallback behavior.

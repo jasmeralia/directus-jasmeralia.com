@@ -53,7 +53,7 @@ export const GET: APIRoute = async () => {
       limit: 100,
     }),
     directusFetchItems("reviews", {
-      fields: ["id", "title", "slug", "summary", "published_at"],
+      fields: ["id", "title", "slug", "published_at"],
       filter: {
         status: { _eq: "published" },
         slug: { _nempty: true },
@@ -103,9 +103,7 @@ export const GET: APIRoute = async () => {
         return {
           title: `New Review: ${review.title}`,
           link: `${siteBase}/reviews/${review.slug}/index.html`,
-          description: review.summary
-            ? `New review published: ${review.summary}`
-            : `New review published: ${review.title}`,
+          description: `New review published: ${review.title}`,
           pubDate: date,
           guid: `review:${review.id}:${date.toISOString()}`,
         };
