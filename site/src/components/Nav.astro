@@ -13,6 +13,7 @@ const links = [
   { href: "/releases/index.html", label: "Release Years" },
   { href: "/reviews/index.html", label: "Reviews" },
   { href: "/tiers/index.html", label: "Tiers" },
+  { href: "/walkthroughs/index.html", label: "Walkthroughs" },
 ];
 ---
 
@@ -20,7 +21,7 @@ const links = [
   <nav class="site-nav__inner">
     {links.map((link, index) => (
       <>
-        {index > 0 ? <span class="site-nav__divider"> | </span> : null}
+        {index > 0 ? <span class="site-nav__divider">|</span> : null}
         <a href={base ? `${base}${link.href}` : link.href}>{link.label}</a>
       </>
     ))}
@@ -39,7 +40,7 @@ const links = [
 
   .site-nav__inner {
     display: flex;
-    gap: 16px;
+    gap: 0;
     flex-wrap: wrap;
     align-items: center;
   }
@@ -52,5 +53,6 @@ const links = [
 
   .site-nav__divider {
     color: #5f667a;
+    margin: 0 8px;
   }
 </style>

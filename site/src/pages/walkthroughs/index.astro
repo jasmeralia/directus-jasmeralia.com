@@ -1,0 +1,45 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { directusFetchItems } from "../../lib/directus";
+
+const games = await directusFetchItems("games", {
+  fields: ["id", "title", "slug", "walkthrough_url"],
+  filter: {
+    _and: [
+      { walkthrough_url: { _null: false } },
+      { walkthrough_url: { _neq: "" } },
+    ],
+  },
+  sort: ["title"],
+  limit: 1000,
+});
+---
+
+<BaseLayout title="Walkthroughs">
+  <div slot="head">
+    <style>
+      main{max-width:980px;margin:0 auto;padding:24px;}
+      ul{list-style:disc;padding-left:20px;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+      <div class="panel">
+        <h1>Walkthroughs</h1>
+        {games.length === 0 ? (
+          <p>No walkthroughs yet.</p>
+        ) : (
+          <ul>
+            {games.map((game) => (
+              <li>
+                <a href={`/games/${game.slug}/index.html`}>{game.title}</a>:{" "}
+                <a href={game.walkthrough_url} rel="noopener noreferrer" target="_blank">Walkthrough</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+  </main>
+</BaseLayout>

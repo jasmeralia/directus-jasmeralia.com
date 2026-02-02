@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.27] - 2026-02-02
+- Add Walkthroughs index page and navbar link.
+- Tighten navbar divider spacing.
+
 ## [1.0.26] - 2026-02-01
 - Add pipe separators between navbar links.
 
