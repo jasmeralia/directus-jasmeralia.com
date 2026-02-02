@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.36] - 2026-02-02
+- Fix RSS flow doc Update Data examples to use valid JSON payload format.
+
 ## [1.0.35] - 2026-02-02
 - Clarify RSS flow Condition setup with proper Filter Rules JSON examples.
 

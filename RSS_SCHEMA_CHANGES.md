@@ -83,8 +83,12 @@ Operations:
 4. **Update Data: tier_lists**
    - Collection: `tier_lists`
    - IDs: `{{ $last[0].id }}`
-   - Payload:
-     - `rss_updated_at: {{ $now }}`
+   - Payload (JSON):
+     ```json
+     {
+       "rss_updated_at": "{{ $now }}"
+     }
+     ```
    - Emit Events: false
 
 Result:
@@ -141,7 +145,12 @@ Operations:
      ```
 
 5. **Update Data: tier_lists**
-   - Set `rss_updated_at = {{ $now }}`
+   - Payload (JSON):
+     ```json
+     {
+       "rss_updated_at": "{{ $now }}"
+     }
+     ```
    - Emit Events: false
 
 ### If delete payload does not include `tier_row`
@@ -171,7 +180,13 @@ Operations:
 2. **Update Data**
    - Collection: `tier_lists`
    - IDs: `{{ $trigger.key }}`
-   - Payload: `rss_updated_at: {{ $now }}`
+   - Note: the Update Data payload box expects valid JSON, not YAML or key/value shorthand.
+   - Payload (JSON):
+     ```json
+     {
+       "rss_updated_at": "{{ $now }}"
+     }
+     ```
    - Emit Events: false
 
 This ensures newly-published tier lists appear in the feed even before child entry changes.
