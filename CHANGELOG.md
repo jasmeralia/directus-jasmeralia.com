@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.39] - 2026-02-02
+- Use excerpted review body text in feed items instead of title-only review descriptions.
+- Update RSS schema doc permissions to include reviews.body.
+
 ## [1.0.38] - 2026-02-02
 - Remove reviews.summary usage from feed query and docs (field not present in schema).
 

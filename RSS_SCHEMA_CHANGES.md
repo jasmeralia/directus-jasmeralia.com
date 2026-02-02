@@ -223,7 +223,7 @@ If this is still awkward in your UI, use this robust pattern:
 
 Ensure the token used during Astro build can read:
 - `games`: `id`, `title`, `slug`
-- `reviews`: `id`, `title`, `slug`, `published_at`, `status`
+- `reviews`: `id`, `title`, `slug`, `body`, `published_at`, `status`
 - `tier_lists`: `id`, `title`, `slug`, `description`, `status`, `updated_at`, `rss_updated_at`
 
 Also ensure filters on `status` and non-empty slugs are allowed under that policy.

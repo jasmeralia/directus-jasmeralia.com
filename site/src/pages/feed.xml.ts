@@ -22,6 +22,21 @@ const asDate = (value: unknown): Date | null => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const reviewExcerpt = (body: unknown, maxLen = 220): string => {
+  if (!body) return "";
+  const text = String(body)
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[*_~>-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return "";
+  return text.length > maxLen ? `${text.slice(0, maxLen - 1).trimEnd()}…` : text;
+};
+
 const itemXml = (item: {
   title: string;
   link: string;
@@ -53,7 +68,7 @@ export const GET: APIRoute = async () => {
       limit: 100,
     }),
     directusFetchItems("reviews", {
-      fields: ["id", "title", "slug", "published_at"],
+      fields: ["id", "title", "slug", "body", "published_at"],
       filter: {
         status: { _eq: "published" },
         slug: { _nempty: true },
@@ -100,10 +115,11 @@ export const GET: APIRoute = async () => {
       .map((review: any) => {
         const date = asDate(review.published_at);
         if (!date) return null;
+        const excerpt = reviewExcerpt(review.body);
         return {
           title: `New Review: ${review.title}`,
           link: `${siteBase}/reviews/${review.slug}/index.html`,
-          description: `New review published: ${review.title}`,
+          description: excerpt || `New review published: ${review.title}`,
           pubDate: date,
           guid: `review:${review.id}:${date.toISOString()}`,
         };
