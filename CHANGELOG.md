@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.31] - 2026-02-02
+- Sort filter index panels alphabetically by header name.
+- Add a top jump panel with anchor links to each filter section.
+
 ## [1.0.30] - 2026-02-02
 - Add unified RSS feed endpoint at /feed.xml for games, reviews, and tier list updates.
 - Add RSS autodiscovery link in the base layout.

@@ -307,6 +307,66 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
       <p>Composite filter pages generated at build time.</p>
     </div>
     <div class="panel">
+      <h2>Jump to Section</h2>
+      <ul>
+        <li><a href="#developer-game-status">Developer + Game Status</a></li>
+        <li><a href="#developer-played-status">Developer + Played Status</a></li>
+        <li><a href="#engine-game-status">Engine + Game Status</a></li>
+        <li><a href="#engine-genre">Engine + Genre</a></li>
+        <li><a href="#engine-played-status">Engine + Played Status</a></li>
+        <li><a href="#genre-game-status">Genre + Game Status</a></li>
+        <li><a href="#genre-played-status">Genre + Played Status</a></li>
+      </ul>
+    </div>
+    <div class="panel" id="developer-game-status">
+      <h2>Developer + Game Status ({developerStatusEntries.length} combinations)</h2>
+      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per developer are hidden.</p>
+      {developerStatusEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {developerStatusEntries.map((entry) => (
+            <li>
+              <a href={`/filters/developer/${entry.developer}/game_status/${entry.status}/index.html`}>{entry.developerLabel} + {entry.statusLabel}</a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    <div class="panel" id="developer-played-status">
+      <h2>Developer + Played Status ({developerPlayedEntries.length} combinations)</h2>
+      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per developer are hidden.</p>
+      {developerPlayedEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {developerPlayedEntries.map((entry) => (
+            <li>
+              <a href={`/filters/developer/${entry.developer}/played_status/${entry.status}/index.html`}>{entry.developerLabel} + {entry.statusLabel}</a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    <div class="panel" id="engine-game-status">
+      <h2>Engine + Game Status ({engineStatusEntries.length} combinations)</h2>
+      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per engine are hidden.</p>
+      {engineStatusEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {engineStatusEntries.map((entry) => (
+            <li>
+              <a href={`/filters/engine/${entry.engine}/game_status/${entry.status}/index.html`}>{entry.engineLabel} + {entry.statusLabel}</a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    <div class="panel" id="engine-genre">
       <h2>Engine + Genre ({engineGenreEntries.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Superset genres with zero distinct matches are hidden.</p>
       {engineGenreEntries.length === 0 ? (
@@ -326,39 +386,23 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
         </ul>
       )}
     </div>
-    <div class="panel">
-      <h2>Engine + Game Status ({engineStatusEntries.length} combinations)</h2>
+    <div class="panel" id="engine-played-status">
+      <h2>Engine + Played Status ({enginePlayedEntries.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per engine are hidden.</p>
-      {engineStatusEntries.length === 0 ? (
+      {enginePlayedEntries.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
         <ul>
-          {engineStatusEntries.map((entry) => (
+          {enginePlayedEntries.map((entry) => (
             <li>
-              <a href={`/filters/engine/${entry.engine}/game_status/${entry.status}/index.html`}>{entry.engineLabel} + {entry.statusLabel}</a>
+              <a href={`/filters/engine/${entry.engine}/played_status/${entry.status}/index.html`}>{entry.engineLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
             </li>
           ))}
         </ul>
       )}
     </div>
-    <div class="panel">
-      <h2>Developer + Game Status ({developerStatusEntries.length} combinations)</h2>
-      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per developer are hidden.</p>
-      {developerStatusEntries.length === 0 ? (
-        <p>No combinations yet.</p>
-      ) : (
-        <ul>
-          {developerStatusEntries.map((entry) => (
-            <li>
-              <a href={`/filters/developer/${entry.developer}/game_status/${entry.status}/index.html`}>{entry.developerLabel} + {entry.statusLabel}</a>
-              <span style="opacity:.7;"> ({entry.count})</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-    <div class="panel">
+    <div class="panel" id="genre-game-status">
       <h2>Genre + Game Status ({genreStatusEntries.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per genre are hidden. Superset genres with zero distinct matches are hidden.</p>
       {genreStatusEntries.length === 0 ? (
@@ -378,39 +422,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
         </ul>
       )}
     </div>
-    <div class="panel">
-      <h2>Engine + Played Status ({enginePlayedEntries.length} combinations)</h2>
-      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per engine are hidden.</p>
-      {enginePlayedEntries.length === 0 ? (
-        <p>No combinations yet.</p>
-      ) : (
-        <ul>
-          {enginePlayedEntries.map((entry) => (
-            <li>
-              <a href={`/filters/engine/${entry.engine}/played_status/${entry.status}/index.html`}>{entry.engineLabel} + {entry.statusLabel}</a>
-              <span style="opacity:.7;"> ({entry.count})</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-    <div class="panel">
-      <h2>Developer + Played Status ({developerPlayedEntries.length} combinations)</h2>
-      <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per developer are hidden.</p>
-      {developerPlayedEntries.length === 0 ? (
-        <p>No combinations yet.</p>
-      ) : (
-        <ul>
-          {developerPlayedEntries.map((entry) => (
-            <li>
-              <a href={`/filters/developer/${entry.developer}/played_status/${entry.status}/index.html`}>{entry.developerLabel} + {entry.statusLabel}</a>
-              <span style="opacity:.7;"> ({entry.count})</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-    <div class="panel">
+    <div class="panel" id="genre-played-status">
       <h2>Genre + Played Status ({genrePlayedEntries.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per genre are hidden. Superset genres with zero distinct matches are hidden.</p>
       {genrePlayedEntries.length === 0 ? (
