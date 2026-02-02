@@ -248,8 +248,8 @@ If this is still awkward in your UI, use this robust pattern:
 ## 5) Access policy for Astro readonly token
 
 Ensure the token used during Astro build can read:
-- `games`: `id`, `title`, `slug`, `published_at` (once added)
-- `reviews`: `id`, `title`, `slug`, `body`, `published_at`, `status`
+- `games`: `id`, `title`, `slug`, `published_at` (once added), `cover_image.id`, `cover_image.filename_disk`
+- `reviews`: `id`, `title`, `slug`, `body`, `published_at`, `status`, `game.cover_image.id`, `game.cover_image.filename_disk`
 - `tier_lists`: `id`, `title`, `slug`, `description`, `status`, `updated_at`, `rss_updated_at`
 
 Also ensure filters on `status` and non-empty slugs are allowed under that policy.
@@ -274,3 +274,7 @@ After adding schema + flows:
 
 - `feed.xml` currently falls back to `updated_at` if `rss_updated_at` does not exist yet, so rollout can be incremental.
 - Add `games.published_at` to stop relying on id-based ordering for games in the unified feed.
+- Feed item images are attached via RSS `<enclosure>`:
+  - Games: use `games.cover_image` when present.
+  - Reviews: use related `reviews.game.cover_image` when present.
+  - Everything else (including tier list items): fallback to the site hero image.

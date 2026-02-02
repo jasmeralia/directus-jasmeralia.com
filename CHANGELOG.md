@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.41] - 2026-02-02
+- Add feed item image enclosures using game/review cover art with hero-image fallback.
+- Update RSS schema doc with required cover-image read permissions.
+
 ## [1.0.40] - 2026-02-02
 - Expand RSS schema doc with snapshot-based datetime audit and games.published_at recommendation for true mixed chronology.
 

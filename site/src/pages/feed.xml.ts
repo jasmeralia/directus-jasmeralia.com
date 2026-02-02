@@ -7,6 +7,7 @@ const siteBase =
     "https://jasmeralia.com")
     .toString()
     .replace(/\/$/, "");
+const HERO_IMAGE = { id: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c", filename_disk: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c.png" };
 
 const xmlEscape = (value: string): string =>
   value
@@ -42,33 +43,56 @@ const itemXml = (item: {
   link: string;
   description: string;
   pubDate: Date;
+  imageUrl?: string;
   guid?: string;
 }) => {
   const title = xmlEscape(item.title);
   const link = xmlEscape(item.link);
   const description = xmlEscape(item.description);
   const guid = xmlEscape(item.guid ?? item.link);
+  const imageUrl = item.imageUrl ? xmlEscape(item.imageUrl) : "";
+  const imageType = item.imageUrl ? xmlEscape(imageMimeType(item.imageUrl)) : "";
   return [
     "<item>",
     `<title>${title}</title>`,
     `<link>${link}</link>`,
     `<guid isPermaLink="false">${guid}</guid>`,
     `<description>${description}</description>`,
+    imageUrl ? `<enclosure url="${imageUrl}" type="${imageType}" />` : "",
     `<pubDate>${item.pubDate.toUTCString()}</pubDate>`,
     "</item>",
   ].join("");
 };
 
+const mediaUrl = (file: any): string | null => {
+  if (!file) return null;
+  const id = typeof file === "string" ? file : file.id;
+  const filenameDisk = typeof file === "string" ? null : file.filename_disk ?? null;
+  if (!id) return null;
+  return `${siteBase}/media/${filenameDisk || id}`;
+};
+
+const imageMimeType = (url: string): string => {
+  const lower = url.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".svg")) return "image/svg+xml";
+  if (lower.endsWith(".avif")) return "image/avif";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  return "image/jpeg";
+};
+
 export const GET: APIRoute = async () => {
   const [games, reviews] = await Promise.all([
     directusFetchItems("games", {
-      fields: ["id", "title", "slug"],
+      fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk"],
       filter: { slug: { _nempty: true } },
       sort: ["-id"],
       limit: 100,
     }),
     directusFetchItems("reviews", {
-      fields: ["id", "title", "slug", "body", "published_at"],
+      fields: ["id", "title", "slug", "body", "published_at", "game.cover_image.id", "game.cover_image.filename_disk"],
       filter: {
         status: { _eq: "published" },
         slug: { _nempty: true },
@@ -78,6 +102,7 @@ export const GET: APIRoute = async () => {
       limit: 100,
     }),
   ]);
+  const fallbackImage = mediaUrl(HERO_IMAGE);
 
   let tiers: any[] = [];
   try {
@@ -106,6 +131,7 @@ export const GET: APIRoute = async () => {
           title: `New Game: ${game.title}`,
           link: `${siteBase}/games/${game.slug}/index.html`,
           description: `New game added: ${game.title}`,
+          imageUrl: mediaUrl(game.cover_image) || fallbackImage || undefined,
           pubDate: date,
           guid: `game:${game.id}:${date.toISOString()}`,
         };
@@ -120,6 +146,7 @@ export const GET: APIRoute = async () => {
           title: `New Review: ${review.title}`,
           link: `${siteBase}/reviews/${review.slug}/index.html`,
           description: excerpt || `New review published: ${review.title}`,
+          imageUrl: mediaUrl(review.game?.cover_image) || fallbackImage || undefined,
           pubDate: date,
           guid: `review:${review.id}:${date.toISOString()}`,
         };
@@ -133,6 +160,7 @@ export const GET: APIRoute = async () => {
           title: `Tier List Updated: ${tier.title}`,
           link: `${siteBase}/tiers/${tier.slug}/index.html`,
           description: tier.description || `Tier list update: ${tier.title}`,
+          imageUrl: fallbackImage || undefined,
           pubDate: date,
           guid: `tier:${tier.id}:${date.toISOString()}`,
         };
