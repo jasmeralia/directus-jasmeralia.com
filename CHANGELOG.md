@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.33] - 2026-02-02
+- Expand RSS schema doc with step-by-step flow configuration and validation guidance.
+
 ## [1.0.32] - 2026-02-02
 - Add combination counts to filter index jump links.
 
