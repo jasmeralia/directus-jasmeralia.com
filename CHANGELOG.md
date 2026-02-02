@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.29] - 2026-02-02
+- Fix Walkthroughs filter to use _nempty.
+
 ## [1.0.28] - 2026-02-02
 - Fix Walkthroughs index filter query for Directus.
 
