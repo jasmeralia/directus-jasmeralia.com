@@ -15,6 +15,32 @@ This document covers the Directus configuration needed so `feed.xml` can reliabl
 
 The missing piece is stamping a tier-list-level timestamp whenever child `tier_entries` change.
 
+### Snapshot audit (current state)
+
+From `snapshot.json`:
+- `games` has **no datetime field**.
+- `reviews` has `published_at`.
+- `tier_lists` has `updated_at` and `rss_updated_at`.
+
+This is why feed output can look grouped (games first by id fallback, then reviews by actual datetime).
+To reliably interleave games and reviews by date, add a real datetime field on `games`.
+
+## 0) Recommended additional schema field for mixed chronological feed
+
+Add a nullable datetime field:
+- Collection: `games`
+- Field key: `published_at`
+- Type: `datetime`
+- Interface: datetime picker
+- Hidden/Readonly: optional (depends on editorial workflow)
+
+Recommended flow:
+- Trigger: `items.create` on `games`
+- If `published_at` is null, set it to `{{ $now }}`
+
+Optional backfill:
+- For existing games, set `published_at` once (manually or script) so old records sort predictably in `feed.xml`.
+
 ## 1) Schema change: `tier_lists.rss_updated_at`
 
 Add a nullable datetime field:
@@ -222,7 +248,7 @@ If this is still awkward in your UI, use this robust pattern:
 ## 5) Access policy for Astro readonly token
 
 Ensure the token used during Astro build can read:
-- `games`: `id`, `title`, `slug`
+- `games`: `id`, `title`, `slug`, `published_at` (once added)
 - `reviews`: `id`, `title`, `slug`, `body`, `published_at`, `status`
 - `tier_lists`: `id`, `title`, `slug`, `description`, `status`, `updated_at`, `rss_updated_at`
 
@@ -247,4 +273,4 @@ After adding schema + flows:
 ## 7) Notes
 
 - `feed.xml` currently falls back to `updated_at` if `rss_updated_at` does not exist yet, so rollout can be incremental.
-- If you later add an explicit game publish/create timestamp, switch feed ordering from `id` fallback to that datetime field.
+- Add `games.published_at` to stop relying on id-based ordering for games in the unified feed.
