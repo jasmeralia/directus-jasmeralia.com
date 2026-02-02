@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.30] - 2026-02-02
+- Add unified RSS feed endpoint at /feed.xml for games, reviews, and tier list updates.
+- Add RSS autodiscovery link in the base layout.
+- Document required Directus schema and flow changes for tier-list RSS updates.
+
 ## [1.0.29] - 2026-02-02
 - Fix Walkthroughs filter to use _nempty.
 
