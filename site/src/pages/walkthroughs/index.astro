@@ -5,10 +5,7 @@ import { directusFetchItems } from "../../lib/directus";
 const games = await directusFetchItems("games", {
   fields: ["id", "title", "slug", "walkthrough_url"],
   filter: {
-    _and: [
-      { walkthrough_url: { _null: false } },
-      { walkthrough_url: { _neq: "" } },
-    ],
+    walkthrough_url: { _null: false, _neq: "" },
   },
   sort: ["title"],
   limit: 1000,

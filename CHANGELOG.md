@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.28] - 2026-02-02
+- Fix Walkthroughs index filter query for Directus.
+
 ## [1.0.27] - 2026-02-02
 - Add Walkthroughs index page and navbar link.
 - Tighten navbar divider spacing.
