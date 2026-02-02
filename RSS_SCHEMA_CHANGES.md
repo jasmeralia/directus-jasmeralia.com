@@ -9,7 +9,7 @@ This document covers the Directus configuration needed so `feed.xml` can reliabl
 ## Overview
 
 `feed.xml` already reads the following:
-- Games: `date_created`
+- Games: `id` (recency fallback in current schema)
 - Reviews: `published_at`
 - Tier lists: `rss_updated_at` (fallback `updated_at`)
 
@@ -222,7 +222,7 @@ If this is still awkward in your UI, use this robust pattern:
 ## 5) Access policy for Astro readonly token
 
 Ensure the token used during Astro build can read:
-- `games`: `id`, `title`, `slug`, `date_created`
+- `games`: `id`, `title`, `slug`
 - `reviews`: `id`, `title`, `slug`, `summary`, `published_at`, `status`
 - `tier_lists`: `id`, `title`, `slug`, `description`, `status`, `updated_at`, `rss_updated_at`
 
@@ -247,4 +247,4 @@ After adding schema + flows:
 ## 7) Notes
 
 - `feed.xml` currently falls back to `updated_at` if `rss_updated_at` does not exist yet, so rollout can be incremental.
-- If you later add explicit game publish timestamps, switch feed ordering from `date_created` to that field.
+- If you later add an explicit game publish/create timestamp, switch feed ordering from `id` fallback to that datetime field.

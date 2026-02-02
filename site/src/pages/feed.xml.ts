@@ -47,9 +47,9 @@ const itemXml = (item: {
 export const GET: APIRoute = async () => {
   const [games, reviews] = await Promise.all([
     directusFetchItems("games", {
-      fields: ["id", "title", "slug", "date_created"],
+      fields: ["id", "title", "slug"],
       filter: { slug: { _nempty: true } },
-      sort: ["-date_created"],
+      sort: ["-id"],
       limit: 100,
     }),
     directusFetchItems("reviews", {
@@ -83,9 +83,10 @@ export const GET: APIRoute = async () => {
 
   const entries = [
     ...games
-      .map((game: any) => {
-        const date = asDate(game.date_created);
-        if (!date) return null;
+      .map((game: any, index: number) => {
+        // games collection does not expose a created timestamp in current schema/policy.
+        // Keep recency ordering by id and synthesize a stable per-build date for RSS metadata.
+        const date = new Date(Date.now() - index * 1000);
         return {
           title: `New Game: ${game.title}`,
           link: `${siteBase}/games/${game.slug}/index.html`,

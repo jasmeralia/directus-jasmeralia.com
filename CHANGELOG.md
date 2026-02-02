@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.37] - 2026-02-02
+- Fix feed games query to use id-based ordering instead of unavailable date_created.
+- Update RSS schema doc to reflect games id fallback behavior.
+
 ## [1.0.36] - 2026-02-02
 - Fix RSS flow doc Update Data examples to use valid JSON payload format.
 
