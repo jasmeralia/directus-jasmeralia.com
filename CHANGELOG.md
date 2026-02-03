@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.44] - 2026-02-02
+- Add red thumbnail borders for games with player_status=did_not_finish.
+- Preserve combined border signals with reviewed/completed and S-tier priority styling.
+- Update border legend notes to include did_not_finish red borders.
+
 ## [1.0.43] - 2026-02-02
 - Add rainbow borders for published S-tier games across thumbnail views.
 - Preserve gold (reviewed) and silver (completed) border signals, with S-tier styling taking visual priority.

@@ -5,13 +5,14 @@ const { game, reviewed = false, sTier = false } = Astro.props;
 const labelize = (value) =>
   value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 const completed = game?.player_status === "completed";
+const didNotFinish = game?.player_status === "did_not_finish";
 
 const img = game?.cover_image ? fileUrl(game.cover_image) : null;
 const genres = (game?.genres ?? []).map((genre) => genre?.genres_id?.name).filter(Boolean);
 const engines = (game?.engines ?? []).map((engine) => engine?.engines_id?.title).filter(Boolean);
 ---
 
-<div class={`card${reviewed ? " reviewed" : ""}${completed ? " completed" : ""}${sTier ? " s-tier" : ""}`}>
+<div class={`card${reviewed ? " reviewed" : ""}${completed ? " completed" : ""}${didNotFinish ? " did-not-finish" : ""}${sTier ? " s-tier" : ""}`}>
   <a href={`/games/${game.slug}/index.html`}>
     <div class="thumb">
       {img ? <img src={img} alt={game.title} loading="lazy" /> : <span>No cover</span>}
@@ -32,10 +33,26 @@ const engines = (game?.engines ?? []).map((engine) => engine?.engines_id?.title)
 <style>
   .card{border:1px solid #2b2b2b;border-radius:12px;overflow:hidden;background:#111;}
   .card.completed{border-color:#c0c0c0;box-shadow:0 0 0 1px rgba(192,192,192,.25);}
+  .card.did-not-finish{border-color:#d14b4b;box-shadow:0 0 0 1px rgba(209,75,75,.25);}
   .card.reviewed{border-color:#d3a43b;box-shadow:0 0 0 1px rgba(211,164,59,.25);}
   .card.reviewed.completed{
     border-color:#d3a43b;
     box-shadow:0 0 0 1px rgba(211,164,59,.25), inset 0 0 0 1px rgba(192,192,192,.35);
+  }
+  .card.reviewed.did-not-finish{
+    border-color:#d3a43b;
+    box-shadow:0 0 0 1px rgba(211,164,59,.25), inset 0 0 0 1px rgba(209,75,75,.4);
+  }
+  .card.completed.did-not-finish{
+    border-color:#d14b4b;
+    box-shadow:0 0 0 1px rgba(209,75,75,.25), inset 0 0 0 1px rgba(192,192,192,.35);
+  }
+  .card.reviewed.completed.did-not-finish{
+    border-color:#d3a43b;
+    box-shadow:
+      0 0 0 1px rgba(211,164,59,.25),
+      inset 0 0 0 1px rgba(209,75,75,.4),
+      inset 0 0 0 2px rgba(192,192,192,.35);
   }
   .card.s-tier{
     border:1px solid transparent;
