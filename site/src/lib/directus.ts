@@ -11,6 +11,7 @@ export type Game = {
   slug: string;
   cover_image?: DirectusFile | string | null;
   download_url?: string | null;
+  player_status?: string | null;
 };
 
 export type TierEntry = {
@@ -154,7 +155,7 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
       "id","title","slug","description","status",
       "tier_rows.id","tier_rows.label","tier_rows.color","tier_rows.sort",
       "tier_rows.tier_entries.id","tier_rows.tier_entries.sort",
-      "tier_rows.tier_entries.game.id","tier_rows.tier_entries.game.title","tier_rows.tier_entries.game.slug",
+      "tier_rows.tier_entries.game.id","tier_rows.tier_entries.game.title","tier_rows.tier_entries.game.slug","tier_rows.tier_entries.game.player_status",
       "tier_rows.tier_entries.game.cover_image.id,tier_rows.tier_entries.game.cover_image.filename_disk",
     ].join(","),
     "deep[tier_rows][_sort]": "sort",
@@ -173,4 +174,28 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
     tier_entries: (r.tier_entries ?? []),
   }));
   return item as TierList;
+}
+
+export async function getSTierGameIds(gameIds: number[]): Promise<Set<number>> {
+  const ids = gameIds.filter((id) => typeof id === "number");
+  if (!ids.length) return new Set();
+
+  const entries = await directusFetchItems("tier_entries", {
+    fields: ["game.id"],
+    filter: {
+      game: { _in: ids },
+      tier_row: {
+        label: { _eq: "S" },
+        tier_list: { status: { _eq: "published" } },
+      },
+    },
+    limit: 1000,
+  });
+
+  const result = new Set<number>();
+  for (const entry of entries ?? []) {
+    const id = entry?.game?.id;
+    if (typeof id === "number") result.add(id);
+  }
+  return result;
 }

@@ -55,9 +55,11 @@ if (gameIds.length) {
                   .map((entry) => {
                   const img = fileUrl(entry.game.cover_image);
                   const reviewed = reviewedGameIds.has(entry.game.id);
+                  const completed = entry.game?.player_status === "completed";
+                  const sTier = row.label === "S";
                   return (
                     <a
-                      class={`tier-thumb${reviewed ? " reviewed" : ""}`}
+                      class={`tier-thumb${reviewed ? " reviewed" : ""}${completed ? " completed" : ""}${sTier ? " s-tier" : ""}`}
                       href={`/games/${entry.game.slug}/index.html`}
                       title={entry.game.title}
                     >
@@ -76,6 +78,6 @@ if (gameIds.length) {
           </div>
         ))}
       </section>
-      <p style="opacity:.75;margin-top:1rem;">Gold borders indicate games with reviews.</p>
+      <p style="opacity:.75;margin-top:1rem;">Rainbow borders indicate published S-tier games. Gold borders indicate games with reviews. Silver borders indicate completed player status.</p>
     </main>
 </BaseLayout>

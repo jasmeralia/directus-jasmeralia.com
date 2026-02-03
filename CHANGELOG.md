@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.43] - 2026-02-02
+- Add rainbow borders for published S-tier games across thumbnail views.
+- Preserve gold (reviewed) and silver (completed) border signals, with S-tier styling taking visual priority.
+- Update thumbnail border legend notes to include rainbow S-tier meaning.
+
 ## [1.0.42] - 2026-02-02
 - Add silver thumbnail borders for games with player_status=completed.
 - Keep gold review borders and show both markers when both conditions apply.
