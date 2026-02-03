@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.45] - 2026-02-02
+- Add blue thumbnail borders for games with player_status=in_progress.
+- Update border legend notes to include blue in_progress meaning.
+
 ## [1.0.44] - 2026-02-02
 - Add red thumbnail borders for games with player_status=did_not_finish.
 - Preserve combined border signals with reviewed/completed and S-tier priority styling.

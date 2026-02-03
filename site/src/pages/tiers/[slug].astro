@@ -57,10 +57,11 @@ if (gameIds.length) {
                   const reviewed = reviewedGameIds.has(entry.game.id);
                   const completed = entry.game?.player_status === "completed";
                   const didNotFinish = entry.game?.player_status === "did_not_finish";
+                  const inProgress = entry.game?.player_status === "in_progress";
                   const sTier = row.label === "S";
                   return (
                     <a
-                      class={`tier-thumb${reviewed ? " reviewed" : ""}${completed ? " completed" : ""}${didNotFinish ? " did-not-finish" : ""}${sTier ? " s-tier" : ""}`}
+                      class={`tier-thumb${reviewed ? " reviewed" : ""}${completed ? " completed" : ""}${didNotFinish ? " did-not-finish" : ""}${inProgress ? " in-progress" : ""}${sTier ? " s-tier" : ""}`}
                       href={`/games/${entry.game.slug}/index.html`}
                       title={entry.game.title}
                     >
@@ -79,6 +80,6 @@ if (gameIds.length) {
           </div>
         ))}
       </section>
-      <p style="opacity:.75;margin-top:1rem;">Rainbow borders indicate published S-tier games. Gold borders indicate games with reviews. Silver borders indicate completed player status. Red borders indicate did_not_finish player status.</p>
+      <p style="opacity:.75;margin-top:1rem;">Rainbow borders indicate published S-tier games. Gold borders indicate games with reviews. Silver borders indicate completed player status. Blue borders indicate in_progress player status. Red borders indicate did_not_finish player status.</p>
     </main>
 </BaseLayout>

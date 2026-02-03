@@ -80,6 +80,11 @@
   box-shadow: 0 0 0 1px rgba(209, 75, 75, 0.25);
 }
 
+.tier-thumb.in-progress {
+  border-color: #70b7ff;
+  box-shadow: 0 0 0 1px rgba(112, 183, 255, 0.3);
+}
+
 .tier-thumb.reviewed.completed {
   border-color: #d3a43b;
   box-shadow: 0 0 0 1px rgba(211, 164, 59, 0.25), inset 0 0 0 1px rgba(192, 192, 192, 0.35);
@@ -90,6 +95,11 @@
   box-shadow: 0 0 0 1px rgba(211, 164, 59, 0.25), inset 0 0 0 1px rgba(209, 75, 75, 0.4);
 }
 
+.tier-thumb.reviewed.in-progress {
+  border-color: #d3a43b;
+  box-shadow: 0 0 0 1px rgba(211, 164, 59, 0.25), inset 0 0 0 1px rgba(112, 183, 255, 0.4);
+}
+
 .tier-thumb.s-tier,
 .tier-thumb.s-tier.reviewed,
 .tier-thumb.s-tier.completed,
@@ -97,6 +107,8 @@
 .tier-thumb.s-tier.reviewed.completed,
 .tier-thumb.s-tier.reviewed.did-not-finish,
 .tier-thumb.s-tier.completed.did-not-finish,
+.tier-thumb.s-tier.in-progress,
+.tier-thumb.s-tier.reviewed.in-progress,
 .tier-thumb.s-tier.reviewed.completed.did-not-finish {
   border: 1px solid transparent;
   background:
