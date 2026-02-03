@@ -40,6 +40,7 @@ const csvHref = csvDataUri(gamesToCsv(games));
   </div>
   <main>
       <CsvHeader title="Games" count={games.length} csvHref={csvHref} csvName={csvName} />
+      <p style="opacity:.75;margin-top:0;">Gold borders indicate games with reviews. Silver borders indicate completed player status.</p>
       <div class="grid">
         {games.map((g) => {
           const reviewed = reviewedGameIds.has(g.id);

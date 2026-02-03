@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.42] - 2026-02-02
+- Add silver thumbnail borders for games with player_status=completed.
+- Keep gold review borders and show both markers when both conditions apply.
+- Update games index border legend note.
+
 ## [1.0.41] - 2026-02-02
 - Add feed item image enclosures using game/review cover art with hero-image fallback.
 - Update RSS schema doc with required cover-image read permissions.
