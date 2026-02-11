@@ -75,6 +75,21 @@
   background: #d3a43b;
 }
 
+.tier-stack.two-layers.s-tier.reviewed .gap-rainbow {
+  padding: 1px;
+  background: #000;
+}
+
+.tier-stack.two-layers.s-tier.has-status:not(.reviewed) .gap-rainbow {
+  padding: 1px;
+  background: #000;
+}
+
+.tier-stack.two-layers.reviewed.has-status:not(.s-tier) .gap-gold {
+  padding: 1px;
+  background: #000;
+}
+
 .tier-stack.three-layers .gap-rainbow {
   padding: 1px;
   background: #000;

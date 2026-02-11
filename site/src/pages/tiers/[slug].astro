@@ -75,8 +75,12 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier) => {
                   const didNotFinish = entry.game?.player_status === "did_not_finish";
                   const inProgress = entry.game?.player_status === "in_progress";
                   const sTier = row.label === "S";
+                  const hasStatus = completed || didNotFinish || inProgress;
+                  const layerCount = (sTier ? 1 : 0) + (reviewed ? 1 : 0) + (hasStatus ? 1 : 0);
+                  const hasTwoLayers = layerCount === 2;
+                  const hasThreeLayers = layerCount === 3;
                   return (
-                    <div class={`tier-stack${reviewed ? " reviewed" : ""}${sTier ? " s-tier" : ""}${sTier && reviewed && (completed || didNotFinish || inProgress) ? " three-layers" : ""}`}>
+                    <div class={`tier-stack${reviewed ? " reviewed" : ""}${sTier ? " s-tier" : ""}${hasStatus ? " has-status" : ""}${hasTwoLayers ? " two-layers" : ""}${hasThreeLayers ? " three-layers" : ""}`}>
                       <div class="ring-rainbow">
                         <div class="gap-rainbow">
                           <div class="ring-gold">

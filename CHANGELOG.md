@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.55] - 2026-02-11
+- Add explicit black separators for 2-layer border combinations without introducing double-gap spacing.
+
 ## [1.0.54] - 2026-02-11
 - Apply stacked borders around full game cards (thumbnail + metadata) with explicit 3-layer gaps.
 - Align tier thumbnail stacks to the same outward border layering behavior.
