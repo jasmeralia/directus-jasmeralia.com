@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.51] - 2026-02-11
+- Make all thumbnail border indicators stack together (rainbow, gold, and status color).
+- Simplify shared border legend copy now that multi-indicator stacking is always shown.
+
 ## [1.0.50] - 2026-02-11
 - Show both S-tier rainbow and reviewed gold indicators together on thumbnail borders.
 - Add a shared thumbnail border legend component and render it on all thumbnail pages.

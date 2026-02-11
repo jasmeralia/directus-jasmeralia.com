@@ -33,6 +33,41 @@ if (gameIds.length) {
     if (typeof id === "number") reviewedGameIds.add(id);
   }
 }
+
+const thumbStyle = (reviewed, playerStatus, sTier) => {
+  const completed = playerStatus === "completed";
+  const didNotFinish = playerStatus === "did_not_finish";
+  const inProgress = playerStatus === "in_progress";
+  const statusColor = completed
+    ? "rgba(192,192,192,.85)"
+    : didNotFinish
+      ? "rgba(209,75,75,.85)"
+      : inProgress
+        ? "rgba(112,183,255,.85)"
+        : null;
+  const statusOuterGlow = completed
+    ? "rgba(192,192,192,.25)"
+    : didNotFinish
+      ? "rgba(209,75,75,.25)"
+      : inProgress
+        ? "rgba(112,183,255,.3)"
+        : null;
+  const borderColor = reviewed ? "#d3a43b" : (statusColor ?? "#2b2b2b");
+  const shadowParts = [];
+  if (sTier) {
+    shadowParts.push(
+      "0 0 0 1px rgba(255,255,255,.06)",
+      "0 0 14px rgba(255,180,80,.22)",
+    );
+  } else if (reviewed) {
+    shadowParts.push("0 0 0 1px rgba(211,164,59,.25)");
+  } else if (statusOuterGlow) {
+    shadowParts.push(`0 0 0 1px ${statusOuterGlow}`);
+  }
+  if (reviewed) shadowParts.push("inset 0 0 0 2px rgba(211,164,59,.85)");
+  if (statusColor) shadowParts.push(`inset 0 0 0 ${reviewed ? 4 : 2}px ${statusColor}`);
+  return `--thumb-border:${borderColor};--thumb-shadow:${shadowParts.length ? shadowParts.join(",") : "none"};`;
+};
 ---
 
 <BaseLayout title={`Tier Lists | ${tierList.title}`} description={tierList.description ?? tierList.title}>
@@ -65,6 +100,7 @@ if (gameIds.length) {
                       class={`tier-thumb${reviewed ? " reviewed" : ""}${completed ? " completed" : ""}${didNotFinish ? " did-not-finish" : ""}${inProgress ? " in-progress" : ""}${sTier ? " s-tier" : ""}`}
                       href={`/games/${entry.game.slug}/index.html`}
                       title={entry.game.title}
+                      style={thumbStyle(reviewed, entry.game?.player_status, sTier)}
                     >
                       {img ? (
                         <img src={img} alt={entry.game.title} loading="lazy" />

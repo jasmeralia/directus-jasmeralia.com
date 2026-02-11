@@ -60,72 +60,16 @@
   height: 144px;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid #2b2b2b;
+  border: 1px solid var(--thumb-border, #2b2b2b);
+  box-shadow: var(--thumb-shadow, none);
   background: #000;
   display: block;
 }
-
-.tier-thumb.reviewed {
-  border-color: #d3a43b;
-  box-shadow: 0 0 0 1px rgba(211, 164, 59, 0.25);
-}
-
-.tier-thumb.completed {
-  border-color: #c0c0c0;
-  box-shadow: 0 0 0 1px rgba(192, 192, 192, 0.25);
-}
-
-.tier-thumb.did-not-finish {
-  border-color: #d14b4b;
-  box-shadow: 0 0 0 1px rgba(209, 75, 75, 0.25);
-}
-
-.tier-thumb.in-progress {
-  border-color: #70b7ff;
-  box-shadow: 0 0 0 1px rgba(112, 183, 255, 0.3);
-}
-
-.tier-thumb.reviewed.completed {
-  border-color: #d3a43b;
-  box-shadow: 0 0 0 1px rgba(211, 164, 59, 0.25), inset 0 0 0 1px rgba(192, 192, 192, 0.35);
-}
-
-.tier-thumb.reviewed.did-not-finish {
-  border-color: #d3a43b;
-  box-shadow: 0 0 0 1px rgba(211, 164, 59, 0.25), inset 0 0 0 1px rgba(209, 75, 75, 0.4);
-}
-
-.tier-thumb.reviewed.in-progress {
-  border-color: #d3a43b;
-  box-shadow: 0 0 0 1px rgba(211, 164, 59, 0.25), inset 0 0 0 1px rgba(112, 183, 255, 0.4);
-}
-
-.tier-thumb.s-tier,
-.tier-thumb.s-tier.reviewed,
-.tier-thumb.s-tier.completed,
-.tier-thumb.s-tier.did-not-finish,
-.tier-thumb.s-tier.reviewed.completed,
-.tier-thumb.s-tier.reviewed.did-not-finish,
-.tier-thumb.s-tier.completed.did-not-finish,
-.tier-thumb.s-tier.in-progress,
-.tier-thumb.s-tier.reviewed.in-progress,
-.tier-thumb.s-tier.reviewed.completed.did-not-finish {
+.tier-thumb.s-tier {
   border: 1px solid transparent;
   background:
     linear-gradient(#000, #000) padding-box,
     linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf) border-box;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 14px rgba(255, 180, 80, 0.22);
-}
-
-.tier-thumb.s-tier.reviewed,
-.tier-thumb.s-tier.reviewed.completed,
-.tier-thumb.s-tier.reviewed.did-not-finish,
-.tier-thumb.s-tier.reviewed.in-progress,
-.tier-thumb.s-tier.reviewed.completed.did-not-finish {
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 0 14px rgba(255, 180, 80, 0.22),
-    inset 0 0 0 1px rgba(211, 164, 59, 0.65);
 }
 
 .tier-thumb img {
