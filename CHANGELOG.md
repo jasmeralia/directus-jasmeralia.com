@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.52] - 2026-02-11
+- Enforce visible nested thumbnail border stacking for combined states (status inside reviewed inside S-tier).
+
 ## [1.0.51] - 2026-02-11
 - Make all thumbnail border indicators stack together (rainbow, gold, and status color).
 - Simplify shared border legend copy now that multi-indicator stacking is always shown.

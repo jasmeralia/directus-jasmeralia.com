@@ -60,13 +60,13 @@
   height: 144px;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid var(--thumb-border, #2b2b2b);
+  border: 2px solid var(--thumb-border, #2b2b2b);
   box-shadow: var(--thumb-shadow, none);
   background: #000;
   display: block;
 }
 .tier-thumb.s-tier {
-  border: 1px solid transparent;
+  border: 2px solid transparent;
   background:
     linear-gradient(#000, #000) padding-box,
     linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf) border-box;

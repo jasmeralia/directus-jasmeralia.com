@@ -39,11 +39,11 @@ const thumbStyle = (reviewed, playerStatus, sTier) => {
   const didNotFinish = playerStatus === "did_not_finish";
   const inProgress = playerStatus === "in_progress";
   const statusColor = completed
-    ? "rgba(192,192,192,.85)"
+    ? "#c0c0c0"
     : didNotFinish
-      ? "rgba(209,75,75,.85)"
+      ? "#d14b4b"
       : inProgress
-        ? "rgba(112,183,255,.85)"
+        ? "#70b7ff"
         : null;
   const statusOuterGlow = completed
     ? "rgba(192,192,192,.25)"
@@ -64,8 +64,13 @@ const thumbStyle = (reviewed, playerStatus, sTier) => {
   } else if (statusOuterGlow) {
     shadowParts.push(`0 0 0 1px ${statusOuterGlow}`);
   }
-  if (reviewed) shadowParts.push("inset 0 0 0 2px rgba(211,164,59,.85)");
-  if (statusColor) shadowParts.push(`inset 0 0 0 ${reviewed ? 4 : 2}px ${statusColor}`);
+  if (reviewed && statusColor) {
+    shadowParts.push("inset 0 0 0 2px #d3a43b", `inset 0 0 0 4px ${statusColor}`);
+  } else if (reviewed) {
+    shadowParts.push("inset 0 0 0 2px #d3a43b");
+  } else if (statusColor) {
+    shadowParts.push(`inset 0 0 0 2px ${statusColor}`);
+  }
   return `--thumb-border:${borderColor};--thumb-shadow:${shadowParts.length ? shadowParts.join(",") : "none"};`;
 };
 ---
