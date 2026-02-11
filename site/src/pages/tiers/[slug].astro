@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import ThumbnailBorderLegend from "../../components/ThumbnailBorderLegend.astro";
 import { directusFetchItems, getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl } from "../../lib/directus";
 import "../../styles/tierlist.css";
 
@@ -80,6 +81,6 @@ if (gameIds.length) {
           </div>
         ))}
       </section>
-      <p style="opacity:.75;margin-top:1rem;">Rainbow borders indicate published S-tier games. Gold borders indicate games with reviews. Silver borders indicate completed player status. Blue borders indicate in_progress player status. Red borders indicate did_not_finish player status.</p>
+      <ThumbnailBorderLegend style="margin-top:1rem;" />
     </main>
 </BaseLayout>

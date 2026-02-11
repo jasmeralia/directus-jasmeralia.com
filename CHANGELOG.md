@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.50] - 2026-02-11
+- Show both S-tier rainbow and reviewed gold indicators together on thumbnail borders.
+- Add a shared thumbnail border legend component and render it on all thumbnail pages.
+
 ## [1.0.49] - 2026-02-11
 - Add a Misc section to composite filters with AVN + missing/has GameStoryLog URL pages.
 

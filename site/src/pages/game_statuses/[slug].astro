@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import CsvHeader from "../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../components/ThumbnailBorderLegend.astro";
 import GameThumbCard from "../../components/GameThumbCard.astro";
 import { directusFetchItems, getSTierGameIds } from "../../lib/directus";
 import { csvDataUri, gamesToCsv } from "../../lib/csv";
@@ -63,7 +64,8 @@ const csvHref = csvDataUri(gamesToCsv(games));
   </div>
   <main>
       <CsvHeader title={label} count={games.length} csvHref={csvHref} csvName={csvName} />
-      {games.length === 0 ? (
+      <ThumbnailBorderLegend />
+    {games.length === 0 ? (
         <p>No games found for this status.</p>
       ) : (
         <div class="grid">

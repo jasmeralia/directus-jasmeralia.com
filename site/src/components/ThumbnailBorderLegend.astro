@@ -1,0 +1,17 @@
+---
+const { className = "", style = "" } = Astro.props;
+---
+
+<p class={`thumb-border-legend ${className}`.trim()} style={style}>
+  Rainbow borders indicate published S-tier games. Gold borders indicate games with reviews.
+  If a game is both S-tier and reviewed, both indicators are shown. Silver borders indicate
+  completed player status. Blue borders indicate in_progress player status. Red borders
+  indicate did_not_finish player status.
+</p>
+
+<style>
+  .thumb-border-legend{
+    opacity:.75;
+    margin:.5rem 0 1rem;
+  }
+</style>

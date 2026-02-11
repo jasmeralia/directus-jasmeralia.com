@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../../../../layouts/BaseLayout.astro";
 import CsvHeader from "../../../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../../../components/ThumbnailBorderLegend.astro";
 import GameThumbCard from "../../../../../components/GameThumbCard.astro";
 import { directusFetchItems, getSTierGameIds } from "../../../../../lib/directus";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../../../../lib/genre-supersets";
@@ -118,6 +119,7 @@ const csvHref = csvDataUri(gamesToCsv(games));
         Game status: <strong>{statusLabel}</strong>
       </p>
     </div>
+    <ThumbnailBorderLegend />
     {games.length === 0 ? (
       <p>No games found for this combination.</p>
     ) : (

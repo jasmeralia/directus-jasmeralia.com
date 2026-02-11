@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import CsvHeader from "../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../components/ThumbnailBorderLegend.astro";
 import GameThumbCard from "../../components/GameThumbCard.astro";
 import { directusFetchItems, getSTierGameIds } from "../../lib/directus";
 import { csvDataUri, gamesToCsv } from "../../lib/csv";
@@ -41,7 +42,7 @@ const csvHref = csvDataUri(gamesToCsv(games));
   </div>
   <main>
       <CsvHeader title="Games" count={games.length} csvHref={csvHref} csvName={csvName} />
-      <p style="opacity:.75;margin-top:0;">Rainbow borders indicate published S-tier games. Gold borders indicate games with reviews. Silver borders indicate completed player status. Blue borders indicate in_progress player status. Red borders indicate did_not_finish player status.</p>
+      <ThumbnailBorderLegend style="margin-top:0;" />
       <div class="grid">
         {games.map((g) => {
           const reviewed = reviewedGameIds.has(g.id);
