@@ -14,58 +14,57 @@ const statusColor = completed
     : inProgress
       ? "#70b7ff"
       : null;
-const outerBorderColor = sTier ? "transparent" : (reviewed ? "#d3a43b" : (statusColor ?? "#2b2b2b"));
-const thumbShadowParts = [];
-if (sTier) {
-  thumbShadowParts.push(
-    "0 0 0 1px rgba(255,255,255,.06)",
-    "0 0 14px rgba(255,180,80,.22)",
-  );
-}
-if (sTier && reviewed && statusColor) {
-  thumbShadowParts.push("inset 0 0 0 2px #d3a43b", "inset 0 0 0 3px #000", `inset 0 0 0 5px ${statusColor}`);
-} else if (reviewed && statusColor) {
-  thumbShadowParts.push(`inset 0 0 0 2px ${statusColor}`);
-} else if (sTier && reviewed) {
-  thumbShadowParts.push("inset 0 0 0 2px #d3a43b");
-} else if (sTier && statusColor) {
-  thumbShadowParts.push(`inset 0 0 0 2px ${statusColor}`);
-}
-const thumbStyle = `--thumb-border:${outerBorderColor};--thumb-shadow:${thumbShadowParts.length ? thumbShadowParts.join(",") : "none"};`;
+const hasStatus = Boolean(statusColor);
+const hasThreeLayers = Boolean(sTier && reviewed && hasStatus);
+const innerBorderColor = statusColor ?? (!reviewed && !sTier ? "#2b2b2b" : "transparent");
 
 const img = game?.cover_image ? fileUrl(game.cover_image) : null;
 const genres = (game?.genres ?? []).map((genre) => genre?.genres_id?.name).filter(Boolean);
 const engines = (game?.engines ?? []).map((engine) => engine?.engines_id?.title).filter(Boolean);
 ---
 
-<div class={`card${reviewed ? " reviewed" : ""}${completed ? " completed" : ""}${didNotFinish ? " did-not-finish" : ""}${inProgress ? " in-progress" : ""}${sTier ? " s-tier" : ""}`}>
-  <a href={`/games/${game.slug}/index.html`}>
-    <div class={`thumb${sTier ? " s-tier" : ""}`} style={thumbStyle}>
-      {img ? <img src={img} alt={game.title} loading="lazy" /> : <span>No cover</span>}
-    </div>
-    <div class="meta">
-      <div class="title">{game.title}</div>
-      {game.release_year ? <div class="year">{game.release_year}</div> : null}
-      <div class="tags">
-        {game.player_status ? <span class="tag">{labelize(game.player_status)}</span> : null}
-        {game.game_status ? <span class="tag">{labelize(game.game_status)}</span> : null}
-        {genres.map((name) => <span class="tag">{name}</span>)}
-        {engines.map((name) => <span class="tag">{name}</span>)}
+<div class={`stack${reviewed ? " reviewed" : ""}${sTier ? " s-tier" : ""}${hasThreeLayers ? " three-layers" : ""}`}>
+  <div class="ring-rainbow">
+    <div class="gap-rainbow">
+      <div class="ring-gold">
+        <div class="gap-gold">
+          <div class="card" style={`--inner-border:${innerBorderColor};`}>
+            <a href={`/games/${game.slug}/index.html`}>
+              <div class="thumb">
+                {img ? <img src={img} alt={game.title} loading="lazy" /> : <span>No cover</span>}
+              </div>
+              <div class="meta">
+                <div class="title">{game.title}</div>
+                {game.release_year ? <div class="year">{game.release_year}</div> : null}
+                <div class="tags">
+                  {game.player_status ? <span class="tag">{labelize(game.player_status)}</span> : null}
+                  {game.game_status ? <span class="tag">{labelize(game.game_status)}</span> : null}
+                  {genres.map((name) => <span class="tag">{name}</span>)}
+                  {engines.map((name) => <span class="tag">{name}</span>)}
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
       </div>
     </div>
-  </a>
+  </div>
 </div>
 
 <style>
-  .card{border:1px solid #2b2b2b;border-radius:12px;overflow:hidden;background:#111;}
-  .card a{color:inherit;text-decoration:none;display:block;}
-  .thumb{aspect-ratio:2/3;background:#000;display:flex;align-items:center;justify-content:center;border:2px solid var(--thumb-border,#2b2b2b);box-shadow:var(--thumb-shadow,none);}
-  .thumb.s-tier{
-    border:2px solid transparent;
-    background:
-      linear-gradient(#000, #000) padding-box,
-      linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf) border-box;
+  .stack,.ring-rainbow,.gap-rainbow,.ring-gold,.gap-gold,.card{border-radius:12px;}
+  .ring-rainbow,.gap-rainbow,.ring-gold,.gap-gold{padding:0;background:transparent;}
+  .stack.s-tier .ring-rainbow{
+    padding:2px;
+    background:linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf);
+    box-shadow:0 0 0 1px rgba(255,255,255,.06), 0 0 14px rgba(255,180,80,.22);
   }
+  .stack.reviewed .ring-gold{padding:2px;background:#d3a43b;}
+  .stack.three-layers .gap-rainbow{padding:1px;background:#000;}
+  .stack.three-layers .gap-gold{padding:1px;background:#000;}
+  .card{border:2px solid var(--inner-border,#2b2b2b);overflow:hidden;background:#111;}
+  .card a{color:inherit;text-decoration:none;display:block;}
+  .thumb{aspect-ratio:2/3;background:#000;display:flex;align-items:center;justify-content:center;}
   .thumb img{width:100%;height:100%;object-fit:contain;display:block;}
   .meta{padding:.75rem 1rem;}
   .title{font-weight:700;}

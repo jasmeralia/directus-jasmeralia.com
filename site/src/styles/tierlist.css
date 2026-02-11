@@ -55,21 +55,43 @@
   background: #111;
 }
 
+.tier-stack,.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold,.tier-thumb {
+  border-radius: 6px;
+}
+
+.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold {
+  padding: 0;
+  background: transparent;
+}
+
+.tier-stack.s-tier .ring-rainbow {
+  padding: 2px;
+  background: linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 14px rgba(255, 180, 80, 0.22);
+}
+
+.tier-stack.reviewed .ring-gold {
+  padding: 2px;
+  background: #d3a43b;
+}
+
+.tier-stack.three-layers .gap-rainbow {
+  padding: 1px;
+  background: #000;
+}
+
+.tier-stack.three-layers .gap-gold {
+  padding: 1px;
+  background: #000;
+}
+
 .tier-thumb {
   width: 96px;
   height: 144px;
-  border-radius: 6px;
   overflow: hidden;
-  border: 2px solid var(--thumb-border, #2b2b2b);
-  box-shadow: var(--thumb-shadow, none);
+  border: 2px solid var(--inner-border, #2b2b2b);
   background: #000;
   display: block;
-}
-.tier-thumb.s-tier {
-  border: 2px solid transparent;
-  background:
-    linear-gradient(#000, #000) padding-box,
-    linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf) border-box;
 }
 
 .tier-thumb img {

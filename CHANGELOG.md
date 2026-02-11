@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.54] - 2026-02-11
+- Apply stacked borders around full game cards (thumbnail + metadata) with explicit 3-layer gaps.
+- Align tier thumbnail stacks to the same outward border layering behavior.
+
 ## [1.0.53] - 2026-02-11
 - Move stacked borders to the thumbnail frame (not metadata panel) and add visible spacing only for 3-layer combinations.
 
