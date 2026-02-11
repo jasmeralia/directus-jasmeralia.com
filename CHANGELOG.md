@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.49] - 2026-02-11
+- Add a Misc section to composite filters with AVN + missing/has GameStoryLog URL pages.
+
 ## [1.0.48] - 2026-02-11
 - Add GameStoryLog link support on game pages using `games.gamestorylog_url` with a vendored local icon.
 

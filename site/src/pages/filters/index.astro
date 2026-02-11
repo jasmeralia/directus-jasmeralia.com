@@ -24,6 +24,7 @@ const games = await directusFetchItems("games", {
     "id",
     "game_status",
     "player_status",
+    "gamestorylog_url",
     "engines.engines_id.slug",
     "genres.genres_id.slug",
     "developers.developers_id.slug",
@@ -289,6 +290,16 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
     unknownLast(a, b, "genreLabel") ||
     a.genreLabel.localeCompare(b.genreLabel) ||
     a.statusLabel.localeCompare(b.statusLabel));
+
+const hasAvnGenre = (game) =>
+  (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "avn");
+const hasValue = (value) => typeof value === "string" && value.trim().length > 0;
+const avnMissingGamestorylogCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && !hasValue(game.gamestorylog_url),
+).length;
+const avnWithGamestorylogCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && hasValue(game.gamestorylog_url),
+).length;
 ---
 
 <BaseLayout title="Filters">
@@ -316,6 +327,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
         <li><a href="#engine-played-status">Engine + Played Status ({enginePlayedEntries.length})</a></li>
         <li><a href="#genre-game-status">Genre + Game Status ({genreStatusEntries.length})</a></li>
         <li><a href="#genre-played-status">Genre + Played Status ({genrePlayedEntries.length})</a></li>
+        <li><a href="#misc">Misc (2)</a></li>
       </ul>
     </div>
     <div class="panel" id="developer-game-status">
@@ -441,6 +453,19 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
           ))}
         </ul>
       )}
+    </div>
+    <div class="panel" id="misc">
+      <h2>Misc</h2>
+      <ul>
+        <li>
+          <a href="/filters/misc/avn-missing-gamestorylog/index.html">AVN + Missing GameStoryLog URL</a>
+          <span style="opacity:.7;"> ({avnMissingGamestorylogCount})</span>
+        </li>
+        <li>
+          <a href="/filters/misc/avn-with-gamestorylog/index.html">AVN + Has GameStoryLog URL</a>
+          <span style="opacity:.7;"> ({avnWithGamestorylogCount})</span>
+        </li>
+      </ul>
     </div>
   </main>
 </BaseLayout>
