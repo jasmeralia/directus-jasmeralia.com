@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.46] - 2026-02-11
+- Add local Simple Icons for Steam, itch.io, GOG, and Patreon download links on game detail pages.
+
 ## [1.0.45] - 2026-02-02
 - Add blue thumbnail borders for games with player_status=in_progress.
 - Update border legend notes to include blue in_progress meaning.

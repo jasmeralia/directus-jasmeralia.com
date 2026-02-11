@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
+import { getDownloadLinkMeta } from "../../lib/download-link";
 
 export async function getStaticPaths() {
   const games = await directusFetchItems('games', {
@@ -94,6 +95,7 @@ for (const entry of (tierEntries ?? [])) {
 }
 const tierLists = Array.from(tierListsMap.values())
   .sort((a, b) => a.title.localeCompare(b.title));
+const downloadLinkMeta = getDownloadLinkMeta(game.download_url);
 ---
 
 <BaseLayout title={`Games | ${game.title}`}>
@@ -111,6 +113,8 @@ const tierLists = Array.from(tierListsMap.values())
       .panel a:visited{color:#9aa6ff;}
       .meta a{color:#9aa6ff;}
       .meta a:visited{color:#9aa6ff;}
+      .download-link{display:inline-flex;align-items:center;gap:.45rem;}
+      .download-link img{width:1rem;height:1rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
     </style>
   </div>
   <main class="container">
@@ -122,7 +126,12 @@ const tierLists = Array.from(tierListsMap.values())
           <h1>{game.title}</h1>
                     {game.download_url ? (
             <div class="meta">
-              <a href={game.download_url} rel="noopener noreferrer" target="_blank">Download</a>
+              <a class="download-link" href={game.download_url} rel="noopener noreferrer" target="_blank">
+                {downloadLinkMeta.icon ? (
+                  <img src={downloadLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
+                ) : null}
+                <span>{downloadLinkMeta.label}</span>
+              </a>
             </div>
           ) : null}
         </div>
