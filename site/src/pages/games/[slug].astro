@@ -25,6 +25,7 @@ const games = await directusFetchItems('games', {
     'slug',
     'release_year',
     'download_url',
+    'gamestorylog_url',
     'walkthrough_url',
     'player_status',
     'game_status',
@@ -128,14 +129,26 @@ const downloadLinkText =
         </div>
         <div>
           <h1>{game.title}</h1>
-                    {game.download_url ? (
+                    {game.download_url || game.gamestorylog_url ? (
             <div class="meta">
-              <a class="download-link" href={game.download_url} rel="noopener noreferrer" target="_blank">
-                {downloadLinkMeta.icon ? (
-                  <img src={downloadLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
-                ) : null}
-                <span>{downloadLinkText}</span>
-              </a>
+              {game.download_url ? (
+                <div>
+                  <a class="download-link" href={game.download_url} rel="noopener noreferrer" target="_blank">
+                    {downloadLinkMeta.icon ? (
+                      <img src={downloadLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
+                    ) : null}
+                    <span>{downloadLinkText}</span>
+                  </a>
+                </div>
+              ) : null}
+              {game.gamestorylog_url ? (
+                <div>
+                  <a class="download-link" href={game.gamestorylog_url} rel="noopener noreferrer" target="_blank">
+                    <img src="/icons/gamestorylog.png" alt="" aria-hidden="true" loading="lazy" />
+                    <span>View on GameStoryLog</span>
+                  </a>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

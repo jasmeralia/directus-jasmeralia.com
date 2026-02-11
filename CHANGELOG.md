@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.48] - 2026-02-11
+- Add GameStoryLog link support on game pages using `games.gamestorylog_url` with a vendored local icon.
+
 ## [1.0.47] - 2026-02-11
 - Change detected download links to read "Download from <platform>" and keep fallback as "Download".
 
