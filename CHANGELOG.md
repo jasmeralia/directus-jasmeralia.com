@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.53] - 2026-02-11
+- Move stacked borders to the thumbnail frame (not metadata panel) and add visible spacing only for 3-layer combinations.
+
 ## [1.0.52] - 2026-02-11
 - Enforce visible nested thumbnail border stacking for combined states (status inside reviewed inside S-tier).
 

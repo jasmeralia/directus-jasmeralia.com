@@ -45,33 +45,24 @@ const thumbStyle = (reviewed, playerStatus, sTier) => {
       : inProgress
         ? "#70b7ff"
         : null;
-  const statusOuterGlow = completed
-    ? "rgba(192,192,192,.25)"
-    : didNotFinish
-      ? "rgba(209,75,75,.25)"
-      : inProgress
-        ? "rgba(112,183,255,.3)"
-        : null;
-  const borderColor = reviewed ? "#d3a43b" : (statusColor ?? "#2b2b2b");
+  const outerBorderColor = sTier ? "transparent" : (reviewed ? "#d3a43b" : (statusColor ?? "#2b2b2b"));
   const shadowParts = [];
   if (sTier) {
     shadowParts.push(
       "0 0 0 1px rgba(255,255,255,.06)",
       "0 0 14px rgba(255,180,80,.22)",
     );
-  } else if (reviewed) {
-    shadowParts.push("0 0 0 1px rgba(211,164,59,.25)");
-  } else if (statusOuterGlow) {
-    shadowParts.push(`0 0 0 1px ${statusOuterGlow}`);
   }
-  if (reviewed && statusColor) {
-    shadowParts.push("inset 0 0 0 2px #d3a43b", `inset 0 0 0 4px ${statusColor}`);
-  } else if (reviewed) {
+  if (sTier && reviewed && statusColor) {
+    shadowParts.push("inset 0 0 0 2px #d3a43b", "inset 0 0 0 3px #000", `inset 0 0 0 5px ${statusColor}`);
+  } else if (reviewed && statusColor) {
+    shadowParts.push(`inset 0 0 0 2px ${statusColor}`);
+  } else if (sTier && reviewed) {
     shadowParts.push("inset 0 0 0 2px #d3a43b");
-  } else if (statusColor) {
+  } else if (sTier && statusColor) {
     shadowParts.push(`inset 0 0 0 2px ${statusColor}`);
   }
-  return `--thumb-border:${borderColor};--thumb-shadow:${shadowParts.length ? shadowParts.join(",") : "none"};`;
+  return `--thumb-border:${outerBorderColor};--thumb-shadow:${shadowParts.length ? shadowParts.join(",") : "none"};`;
 };
 ---
 

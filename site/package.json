@@ -2,7 +2,7 @@
   "name": "astro-jasmeralia",
   "type": "module",
   "private": true,
-  "version": "1.0.52",
+  "version": "1.0.53",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
