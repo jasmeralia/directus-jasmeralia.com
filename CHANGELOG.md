@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.47] - 2026-02-11
+- Change detected download links to read "Download from <platform>" and keep fallback as "Download".
+
 ## [1.0.46] - 2026-02-11
 - Add local Simple Icons for Steam, itch.io, GOG, and Patreon download links on game detail pages.
 

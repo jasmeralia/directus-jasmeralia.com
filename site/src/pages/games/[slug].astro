@@ -96,6 +96,10 @@ for (const entry of (tierEntries ?? [])) {
 const tierLists = Array.from(tierListsMap.values())
   .sort((a, b) => a.title.localeCompare(b.title));
 const downloadLinkMeta = getDownloadLinkMeta(game.download_url);
+const downloadLinkText =
+  downloadLinkMeta.label === "Download"
+    ? "Download"
+    : `Download from ${downloadLinkMeta.label}`;
 ---
 
 <BaseLayout title={`Games | ${game.title}`}>
@@ -130,7 +134,7 @@ const downloadLinkMeta = getDownloadLinkMeta(game.download_url);
                 {downloadLinkMeta.icon ? (
                   <img src={downloadLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
                 ) : null}
-                <span>{downloadLinkMeta.label}</span>
+                <span>{downloadLinkText}</span>
               </a>
             </div>
           ) : null}
