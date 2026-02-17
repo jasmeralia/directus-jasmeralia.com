@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.65] - 2026-02-17
+- Add a second Misc pie chart on `/filters/index.html` for walkthrough URL distribution.
+- Classify walkthrough values as supported platforms, `<Unknown Walkthrough Platform>`, `Text Note` (non-link text), and `None Provided` (null/empty).
+
 ## [1.0.64] - 2026-02-17
 - Add a Misc-section pie chart on `/filters/index.html` for download platform distribution (Steam, itch.io, GOG, Patreon, and `<Unknown Download Platform>`).
 - Include hover tooltips and a legend with counts for each download platform segment.
