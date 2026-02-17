@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.62] - 2026-02-17
+- Fix platform misc filter build failure by making `getStaticPaths` self-contained.
+
 ## [1.0.61] - 2026-02-11
 - Make game-card platform icons link to `games.download_url` when URL-based.
 - Make game-card status/genre/engine tags link to their corresponding index pages.

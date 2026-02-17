@@ -16,7 +16,7 @@ const platformMeta = {
 };
 
 export async function getStaticPaths() {
-  return Object.keys(platformMeta).map((platform) => ({ params: { platform } }));
+  return ["steam", "itch", "gog", "patreon"].map((platform) => ({ params: { platform } }));
 }
 
 const { platform } = Astro.params;
