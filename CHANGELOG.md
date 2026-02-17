@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.57] - 2026-02-11
+- Add waiting_for_update (dark green) support to stacked border indicators and legend text.
+- Improve game detail walkthrough rendering with platform icons/labels for URLs and plain-text fallback for non-URLs.
+- Update tier list cards to include game titles and waiting_for_update border handling.
+
 ## [1.0.56] - 2026-02-11
 - Add misc composite filters for genre games missing from matching published tier lists (genres.name == tier_lists.title).
 - Apply platform icon/link handling on walkthrough index with safe non-URL plain-text rendering.

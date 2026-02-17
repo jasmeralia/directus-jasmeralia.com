@@ -7,13 +7,16 @@ const labelize = (value) =>
 const completed = game?.player_status === "completed";
 const didNotFinish = game?.player_status === "did_not_finish";
 const inProgress = game?.player_status === "in_progress";
+const waitingForUpdate = game?.player_status === "waiting_for_update";
 const statusColor = completed
   ? "#c0c0c0"
   : didNotFinish
     ? "#d14b4b"
     : inProgress
       ? "#70b7ff"
-      : null;
+      : waitingForUpdate
+        ? "#1f6b2b"
+        : null;
 const hasStatus = Boolean(statusColor);
 const layerCount = (sTier ? 1 : 0) + (reviewed ? 1 : 0) + (hasStatus ? 1 : 0);
 const hasTwoLayers = layerCount === 2;

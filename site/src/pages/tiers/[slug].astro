@@ -38,13 +38,16 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier) => {
   const completed = playerStatus === "completed";
   const didNotFinish = playerStatus === "did_not_finish";
   const inProgress = playerStatus === "in_progress";
+  const waitingForUpdate = playerStatus === "waiting_for_update";
   const statusColor = completed
     ? "#c0c0c0"
     : didNotFinish
       ? "#d14b4b"
       : inProgress
         ? "#70b7ff"
-        : null;
+        : waitingForUpdate
+          ? "#1f6b2b"
+          : null;
   const innerBorderColor = statusColor ?? (!reviewed && !sTier ? "#2b2b2b" : "transparent");
   return `--inner-border:${innerBorderColor};`;
 };
@@ -74,8 +77,9 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier) => {
                   const completed = entry.game?.player_status === "completed";
                   const didNotFinish = entry.game?.player_status === "did_not_finish";
                   const inProgress = entry.game?.player_status === "in_progress";
+                  const waitingForUpdate = entry.game?.player_status === "waiting_for_update";
                   const sTier = row.label === "S";
-                  const hasStatus = completed || didNotFinish || inProgress;
+                  const hasStatus = completed || didNotFinish || inProgress || waitingForUpdate;
                   const layerCount = (sTier ? 1 : 0) + (reviewed ? 1 : 0) + (hasStatus ? 1 : 0);
                   const hasTwoLayers = layerCount === 2;
                   const hasThreeLayers = layerCount === 3;
@@ -91,13 +95,14 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier) => {
                                 title={entry.game.title}
                                 style={thumbBorderStyle(reviewed, entry.game?.player_status, sTier)}
                               >
-                                {img ? (
-                                  <img src={img} alt={entry.game.title} loading="lazy" />
-                                ) : (
-                                  <span style="display:flex;align-items:center;justify-content:center;height:100%;color:#aaa;font-size:12px;">
-                                    No image
-                                  </span>
-                                )}
+                                <div class="tier-thumb-media">
+                                  {img ? (
+                                    <img src={img} alt={entry.game.title} loading="lazy" />
+                                  ) : (
+                                    <span class="tier-thumb-fallback">No image</span>
+                                  )}
+                                </div>
+                                <div class="tier-thumb-title">{entry.game.title}</div>
                               </a>
                             </div>
                           </div>

@@ -101,6 +101,13 @@ const downloadLinkText =
   downloadLinkMeta.label === "Download"
     ? "Download"
     : `Download from ${downloadLinkMeta.label}`;
+const walkthroughValue = typeof game.walkthrough_url === "string" ? game.walkthrough_url.trim() : "";
+const hasThirdPartyWalkthrough = /^https?:\/\//i.test(walkthroughValue);
+const walkthroughLinkMeta = getDownloadLinkMeta(walkthroughValue);
+const walkthroughLinkText =
+  walkthroughLinkMeta.label === "Download"
+    ? "Walkthrough"
+    : `Walkthrough on ${walkthroughLinkMeta.label}`;
 ---
 
 <BaseLayout title={`Games | ${game.title}`}>
@@ -214,10 +221,19 @@ const downloadLinkText =
               ))}
             </li>
           ) : null}
-          {game.walkthrough_url ? (
+          {walkthroughValue ? (
             <li>
               <strong>Walkthrough:</strong>{" "}
-              <a href={game.walkthrough_url} rel="noopener noreferrer" target="_blank">Walkthrough</a>
+              {hasThirdPartyWalkthrough ? (
+                <a class="download-link" href={walkthroughValue} rel="noopener noreferrer" target="_blank">
+                  {walkthroughLinkMeta.icon ? (
+                    <img src={walkthroughLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
+                  ) : null}
+                  <span>{walkthroughLinkText}</span>
+                </a>
+              ) : (
+                <span>{walkthroughValue}</span>
+              )}
             </li>
           ) : null}
         </ul>
