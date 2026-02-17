@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.67] - 2026-02-17
+- Fix walkthrough Misc filter static path generation by making `getStaticPaths` self-contained in `src/pages/filters/misc/walkthrough/[kind].astro`.
+
 ## [1.0.66] - 2026-02-17
 - Fix walkthrough platform pie-chart data on `/filters/index.html` by including `games.walkthrough_url` in the source query.
 - Add Misc walkthrough filter links and route pages at `/filters/misc/walkthrough/<kind>/` for platform, unknown URL host, text-note, and none-provided categories.

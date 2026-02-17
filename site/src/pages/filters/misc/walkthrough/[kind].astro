@@ -23,7 +23,16 @@ const walkthroughKinds: WalkthroughKind[] = [
 ];
 
 export async function getStaticPaths() {
-  return walkthroughKinds.map((kind) => ({ params: { kind } }));
+  const kinds: WalkthroughKind[] = [
+    "steam",
+    "itch",
+    "gog",
+    "patreon",
+    "unknown",
+    "text-note",
+    "none-provided",
+  ];
+  return kinds.map((kind) => ({ params: { kind } }));
 }
 
 const { kind } = Astro.params;
@@ -91,4 +100,3 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
     )}
   </main>
 </BaseLayout>
-
