@@ -312,6 +312,48 @@ const platformCounts = {
   gog: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "gog").length,
   patreon: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "patreon").length,
 };
+const unknownPlatformCount = Math.max(
+  0,
+  (games?.length ?? 0) -
+    platformCounts.steam -
+    platformCounts.itch -
+    platformCounts.gog -
+    platformCounts.patreon,
+);
+const platformPieSegments = [
+  { label: "Steam", value: platformCounts.steam, color: "#4aa3ff" },
+  { label: "itch.io", value: platformCounts.itch, color: "#ff7a7a" },
+  { label: "GOG", value: platformCounts.gog, color: "#ffd966" },
+  { label: "Patreon", value: platformCounts.patreon, color: "#c788ff" },
+  { label: formatUnknown("unknown", "Download Platform"), value: unknownPlatformCount, color: "#7fe29a" },
+].filter((segment) => segment.value > 0);
+const platformPieTotal = platformPieSegments.reduce((sum, segment) => sum + segment.value, 0);
+const pieSize = 220;
+const pieRadius = 95;
+const pieCenter = pieSize / 2;
+const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
+  const angleInRadians = (angleInDegrees - 90) * (Math.PI / 180.0);
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
+  };
+};
+const describeArc = (x, y, radius, startAngle, endAngle) => {
+  const start = polarToCartesian(x, y, radius, endAngle);
+  const end = polarToCartesian(x, y, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y} L ${x} ${y} Z`;
+};
+const platformPieArcs = (() => {
+  if (!platformPieTotal) return [];
+  let current = 0;
+  return platformPieSegments.map((segment) => {
+    const start = current;
+    const sweep = (segment.value / platformPieTotal) * 360;
+    current += sweep;
+    return { ...segment, start, end: current };
+  });
+})();
 const normalizeKey = (value) =>
   String(value ?? "")
     .trim()
@@ -395,6 +437,11 @@ const miscCount = 6 + genreTierCoverageEntries.length;
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .pie-wrap{display:flex;justify-content:center;margin-top:16px;}
+      .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;}
+      .legend{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;margin-top:12px;padding:0;list-style:none;}
+      .legend-item{display:flex;align-items:center;gap:8px;font-size:.85rem;opacity:.9;}
+      .legend-swatch{width:12px;height:12px;border-radius:3px;border:1px solid #2b2b2b;display:inline-block;}
     </style>
   </div>
   <main>
@@ -575,6 +622,33 @@ const miscCount = 6 + genreTierCoverageEntries.length;
           </li>
         ))}
       </ul>
+      {platformPieSegments.length ? (
+        <>
+          <div class="pie-wrap">
+            <svg class="pie" viewBox={`0 0 ${pieSize} ${pieSize}`} role="img" aria-label="Download platform distribution">
+              {platformPieArcs.length === 1 ? (
+                <circle cx={pieCenter} cy={pieCenter} r={pieRadius} fill={platformPieArcs[0].color}>
+                  <title>{platformPieArcs[0].label} ({platformPieArcs[0].value})</title>
+                </circle>
+              ) : (
+                platformPieArcs.map((segment) => (
+                  <path d={describeArc(pieCenter, pieCenter, pieRadius, segment.start, segment.end)} fill={segment.color}>
+                    <title>{segment.label} ({segment.value})</title>
+                  </path>
+                ))
+              )}
+            </svg>
+          </div>
+          <ul class="legend" aria-label="Legend">
+            {platformPieSegments.map((segment) => (
+              <li class="legend-item">
+                <span class="legend-swatch" style={`background:${segment.color};`}></span>
+                <span>{segment.label} ({segment.value})</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </div>
   </main>
 </BaseLayout>

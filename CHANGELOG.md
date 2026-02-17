@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.64] - 2026-02-17
+- Add a Misc-section pie chart on `/filters/index.html` for download platform distribution (Steam, itch.io, GOG, Patreon, and `<Unknown Download Platform>`).
+- Include hover tooltips and a legend with counts for each download platform segment.
+
 ## [1.0.63] - 2026-02-17
 - Add pink walkthrough border indicator to thumbnail and tier card stacks with full gap layering support.
 - Update thumbnail legend and data queries to include walkthrough-based border rendering.
