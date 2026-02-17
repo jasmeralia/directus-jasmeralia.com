@@ -11,6 +11,7 @@ export type Game = {
   slug: string;
   cover_image?: DirectusFile | string | null;
   download_url?: string | null;
+  walkthrough_url?: string | null;
   player_status?: string | null;
 };
 
@@ -156,6 +157,7 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
       "tier_rows.id","tier_rows.label","tier_rows.color","tier_rows.sort",
       "tier_rows.tier_entries.id","tier_rows.tier_entries.sort",
       "tier_rows.tier_entries.game.id","tier_rows.tier_entries.game.title","tier_rows.tier_entries.game.slug","tier_rows.tier_entries.game.player_status",
+      "tier_rows.tier_entries.game.walkthrough_url",
       "tier_rows.tier_entries.game.cover_image.id,tier_rows.tier_entries.game.cover_image.filename_disk",
     ].join(","),
     "deep[tier_rows][_sort]": "sort",

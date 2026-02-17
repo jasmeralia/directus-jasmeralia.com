@@ -34,7 +34,7 @@ if (gameIds.length) {
   }
 }
 
-const thumbBorderStyle = (reviewed, playerStatus, sTier) => {
+const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
   const completed = playerStatus === "completed";
   const didNotFinish = playerStatus === "did_not_finish";
   const inProgress = playerStatus === "in_progress";
@@ -49,7 +49,15 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier) => {
           ? "#1f6b2b"
           : null;
   const innerBorderColor = statusColor ?? (!reviewed && !sTier ? "#2b2b2b" : "transparent");
-  return `--inner-border:${innerBorderColor};`;
+  return [
+    `--ring-rainbow-pad:${sTier ? 2 : 0}px`,
+    `--ring-gold-pad:${reviewed ? 2 : 0}px`,
+    `--ring-pink-pad:${hasWalkthrough ? 2 : 0}px`,
+    `--gap-rainbow-pad:${sTier && (reviewed || hasWalkthrough || statusColor) ? 1 : 0}px`,
+    `--gap-gold-pad:${reviewed && (hasWalkthrough || statusColor) ? 1 : 0}px`,
+    `--gap-pink-pad:${hasWalkthrough && statusColor ? 1 : 0}px`,
+    `--inner-border:${innerBorderColor}`,
+  ].join(";");
 };
 ---
 
@@ -78,32 +86,32 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier) => {
                   const didNotFinish = entry.game?.player_status === "did_not_finish";
                   const inProgress = entry.game?.player_status === "in_progress";
                   const waitingForUpdate = entry.game?.player_status === "waiting_for_update";
+                  const hasWalkthrough = typeof entry.game?.walkthrough_url === "string" && entry.game.walkthrough_url.trim().length > 0;
                   const sTier = row.label === "S";
-                  const hasStatus = completed || didNotFinish || inProgress || waitingForUpdate;
-                  const layerCount = (sTier ? 1 : 0) + (reviewed ? 1 : 0) + (hasStatus ? 1 : 0);
-                  const hasTwoLayers = layerCount === 2;
-                  const hasThreeLayers = layerCount === 3;
                   return (
-                    <div class={`tier-stack${reviewed ? " reviewed" : ""}${sTier ? " s-tier" : ""}${hasStatus ? " has-status" : ""}${hasTwoLayers ? " two-layers" : ""}${hasThreeLayers ? " three-layers" : ""}`}>
+                    <div class="tier-stack" style={thumbBorderStyle(reviewed, entry.game?.player_status, sTier, hasWalkthrough)}>
                       <div class="ring-rainbow">
                         <div class="gap-rainbow">
                           <div class="ring-gold">
                             <div class="gap-gold">
-                              <a
-                                class="tier-thumb"
-                                href={`/games/${entry.game.slug}/index.html`}
-                                title={entry.game.title}
-                                style={thumbBorderStyle(reviewed, entry.game?.player_status, sTier)}
-                              >
-                                <div class="tier-thumb-media">
-                                  {img ? (
-                                    <img src={img} alt={entry.game.title} loading="lazy" />
-                                  ) : (
-                                    <span class="tier-thumb-fallback">No image</span>
-                                  )}
+                              <div class="ring-pink">
+                                <div class="gap-pink">
+                                  <a
+                                    class="tier-thumb"
+                                    href={`/games/${entry.game.slug}/index.html`}
+                                    title={entry.game.title}
+                                  >
+                                    <div class="tier-thumb-media">
+                                      {img ? (
+                                        <img src={img} alt={entry.game.title} loading="lazy" />
+                                      ) : (
+                                        <span class="tier-thumb-fallback">No image</span>
+                                      )}
+                                    </div>
+                                    <div class="tier-thumb-title">{entry.game.title}</div>
+                                  </a>
                                 </div>
-                                <div class="tier-thumb-title">{entry.game.title}</div>
-                              </a>
+                              </div>
                             </div>
                           </div>
                         </div>

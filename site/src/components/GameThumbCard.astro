@@ -9,6 +9,7 @@ const completed = game?.player_status === "completed";
 const didNotFinish = game?.player_status === "did_not_finish";
 const inProgress = game?.player_status === "in_progress";
 const waitingForUpdate = game?.player_status === "waiting_for_update";
+const hasWalkthrough = typeof game?.walkthrough_url === "string" && game.walkthrough_url.trim().length > 0;
 const statusColor = completed
   ? "#c0c0c0"
   : didNotFinish
@@ -19,10 +20,16 @@ const statusColor = completed
         ? "#1f6b2b"
         : null;
 const hasStatus = Boolean(statusColor);
-const layerCount = (sTier ? 1 : 0) + (reviewed ? 1 : 0) + (hasStatus ? 1 : 0);
-const hasTwoLayers = layerCount === 2;
-const hasThreeLayers = Boolean(sTier && reviewed && hasStatus);
 const innerBorderColor = statusColor ?? (!reviewed && !sTier ? "#2b2b2b" : "transparent");
+const stackStyle = [
+  `--ring-rainbow-pad:${sTier ? 2 : 0}px`,
+  `--ring-gold-pad:${reviewed ? 2 : 0}px`,
+  `--ring-pink-pad:${hasWalkthrough ? 2 : 0}px`,
+  `--gap-rainbow-pad:${sTier && (reviewed || hasWalkthrough || hasStatus) ? 1 : 0}px`,
+  `--gap-gold-pad:${reviewed && (hasWalkthrough || hasStatus) ? 1 : 0}px`,
+  `--gap-pink-pad:${hasWalkthrough && hasStatus ? 1 : 0}px`,
+  `--inner-border:${innerBorderColor}`,
+].join(";");
 
 const img = game?.cover_image ? fileUrl(game.cover_image) : null;
 const downloadMeta = getDownloadLinkMeta(game?.download_url);
@@ -36,50 +43,54 @@ const engines = (game?.engines ?? [])
   .filter((engine) => engine?.title && engine?.slug);
 ---
 
-<div class={`stack${reviewed ? " reviewed" : ""}${sTier ? " s-tier" : ""}${hasStatus ? " has-status" : ""}${hasTwoLayers ? " two-layers" : ""}${hasThreeLayers ? " three-layers" : ""}`}>
+<div class="stack" style={stackStyle}>
   <div class="ring-rainbow">
     <div class="gap-rainbow">
       <div class="ring-gold">
         <div class="gap-gold">
-          <div class="card" style={`--inner-border:${innerBorderColor};`}>
-            <a class="game-link" href={`/games/${game.slug}/index.html`}>
-              <div class="thumb">
-                {img ? <img src={img} alt={game.title} loading="lazy" /> : <span>No cover</span>}
-              </div>
-            </a>
-            <div class="meta">
-              <div class="title">
-                <a class="game-link" href={`/games/${game.slug}/index.html`}>{game.title}</a>
-              </div>
-              {game.release_year ? <div class="year">{game.release_year}</div> : null}
-              {showDownloadPlatform ? (
-                <div class="platform">
-                  {hasDownloadUrl ? (
-                    <a class="platform-link" href={game.download_url} target="_blank" rel="noopener noreferrer">
-                      {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
-                      <span>{downloadMeta.label}</span>
-                    </a>
-                  ) : (
-                    <>
-                      {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
-                      <span>{downloadMeta.label}</span>
-                    </>
-                  )}
+          <div class="ring-pink">
+            <div class="gap-pink">
+              <div class="card">
+                <a class="game-link" href={`/games/${game.slug}/index.html`}>
+                  <div class="thumb">
+                    {img ? <img src={img} alt={game.title} loading="lazy" /> : <span>No cover</span>}
+                  </div>
+                </a>
+                <div class="meta">
+                  <div class="title">
+                    <a class="game-link" href={`/games/${game.slug}/index.html`}>{game.title}</a>
+                  </div>
+                  {game.release_year ? <div class="year">{game.release_year}</div> : null}
+                  {showDownloadPlatform ? (
+                    <div class="platform">
+                      {hasDownloadUrl ? (
+                        <a class="platform-link" href={game.download_url} target="_blank" rel="noopener noreferrer">
+                          {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                          <span>{downloadMeta.label}</span>
+                        </a>
+                      ) : (
+                        <>
+                          {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                          <span>{downloadMeta.label}</span>
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+                  <div class="tags">
+                    {game.player_status ? (
+                      <a class="tag" href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
+                    ) : null}
+                    {game.game_status ? (
+                      <a class="tag" href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
+                    ) : null}
+                    {genres.map((genre) => (
+                      <a class="tag" href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
+                    ))}
+                    {engines.map((engine) => (
+                      <a class="tag" href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
+                    ))}
+                  </div>
                 </div>
-              ) : null}
-              <div class="tags">
-                {game.player_status ? (
-                  <a class="tag" href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
-                ) : null}
-                {game.game_status ? (
-                  <a class="tag" href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
-                ) : null}
-                {genres.map((genre) => (
-                  <a class="tag" href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
-                ))}
-                {engines.map((engine) => (
-                  <a class="tag" href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
-                ))}
               </div>
             </div>
           </div>
@@ -90,19 +101,18 @@ const engines = (game?.engines ?? [])
 </div>
 
 <style>
-  .stack,.ring-rainbow,.gap-rainbow,.ring-gold,.gap-gold,.card{border-radius:12px;}
-  .ring-rainbow,.gap-rainbow,.ring-gold,.gap-gold{padding:0;background:transparent;}
-  .stack.s-tier .ring-rainbow{
-    padding:2px;
+  .stack,.ring-rainbow,.gap-rainbow,.ring-gold,.gap-gold,.ring-pink,.gap-pink,.card{border-radius:12px;}
+  .ring-rainbow,.gap-rainbow,.ring-gold,.gap-gold,.ring-pink,.gap-pink{padding:0;background:transparent;}
+  .ring-rainbow{
+    padding:var(--ring-rainbow-pad,0);
     background:linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf);
     box-shadow:0 0 0 1px rgba(255,255,255,.06), 0 0 14px rgba(255,180,80,.22);
   }
-  .stack.reviewed .ring-gold{padding:2px;background:#d3a43b;}
-  .stack.two-layers.s-tier.reviewed .gap-rainbow{padding:1px;background:#000;}
-  .stack.two-layers.s-tier.has-status:not(.reviewed) .gap-rainbow{padding:1px;background:#000;}
-  .stack.two-layers.reviewed.has-status:not(.s-tier) .gap-gold{padding:1px;background:#000;}
-  .stack.three-layers .gap-rainbow{padding:1px;background:#000;}
-  .stack.three-layers .gap-gold{padding:1px;background:#000;}
+  .gap-rainbow{padding:var(--gap-rainbow-pad,0);background:#000;}
+  .ring-gold{padding:var(--ring-gold-pad,0);background:#d3a43b;}
+  .gap-gold{padding:var(--gap-gold-pad,0);background:#000;}
+  .ring-pink{padding:var(--ring-pink-pad,0);background:#ff66cc;}
+  .gap-pink{padding:var(--gap-pink-pad,0);background:#000;}
   .card{border:2px solid var(--inner-border,#2b2b2b);overflow:hidden;background:#111;}
   .card a{color:inherit;text-decoration:none;}
   .game-link{display:block;}

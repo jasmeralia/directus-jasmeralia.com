@@ -4,6 +4,7 @@ export const GAME_THUMB_FIELDS = [
   "slug",
   "release_year",
   "download_url",
+  "walkthrough_url",
   "game_status",
   "player_status",
   "cover_image.id",

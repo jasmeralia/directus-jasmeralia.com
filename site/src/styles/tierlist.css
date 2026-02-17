@@ -55,48 +55,43 @@
   background: #111;
 }
 
-.tier-stack,.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold,.tier-thumb {
+.tier-stack,.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold,.tier-stack .ring-pink,.tier-stack .gap-pink,.tier-thumb {
   border-radius: 6px;
 }
 
-.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold {
+.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold,.tier-stack .ring-pink,.tier-stack .gap-pink {
   padding: 0;
   background: transparent;
 }
 
-.tier-stack.s-tier .ring-rainbow {
-  padding: 2px;
+.tier-stack .ring-rainbow {
+  padding: var(--ring-rainbow-pad, 0);
   background: linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 14px rgba(255, 180, 80, 0.22);
 }
 
-.tier-stack.reviewed .ring-gold {
-  padding: 2px;
+.tier-stack .gap-rainbow {
+  padding: var(--gap-rainbow-pad, 0);
+  background: #000;
+}
+
+.tier-stack .ring-gold {
+  padding: var(--ring-gold-pad, 0);
   background: #d3a43b;
 }
 
-.tier-stack.two-layers.s-tier.reviewed .gap-rainbow {
-  padding: 1px;
+.tier-stack .gap-gold {
+  padding: var(--gap-gold-pad, 0);
   background: #000;
 }
 
-.tier-stack.two-layers.s-tier.has-status:not(.reviewed) .gap-rainbow {
-  padding: 1px;
-  background: #000;
+.tier-stack .ring-pink {
+  padding: var(--ring-pink-pad, 0);
+  background: #ff66cc;
 }
 
-.tier-stack.two-layers.reviewed.has-status:not(.s-tier) .gap-gold {
-  padding: 1px;
-  background: #000;
-}
-
-.tier-stack.three-layers .gap-rainbow {
-  padding: 1px;
-  background: #000;
-}
-
-.tier-stack.three-layers .gap-gold {
-  padding: 1px;
+.tier-stack .gap-pink {
+  padding: var(--gap-pink-pad, 0);
   background: #000;
 }
 
