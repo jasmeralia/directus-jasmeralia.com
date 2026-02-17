@@ -8,19 +8,39 @@ import { csvDataUri, gamesToCsv } from "../../../../lib/csv";
 import { GAME_THUMB_FIELDS } from "../../../../lib/game-fields";
 
 export async function getStaticPaths() {
+  const normalizeKey = (value) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "");
+  const keyVariants = (value) => {
+    const base = normalizeKey(value);
+    if (!base) return [];
+    const variants = [base];
+    if (base.endsWith("s") && base.length > 1) variants.push(base.slice(0, -1));
+    return Array.from(new Set(variants));
+  };
   const genres = await directusFetchItems("genres", {
     fields: ["slug", "name"],
     limit: 500,
   });
   const tierLists = await directusFetchItems("tier_lists", {
-    fields: ["title"],
-    filter: { status: { _eq: "published" } },
+    fields: ["title", "status"],
     limit: 500,
   });
-  const byLower = (value) => String(value ?? "").trim().toLowerCase();
-  const availableTitles = new Set((tierLists ?? []).map((tierList) => byLower(tierList?.title)));
+  const rankedTierLists = [...(tierLists ?? [])].sort((a, b) => {
+    const aPublished = a?.status === "published" ? 0 : 1;
+    const bPublished = b?.status === "published" ? 0 : 1;
+    return aPublished - bPublished;
+  });
   return (genres ?? [])
-    .filter((genre) => genre?.slug && availableTitles.has(byLower(genre?.name)))
+    .filter((genre) => {
+      if (!genre?.slug) return false;
+      const genreKeys = new Set(keyVariants(genre?.name));
+      return rankedTierLists.some((tierList) =>
+        keyVariants(tierList?.title).some((key) => genreKeys.has(key)),
+      );
+    })
     .map((genre) => ({ params: { genre: genre.slug } }));
 }
 
@@ -35,15 +55,32 @@ const genreInfo = genres?.[0];
 if (!genreInfo?.name) throw new Error(`Genre not found for slug: ${genre}`);
 
 const tierLists = await directusFetchItems("tier_lists", {
-  fields: ["id", "title"],
-  filter: {
-    status: { _eq: "published" },
-    title: { _eq: genreInfo.name },
-  },
+  fields: ["id", "title", "status"],
   limit: 500,
 });
-if (!tierLists.length) throw new Error(`No published tier list found matching genre: ${genreInfo.name}`);
-const tierListIds = tierLists.map((tierList) => tierList.id).filter((id) => typeof id === "number");
+const normalizeKey = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+const keyVariants = (value) => {
+  const base = normalizeKey(value);
+  if (!base) return [];
+  const variants = [base];
+  if (base.endsWith("s") && base.length > 1) variants.push(base.slice(0, -1));
+  return Array.from(new Set(variants));
+};
+const genreKeys = new Set(keyVariants(genreInfo.name));
+const rankedTierLists = [...(tierLists ?? [])].sort((a, b) => {
+  const aPublished = a?.status === "published" ? 0 : 1;
+  const bPublished = b?.status === "published" ? 0 : 1;
+  return aPublished - bPublished;
+});
+const matchingTierLists = rankedTierLists.filter((tierList) =>
+  keyVariants(tierList?.title).some((key) => genreKeys.has(key)),
+);
+if (!matchingTierLists.length) throw new Error(`No tier list found matching genre: ${genreInfo.name}`);
+const tierListIds = matchingTierLists.map((tierList) => tierList.id).filter((id) => typeof id === "number");
 
 const games = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
@@ -102,7 +139,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   <main>
     <div class="panel">
       <CsvHeader title={`${genreInfo.name} + Missing from ${genreInfo.name} Tier List`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
-      <p>Games tagged as {genreInfo.name} that are not in the published tier list titled {genreInfo.name}.</p>
+      <p>Games tagged as {genreInfo.name} that are not in the matching tier list for that genre.</p>
     </div>
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (

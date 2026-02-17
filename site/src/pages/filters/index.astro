@@ -20,8 +20,7 @@ const developers = await directusFetchItems("developers", {
   limit: 500,
 });
 const tierLists = await directusFetchItems("tier_lists", {
-  fields: ["id", "title"],
-  filter: { status: { _eq: "published" } },
+  fields: ["id", "title", "status"],
   limit: 500,
 });
 const games = await directusFetchItems("games", {
@@ -305,10 +304,29 @@ const avnMissingGamestorylogCount = (games ?? []).filter(
 const avnWithGamestorylogCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && hasValue(game.gamestorylog_url),
 ).length;
-const byLower = (value) => String(value ?? "").trim().toLowerCase();
+const normalizeKey = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+const keyVariants = (value) => {
+  const base = normalizeKey(value);
+  if (!base) return [];
+  const variants = [base];
+  if (base.endsWith("s") && base.length > 1) variants.push(base.slice(0, -1));
+  return Array.from(new Set(variants));
+};
 const tierListByGenreSlug = new Map();
+const rankedTierLists = [...(tierLists ?? [])].sort((a, b) => {
+  const aPublished = a?.status === "published" ? 0 : 1;
+  const bPublished = b?.status === "published" ? 0 : 1;
+  return aPublished - bPublished;
+});
 for (const genre of genres ?? []) {
-  const match = (tierLists ?? []).find((tierList) => byLower(tierList?.title) === byLower(genre?.name));
+  const genreKeys = new Set(keyVariants(genre?.name));
+  const match = rankedTierLists.find((tierList) =>
+    keyVariants(tierList?.title).some((key) => genreKeys.has(key)),
+  );
   if (genre?.slug && match?.id) {
     tierListByGenreSlug.set(genre.slug, {
       id: match.id,

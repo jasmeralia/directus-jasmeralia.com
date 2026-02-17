@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.58] - 2026-02-11
+- Make genre-to-tier-list misc filter matching tolerant (case/punctuation/plural variants, published-first preference).
+
 ## [1.0.57] - 2026-02-11
 - Add waiting_for_update (dark green) support to stacked border indicators and legend text.
 - Improve game detail walkthrough rendering with platform icons/labels for URLs and plain-text fallback for non-URLs.
