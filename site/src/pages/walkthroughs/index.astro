@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
+import { getDownloadLinkMeta } from "../../lib/download-link";
 
 const games = await directusFetchItems("games", {
   fields: ["id", "title", "slug", "walkthrough_url"],
@@ -10,6 +11,14 @@ const games = await directusFetchItems("games", {
   sort: ["title"],
   limit: 1000,
 });
+const isUrl = (value) => typeof value === "string" && /^https?:\/\//i.test(value.trim());
+const walkthroughMeta = (url) => {
+  const meta = getDownloadLinkMeta(url);
+  return {
+    ...meta,
+    text: meta.label === "Download" ? "Walkthrough" : `Walkthrough on ${meta.label}`,
+  };
+};
 ---
 
 <BaseLayout title="Walkthroughs">
@@ -20,6 +29,8 @@ const games = await directusFetchItems("games", {
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .ext-link{display:inline-flex;align-items:center;gap:.45rem;}
+      .ext-link img{width:1rem;height:1rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
     </style>
   </div>
   <main>
@@ -32,7 +43,19 @@ const games = await directusFetchItems("games", {
             {games.map((game) => (
               <li>
                 <a href={`/games/${game.slug}/index.html`}>{game.title}</a>:{" "}
-                <a href={game.walkthrough_url} rel="noopener noreferrer" target="_blank">Walkthrough</a>
+                {isUrl(game.walkthrough_url) ? (
+                  (() => {
+                    const meta = walkthroughMeta(game.walkthrough_url);
+                    return (
+                      <a class="ext-link" href={game.walkthrough_url} rel="noopener noreferrer" target="_blank">
+                        {meta.icon ? (
+                          <img src={meta.icon} alt="" aria-hidden="true" loading="lazy" />
+                        ) : null}
+                        <span>{meta.text}</span>
+                      </a>
+                    );
+                  })()
+                ) : <span>{game.walkthrough_url}</span>}
               </li>
             ))}
           </ul>

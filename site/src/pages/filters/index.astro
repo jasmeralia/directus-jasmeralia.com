@@ -19,6 +19,11 @@ const developers = await directusFetchItems("developers", {
   sort: ["name"],
   limit: 500,
 });
+const tierLists = await directusFetchItems("tier_lists", {
+  fields: ["id", "title"],
+  filter: { status: { _eq: "published" } },
+  limit: 500,
+});
 const games = await directusFetchItems("games", {
   fields: [
     "id",
@@ -300,6 +305,59 @@ const avnMissingGamestorylogCount = (games ?? []).filter(
 const avnWithGamestorylogCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && hasValue(game.gamestorylog_url),
 ).length;
+const byLower = (value) => String(value ?? "").trim().toLowerCase();
+const tierListByGenreSlug = new Map();
+for (const genre of genres ?? []) {
+  const match = (tierLists ?? []).find((tierList) => byLower(tierList?.title) === byLower(genre?.name));
+  if (genre?.slug && match?.id) {
+    tierListByGenreSlug.set(genre.slug, {
+      id: match.id,
+      title: match.title ?? genre.name,
+      genreName: genre.name,
+    });
+  }
+}
+const gamesByGenreSlug = new Map();
+for (const game of games ?? []) {
+  const slugs = (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
+  for (const slug of slugs) {
+    if (!gamesByGenreSlug.has(slug)) gamesByGenreSlug.set(slug, new Set());
+    gamesByGenreSlug.get(slug).add(game.id);
+  }
+}
+const relevantTierListIds = Array.from(new Set(Array.from(tierListByGenreSlug.values()).map((item) => item.id)));
+const tierEntries = relevantTierListIds.length
+  ? await directusFetchItems("tier_entries", {
+      fields: ["tier_row.tier_list.id", "game.id"],
+      filter: { tier_row: { tier_list: { _in: relevantTierListIds } } },
+      limit: 5000,
+    })
+  : [];
+const gameIdsByTierListId = new Map();
+for (const entry of tierEntries ?? []) {
+  const tierListId = entry?.tier_row?.tier_list?.id;
+  const gameId = entry?.game?.id;
+  if (typeof tierListId !== "number" || typeof gameId !== "number") continue;
+  if (!gameIdsByTierListId.has(tierListId)) gameIdsByTierListId.set(tierListId, new Set());
+  gameIdsByTierListId.get(tierListId).add(gameId);
+}
+const genreTierCoverageEntries = Array.from(tierListByGenreSlug.entries())
+  .map(([genreSlug, info]) => {
+    const genreGameIds = gamesByGenreSlug.get(genreSlug) ?? new Set();
+    const inTierIds = gameIdsByTierListId.get(info.id) ?? new Set();
+    let missingCount = 0;
+    for (const gameId of genreGameIds) {
+      if (!inTierIds.has(gameId)) missingCount += 1;
+    }
+    return {
+      genreSlug,
+      genreName: info.genreName,
+      tierListTitle: info.title,
+      missingCount,
+    };
+  })
+  .sort((a, b) => a.genreName.localeCompare(b.genreName));
+const miscCount = 2 + genreTierCoverageEntries.length;
 ---
 
 <BaseLayout title="Filters">
@@ -327,7 +385,7 @@ const avnWithGamestorylogCount = (games ?? []).filter(
         <li><a href="#engine-played-status">Engine + Played Status ({enginePlayedEntries.length})</a></li>
         <li><a href="#genre-game-status">Genre + Game Status ({genreStatusEntries.length})</a></li>
         <li><a href="#genre-played-status">Genre + Played Status ({genrePlayedEntries.length})</a></li>
-        <li><a href="#misc">Misc (2)</a></li>
+        <li><a href="#misc">Misc ({miscCount})</a></li>
       </ul>
     </div>
     <div class="panel" id="developer-game-status">
@@ -455,7 +513,7 @@ const avnWithGamestorylogCount = (games ?? []).filter(
       )}
     </div>
     <div class="panel" id="misc">
-      <h2>Misc</h2>
+      <h2>Misc ({miscCount} combinations)</h2>
       <ul>
         <li>
           <a href="/filters/misc/avn-missing-gamestorylog/index.html">AVN + Missing GameStoryLog URL</a>
@@ -465,6 +523,14 @@ const avnWithGamestorylogCount = (games ?? []).filter(
           <a href="/filters/misc/avn-with-gamestorylog/index.html">AVN + Has GameStoryLog URL</a>
           <span style="opacity:.7;"> ({avnWithGamestorylogCount})</span>
         </li>
+        {genreTierCoverageEntries.map((entry) => (
+          <li>
+            <a href={`/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`}>
+              {entry.genreName} + Missing from {entry.tierListTitle} Tier List
+            </a>
+            <span style="opacity:.7;"> ({entry.missingCount})</span>
+          </li>
+        ))}
       </ul>
     </div>
   </main>

@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.56] - 2026-02-11
+- Add misc composite filters for genre games missing from matching published tier lists (genres.name == tier_lists.title).
+- Apply platform icon/link handling on walkthrough index with safe non-URL plain-text rendering.
+
 ## [1.0.55] - 2026-02-11
 - Add explicit black separators for 2-layer border combinations without introducing double-gap spacing.
 

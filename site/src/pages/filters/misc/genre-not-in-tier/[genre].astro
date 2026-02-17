@@ -1,0 +1,120 @@
+---
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+import CsvHeader from "../../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../../components/ThumbnailBorderLegend.astro";
+import GameThumbCard from "../../../../components/GameThumbCard.astro";
+import { directusFetchItems, getSTierGameIds } from "../../../../lib/directus";
+import { csvDataUri, gamesToCsv } from "../../../../lib/csv";
+import { GAME_THUMB_FIELDS } from "../../../../lib/game-fields";
+
+export async function getStaticPaths() {
+  const genres = await directusFetchItems("genres", {
+    fields: ["slug", "name"],
+    limit: 500,
+  });
+  const tierLists = await directusFetchItems("tier_lists", {
+    fields: ["title"],
+    filter: { status: { _eq: "published" } },
+    limit: 500,
+  });
+  const byLower = (value) => String(value ?? "").trim().toLowerCase();
+  const availableTitles = new Set((tierLists ?? []).map((tierList) => byLower(tierList?.title)));
+  return (genres ?? [])
+    .filter((genre) => genre?.slug && availableTitles.has(byLower(genre?.name)))
+    .map((genre) => ({ params: { genre: genre.slug } }));
+}
+
+const { genre } = Astro.params;
+
+const genres = await directusFetchItems("genres", {
+  fields: ["slug", "name"],
+  filter: { slug: { _eq: genre } },
+  limit: 1,
+});
+const genreInfo = genres?.[0];
+if (!genreInfo?.name) throw new Error(`Genre not found for slug: ${genre}`);
+
+const tierLists = await directusFetchItems("tier_lists", {
+  fields: ["id", "title"],
+  filter: {
+    status: { _eq: "published" },
+    title: { _eq: genreInfo.name },
+  },
+  limit: 500,
+});
+if (!tierLists.length) throw new Error(`No published tier list found matching genre: ${genreInfo.name}`);
+const tierListIds = tierLists.map((tierList) => tierList.id).filter((id) => typeof id === "number");
+
+const games = await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  filter: { genres: { genres_id: { slug: { _eq: genre } } } },
+  sort: ["title"],
+  limit: 1000,
+});
+const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
+
+const tierEntries = tierListIds.length && gameIds.length
+  ? await directusFetchItems("tier_entries", {
+      fields: ["game.id"],
+      filter: {
+        game: { _in: gameIds },
+        tier_row: { tier_list: { _in: tierListIds } },
+      },
+      limit: 5000,
+    })
+  : [];
+const inTierGameIds = new Set(
+  (tierEntries ?? []).map((entry) => entry?.game?.id).filter((id) => typeof id === "number"),
+);
+const filteredGames = (games ?? []).filter((game) => !inTierGameIds.has(game.id));
+
+const filteredGameIds = filteredGames
+  .map((game) => game.id)
+  .filter((id) => typeof id === "number");
+const sTierGameIds = await getSTierGameIds(filteredGameIds);
+const reviewedGameIds = new Set();
+if (filteredGameIds.length) {
+  const reviews = await directusFetchItems("reviews", {
+    fields: ["game.id"],
+    filter: { status: { _eq: "published" }, game: { _in: filteredGameIds } },
+    limit: 500,
+  });
+  for (const review of reviews ?? []) {
+    const id = review?.game?.id;
+    if (typeof id === "number") reviewedGameIds.add(id);
+  }
+}
+
+const csvName = `${genre}-missing-from-tier-list.csv`;
+const csvHref = csvDataUri(gamesToCsv(filteredGames));
+---
+
+<BaseLayout title={`Filters | ${genreInfo.name} Missing from Tier List`}>
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <CsvHeader title={`${genreInfo.name} + Missing from ${genreInfo.name} Tier List`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <p>Games tagged as {genreInfo.name} that are not in the published tier list titled {genreInfo.name}.</p>
+    </div>
+    <ThumbnailBorderLegend />
+    {filteredGames.length === 0 ? (
+      <p>All {genreInfo.name} games are already included in the matching tier list.</p>
+    ) : (
+      <div class="grid">
+        {filteredGames.map((game) => {
+          const reviewed = reviewedGameIds.has(game.id);
+          const sTier = sTierGameIds.has(game.id);
+          return <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} />;
+        })}
+      </div>
+    )}
+  </main>
+</BaseLayout>
