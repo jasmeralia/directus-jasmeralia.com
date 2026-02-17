@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.59] - 2026-02-11
+- Hide Misc genre-tier filter entries on index when their missing-game count is zero.
+
 ## [1.0.58] - 2026-02-11
 - Make genre-to-tier-list misc filter matching tolerant (case/punctuation/plural variants, published-first preference).
 

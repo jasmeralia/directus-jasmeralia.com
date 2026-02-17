@@ -374,6 +374,7 @@ const genreTierCoverageEntries = Array.from(tierListByGenreSlug.entries())
       missingCount,
     };
   })
+  .filter((entry) => entry.missingCount > 0)
   .sort((a, b) => a.genreName.localeCompare(b.genreName));
 const miscCount = 2 + genreTierCoverageEntries.length;
 ---
