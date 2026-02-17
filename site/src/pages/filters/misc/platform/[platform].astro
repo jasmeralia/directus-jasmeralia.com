@@ -1,0 +1,86 @@
+---
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+import CsvHeader from "../../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../../components/ThumbnailBorderLegend.astro";
+import GameThumbCard from "../../../../components/GameThumbCard.astro";
+import { directusFetchItems, getSTierGameIds } from "../../../../lib/directus";
+import { csvDataUri, gamesToCsv } from "../../../../lib/csv";
+import { getDownloadPlatform } from "../../../../lib/download-link";
+import { GAME_THUMB_FIELDS } from "../../../../lib/game-fields";
+
+const platformMeta = {
+  steam: { label: "Steam" },
+  itch: { label: "itch.io" },
+  gog: { label: "GOG" },
+  patreon: { label: "Patreon" },
+};
+
+export async function getStaticPaths() {
+  return Object.keys(platformMeta).map((platform) => ({ params: { platform } }));
+}
+
+const { platform } = Astro.params;
+if (!platformMeta[platform]) {
+  throw new Error(`Unsupported platform filter: ${platform}`);
+}
+
+const games = await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  sort: ["title"],
+  limit: 1000,
+});
+const filteredGames = (games ?? []).filter(
+  (game) => getDownloadPlatform(game?.download_url) === platform,
+);
+
+const gameIds = filteredGames
+  .map((game) => game.id)
+  .filter((id) => typeof id === "number");
+const sTierGameIds = await getSTierGameIds(gameIds);
+const reviewedGameIds = new Set();
+if (gameIds.length) {
+  const reviews = await directusFetchItems("reviews", {
+    fields: ["game.id"],
+    filter: { status: { _eq: "published" }, game: { _in: gameIds } },
+    limit: 500,
+  });
+  for (const review of reviews ?? []) {
+    const id = review?.game?.id;
+    if (typeof id === "number") reviewedGameIds.add(id);
+  }
+}
+
+const platformLabel = platformMeta[platform].label;
+const csvName = `download-platform-${platform}.csv`;
+const csvHref = csvDataUri(gamesToCsv(filteredGames));
+---
+
+<BaseLayout title={`Filters | Download Platform + ${platformLabel}`}>
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <CsvHeader title={`Download Platform + ${platformLabel}`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <p>Games with download links detected as {platformLabel}.</p>
+    </div>
+    <ThumbnailBorderLegend />
+    {filteredGames.length === 0 ? (
+      <p>No games found for this download platform.</p>
+    ) : (
+      <div class="grid">
+        {filteredGames.map((game) => {
+          const reviewed = reviewedGameIds.has(game.id);
+          const sTier = sTierGameIds.has(game.id);
+          return <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} />;
+        })}
+      </div>
+    )}
+  </main>
+</BaseLayout>

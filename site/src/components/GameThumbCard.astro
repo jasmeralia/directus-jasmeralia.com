@@ -1,5 +1,6 @@
 ---
 import { fileUrl } from "../lib/directus";
+import { getDownloadLinkMeta } from "../lib/download-link";
 
 const { game, reviewed = false, sTier = false } = Astro.props;
 const labelize = (value) =>
@@ -24,6 +25,8 @@ const hasThreeLayers = Boolean(sTier && reviewed && hasStatus);
 const innerBorderColor = statusColor ?? (!reviewed && !sTier ? "#2b2b2b" : "transparent");
 
 const img = game?.cover_image ? fileUrl(game.cover_image) : null;
+const downloadMeta = getDownloadLinkMeta(game?.download_url);
+const showDownloadPlatform = downloadMeta.label !== "Download";
 const genres = (game?.genres ?? []).map((genre) => genre?.genres_id?.name).filter(Boolean);
 const engines = (game?.engines ?? []).map((engine) => engine?.engines_id?.title).filter(Boolean);
 ---
@@ -41,6 +44,12 @@ const engines = (game?.engines ?? []).map((engine) => engine?.engines_id?.title)
               <div class="meta">
                 <div class="title">{game.title}</div>
                 {game.release_year ? <div class="year">{game.release_year}</div> : null}
+                {showDownloadPlatform ? (
+                  <div class="platform">
+                    {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                    <span>{downloadMeta.label}</span>
+                  </div>
+                ) : null}
                 <div class="tags">
                   {game.player_status ? <span class="tag">{labelize(game.player_status)}</span> : null}
                   {game.game_status ? <span class="tag">{labelize(game.game_status)}</span> : null}
@@ -77,6 +86,8 @@ const engines = (game?.engines ?? []).map((engine) => engine?.engines_id?.title)
   .meta{padding:.75rem 1rem;}
   .title{font-weight:700;}
   .year{opacity:.75;font-size:.9rem;}
+  .platform{display:flex;align-items:center;gap:.35rem;opacity:.85;font-size:.85rem;margin-top:.3rem;}
+  .platform img{width:.9rem;height:.9rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
   .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem;}
   .tag{font-size:.75rem;padding:.2rem .5rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;opacity:.9;}
 </style>

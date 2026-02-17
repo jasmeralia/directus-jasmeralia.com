@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.60] - 2026-02-11
+- Add download-platform indicators to game cards based on `games.download_url`.
+- Add Misc platform filters for Steam, itch.io, GOG, and Patreon.
+- Rename nav item from "Composite Filters" to "Filters".
+
 ## [1.0.59] - 2026-02-11
 - Hide Misc genre-tier filter entries on index when their missing-game count is zero.
 

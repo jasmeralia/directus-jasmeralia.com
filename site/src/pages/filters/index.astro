@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
+import { getDownloadPlatform } from "../../lib/download-link";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown } from "../../lib/list-format";
 
@@ -28,6 +29,7 @@ const games = await directusFetchItems("games", {
     "id",
     "game_status",
     "player_status",
+    "download_url",
     "gamestorylog_url",
     "engines.engines_id.slug",
     "genres.genres_id.slug",
@@ -304,6 +306,12 @@ const avnMissingGamestorylogCount = (games ?? []).filter(
 const avnWithGamestorylogCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && hasValue(game.gamestorylog_url),
 ).length;
+const platformCounts = {
+  steam: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "steam").length,
+  itch: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "itch").length,
+  gog: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "gog").length,
+  patreon: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "patreon").length,
+};
 const normalizeKey = (value) =>
   String(value ?? "")
     .trim()
@@ -376,7 +384,7 @@ const genreTierCoverageEntries = Array.from(tierListByGenreSlug.entries())
   })
   .filter((entry) => entry.missingCount > 0)
   .sort((a, b) => a.genreName.localeCompare(b.genreName));
-const miscCount = 2 + genreTierCoverageEntries.length;
+const miscCount = 6 + genreTierCoverageEntries.length;
 ---
 
 <BaseLayout title="Filters">
@@ -541,6 +549,22 @@ const miscCount = 2 + genreTierCoverageEntries.length;
         <li>
           <a href="/filters/misc/avn-with-gamestorylog/index.html">AVN + Has GameStoryLog URL</a>
           <span style="opacity:.7;"> ({avnWithGamestorylogCount})</span>
+        </li>
+        <li>
+          <a href="/filters/misc/platform/steam/index.html">Download Platform + Steam</a>
+          <span style="opacity:.7;"> ({platformCounts.steam})</span>
+        </li>
+        <li>
+          <a href="/filters/misc/platform/itch/index.html">Download Platform + itch.io</a>
+          <span style="opacity:.7;"> ({platformCounts.itch})</span>
+        </li>
+        <li>
+          <a href="/filters/misc/platform/gog/index.html">Download Platform + GOG</a>
+          <span style="opacity:.7;"> ({platformCounts.gog})</span>
+        </li>
+        <li>
+          <a href="/filters/misc/platform/patreon/index.html">Download Platform + Patreon</a>
+          <span style="opacity:.7;"> ({platformCounts.patreon})</span>
         </li>
         {genreTierCoverageEntries.map((entry) => (
           <li>
