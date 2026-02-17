@@ -27,8 +27,13 @@ const innerBorderColor = statusColor ?? (!reviewed && !sTier ? "#2b2b2b" : "tran
 const img = game?.cover_image ? fileUrl(game.cover_image) : null;
 const downloadMeta = getDownloadLinkMeta(game?.download_url);
 const showDownloadPlatform = downloadMeta.label !== "Download";
-const genres = (game?.genres ?? []).map((genre) => genre?.genres_id?.name).filter(Boolean);
-const engines = (game?.engines ?? []).map((engine) => engine?.engines_id?.title).filter(Boolean);
+const hasDownloadUrl = typeof game?.download_url === "string" && /^https?:\/\//i.test(game.download_url.trim());
+const genres = (game?.genres ?? [])
+  .map((genre) => genre?.genres_id)
+  .filter((genre) => genre?.name && genre?.slug);
+const engines = (game?.engines ?? [])
+  .map((engine) => engine?.engines_id)
+  .filter((engine) => engine?.title && engine?.slug);
 ---
 
 <div class={`stack${reviewed ? " reviewed" : ""}${sTier ? " s-tier" : ""}${hasStatus ? " has-status" : ""}${hasTwoLayers ? " two-layers" : ""}${hasThreeLayers ? " three-layers" : ""}`}>
@@ -37,27 +42,46 @@ const engines = (game?.engines ?? []).map((engine) => engine?.engines_id?.title)
       <div class="ring-gold">
         <div class="gap-gold">
           <div class="card" style={`--inner-border:${innerBorderColor};`}>
-            <a href={`/games/${game.slug}/index.html`}>
+            <a class="game-link" href={`/games/${game.slug}/index.html`}>
               <div class="thumb">
                 {img ? <img src={img} alt={game.title} loading="lazy" /> : <span>No cover</span>}
               </div>
-              <div class="meta">
-                <div class="title">{game.title}</div>
-                {game.release_year ? <div class="year">{game.release_year}</div> : null}
-                {showDownloadPlatform ? (
-                  <div class="platform">
-                    {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
-                    <span>{downloadMeta.label}</span>
-                  </div>
-                ) : null}
-                <div class="tags">
-                  {game.player_status ? <span class="tag">{labelize(game.player_status)}</span> : null}
-                  {game.game_status ? <span class="tag">{labelize(game.game_status)}</span> : null}
-                  {genres.map((name) => <span class="tag">{name}</span>)}
-                  {engines.map((name) => <span class="tag">{name}</span>)}
-                </div>
-              </div>
             </a>
+            <div class="meta">
+              <div class="title">
+                <a class="game-link" href={`/games/${game.slug}/index.html`}>{game.title}</a>
+              </div>
+              {game.release_year ? <div class="year">{game.release_year}</div> : null}
+              {showDownloadPlatform ? (
+                <div class="platform">
+                  {hasDownloadUrl ? (
+                    <a class="platform-link" href={game.download_url} target="_blank" rel="noopener noreferrer">
+                      {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                      <span>{downloadMeta.label}</span>
+                    </a>
+                  ) : (
+                    <>
+                      {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                      <span>{downloadMeta.label}</span>
+                    </>
+                  )}
+                </div>
+              ) : null}
+              <div class="tags">
+                {game.player_status ? (
+                  <a class="tag" href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
+                ) : null}
+                {game.game_status ? (
+                  <a class="tag" href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
+                ) : null}
+                {genres.map((genre) => (
+                  <a class="tag" href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
+                ))}
+                {engines.map((engine) => (
+                  <a class="tag" href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -80,13 +104,15 @@ const engines = (game?.engines ?? []).map((engine) => engine?.engines_id?.title)
   .stack.three-layers .gap-rainbow{padding:1px;background:#000;}
   .stack.three-layers .gap-gold{padding:1px;background:#000;}
   .card{border:2px solid var(--inner-border,#2b2b2b);overflow:hidden;background:#111;}
-  .card a{color:inherit;text-decoration:none;display:block;}
+  .card a{color:inherit;text-decoration:none;}
+  .game-link{display:block;}
   .thumb{aspect-ratio:2/3;background:#000;display:flex;align-items:center;justify-content:center;}
   .thumb img{width:100%;height:100%;object-fit:contain;display:block;}
   .meta{padding:.75rem 1rem;}
   .title{font-weight:700;}
   .year{opacity:.75;font-size:.9rem;}
   .platform{display:flex;align-items:center;gap:.35rem;opacity:.85;font-size:.85rem;margin-top:.3rem;}
+  .platform-link{display:flex;align-items:center;gap:.35rem;}
   .platform img{width:.9rem;height:.9rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
   .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem;}
   .tag{font-size:.75rem;padding:.2rem .5rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;opacity:.9;}

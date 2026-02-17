@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.61] - 2026-02-11
+- Make game-card platform icons link to `games.download_url` when URL-based.
+- Make game-card status/genre/engine tags link to their corresponding index pages.
+
 ## [1.0.60] - 2026-02-11
 - Add download-platform indicators to game cards based on `games.download_url`.
 - Add Misc platform filters for Steam, itch.io, GOG, and Patreon.
