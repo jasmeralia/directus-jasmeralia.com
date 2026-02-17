@@ -4,6 +4,11 @@ import { directusFetchItems } from "../../lib/directus";
 import { getDownloadPlatform } from "../../lib/download-link";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown } from "../../lib/list-format";
+import {
+  classifyWalkthroughValue,
+  WALKTHROUGH_KIND_LABEL,
+  type WalkthroughKind,
+} from "../../lib/walkthrough-link";
 
 const engines = await directusFetchItems("engines", {
   fields: ["slug", "title"],
@@ -30,6 +35,7 @@ const games = await directusFetchItems("games", {
     "game_status",
     "player_status",
     "download_url",
+    "walkthrough_url",
     "gamestorylog_url",
     "engines.engines_id.slug",
     "genres.genres_id.slug",
@@ -328,41 +334,27 @@ const platformPieSegments = [
   { label: formatUnknown("unknown", "Download Platform"), value: unknownPlatformCount, color: "#7fe29a" },
 ].filter((segment) => segment.value > 0);
 const platformPieTotal = platformPieSegments.reduce((sum, segment) => sum + segment.value, 0);
-const isUrl = (value) => typeof value === "string" && /^https?:\/\//i.test(value.trim());
-const walkthroughCounts = {
+const walkthroughCounts: Record<WalkthroughKind, number> = {
   steam: 0,
   itch: 0,
   gog: 0,
   patreon: 0,
   unknown: 0,
-  textNote: 0,
-  noneProvided: 0,
+  "text-note": 0,
+  "none-provided": 0,
 };
 for (const game of games ?? []) {
-  const walkthrough = typeof game?.walkthrough_url === "string" ? game.walkthrough_url.trim() : "";
-  if (!walkthrough) {
-    walkthroughCounts.noneProvided += 1;
-    continue;
-  }
-  if (!isUrl(walkthrough)) {
-    walkthroughCounts.textNote += 1;
-    continue;
-  }
-  const platform = getDownloadPlatform(walkthrough);
-  if (platform === "steam") walkthroughCounts.steam += 1;
-  else if (platform === "itch") walkthroughCounts.itch += 1;
-  else if (platform === "gog") walkthroughCounts.gog += 1;
-  else if (platform === "patreon") walkthroughCounts.patreon += 1;
-  else walkthroughCounts.unknown += 1;
+  const kind = classifyWalkthroughValue(game?.walkthrough_url);
+  walkthroughCounts[kind] += 1;
 }
 const walkthroughPieSegments = [
   { label: "Steam", value: walkthroughCounts.steam, color: "#4aa3ff" },
   { label: "itch.io", value: walkthroughCounts.itch, color: "#ff7a7a" },
   { label: "GOG", value: walkthroughCounts.gog, color: "#ffd966" },
   { label: "Patreon", value: walkthroughCounts.patreon, color: "#c788ff" },
-  { label: formatUnknown("unknown", "Walkthrough Platform"), value: walkthroughCounts.unknown, color: "#7fe29a" },
-  { label: "Text Note", value: walkthroughCounts.textNote, color: "#ffb86c" },
-  { label: "None Provided", value: walkthroughCounts.noneProvided, color: "#999999" },
+  { label: WALKTHROUGH_KIND_LABEL.unknown, value: walkthroughCounts.unknown, color: "#7fe29a" },
+  { label: WALKTHROUGH_KIND_LABEL["text-note"], value: walkthroughCounts["text-note"], color: "#ffb86c" },
+  { label: WALKTHROUGH_KIND_LABEL["none-provided"], value: walkthroughCounts["none-provided"], color: "#999999" },
 ].filter((segment) => segment.value > 0);
 const walkthroughPieTotal = walkthroughPieSegments.reduce((sum, segment) => sum + segment.value, 0);
 const pieSize = 220;
@@ -473,7 +465,16 @@ const genreTierCoverageEntries = Array.from(tierListByGenreSlug.entries())
   })
   .filter((entry) => entry.missingCount > 0)
   .sort((a, b) => a.genreName.localeCompare(b.genreName));
-const miscCount = 6 + genreTierCoverageEntries.length;
+const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; count: number }> = [
+  { kind: "steam", label: WALKTHROUGH_KIND_LABEL.steam, count: walkthroughCounts.steam },
+  { kind: "itch", label: WALKTHROUGH_KIND_LABEL.itch, count: walkthroughCounts.itch },
+  { kind: "gog", label: WALKTHROUGH_KIND_LABEL.gog, count: walkthroughCounts.gog },
+  { kind: "patreon", label: WALKTHROUGH_KIND_LABEL.patreon, count: walkthroughCounts.patreon },
+  { kind: "unknown", label: WALKTHROUGH_KIND_LABEL.unknown, count: walkthroughCounts.unknown },
+  { kind: "text-note", label: WALKTHROUGH_KIND_LABEL["text-note"], count: walkthroughCounts["text-note"] },
+  { kind: "none-provided", label: WALKTHROUGH_KIND_LABEL["none-provided"], count: walkthroughCounts["none-provided"] },
+].filter((entry) => entry.count > 0);
+const miscCount = 6 + walkthroughFilterEntries.length + genreTierCoverageEntries.length;
 ---
 
 <BaseLayout title="Filters">
@@ -663,6 +664,14 @@ const miscCount = 6 + genreTierCoverageEntries.length;
           <a href="/filters/misc/platform/patreon/index.html">Download Platform + Patreon</a>
           <span style="opacity:.7;"> ({platformCounts.patreon})</span>
         </li>
+        {walkthroughFilterEntries.map((entry) => (
+          <li>
+            <a href={`/filters/misc/walkthrough/${entry.kind}/index.html`}>
+              Walkthrough URL + {entry.label}
+            </a>
+            <span style="opacity:.7;"> ({entry.count})</span>
+          </li>
+        ))}
         {genreTierCoverageEntries.map((entry) => (
           <li>
             <a href={`/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`}>

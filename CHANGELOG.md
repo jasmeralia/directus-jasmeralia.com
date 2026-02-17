@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.66] - 2026-02-17
+- Fix walkthrough platform pie-chart data on `/filters/index.html` by including `games.walkthrough_url` in the source query.
+- Add Misc walkthrough filter links and route pages at `/filters/misc/walkthrough/<kind>/` for platform, unknown URL host, text-note, and none-provided categories.
+- Reuse shared walkthrough classification logic via `site/src/lib/walkthrough-link.ts`.
+
 ## [1.0.65] - 2026-02-17
 - Add a second Misc pie chart on `/filters/index.html` for walkthrough URL distribution.
 - Classify walkthrough values as supported platforms, `<Unknown Walkthrough Platform>`, `Text Note` (non-link text), and `None Provided` (null/empty).
