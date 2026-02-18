@@ -48,14 +48,18 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
         : waitingForUpdate
           ? "#1f6b2b"
           : null;
-  const innerBorderColor = statusColor ?? (!reviewed && !sTier ? "#2b2b2b" : "transparent");
+  const innerBorderColor = hasWalkthrough
+    ? "#8c58ff"
+    : statusColor ?? (!reviewed && !sTier ? "#2b2b2b" : "transparent");
+  const statusRingColor = hasWalkthrough ? statusColor : null;
   return [
     `--ring-rainbow-pad:${sTier ? 2 : 0}px`,
     `--ring-gold-pad:${reviewed ? 2 : 0}px`,
-    `--ring-pink-pad:${hasWalkthrough ? 2 : 0}px`,
+    `--ring-status-pad:${statusRingColor ? 2 : 0}px`,
+    `--ring-status-color:${statusRingColor ?? "transparent"}`,
     `--gap-rainbow-pad:${sTier && (reviewed || hasWalkthrough || statusColor) ? 1 : 0}px`,
     `--gap-gold-pad:${reviewed && (hasWalkthrough || statusColor) ? 1 : 0}px`,
-    `--gap-pink-pad:${hasWalkthrough && statusColor ? 1 : 0}px`,
+    `--gap-status-pad:${statusRingColor ? 1 : 0}px`,
     `--inner-border:${innerBorderColor}`,
   ].join(";");
 };
@@ -94,8 +98,8 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
                         <div class="gap-rainbow">
                           <div class="ring-gold">
                             <div class="gap-gold">
-                              <div class="ring-pink">
-                                <div class="gap-pink">
+                              <div class="ring-status">
+                                <div class="gap-status">
                                   <a
                                     class="tier-thumb"
                                     href={`/games/${entry.game.slug}/index.html`}

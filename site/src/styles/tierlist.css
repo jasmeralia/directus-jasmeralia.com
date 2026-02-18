@@ -55,11 +55,11 @@
   background: #111;
 }
 
-.tier-stack,.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold,.tier-stack .ring-pink,.tier-stack .gap-pink,.tier-thumb {
+.tier-stack,.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold,.tier-stack .ring-status,.tier-stack .gap-status,.tier-thumb {
   border-radius: 6px;
 }
 
-.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold,.tier-stack .ring-pink,.tier-stack .gap-pink {
+.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold,.tier-stack .ring-status,.tier-stack .gap-status {
   padding: 0;
   background: transparent;
 }
@@ -85,13 +85,13 @@
   background: #000;
 }
 
-.tier-stack .ring-pink {
-  padding: var(--ring-pink-pad, 0);
-  background: #ff66cc;
+.tier-stack .ring-status {
+  padding: var(--ring-status-pad, 0);
+  background: var(--ring-status-color, transparent);
 }
 
-.tier-stack .gap-pink {
-  padding: var(--gap-pink-pad, 0);
+.tier-stack .gap-status {
+  padding: var(--gap-status-pad, 0);
   background: #000;
 }
 

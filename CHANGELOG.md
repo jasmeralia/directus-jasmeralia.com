@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.68] - 2026-02-17
+- Reorder border stacking so walkthrough is the innermost indicator and switch walkthrough color from pink to purple.
+- Keep player-status color as its own ring outside walkthrough when both are present, while preserving reviewed (gold) and S-tier (rainbow) outer layers.
+- Apply the same stacked border treatment to the game cover image on `games/[slug].astro`.
+
 ## [1.0.67] - 2026-02-17
 - Fix walkthrough Misc filter static path generation by making `getStaticPaths` self-contained in `src/pages/filters/misc/walkthrough/[kind].astro`.
 
