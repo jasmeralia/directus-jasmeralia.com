@@ -168,7 +168,9 @@ const coverStackStyle = [
       .meta a{color:#9aa6ff;}
       .meta a:visited{color:#9aa6ff;}
       .download-link{display:inline-flex;align-items:center;gap:.45rem;}
-      .download-link img{width:1rem;height:1rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
+      .download-link img{width:1rem;height:1rem;display:block;}
+      .download-link .platform-icon{filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
+      .download-link .gsl-icon{filter:none;}
     </style>
   </div>
   <main class="container">
@@ -198,7 +200,7 @@ const coverStackStyle = [
                 <div>
                   <a class="download-link" href={game.download_url} rel="noopener noreferrer" target="_blank">
                     {downloadLinkMeta.icon ? (
-                      <img src={downloadLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
+                      <img class="platform-icon" src={downloadLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
                     ) : null}
                     <span>{downloadLinkText}</span>
                   </a>
@@ -207,7 +209,7 @@ const coverStackStyle = [
               {game.gamestorylog_url ? (
                 <div>
                   <a class="download-link" href={game.gamestorylog_url} rel="noopener noreferrer" target="_blank">
-                    <img src="/icons/gamestorylog.png" alt="" aria-hidden="true" loading="lazy" />
+                    <img class="gsl-icon" src="/icons/gamestorylog.png" alt="" aria-hidden="true" loading="lazy" />
                     <span>View on GameStoryLog</span>
                   </a>
                 </div>
@@ -283,7 +285,7 @@ const coverStackStyle = [
               {hasThirdPartyWalkthrough ? (
                 <a class="download-link" href={walkthroughValue} rel="noopener noreferrer" target="_blank">
                   {walkthroughLinkMeta.icon ? (
-                    <img src={walkthroughLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
+                    <img class="platform-icon" src={walkthroughLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
                   ) : null}
                   <span>{walkthroughLinkText}</span>
                 </a>

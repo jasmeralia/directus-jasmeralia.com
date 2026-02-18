@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.69] - 2026-02-17
+- Fix GameStoryLog icon rendering on `games/[slug].astro` by scoping the link-color image filter to platform icons only.
+- Keep the GameStoryLog PNG unfiltered so it displays correctly.
+
 ## [1.0.68] - 2026-02-17
 - Reorder border stacking so walkthrough is the innermost indicator and switch walkthrough color from pink to purple.
 - Keep player-status color as its own ring outside walkthrough when both are present, while preserving reviewed (gold) and S-tier (rainbow) outer layers.
