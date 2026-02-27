@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.70] - 2026-02-27
+- Resolve `npm audit` findings by updating transitive dependencies in the lockfile, including `rollup` to 4.59.0 and `devalue` to 5.6.3.
+
 ## [1.0.69] - 2026-02-17
 - Fix GameStoryLog icon rendering on `games/[slug].astro` by scoping the link-color image filter to platform icons only.
 - Keep the GameStoryLog PNG unfiltered so it displays correctly.
