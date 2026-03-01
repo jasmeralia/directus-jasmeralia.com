@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.71] - 2026-02-28
+- Add a new Misc composite filter page for AVN-tagged games with missing `walkthrough_url` at `/filters/misc/avn-missing-walkthrough/`.
+- Add the corresponding count/link entry to `/filters/index.html` Misc section.
+
 ## [1.0.70] - 2026-02-27
 - Resolve `npm audit` findings by updating transitive dependencies in the lockfile, including `rollup` to 4.59.0 and `devalue` to 5.6.3.
 

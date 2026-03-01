@@ -312,6 +312,9 @@ const avnMissingGamestorylogCount = (games ?? []).filter(
 const avnWithGamestorylogCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && hasValue(game.gamestorylog_url),
 ).length;
+const avnMissingWalkthroughCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && !hasValue(game.walkthrough_url),
+).length;
 const platformCounts = {
   steam: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "steam").length,
   itch: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "itch").length,
@@ -474,7 +477,7 @@ const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; co
   { kind: "text-note", label: WALKTHROUGH_KIND_LABEL["text-note"], count: walkthroughCounts["text-note"] },
   { kind: "none-provided", label: WALKTHROUGH_KIND_LABEL["none-provided"], count: walkthroughCounts["none-provided"] },
 ].filter((entry) => entry.count > 0);
-const miscCount = 6 + walkthroughFilterEntries.length + genreTierCoverageEntries.length;
+const miscCount = 7 + walkthroughFilterEntries.length + genreTierCoverageEntries.length;
 ---
 
 <BaseLayout title="Filters">
@@ -647,6 +650,10 @@ const miscCount = 6 + walkthroughFilterEntries.length + genreTierCoverageEntries
         <li>
           <a href="/filters/misc/avn-with-gamestorylog/index.html">AVN + Has GameStoryLog URL</a>
           <span style="opacity:.7;"> ({avnWithGamestorylogCount})</span>
+        </li>
+        <li>
+          <a href="/filters/misc/avn-missing-walkthrough/index.html">AVN + Missing Walkthrough URL</a>
+          <span style="opacity:.7;"> ({avnMissingWalkthroughCount})</span>
         </li>
         <li>
           <a href="/filters/misc/platform/steam/index.html">Download Platform + Steam</a>
