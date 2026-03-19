@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.73] - 2026-03-18
+- Resolve `npm audit` vulnerability by updating `astro` to `5.18.1` and refreshing transitive dependencies in the lockfile, including `h3` to `1.15.8`.
+- Keep package metadata in sync by bumping `astro-jasmeralia` version to `1.0.73`.
+
 ## [1.0.72] - 2026-03-07
 - Resolve `npm audit` build failure by updating Astro dependency resolution and lockfile transitive packages, including `svgo` to 4.0.1.
 - Keep package metadata in sync by bumping `astro-jasmeralia` version to 1.0.72.
