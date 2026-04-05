@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.74] - 2026-04-05
+- Add unknown-host fallback labels for `download_url` and `walkthrough_url`, appending the shortened hostname in parentheses when no platform icon is available.
+- Split `games.walkthrough_url` on `|` in game detail pages and render each URL independently with per-link icon/label handling.
+- Surface unknown-host download labels on thumbnail cards and walkthrough index entries.
+- Add package overrides for `picomatch`, `smol-toml`, and `defu`, and refresh the lockfile to match.
+
 ## [1.0.73] - 2026-03-18
 - Resolve `npm audit` vulnerability by updating `astro` to `5.18.1` and refreshing transitive dependencies in the lockfile, including `h3` to `1.15.8`.
 - Keep package metadata in sync by bumping `astro-jasmeralia` version to `1.0.73`.

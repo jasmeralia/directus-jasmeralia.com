@@ -37,7 +37,7 @@ const stackStyle = [
 
 const img = game?.cover_image ? fileUrl(game.cover_image) : null;
 const downloadMeta = getDownloadLinkMeta(game?.download_url);
-const showDownloadPlatform = downloadMeta.label !== "Download";
+const showDownloadPlatform = downloadMeta.label !== "Download" || Boolean(downloadMeta.host);
 const hasDownloadUrl = typeof game?.download_url === "string" && /^https?:\/\//i.test(game.download_url.trim());
 const genres = (game?.genres ?? [])
   .map((genre) => genre?.genres_id)
@@ -70,12 +70,12 @@ const engines = (game?.engines ?? [])
                       {hasDownloadUrl ? (
                         <a class="platform-link" href={game.download_url} target="_blank" rel="noopener noreferrer">
                           {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
-                          <span>{downloadMeta.label}</span>
+                          <span>{downloadMeta.label === "Download" && downloadMeta.host ? `Download (${downloadMeta.host})` : downloadMeta.label}</span>
                         </a>
                       ) : (
                         <>
                           {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
-                          <span>{downloadMeta.label}</span>
+                          <span>{downloadMeta.label === "Download" && downloadMeta.host ? `Download (${downloadMeta.host})` : downloadMeta.label}</span>
                         </>
                       )}
                     </div>

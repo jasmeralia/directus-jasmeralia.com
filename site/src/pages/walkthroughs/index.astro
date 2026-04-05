@@ -16,7 +16,12 @@ const walkthroughMeta = (url) => {
   const meta = getDownloadLinkMeta(url);
   return {
     ...meta,
-    text: meta.label === "Download" ? "Walkthrough" : `Walkthrough on ${meta.label}`,
+    text:
+      meta.label === "Download"
+        ? meta.host
+          ? `Walkthrough (${meta.host})`
+          : "Walkthrough"
+        : `Walkthrough on ${meta.label}`,
   };
 };
 ---

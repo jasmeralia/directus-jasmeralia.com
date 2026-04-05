@@ -1,6 +1,7 @@
 export type DownloadLinkMeta = {
   icon: string | null;
   label: string;
+  host: string | null;
 };
 export type DownloadPlatform = "steam" | "itch" | "gog" | "patreon";
 
@@ -12,13 +13,19 @@ const hostFromUrl = (value: string): string => {
   }
 };
 
+const shortHostFromUrl = (value: string): string | null => {
+  const host = hostFromUrl(value).replace(/^www\./, "");
+  return host || null;
+};
+
 export const getDownloadLinkMeta = (value: string | null | undefined): DownloadLinkMeta => {
   const platform = getDownloadPlatform(value);
-  if (!platform) return { icon: null, label: "Download" };
-  if (platform === "itch") return { icon: "/icons/simple/itchdotio.svg", label: "itch.io" };
-  if (platform === "gog") return { icon: "/icons/simple/gogdotcom.svg", label: "GOG" };
-  if (platform === "patreon") return { icon: "/icons/simple/patreon.svg", label: "Patreon" };
-  return { icon: "/icons/simple/steam.svg", label: "Steam" };
+  const host = shortHostFromUrl(value ?? "");
+  if (!platform) return { icon: null, label: "Download", host };
+  if (platform === "itch") return { icon: "/icons/simple/itchdotio.svg", label: "itch.io", host };
+  if (platform === "gog") return { icon: "/icons/simple/gogdotcom.svg", label: "GOG", host };
+  if (platform === "patreon") return { icon: "/icons/simple/patreon.svg", label: "Patreon", host };
+  return { icon: "/icons/simple/steam.svg", label: "Steam", host };
 };
 
 export const getDownloadPlatform = (value: string | null | undefined): DownloadPlatform | null => {

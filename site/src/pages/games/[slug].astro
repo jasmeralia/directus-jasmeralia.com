@@ -99,15 +99,30 @@ const tierLists = Array.from(tierListsMap.values())
 const downloadLinkMeta = getDownloadLinkMeta(game.download_url);
 const downloadLinkText =
   downloadLinkMeta.label === "Download"
-    ? "Download"
+    ? downloadLinkMeta.host
+      ? `Download (${downloadLinkMeta.host})`
+      : "Download"
     : `Download from ${downloadLinkMeta.label}`;
 const walkthroughValue = typeof game.walkthrough_url === "string" ? game.walkthrough_url.trim() : "";
-const hasThirdPartyWalkthrough = /^https?:\/\//i.test(walkthroughValue);
-const walkthroughLinkMeta = getDownloadLinkMeta(walkthroughValue);
-const walkthroughLinkText =
-  walkthroughLinkMeta.label === "Download"
-    ? "Walkthrough"
-    : `Walkthrough on ${walkthroughLinkMeta.label}`;
+const walkthroughEntries = walkthroughValue
+  .split("|")
+  .map((value) => value.trim())
+  .filter(Boolean)
+  .map((value) => {
+    const isThirdPartyWalkthrough = /^https?:\/\//i.test(value);
+    const linkMeta = getDownloadLinkMeta(value);
+    return {
+      value,
+      isThirdPartyWalkthrough,
+      linkMeta,
+      linkText:
+        linkMeta.label === "Download"
+          ? linkMeta.host
+            ? `Walkthrough (${linkMeta.host})`
+            : "Walkthrough"
+          : `Walkthrough on ${linkMeta.label}`,
+    };
+  });
 const reviewed = reviews.length > 0;
 const sTier = tierLists.some((tier) => tier.label === "S");
 const completed = game?.player_status === "completed";
@@ -282,16 +297,21 @@ const coverStackStyle = [
           {walkthroughValue ? (
             <li>
               <strong>Walkthrough:</strong>{" "}
-              {hasThirdPartyWalkthrough ? (
-                <a class="download-link" href={walkthroughValue} rel="noopener noreferrer" target="_blank">
-                  {walkthroughLinkMeta.icon ? (
-                    <img class="platform-icon" src={walkthroughLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
-                  ) : null}
-                  <span>{walkthroughLinkText}</span>
-                </a>
-              ) : (
-                <span>{walkthroughValue}</span>
-              )}
+              {walkthroughEntries.map((entry, index) => (
+                <>
+                  {index > 0 ? <span> | </span> : null}
+                  {entry.isThirdPartyWalkthrough ? (
+                    <a class="download-link" href={entry.value} rel="noopener noreferrer" target="_blank">
+                      {entry.linkMeta.icon ? (
+                        <img class="platform-icon" src={entry.linkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
+                      ) : null}
+                      <span>{entry.linkText}</span>
+                    </a>
+                  ) : (
+                    <span>{entry.value}</span>
+                  )}
+                </>
+              ))}
             </li>
           ) : null}
         </ul>
