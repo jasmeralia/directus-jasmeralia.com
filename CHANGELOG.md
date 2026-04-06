@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.75] - 2026-04-06
+- Resolve the new `npm audit` finding by updating the lockfile copy of `vite` from `6.4.1` to `6.4.2`.
+
 ## [1.0.74] - 2026-04-05
 - Add unknown-host fallback labels for `download_url` and `walkthrough_url`, appending the shortened hostname in parentheses when no platform icon is available.
 - Split `games.walkthrough_url` on `|` in game detail pages and render each URL independently with per-link icon/label handling.
