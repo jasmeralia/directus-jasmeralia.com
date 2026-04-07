@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.76] - 2026-04-06
+- Stage the Astro site into a temporary writable build directory before install/build/publish in the builder.
+- Attempt `npm audit fix --package-lock-only` automatically during builder runs, then fail only if `npm audit` still reports unresolved vulnerabilities.
+
 ## [1.0.75] - 2026-04-06
 - Resolve the new `npm audit` finding by updating the lockfile copy of `vite` from `6.4.1` to `6.4.2`.
 

@@ -6,6 +6,13 @@ AWS_S3_BUCKET="${AWS_S3_BUCKET:-}"
 AWS_REGION="${AWS_REGION:-}"
 INVALIDATE_ON_PUBLISH="${INVALIDATE_ON_PUBLISH:-true}"
 CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-}"
+BUILD_ROOT="$(mktemp -d /tmp/astro-build.XXXXXX)"
+BUILD_DIR="$BUILD_ROOT/site"
+
+cleanup() {
+  rm -rf "$BUILD_ROOT"
+}
+trap cleanup EXIT
 
 if [[ -z "$AWS_S3_BUCKET" ]]; then
   echo "ERROR: AWS_S3_BUCKET is not set"
@@ -24,8 +31,20 @@ if [[ ! -f "$ASTRO_DIR/package.json" ]]; then
   exit 2
 fi
 
-echo "==> Building Astro site in $ASTRO_DIR"
-cd "$ASTRO_DIR"
+mkdir -p "$BUILD_DIR"
+cp -a "$ASTRO_DIR"/. "$BUILD_DIR"/
+
+echo "==> Building Astro site from staged copy $BUILD_DIR"
+cd "$BUILD_DIR"
+
+if [[ -f package-lock.json ]]; then
+  echo "==> Attempting automatic npm audit remediation"
+  if npm audit fix --package-lock-only; then
+    echo "==> npm audit auto-fix completed"
+  else
+    echo "==> npm audit auto-fix did not fully resolve vulnerabilities; continuing to verification"
+  fi
+fi
 
 # Use npm ci when lockfile exists; fallback to npm install.
 if [[ -f package-lock.json ]]; then
@@ -51,7 +70,7 @@ fi
 echo "==> Publishing dist/ to s3://$AWS_S3_BUCKET/"
 
 # IMPORTANT: do not delete media/ when syncing site root.
-aws s3 sync ./dist/ "s3://${AWS_S3_BUCKET}/" --delete --exclude "media/*" --region "$AWS_REGION"
+aws s3 sync "$BUILD_DIR/dist/" "s3://${AWS_S3_BUCKET}/" --delete --exclude "media/*" --region "$AWS_REGION"
 
 if [[ "$INVALIDATE_ON_PUBLISH" == "true" ]]; then
   if [[ -z "$CLOUDFRONT_DISTRIBUTION_ID" ]]; then
