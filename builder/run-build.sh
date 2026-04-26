@@ -42,7 +42,12 @@ if [[ -f package-lock.json ]]; then
   if npm audit fix --package-lock-only; then
     echo "==> npm audit auto-fix completed"
   else
-    echo "==> npm audit auto-fix did not fully resolve vulnerabilities; continuing to verification"
+    echo "==> npm audit auto-fix did not fully resolve vulnerabilities; trying --force"
+    if npm audit fix --package-lock-only --force; then
+      echo "==> npm audit auto-fix with --force completed"
+    else
+      echo "==> npm audit auto-fix with --force did not fully resolve; continuing to verification"
+    fi
   fi
 fi
 
