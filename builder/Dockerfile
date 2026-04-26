@@ -3,7 +3,7 @@
 # - Debounces build requests
 # - Runs Astro build, syncs dist/ to S3 bucket root, optionally invalidates CloudFront
 
-FROM node:20-slim
+FROM node:22-slim
 
 # Needed for aws s3 sync + cloudfront invalidation
 RUN apt-get update \
