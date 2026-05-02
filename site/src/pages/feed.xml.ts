@@ -253,6 +253,7 @@ function buildGameEntry(
   rev: Revision,
   prevData: Record<string, unknown> | null,
   genres: string[],
+  gameItem: any | null,
 ): Entry | null {
   const data = rev.data;
   const date = asDate(rev.activity?.timestamp);
@@ -260,7 +261,7 @@ function buildGameEntry(
 
   const isCreate = rev.activity?.action === "create";
   const link     = `${siteBase}/games/${data.slug}/index.html`;
-  const imgUrl   = mediaUrl(data.cover_image) ?? undefined;
+  const imgUrl   = mediaUrl(gameItem?.cover_image ?? data.cover_image) ?? undefined;
 
   if (isCreate) {
     return {
@@ -455,6 +456,7 @@ export const GET: APIRoute = async () => {
   // tier_row_games: fetch the actual junction records (for additions)
   const trGameItemIds = trGameActs.map((a) => Number(a.item));
   const reviewItemIds = reviewRevs.map((r) => Number(r.item));
+  const gameRevisionIds = gameRevs.map((r) => Number(r.item));
 
   const [trGameItemMap, reviewItemMap] = await Promise.all([
     fetchItemMap("tier_row_games", trGameItemIds, "id,game_id,tier_row_id"),
@@ -482,7 +484,7 @@ export const GET: APIRoute = async () => {
   for (const id of moveTierRowIds) tierRowIds.add(id);
 
   // 3. Batch-fetch support data
-  const allGameIds = new Set([...gameIdsForTiers, ...moveGameIds]);
+  const allGameIds = new Set([...gameIdsForTiers, ...moveGameIds, ...gameRevisionIds]);
   const [tierRowMap, gameMap] = await Promise.all([
     fetchItemMap("tier_rows", Array.from(tierRowIds),
       "id,label,tier_list.id,tier_list.title,tier_list.slug"),
@@ -514,7 +516,8 @@ export const GET: APIRoute = async () => {
   for (const rev of gameRevs) {
     const prevData = gamePrevMap[rev.id] ?? null;
     const genres   = newGameGenreMap[Number(rev.item)] ?? [];
-    const entry    = buildGameEntry(rev, prevData, genres);
+    const liveItem = gameMap[Number(rev.item)] ?? null;
+    const entry    = buildGameEntry(rev, prevData, genres, liveItem);
     if (entry) entries.push(entry);
   }
 

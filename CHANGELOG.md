@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.82] - 2026-05-02
+- Fix RSS game update items so their enclosure images use the current game cover art even when the Directus revision snapshot omits `cover_image`.
+
 ## [1.0.81] - 2026-05-02
 - Update RSS feed enclosure images so game items use their cover art, review items use the reviewed game's cover art, and tier list items omit enclosure images.
 
