@@ -78,6 +78,7 @@
 .tier-stack {
   position: relative;
   border-radius: 6px;
+  isolation: isolate;
 }
 
 /* Rainbow gradient ring for S-tier, rendered behind via z-index: -1 */
