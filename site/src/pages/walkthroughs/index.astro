@@ -9,7 +9,7 @@ const games = await directusFetchItems("games", {
     walkthrough_url: { _null: false, _nempty: true },
   },
   sort: ["title"],
-  limit: 1000,
+  limit: -1,
 });
 const isUrl = (value) => typeof value === "string" && /^https?:\/\//i.test(value.trim());
 const walkthroughMeta = (url) => {

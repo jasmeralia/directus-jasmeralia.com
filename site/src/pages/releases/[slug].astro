@@ -10,7 +10,7 @@ import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
 export async function getStaticPaths() {
   const games = await directusFetchItems("games", {
     fields: ["id", "release_year"],
-    limit: 1000,
+    limit: -1,
   });
 
   const years = new Set();
@@ -42,7 +42,7 @@ if (slug === "unknown") {
   const allGames = await directusFetchItems("games", {
     fields: GAME_THUMB_FIELDS,
     sort: ["title"],
-    limit: 1000,
+    limit: -1,
   });
   games = allGames.filter((game) => {
     const raw = game.release_year;
@@ -59,7 +59,7 @@ if (slug === "unknown") {
     fields: GAME_THUMB_FIELDS,
     filter: { release_year: { _eq: year } },
     sort: ["title"],
-    limit: 1000,
+    limit: -1,
   });
 }
 

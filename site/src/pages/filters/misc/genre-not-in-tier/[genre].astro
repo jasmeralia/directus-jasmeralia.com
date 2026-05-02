@@ -86,7 +86,7 @@ const games = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   filter: { genres: { genres_id: { slug: { _eq: genre } } } },
   sort: ["title"],
-  limit: 1000,
+  limit: -1,
 });
 const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
 
@@ -97,7 +97,7 @@ const tierEntries = tierListIds.length && gameIds.length
         game: { _in: gameIds },
         tier_row: { tier_list: { _in: tierListIds } },
       },
-      limit: -10,
+      limit: -1,
     })
   : [];
 const inTierGameIds = new Set(

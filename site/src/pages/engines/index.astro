@@ -14,7 +14,7 @@ const sortedEngines = [...engines].sort((a, b) =>
 const unknownLabel = formatUnknown("unknown", "Engine");
 const games = await directusFetchItems("games", {
   fields: ["id", "engines.engines_id.slug", "engines.engines_id.engine_type"],
-  limit: 1000,
+  limit: -1,
 });
 const engineCounts = new Map();
 let unknownCount = 0;

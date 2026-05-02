@@ -34,7 +34,7 @@ if (isUnknown) {
   const allGames = await directusFetchItems("games", {
     fields: [...GAME_THUMB_FIELDS, "developers.id"],
     sort: ["title"],
-    limit: 1000,
+    limit: -1,
   });
   games = allGames.filter((game) => (game.developers ?? []).length === 0);
 } else {

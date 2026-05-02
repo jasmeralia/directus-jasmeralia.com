@@ -4,7 +4,7 @@ import { directusFetchItems } from "../../lib/directus";
 
 const games = await directusFetchItems("games", {
   fields: ["id", "player_status"],
-  limit: 1000,
+  limit: -1,
 });
 
 const labelize = (value) =>

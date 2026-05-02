@@ -41,7 +41,7 @@ const games = await directusFetchItems("games", {
     "genres.genres_id.slug",
     "developers.developers_id.slug",
   ],
-  limit: 1000,
+  limit: -1,
 });
 
 const engineLabel = new Map();
@@ -440,7 +440,7 @@ const tierEntries = relevantTierListIds.length
   ? await directusFetchItems("tier_entries", {
       fields: ["tier_row.tier_list.id", "game.id"],
       filter: { tier_row: { tier_list: { _in: relevantTierListIds } } },
-      limit: -10,
+      limit: -1,
     })
   : [];
 const gameIdsByTierListId = new Map();

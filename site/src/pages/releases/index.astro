@@ -5,7 +5,7 @@ import { formatUnknown } from "../../lib/list-format";
 
 const games = await directusFetchItems("games", {
   fields: ["id", "release_year"],
-  limit: 1000,
+  limit: -1,
 });
 
 const yearCounts = new Map();

@@ -5,7 +5,7 @@ export async function GET() {
     fields: ["title"],
     filter: { genres: { genres_id: { slug: { _eq: "avn" } } } },
     sort: ["title"],
-    limit: 1000,
+    limit: -1,
   });
 
   const body = games.map((game) => game.title).join("\n");

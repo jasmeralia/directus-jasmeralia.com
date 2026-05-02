@@ -10,7 +10,7 @@ import { GAME_THUMB_FIELDS } from "../../../../../lib/game-fields";
 export async function getStaticPaths() {
   const games = await directusFetchItems("games", {
     fields: ["id", "game_status", "developers.developers_id.slug"],
-    limit: 1000,
+    limit: -1,
   });
 
   const comboCounts = new Map();
@@ -65,7 +65,7 @@ let games = await directusFetchItems("games", {
   fields: [...GAME_THUMB_FIELDS, "developers.id"],
   filter,
   sort: ["title"],
-  limit: 1000,
+  limit: -1,
 });
 
 if (developer === "unknown") {

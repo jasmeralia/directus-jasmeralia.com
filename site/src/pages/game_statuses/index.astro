@@ -10,7 +10,7 @@ const statuses = [
 ];
 const games = await directusFetchItems("games", {
   fields: ["id", "game_status"],
-  limit: 1000,
+  limit: -1,
 });
 const statusCounts = new Map();
 for (const game of games) {

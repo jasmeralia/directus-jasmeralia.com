@@ -27,7 +27,7 @@ if (!platformMeta[platform]) {
 const games = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   sort: ["title"],
-  limit: 1000,
+  limit: -1,
 });
 const filteredGames = (games ?? []).filter(
   (game) => getDownloadPlatform(game?.download_url) === platform,

@@ -29,7 +29,7 @@ if (slug === "unknown") {
   const allGames = await directusFetchItems("games", {
     fields: GAME_THUMB_FIELDS,
     sort: ["title"],
-    limit: 1000,
+    limit: -1,
   });
   games = allGames.filter((game) => (game.engines ?? []).length === 0);
 } else {

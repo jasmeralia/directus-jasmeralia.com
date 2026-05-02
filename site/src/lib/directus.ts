@@ -138,7 +138,7 @@ export async function listPublishedTierListSlugs(): Promise<string[]> {
   const qs = new URLSearchParams({
     "fields": "slug",
     "filter[status][_eq]": "published",
-    "limit": "500",
+    "limit": "-1",
   });
   const data = await directusFetch<{ data: { slug: string }[] }>(`/items/tier_lists?${qs.toString()}`);
   return data.data.map(x => x.slug).filter(Boolean);
@@ -191,7 +191,7 @@ export async function getSTierGameIds(gameIds: number[]): Promise<Set<number>> {
         tier_list: { status: { _eq: "published" } },
       },
     },
-    limit: 1000,
+    limit: -1,
   });
 
   const result = new Set<number>();

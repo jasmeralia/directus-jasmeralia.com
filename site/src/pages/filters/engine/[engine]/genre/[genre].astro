@@ -15,7 +15,7 @@ export async function getStaticPaths() {
       "engines.engines_id.slug",
       "genres.genres_id.slug",
     ],
-    limit: 1000,
+    limit: -1,
   });
 
   const comboCounts = new Map();
@@ -83,7 +83,7 @@ let games = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   filter: Object.keys(filter).length ? filter : undefined,
   sort: ["title"],
-  limit: 1000,
+  limit: -1,
 });
 
 if (engine === "unknown") {

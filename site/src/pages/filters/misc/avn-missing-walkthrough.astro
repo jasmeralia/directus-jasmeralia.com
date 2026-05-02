@@ -11,7 +11,7 @@ const games = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   filter: { genres: { genres_id: { slug: { _eq: "avn" } } } },
   sort: ["title"],
-  limit: 1000,
+  limit: -1,
 });
 
 const filteredGames = (games ?? []).filter(

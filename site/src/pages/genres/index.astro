@@ -15,7 +15,7 @@ const sortedGenres = [...genres].sort((a, b) =>
 const unknownLabel = formatUnknown("unknown", "Genre");
 const games = await directusFetchItems("games", {
   fields: ["id", "genres.genres_id.slug"],
-  limit: 1000,
+  limit: -1,
 });
 const genreCounts = new Map();
 const totalGenreCounts = new Map();

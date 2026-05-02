@@ -43,7 +43,7 @@ if (!walkthroughKinds.includes(kind as WalkthroughKind)) {
 const games = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   sort: ["title"],
-  limit: 1000,
+  limit: -1,
 });
 const filteredGames = (games ?? []).filter(
   (game) => classifyWalkthroughValue(game?.walkthrough_url) === kind,

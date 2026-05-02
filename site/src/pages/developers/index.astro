@@ -14,7 +14,7 @@ const sortedDevelopers = [...developers].sort((a, b) =>
 const unknownLabel = formatUnknown("unknown", "Developer");
 const games = await directusFetchItems("games", {
   fields: ["id", "developers.developers_id.slug"],
-  limit: 1000,
+  limit: -1,
 });
 const developerCounts = new Map();
 let unknownCount = 0;
