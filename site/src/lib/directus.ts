@@ -162,7 +162,7 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
       "id","title","slug","description","status",
       "tier_rows.id","tier_rows.label","tier_rows.color","tier_rows.sort",
       "tier_rows.games.id",
-      "tier_rows.games.game_id.id","tier_rows.games.game_id.title","tier_rows.games.game_id.slug","tier_rows.games.game_id.player_status",
+      "tier_rows.games.game_id.id","tier_rows.games.game_id.title","tier_rows.games.game_id.slug","tier_rows.games.game_id.player_status","tier_rows.games.game_id.release_year",
       "tier_rows.games.game_id.walkthrough_url",
       "tier_rows.games.game_id.cover_image.id","tier_rows.games.game_id.cover_image.filename_disk",
     ].join(","),

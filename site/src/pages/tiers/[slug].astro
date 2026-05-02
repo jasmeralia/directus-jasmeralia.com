@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ThumbnailBorderLegend from "../../components/ThumbnailBorderLegend.astro";
 import { directusFetchItems, getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl } from "../../lib/directus";
+import { csvDataUri, tierListToCsv } from "../../lib/csv";
 import "../../styles/tierlist.css";
 
 // Static generation: /tiers/<slug> for each published tier list
@@ -15,6 +16,9 @@ if (!slug) throw new Error("Missing slug param");
 
 const tierList = await getPublishedTierListBySlug(slug);
 if (!tierList) return Astro.redirect("/404");
+
+const csvHref = csvDataUri(tierListToCsv(tierList.tier_rows));
+const csvName = `${tierList.slug}.csv`;
 
 const gameIds = tierList.tier_rows
   .flatMap((row) => row.games ?? [])
@@ -67,7 +71,10 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
 
 <BaseLayout title={`Tier Lists | ${tierList.title}`} description={tierList.description ?? tierList.title}>
 <main class="tier-page">
-      <h1 class="tier-title">{tierList.title}</h1>
+      <div class="tier-heading">
+        <h1 class="tier-title">{tierList.title}</h1>
+        <a class="csv-link" href={csvHref} download={csvName} aria-label="Download CSV">CSV</a>
+      </div>
       {tierList.description && <p class="tier-desc">{tierList.description}</p>}
 
       <section class="tier-board" aria-label="Tier list">

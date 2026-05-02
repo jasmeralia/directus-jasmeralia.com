@@ -7,10 +7,29 @@
   color: #eaeaea;
 }
 
+.tier-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
 .tier-title {
   font-size: 1.75rem;
-  margin: 0 0 0.5rem 0;
+  margin: 0;
 }
+
+.csv-link {
+  border: 1px solid #2b2b2b;
+  border-radius: 999px;
+  padding: 4px 10px;
+  text-decoration: none;
+  font-size: .8rem;
+  color: #9aa6ff;
+}
+
+.csv-link:hover { border-color: #3a3a3a; }
 
 .tier-desc {
   margin: 0 0 1rem 0;
