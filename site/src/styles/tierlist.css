@@ -74,44 +74,22 @@
   background: #111;
 }
 
-.tier-stack,.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold,.tier-stack .ring-status,.tier-stack .gap-status,.tier-thumb {
+/* All stacks are identical in size; rings are purely decorative (box-shadow + ::before) */
+.tier-stack {
+  position: relative;
   border-radius: 6px;
 }
 
-.tier-stack .ring-rainbow,.tier-stack .gap-rainbow,.tier-stack .ring-gold,.tier-stack .gap-gold,.tier-stack .ring-status,.tier-stack .gap-status {
-  padding: 0;
-  background: transparent;
-}
-
-.tier-stack .ring-rainbow {
-  padding: 2px;
+/* Rainbow gradient ring for S-tier, rendered behind via z-index: -1 */
+.tier-stack::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * (var(--rainbow-inset, 0px) + 2px));
+  border-radius: calc(6px + var(--rainbow-inset, 0px) + 2px);
   background: var(--ring-rainbow-bg, transparent);
   box-shadow: var(--ring-rainbow-shadow, none);
-}
-
-.tier-stack .gap-rainbow {
-  padding: 1px;
-  background: var(--gap-rainbow-bg, transparent);
-}
-
-.tier-stack .ring-gold {
-  padding: 2px;
-  background: var(--ring-gold-bg, transparent);
-}
-
-.tier-stack .gap-gold {
-  padding: 1px;
-  background: var(--gap-gold-bg, transparent);
-}
-
-.tier-stack .ring-status {
-  padding: 2px;
-  background: var(--ring-status-bg, transparent);
-}
-
-.tier-stack .gap-status {
-  padding: 1px;
-  background: var(--gap-status-bg, transparent);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .tier-thumb {
@@ -123,6 +101,8 @@
   overflow: hidden;
   color: inherit;
   text-decoration: none;
+  border-radius: 6px;
+  box-shadow: var(--tier-rings, none);
 }
 
 .tier-thumb-media {
