@@ -70,7 +70,7 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 10px;
-  align-items: center;
+  align-items: flex-start;
   background: #111;
 }
 
@@ -84,34 +84,34 @@
 }
 
 .tier-stack .ring-rainbow {
-  padding: var(--ring-rainbow-pad, 0);
-  background: linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 14px rgba(255, 180, 80, 0.22);
+  padding: 2px;
+  background: var(--ring-rainbow-bg, transparent);
+  box-shadow: var(--ring-rainbow-shadow, none);
 }
 
 .tier-stack .gap-rainbow {
-  padding: var(--gap-rainbow-pad, 0);
-  background: #000;
+  padding: 1px;
+  background: var(--gap-rainbow-bg, transparent);
 }
 
 .tier-stack .ring-gold {
-  padding: var(--ring-gold-pad, 0);
-  background: #d3a43b;
+  padding: 2px;
+  background: var(--ring-gold-bg, transparent);
 }
 
 .tier-stack .gap-gold {
-  padding: var(--gap-gold-pad, 0);
-  background: #000;
+  padding: 1px;
+  background: var(--gap-gold-bg, transparent);
 }
 
 .tier-stack .ring-status {
-  padding: var(--ring-status-pad, 0);
-  background: var(--ring-status-color, transparent);
+  padding: 2px;
+  background: var(--ring-status-bg, transparent);
 }
 
 .tier-stack .gap-status {
-  padding: var(--gap-status-pad, 0);
-  background: #000;
+  padding: 1px;
+  background: var(--gap-status-bg, transparent);
 }
 
 .tier-thumb {

@@ -38,6 +38,9 @@ if (gameIds.length) {
   }
 }
 
+const RAINBOW_GRAD = "linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf)";
+const RAINBOW_SHADOW = "0 0 0 1px rgba(255,255,255,.06),0 0 14px rgba(255,180,80,.22)";
+
 const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
   const completed = playerStatus === "completed";
   const didNotFinish = playerStatus === "did_not_finish";
@@ -56,14 +59,15 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
     ? "#8c58ff"
     : statusColor ?? (!reviewed && !sTier ? "#2b2b2b" : "transparent");
   const statusRingColor = hasWalkthrough ? statusColor : null;
+  // Paddings are always fixed in CSS; only backgrounds vary so all stacks are the same size.
   return [
-    `--ring-rainbow-pad:${sTier ? 2 : 0}px`,
-    `--ring-gold-pad:${reviewed ? 2 : 0}px`,
-    `--ring-status-pad:${statusRingColor ? 2 : 0}px`,
-    `--ring-status-color:${statusRingColor ?? "transparent"}`,
-    `--gap-rainbow-pad:${sTier && (reviewed || hasWalkthrough || statusColor) ? 1 : 0}px`,
-    `--gap-gold-pad:${reviewed && (hasWalkthrough || statusColor) ? 1 : 0}px`,
-    `--gap-status-pad:${statusRingColor ? 1 : 0}px`,
+    `--ring-rainbow-bg:${sTier ? RAINBOW_GRAD : "transparent"}`,
+    `--ring-rainbow-shadow:${sTier ? RAINBOW_SHADOW : "none"}`,
+    `--gap-rainbow-bg:${sTier && (reviewed || hasWalkthrough || statusColor) ? "#000" : "transparent"}`,
+    `--ring-gold-bg:${reviewed ? "#d3a43b" : "transparent"}`,
+    `--gap-gold-bg:${reviewed && (hasWalkthrough || statusColor) ? "#000" : "transparent"}`,
+    `--ring-status-bg:${statusRingColor ?? "transparent"}`,
+    `--gap-status-bg:${statusRingColor ? "#000" : "transparent"}`,
     `--inner-border:${innerBorderColor}`,
   ].join(";");
 };
