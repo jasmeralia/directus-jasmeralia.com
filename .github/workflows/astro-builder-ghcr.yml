@@ -5,7 +5,10 @@ on:
     branches: ["master"]
     paths:
       - "builder/**"
+      - "site/**"
       - ".github/workflows/astro-builder-ghcr.yml"
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -36,10 +39,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Read Astro package version
+      - name: Determine version
         id: pkg
         run: |
-          VERSION=$(node -e "process.stdout.write(require('./site/package.json').version)")
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION=$(node -e "process.stdout.write(require('./site/package.json').version)")
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata
