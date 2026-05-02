@@ -89,6 +89,27 @@ const rssGuid = (
   return `${type}:${key}:${eventKey}:${guidTimestamp(date, context)}`;
 };
 
+const GUID_RE = /^(game|review|tier-list):[^:]+:[^:]+:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+
+const validateFeedEntries = (entries: Entry[]): void => {
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    if (entry.guid.includes("undefined")) {
+      throw new Error(`Invalid RSS GUID contains undefined: ${entry.guid}`);
+    }
+    if (!GUID_RE.test(entry.guid)) {
+      throw new Error(`Invalid RSS GUID format: ${entry.guid}`);
+    }
+    if (seen.has(entry.guid)) {
+      throw new Error(`Duplicate RSS GUID: ${entry.guid}`);
+    }
+    seen.add(entry.guid);
+    if (entry.guid.startsWith("tier-list:") && entry.imageUrl) {
+      throw new Error(`Tier-list RSS item must not have an enclosure: ${entry.guid}`);
+    }
+  }
+};
+
 const imageMimeType = (url: string): string => {
   const l = url.toLowerCase();
   if (l.endsWith(".png"))  return "image/png";
@@ -608,6 +629,7 @@ export const GET: APIRoute = async () => {
     seen.add(e.guid);
     return true;
   }).slice(0, 200);
+  validateFeedEntries(top);
 
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',

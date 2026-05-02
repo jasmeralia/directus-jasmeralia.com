@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.84] - 2026-05-02
+- Add RSS feed validation to fail generation for malformed GUIDs, duplicate GUIDs, `undefined` GUID values, or tier-list item enclosures.
+
 ## [1.0.83] - 2026-05-02
 - Standardize RSS GUIDs to `<type>:<stable-key>:<event>:<timestamp>` with required slug/id values and second-precision ISO timestamps.
 
