@@ -88,7 +88,7 @@ const engines = (game?.engines ?? [])
                       <a class="tag" href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
                     ) : null}
                     {game.game_status ? (
-                      <a class="tag" href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
+                      <a class={`tag${game.game_status === "abandoned" ? " tag-abandoned" : ""}`} href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
                     ) : null}
                     {genres.map((genre) => (
                       <a class="tag" href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
@@ -134,4 +134,5 @@ const engines = (game?.engines ?? [])
   .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem;}
   .tag{font-size:.75rem;padding:.2rem .5rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;opacity:.9;}
   .tag-fs-disabled{background:#2a1515;border-color:#5a2020;color:#ff8080;}
+  .tag-abandoned{background:#2a1515;border-color:#5a2020;color:#ff8080;}
 </style>
