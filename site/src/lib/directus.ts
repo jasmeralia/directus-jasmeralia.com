@@ -1,3 +1,5 @@
+import { getDownloadPlatform } from "./download-link";
+
 export type DirectusFile = {
   id: string;
   filename_download?: string;
@@ -13,7 +15,12 @@ export type Game = {
   download_url?: string | null;
   walkthrough_url?: string | null;
   player_status?: string | null;
+  family_sharing?: boolean | null;
 };
+
+export function isFamilySharingDisabled(game: { family_sharing?: boolean | null; download_url?: string | null }): boolean {
+  return game.family_sharing === false && getDownloadPlatform(game.download_url) === "steam";
+}
 
 export type TierRowGame = {
   id: number;

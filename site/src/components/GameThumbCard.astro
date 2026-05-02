@@ -1,5 +1,5 @@
 ---
-import { fileUrl } from "../lib/directus";
+import { fileUrl, isFamilySharingDisabled } from "../lib/directus";
 import { getDownloadLinkMeta } from "../lib/download-link";
 
 const { game, reviewed = false, sTier = false } = Astro.props;
@@ -81,6 +81,9 @@ const engines = (game?.engines ?? [])
                     </div>
                   ) : null}
                   <div class="tags">
+                    {isFamilySharingDisabled(game) ? (
+                      <span class="tag tag-fs-disabled">Family Sharing Disabled</span>
+                    ) : null}
                     {game.player_status ? (
                       <a class="tag" href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
                     ) : null}
@@ -130,4 +133,5 @@ const engines = (game?.engines ?? [])
   .platform img{width:.9rem;height:.9rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
   .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem;}
   .tag{font-size:.75rem;padding:.2rem .5rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;opacity:.9;}
+  .tag-fs-disabled{background:#2a1515;border-color:#5a2020;color:#ff8080;}
 </style>

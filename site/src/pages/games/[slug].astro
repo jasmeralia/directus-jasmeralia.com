@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { directusFetchItems, fileUrl } from '../../lib/directus';
+import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
 import { getDownloadLinkMeta } from "../../lib/download-link";
 
@@ -25,6 +25,7 @@ const games = await directusFetchItems('games', {
     'slug',
     'release_year',
     'download_url',
+    'family_sharing',
     'gamestorylog_url',
     'walkthrough_url',
     'player_status',
@@ -282,6 +283,9 @@ const coverStackStyle = [
               <strong>Release year:</strong>{" "}
               <a href={`/releases/${game.release_year}/index.html`}>{game.release_year}</a>
             </li>
+          ) : null}
+          {isFamilySharingDisabled(game) ? (
+            <li><strong>Steam Family Sharing is NOT supported for this title.</strong></li>
           ) : null}
           {tierLists.length ? (
             <li>

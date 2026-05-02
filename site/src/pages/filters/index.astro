@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { directusFetchItems } from "../../lib/directus";
+import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
 import { getDownloadPlatform } from "../../lib/download-link";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown } from "../../lib/list-format";
@@ -35,6 +35,7 @@ const games = await directusFetchItems("games", {
     "game_status",
     "player_status",
     "download_url",
+    "family_sharing",
     "walkthrough_url",
     "gamestorylog_url",
     "engines.engines_id.slug",
@@ -477,7 +478,8 @@ const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; co
   { kind: "text-note", label: WALKTHROUGH_KIND_LABEL["text-note"], count: walkthroughCounts["text-note"] },
   { kind: "none-provided", label: WALKTHROUGH_KIND_LABEL["none-provided"], count: walkthroughCounts["none-provided"] },
 ].filter((entry) => entry.count > 0);
-const miscCount = 7 + walkthroughFilterEntries.length + genreTierCoverageEntries.length;
+const familySharingDisabledCount = (games ?? []).filter((game) => isFamilySharingDisabled(game)).length;
+const miscCount = 8 + walkthroughFilterEntries.length + genreTierCoverageEntries.length;
 ---
 
 <BaseLayout title="Filters">
@@ -670,6 +672,10 @@ const miscCount = 7 + walkthroughFilterEntries.length + genreTierCoverageEntries
         <li>
           <a href="/filters/misc/platform/patreon/index.html">Download Platform + Patreon</a>
           <span style="opacity:.7;"> ({platformCounts.patreon})</span>
+        </li>
+        <li>
+          <a href="/filters/misc/steam-family-sharing-disabled/index.html">Steam Family Sharing Disabled</a>
+          <span style="opacity:.7;"> ({familySharingDisabledCount})</span>
         </li>
         {walkthroughFilterEntries.map((entry) => (
           <li>
