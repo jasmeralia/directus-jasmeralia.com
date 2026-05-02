@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.83] - 2026-05-02
+- Standardize RSS GUIDs to `<type>:<stable-key>:<event>:<timestamp>` with required slug/id values and second-precision ISO timestamps.
+
 ## [1.0.82] - 2026-05-02
 - Fix RSS game update items so their enclosure images use the current game cover art even when the Directus revision snapshot omits `cover_image`.
 

@@ -60,6 +60,35 @@ const asDate = (v: unknown): Date | null => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
+const requireDate = (value: unknown, context: string): Date => {
+  const date = asDate(value);
+  if (!date) throw new Error(`Missing required timestamp for RSS GUID: ${context}`);
+  return date;
+};
+
+const requireGuidPart = (value: unknown, context: string): string => {
+  const part = value === null || value === undefined ? "" : String(value).trim();
+  if (!part || part === "undefined") throw new Error(`Missing required RSS GUID value: ${context}`);
+  return part;
+};
+
+const guidTimestamp = (date: Date, context: string): string => {
+  if (Number.isNaN(date.getTime())) throw new Error(`Invalid RSS GUID timestamp: ${context}`);
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+};
+
+const rssGuid = (
+  type: "game" | "review" | "tier-list",
+  stableKey: unknown,
+  event: string,
+  date: Date,
+  context: string,
+): string => {
+  const key = requireGuidPart(stableKey, `${context} stable key`);
+  const eventKey = requireGuidPart(event, `${context} event`);
+  return `${type}:${key}:${eventKey}:${guidTimestamp(date, context)}`;
+};
+
 const imageMimeType = (url: string): string => {
   const l = url.toLowerCase();
   if (l.endsWith(".png"))  return "image/png";
@@ -153,6 +182,14 @@ function fmtNewGame(data: Record<string, unknown>, genres: string[]): string {
   }
   if (genres.length) lines.push(`**Genres**: ${genres.join(", ")}`);
   return lines.join("\n");
+}
+
+function gameGuidEvent(rev: Revision): string {
+  if (rev.activity?.action === "create") return "created";
+  const changedFields = Object.keys(rev.delta ?? {}).filter((field) => !SKIP_DELTA.has(field));
+  if (changedFields.length === 1 && changedFields[0] === "player_status") return "play_status";
+  if (changedFields.length === 1 && changedFields[0] === "game_status") return "release_status";
+  return "updated";
 }
 
 // ─── Directus API helpers ────────────────────────────────────────────────────
@@ -256,11 +293,12 @@ function buildGameEntry(
   gameItem: any | null,
 ): Entry | null {
   const data = rev.data;
-  const date = asDate(rev.activity?.timestamp);
-  if (!date || !data?.slug || !data?.title) return null;
+  const date = requireDate(rev.activity?.timestamp, `game revision ${rev.id}`);
+  if (!data?.title) return null;
 
   const isCreate = rev.activity?.action === "create";
-  const link     = `${siteBase}/games/${data.slug}/index.html`;
+  const slug     = requireGuidPart(gameItem?.slug ?? data.slug ?? rev.item, `game revision ${rev.id} slug`);
+  const link     = `${siteBase}/games/${slug}/index.html`;
   const imgUrl   = mediaUrl(gameItem?.cover_image ?? data.cover_image) ?? undefined;
 
   if (isCreate) {
@@ -270,7 +308,7 @@ function buildGameEntry(
       description: fmtNewGame(data, genres),
       pubDate: date,
       imageUrl: imgUrl,
-      guid: `game:${data.id}:created`,
+      guid: rssGuid("game", slug, "created", date, `game revision ${rev.id}`),
     };
   }
 
@@ -283,7 +321,7 @@ function buildGameEntry(
     description: desc,
     pubDate: date,
     imageUrl: imgUrl,
-    guid: `game:${data.id}:${date.toISOString()}`,
+    guid: rssGuid("game", slug, gameGuidEvent(rev), date, `game revision ${rev.id}`),
   };
 }
 
@@ -292,15 +330,16 @@ function buildReviewEntry(
   reviewItem: any | null, // live-fetched with game expanded
 ): Entry | null {
   const data = rev.data;
-  const date = asDate(rev.activity?.timestamp);
-  if (!date || !data?.slug || !data?.title) return null;
+  const date = requireDate(rev.activity?.timestamp, `review revision ${rev.id}`);
+  if (!data?.title) return null;
   if (data.status !== "published" && rev.delta?.status !== "published") return null;
 
   const isNewlyPublished =
     rev.activity?.action === "create" ||
     rev.delta?.status === "published";
 
-  const link   = `${siteBase}/reviews/${data.slug}/index.html`;
+  const slug   = requireGuidPart(reviewItem?.slug ?? data.slug ?? rev.item, `review revision ${rev.id} slug`);
+  const link   = `${siteBase}/reviews/${slug}/index.html`;
   const imgUrl = mediaUrl(reviewItem?.game?.cover_image) ?? undefined;
 
   if (isNewlyPublished) {
@@ -315,7 +354,7 @@ function buildReviewEntry(
       description: lines.join("\n") || "New review published.",
       pubDate: date,
       imageUrl: imgUrl,
-      guid: `review:${data.id}:published`,
+      guid: rssGuid("review", slug, "published", date, `review revision ${rev.id}`),
     };
   }
 
@@ -328,18 +367,19 @@ function buildReviewEntry(
     description: desc,
     pubDate: date,
     imageUrl: imgUrl,
-    guid: `review:${data.id}:${date.toISOString()}`,
+    guid: rssGuid("review", slug, "updated", date, `review revision ${rev.id}`),
   };
 }
 
 function buildTierListEntry(rev: Revision): Entry | null {
   const data = rev.data;
-  const date = asDate(rev.activity?.timestamp);
-  if (!date || !data?.slug || !data?.title) return null;
+  const date = requireDate(rev.activity?.timestamp, `tier list revision ${rev.id}`);
+  if (!data?.title) return null;
 
   const isCreate    = rev.activity?.action === "create";
   const isPublished = rev.delta?.status === "published";
-  const link        = `${siteBase}/tiers/${data.slug}/index.html`;
+  const slug        = requireGuidPart(data.slug ?? rev.item, `tier list revision ${rev.id} slug`);
+  const link        = `${siteBase}/tiers/${slug}/index.html`;
 
   if (isCreate || isPublished) {
     const lines = [`**Title**: ${data.title}`];
@@ -349,7 +389,7 @@ function buildTierListEntry(rev: Revision): Entry | null {
       link,
       description: lines.join("\n"),
       pubDate: date,
-      guid: `tier:${data.id}:published`,
+      guid: rssGuid("tier-list", slug, "published", date, `tier list revision ${rev.id}`),
     };
   }
 
@@ -361,7 +401,7 @@ function buildTierListEntry(rev: Revision): Entry | null {
     link,
     description: desc,
     pubDate: date,
-    guid: `tier:${data.id}:${date.toISOString()}`,
+    guid: rssGuid("tier-list", slug, "updated", date, `tier list revision ${rev.id}`),
   };
 }
 
@@ -387,10 +427,10 @@ function buildTierRowGameEntries(
 
   if (!resolved.length) return [];
 
-  const date      = asDate(resolved[0].act.timestamp);
-  if (!date) return [];
+  const date      = requireDate(resolved[0].act.timestamp, `tier row game activity ${resolved[0].act.id}`);
   const tierList  = resolved[0].tierRow.tier_list;
-  const link      = `${siteBase}/tiers/${tierList.slug}/index.html`;
+  const tierSlug  = requireGuidPart(tierList?.slug ?? tierList?.id, `tier row game activity ${resolved[0].act.id} tier list slug`);
+  const link      = `${siteBase}/tiers/${tierSlug}/index.html`;
 
   if (resolved.length === 1) {
     const { game, tierRow } = resolved[0];
@@ -399,7 +439,7 @@ function buildTierRowGameEntries(
       link,
       description: `**${game.title}** added to **${tierList.title}** — tier **${tierRow.label}**`,
       pubDate: date,
-      guid: `tier-row-game:${resolved[0].act.item}:created`,
+      guid: rssGuid("tier-list", tierSlug, "game_added", date, `tier row game activity ${resolved[0].act.id}`),
     }];
   }
 
@@ -412,7 +452,7 @@ function buildTierRowGameEntries(
     link,
     description: lines.join("\n"),
     pubDate: date,
-    guid: `tier-bulk:${tierList.id}:${date.toISOString()}`,
+    guid: rssGuid("tier-list", tierSlug, "games_added", date, `tier row game activity batch ${tierList.id}`),
   }];
 }
 
@@ -422,17 +462,17 @@ function buildTierMoveEntry(
   fromRow: any,
   toRow: any,
 ): Entry | null {
-  const date = asDate(move.moved_at);
-  if (!date || !game || !fromRow || !toRow) return null;
+  const date = requireDate(move.moved_at, `tier move ${move.id}`);
+  if (!game || !fromRow || !toRow) return null;
   const tierList = toRow.tier_list;
-  if (!tierList?.slug) return null;
+  const tierSlug = requireGuidPart(tierList?.slug ?? tierList?.id, `tier move ${move.id} tier list slug`);
 
   return {
     title: `Game Moved in Tier List: ${game.title}`,
-    link: `${siteBase}/tiers/${tierList.slug}/index.html`,
+    link: `${siteBase}/tiers/${tierSlug}/index.html`,
     description: `**${game.title}** moved **${fromRow.label}** → **${toRow.label}** in **${tierList.title}**`,
     pubDate: date,
-    guid: `tier-move:${move.id}`,
+    guid: rssGuid("tier-list", tierSlug, "game_moved", date, `tier move ${move.id}`),
   };
 }
 
