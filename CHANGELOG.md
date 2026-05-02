@@ -3,6 +3,30 @@
 ## [1.0.81] - 2026-05-02
 - Update RSS feed enclosure images so game items use their cover art, review items use the reviewed game's cover art, and tier list items omit enclosure images.
 
+## [1.0.80] - 2026-05-01
+- Migrate tier list relationships from `tier_entries` to `tier_row_games` across feed, filters, game detail pages, and tier list pages.
+- Add RSS timestamp handling for tier list updates and tier row game activity.
+- Add tier move tracking to the RSS feed and remove genre relationship noise from feed descriptions.
+- Add Steam Family Sharing disabled indicators and a corresponding Misc filter.
+- Style abandoned game status tags red on grid cards.
+- Add CSV export support to tier list pages and include `release_year` in tier row game data.
+- Sort the tier list index alphabetically and tighten tier card sizing/alignment.
+
+## [1.0.79] - 2026-05-01
+- Upgrade Astro to 6.x and refresh the lockfile.
+- Replace invalid Directus `limit` values across static page queries.
+- Add the RSS feed link to the footer and position it next to the Discord link.
+
+## [1.0.78] - 2026-05-01
+- Remove `site/**` from the builder workflow trigger paths.
+- Bump package metadata to `1.0.78`.
+
+## [1.0.77] - 2026-05-01
+- Remove the 500-item Directus query limit across page queries.
+- Upgrade the builder from Node.js 20 to Node.js 22 for Astro compatibility.
+- Add an `npm audit --force` fallback to the builder audit flow.
+- Fix GHCR workflow triggers and version tagging.
+
 ## [1.0.76] - 2026-04-06
 - Stage the Astro site into a temporary writable build directory before install/build/publish in the builder.
 - Attempt `npm audit fix --package-lock-only` automatically during builder runs, then fail only if `npm audit` still reports unresolved vulnerabilities.
