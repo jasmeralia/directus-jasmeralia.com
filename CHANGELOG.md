@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.81] - 2026-05-02
+- Update RSS feed enclosure images so game items use their cover art, review items use the reviewed game's cover art, and tier list items omit enclosure images.
+
 ## [1.0.76] - 2026-04-06
 - Stage the Astro site into a temporary writable build directory before install/build/publish in the builder.
 - Attempt `npm audit fix --package-lock-only` automatically during builder runs, then fail only if `npm audit` still reports unresolved vulnerabilities.
