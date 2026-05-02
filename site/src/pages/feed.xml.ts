@@ -86,9 +86,9 @@ const imageMimeType = (url: string): string => {
 export const GET: APIRoute = async () => {
   const [games, reviews] = await Promise.all([
     directusFetchItems("games", {
-      fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk"],
+      fields: ["id", "title", "slug", "cover_image.id", "cover_image.filename_disk", "date_created", "date_updated"],
       filter: { slug: { _nempty: true } },
-      sort: ["-id"],
+      sort: ["-date_updated"],
       limit: 100,
     }),
     directusFetchItems("reviews", {
@@ -104,36 +104,25 @@ export const GET: APIRoute = async () => {
   ]);
   const fallbackImage = mediaUrl(HERO_IMAGE);
 
-  let tiers: any[] = [];
-  try {
-    tiers = await directusFetchItems("tier_lists", {
-      fields: ["id", "title", "slug", "description", "status", "updated_at", "rss_updated_at"],
-      filter: { status: { _eq: "published" }, slug: { _nempty: true } },
-      sort: ["-rss_updated_at", "-updated_at"],
-      limit: 100,
-    });
-  } catch {
-    tiers = await directusFetchItems("tier_lists", {
-      fields: ["id", "title", "slug", "description", "status", "updated_at"],
-      filter: { status: { _eq: "published" }, slug: { _nempty: true } },
-      sort: ["-updated_at"],
-      limit: 100,
-    });
-  }
+  const tiers = await directusFetchItems("tier_lists", {
+    fields: ["id", "title", "slug", "description", "status", "updated_at"],
+    filter: { status: { _eq: "published" }, slug: { _nempty: true } },
+    sort: ["-updated_at"],
+    limit: 100,
+  });
 
   const entries = [
     ...games
-      .map((game: any, index: number) => {
-        // games collection does not expose a created timestamp in current schema/policy.
-        // Keep recency ordering by id and synthesize a stable per-build date for RSS metadata.
-        const date = new Date(Date.now() - index * 1000);
+      .map((game: any) => {
+        const date = asDate(game.date_updated ?? game.date_created);
+        if (!date) return null;
         return {
-          title: `New Game: ${game.title}`,
+          title: `Game: ${game.title}`,
           link: `${siteBase}/games/${game.slug}/index.html`,
-          description: `New game added: ${game.title}`,
+          description: `Game entry updated: ${game.title}`,
           imageUrl: mediaUrl(game.cover_image) || fallbackImage || undefined,
           pubDate: date,
-          guid: `game:${game.id}:${date.toISOString()}`,
+          guid: `game:${game.id}`,
         };
       })
       .filter(Boolean),
@@ -154,7 +143,7 @@ export const GET: APIRoute = async () => {
       .filter(Boolean),
     ...tiers
       .map((tier: any) => {
-        const date = asDate(tier.rss_updated_at ?? tier.updated_at);
+        const date = asDate(tier.updated_at);
         if (!date) return null;
         return {
           title: `Tier List Updated: ${tier.title}`,

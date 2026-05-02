@@ -15,10 +15,9 @@ export type Game = {
   player_status?: string | null;
 };
 
-export type TierEntry = {
+export type TierRowGame = {
   id: number;
-  sort: number;
-  game: Game;
+  game_id: Game;
 };
 
 export type TierRow = {
@@ -26,7 +25,7 @@ export type TierRow = {
   label: string;
   color: string;
   sort: number;
-  tier_entries: TierEntry[];
+  games: TierRowGame[];
 };
 
 export type TierList = {
@@ -147,7 +146,7 @@ export async function listPublishedTierListSlugs(): Promise<string[]> {
 export async function getPublishedTierListBySlug(slug: string): Promise<TierList | null> {
   // Deep query:
   // - fetch tier_rows sorted
-  // - fetch tier_entries sorted
+  // - fetch tier_rows.games sorted
   // - include game + cover_image
   const qs = new URLSearchParams({
     "filter[slug][_eq]": slug,
@@ -155,14 +154,13 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
     "fields": [
       "id","title","slug","description","status",
       "tier_rows.id","tier_rows.label","tier_rows.color","tier_rows.sort",
-      "tier_rows.tier_entries.id","tier_rows.tier_entries.sort",
-      "tier_rows.tier_entries.game.id","tier_rows.tier_entries.game.title","tier_rows.tier_entries.game.slug","tier_rows.tier_entries.game.player_status",
-      "tier_rows.tier_entries.game.walkthrough_url",
-      "tier_rows.tier_entries.game.cover_image.id,tier_rows.tier_entries.game.cover_image.filename_disk",
+      "tier_rows.games.id",
+      "tier_rows.games.game_id.id","tier_rows.games.game_id.title","tier_rows.games.game_id.slug","tier_rows.games.game_id.player_status",
+      "tier_rows.games.game_id.walkthrough_url",
+      "tier_rows.games.game_id.cover_image.id","tier_rows.games.game_id.cover_image.filename_disk",
     ].join(","),
     "deep[tier_rows][_sort]": "sort",
-    "deep[tier_rows][tier_entries][_sort]": "sort",
-    "deep[tier_rows][tier_entries][game][cover_image][_limit]": "1",
+    "deep[tier_rows][games][game_id][cover_image][_limit]": "1",
     "limit": "1",
   });
 
@@ -173,7 +171,7 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
   // Normalize: make sure arrays exist
   item.tier_rows = (item.tier_rows ?? []).map((r: any) => ({
     ...r,
-    tier_entries: (r.tier_entries ?? []),
+    games: (r.games ?? []),
   }));
   return item as TierList;
 }
@@ -182,11 +180,11 @@ export async function getSTierGameIds(gameIds: number[]): Promise<Set<number>> {
   const ids = gameIds.filter((id) => typeof id === "number");
   if (!ids.length) return new Set();
 
-  const entries = await directusFetchItems("tier_entries", {
-    fields: ["game.id"],
+  const entries = await directusFetchItems("tier_row_games", {
+    fields: ["game_id.id"],
     filter: {
-      game: { _in: ids },
-      tier_row: {
+      game_id: { _in: ids },
+      tier_row_id: {
         label: { _eq: "S" },
         tier_list: { status: { _eq: "published" } },
       },
@@ -196,7 +194,7 @@ export async function getSTierGameIds(gameIds: number[]): Promise<Set<number>> {
 
   const result = new Set<number>();
   for (const entry of entries ?? []) {
-    const id = entry?.game?.id;
+    const id = entry?.game_id?.id;
     if (typeof id === "number") result.add(id);
   }
   return result;

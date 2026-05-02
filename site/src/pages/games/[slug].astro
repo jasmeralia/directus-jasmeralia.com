@@ -72,22 +72,22 @@ const reviews = await directusFetchItems('reviews', {
   sort: ['-published_at'],
   limit: 100,
 });
-const tierEntries = await directusFetchItems('tier_entries', {
+const tierEntries = await directusFetchItems('tier_row_games', {
   fields: [
     'id',
-    'tier_row.id',
-    'tier_row.label',
-    'tier_row.tier_list.id',
-    'tier_row.tier_list.title',
-    'tier_row.tier_list.slug',
+    'tier_row_id.id',
+    'tier_row_id.label',
+    'tier_row_id.tier_list.id',
+    'tier_row_id.tier_list.title',
+    'tier_row_id.tier_list.slug',
   ],
-  filter: { game: { _eq: game.id }, tier_row: { tier_list: { status: { _eq: "published" } } } },
-  sort: ['tier_row.tier_list.title'],
+  filter: { game_id: { _eq: game.id }, tier_row_id: { tier_list: { status: { _eq: "published" } } } },
+  sort: ['tier_row_id.tier_list.title'],
   limit: 200,
 });
 const tierListsMap = new Map();
 for (const entry of (tierEntries ?? [])) {
-  const row = entry?.tier_row;
+  const row = entry?.tier_row_id;
   const list = row?.tier_list;
   if (!list?.slug || !list?.title) continue;
   if (!tierListsMap.has(list.slug)) {

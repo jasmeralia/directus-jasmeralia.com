@@ -10,7 +10,7 @@ const tiers = await directusFetchItems("tier_lists", {
     "description",
     "updated_at",
     "tier_rows.id",
-    "tier_rows.tier_entries.id",
+    "tier_rows.games.id",
   ],
   filter: { status: { _eq: "published" } },
   sort: ["-updated_at", "title"],
@@ -18,7 +18,7 @@ const tiers = await directusFetchItems("tier_lists", {
 });
 const countTierEntries = (tier) => {
   const rows = tier?.tier_rows ?? [];
-  return rows.reduce((sum, row) => sum + ((row?.tier_entries ?? []).length), 0);
+  return rows.reduce((sum, row) => sum + ((row?.games ?? []).length), 0);
 };
 ---
 

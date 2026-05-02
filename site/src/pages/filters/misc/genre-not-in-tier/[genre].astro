@@ -91,17 +91,17 @@ const games = await directusFetchItems("games", {
 const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
 
 const tierEntries = tierListIds.length && gameIds.length
-  ? await directusFetchItems("tier_entries", {
-      fields: ["game.id"],
+  ? await directusFetchItems("tier_row_games", {
+      fields: ["game_id.id"],
       filter: {
-        game: { _in: gameIds },
-        tier_row: { tier_list: { _in: tierListIds } },
+        game_id: { _in: gameIds },
+        tier_row_id: { tier_list: { _in: tierListIds } },
       },
       limit: -1,
     })
   : [];
 const inTierGameIds = new Set(
-  (tierEntries ?? []).map((entry) => entry?.game?.id).filter((id) => typeof id === "number"),
+  (tierEntries ?? []).map((entry) => entry?.game_id?.id).filter((id) => typeof id === "number"),
 );
 const filteredGames = (games ?? []).filter((game) => !inTierGameIds.has(game.id));
 

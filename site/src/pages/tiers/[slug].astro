@@ -17,8 +17,8 @@ const tierList = await getPublishedTierListBySlug(slug);
 if (!tierList) return Astro.redirect("/404");
 
 const gameIds = tierList.tier_rows
-  .flatMap((row) => row.tier_entries ?? [])
-  .map((entry) => entry?.game?.id)
+  .flatMap((row) => row.games ?? [])
+  .map((entry) => entry?.game_id?.id)
   .filter((id) => typeof id === "number");
 
 const reviewedGameIds = new Set();
@@ -78,22 +78,19 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
             </div>
 
             <div class="tier-cells">
-              {row.tier_entries.length === 0 ? (
+              {(row.games ?? []).length === 0 ? (
                 <div class="tier-empty">No entries</div>
               ) : (
-                [...row.tier_entries]
-                  .sort((a, b) => (a.game?.title || "").localeCompare(b.game?.title || ""))
+                [...(row.games ?? [])]
+                  .sort((a, b) => (a.game_id?.title || "").localeCompare(b.game_id?.title || ""))
                   .map((entry) => {
-                  const img = fileUrl(entry.game.cover_image);
-                  const reviewed = reviewedGameIds.has(entry.game.id);
-                  const completed = entry.game?.player_status === "completed";
-                  const didNotFinish = entry.game?.player_status === "did_not_finish";
-                  const inProgress = entry.game?.player_status === "in_progress";
-                  const waitingForUpdate = entry.game?.player_status === "waiting_for_update";
-                  const hasWalkthrough = typeof entry.game?.walkthrough_url === "string" && entry.game.walkthrough_url.trim().length > 0;
+                  const game = entry.game_id;
+                  const img = fileUrl(game.cover_image);
+                  const reviewed = reviewedGameIds.has(game.id);
+                  const hasWalkthrough = typeof game?.walkthrough_url === "string" && game.walkthrough_url.trim().length > 0;
                   const sTier = row.label === "S";
                   return (
-                    <div class="tier-stack" style={thumbBorderStyle(reviewed, entry.game?.player_status, sTier, hasWalkthrough)}>
+                    <div class="tier-stack" style={thumbBorderStyle(reviewed, game?.player_status, sTier, hasWalkthrough)}>
                       <div class="ring-rainbow">
                         <div class="gap-rainbow">
                           <div class="ring-gold">
@@ -102,17 +99,17 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
                                 <div class="gap-status">
                                   <a
                                     class="tier-thumb"
-                                    href={`/games/${entry.game.slug}/index.html`}
-                                    title={entry.game.title}
+                                    href={`/games/${game.slug}/index.html`}
+                                    title={game.title}
                                   >
                                     <div class="tier-thumb-media">
                                       {img ? (
-                                        <img src={img} alt={entry.game.title} loading="lazy" />
+                                        <img src={img} alt={game.title} loading="lazy" />
                                       ) : (
                                         <span class="tier-thumb-fallback">No image</span>
                                       )}
                                     </div>
-                                    <div class="tier-thumb-title">{entry.game.title}</div>
+                                    <div class="tier-thumb-title">{game.title}</div>
                                   </a>
                                 </div>
                               </div>
