@@ -4,7 +4,6 @@ import { directusFetchRaw, assetsBaseUrl } from "../lib/directus";
 // ─── config ──────────────────────────────────────────────────────────────────
 
 const siteBase = (assetsBaseUrl() || "https://jasmeralia.com").replace(/\/$/, "");
-const FALLBACK_FILE = { id: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c", filename_disk: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c.png" };
 
 // How many recent revisions/activities to pull per collection
 const LIMIT_GAMES       = 100;
@@ -254,7 +253,6 @@ function buildGameEntry(
   rev: Revision,
   prevData: Record<string, unknown> | null,
   genres: string[],
-  fallback: string | null,
 ): Entry | null {
   const data = rev.data;
   const date = asDate(rev.activity?.timestamp);
@@ -262,7 +260,7 @@ function buildGameEntry(
 
   const isCreate = rev.activity?.action === "create";
   const link     = `${siteBase}/games/${data.slug}/index.html`;
-  const imgUrl   = mediaUrl(data.cover_image) ?? fallback ?? undefined;
+  const imgUrl   = mediaUrl(data.cover_image) ?? undefined;
 
   if (isCreate) {
     return {
@@ -291,7 +289,6 @@ function buildGameEntry(
 function buildReviewEntry(
   rev: Revision,
   reviewItem: any | null, // live-fetched with game expanded
-  fallback: string | null,
 ): Entry | null {
   const data = rev.data;
   const date = asDate(rev.activity?.timestamp);
@@ -303,7 +300,7 @@ function buildReviewEntry(
     rev.delta?.status === "published";
 
   const link   = `${siteBase}/reviews/${data.slug}/index.html`;
-  const imgUrl = mediaUrl(reviewItem?.game?.cover_image) ?? fallback ?? undefined;
+  const imgUrl = mediaUrl(reviewItem?.game?.cover_image) ?? undefined;
 
   if (isNewlyPublished) {
     const lines: string[] = [];
@@ -334,7 +331,7 @@ function buildReviewEntry(
   };
 }
 
-function buildTierListEntry(rev: Revision, fallback: string | null): Entry | null {
+function buildTierListEntry(rev: Revision): Entry | null {
   const data = rev.data;
   const date = asDate(rev.activity?.timestamp);
   if (!date || !data?.slug || !data?.title) return null;
@@ -351,7 +348,6 @@ function buildTierListEntry(rev: Revision, fallback: string | null): Entry | nul
       link,
       description: lines.join("\n"),
       pubDate: date,
-      imageUrl: fallback ?? undefined,
       guid: `tier:${data.id}:published`,
     };
   }
@@ -364,7 +360,6 @@ function buildTierListEntry(rev: Revision, fallback: string | null): Entry | nul
     link,
     description: desc,
     pubDate: date,
-    imageUrl: fallback ?? undefined,
     guid: `tier:${data.id}:${date.toISOString()}`,
   };
 }
@@ -377,7 +372,6 @@ function buildTierRowGameEntries(
   tierRowGameMap: Record<number, any>, // id → {game_id, tier_row_id}
   gameMap: Record<number, any>,
   tierRowMap: Record<number, any>,
-  fallback: string | null,
 ): Entry[] {
   // Resolve items
   const resolved = batch
@@ -404,7 +398,6 @@ function buildTierRowGameEntries(
       link,
       description: `**${game.title}** added to **${tierList.title}** — tier **${tierRow.label}**`,
       pubDate: date,
-      imageUrl: mediaUrl(game.cover_image) ?? fallback ?? undefined,
       guid: `tier-row-game:${resolved[0].act.item}:created`,
     }];
   }
@@ -418,7 +411,6 @@ function buildTierRowGameEntries(
     link,
     description: lines.join("\n"),
     pubDate: date,
-    imageUrl: fallback ?? undefined,
     guid: `tier-bulk:${tierList.id}:${date.toISOString()}`,
   }];
 }
@@ -428,7 +420,6 @@ function buildTierMoveEntry(
   game: any,
   fromRow: any,
   toRow: any,
-  fallback: string | null,
 ): Entry | null {
   const date = asDate(move.moved_at);
   if (!date || !game || !fromRow || !toRow) return null;
@@ -440,7 +431,6 @@ function buildTierMoveEntry(
     link: `${siteBase}/tiers/${tierList.slug}/index.html`,
     description: `**${game.title}** moved **${fromRow.label}** → **${toRow.label}** in **${tierList.title}**`,
     pubDate: date,
-    imageUrl: mediaUrl(game.cover_image) ?? fallback ?? undefined,
     guid: `tier-move:${move.id}`,
   };
 }
@@ -448,8 +438,6 @@ function buildTierMoveEntry(
 // ─── main handler ─────────────────────────────────────────────────────────────
 
 export const GET: APIRoute = async () => {
-  const fallback = mediaUrl(FALLBACK_FILE);
-
   // 1. Fetch all revision/activity streams + move log in parallel
   const [gameRevs, reviewRevs, tierListRevs, trGameActs, tierMoves] = await Promise.all([
     fetchRevisions("games",       LIMIT_GAMES),
@@ -526,20 +514,20 @@ export const GET: APIRoute = async () => {
   for (const rev of gameRevs) {
     const prevData = gamePrevMap[rev.id] ?? null;
     const genres   = newGameGenreMap[Number(rev.item)] ?? [];
-    const entry    = buildGameEntry(rev, prevData, genres, fallback);
+    const entry    = buildGameEntry(rev, prevData, genres);
     if (entry) entries.push(entry);
   }
 
   // Reviews
   for (const rev of reviewRevs) {
     const liveItem = reviewItemMap[Number(rev.item)] ?? null;
-    const entry    = buildReviewEntry(rev, liveItem, fallback);
+    const entry    = buildReviewEntry(rev, liveItem);
     if (entry) entries.push(entry);
   }
 
   // Tier lists
   for (const rev of tierListRevs) {
-    const entry = buildTierListEntry(rev, fallback);
+    const entry = buildTierListEntry(rev);
     if (entry) entries.push(entry);
   }
 
@@ -555,7 +543,7 @@ export const GET: APIRoute = async () => {
   }
   for (const batch of trBuckets.values()) {
     const batchEntries = buildTierRowGameEntries(
-      batch, trGameItemMap, gameMap, tierRowMap, fallback
+      batch, trGameItemMap, gameMap, tierRowMap
     );
     entries.push(...batchEntries);
   }
@@ -565,7 +553,7 @@ export const GET: APIRoute = async () => {
     const game    = gameMap[Number(move.game_id)];
     const fromRow = tierRowMap[Number(move.from_tier_row_id)];
     const toRow   = tierRowMap[Number(move.to_tier_row_id)];
-    const entry   = buildTierMoveEntry(move, game, fromRow, toRow, fallback);
+    const entry   = buildTierMoveEntry(move, game, fromRow, toRow);
     if (entry) entries.push(entry);
   }
 

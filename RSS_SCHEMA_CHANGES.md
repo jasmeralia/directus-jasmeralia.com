@@ -277,4 +277,4 @@ After adding schema + flows:
 - Feed item images are attached via RSS `<enclosure>`:
   - Games: use `games.cover_image` when present.
   - Reviews: use related `reviews.game.cover_image` when present.
-  - Everything else (including tier list items): fallback to the site hero image.
+  - Tier list items: no enclosure image.
