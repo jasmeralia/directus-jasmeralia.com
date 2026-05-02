@@ -88,6 +88,10 @@ export function fileUrl(file: unknown): string | null {
   return `${base}/media/${filenameDisk || id}`;
 }
 
+export async function directusFetchRaw<T = any>(path: string): Promise<T> {
+  return directusFetch<T>(path);
+}
+
 async function directusFetch<T>(path: string): Promise<T> {
   const url = `${directusBaseUrl()}${path}`;
   const token = directusToken();
