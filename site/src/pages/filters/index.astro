@@ -13,21 +13,21 @@ import {
 const engines = await directusFetchItems("engines", {
   fields: ["slug", "title"],
   sort: ["title"],
-  limit: 500,
+  limit: -1,
 });
 const genres = await directusFetchItems("genres", {
   fields: ["slug", "name"],
   sort: ["name"],
-  limit: 500,
+  limit: -1,
 });
 const developers = await directusFetchItems("developers", {
   fields: ["slug", "name"],
   sort: ["name"],
-  limit: 500,
+  limit: -1,
 });
 const tierLists = await directusFetchItems("tier_lists", {
   fields: ["id", "title", "status"],
-  limit: 500,
+  limit: -1,
 });
 const games = await directusFetchItems("games", {
   fields: [
@@ -440,7 +440,7 @@ const tierEntries = relevantTierListIds.length
   ? await directusFetchItems("tier_entries", {
       fields: ["tier_row.tier_list.id", "game.id"],
       filter: { tier_row: { tier_list: { _in: relevantTierListIds } } },
-      limit: 5000,
+      limit: -10,
     })
   : [];
 const gameIdsByTierListId = new Map();

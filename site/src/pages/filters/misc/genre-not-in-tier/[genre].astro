@@ -22,11 +22,11 @@ export async function getStaticPaths() {
   };
   const genres = await directusFetchItems("genres", {
     fields: ["slug", "name"],
-    limit: 500,
+    limit: -1,
   });
   const tierLists = await directusFetchItems("tier_lists", {
     fields: ["title", "status"],
-    limit: 500,
+    limit: -1,
   });
   const rankedTierLists = [...(tierLists ?? [])].sort((a, b) => {
     const aPublished = a?.status === "published" ? 0 : 1;
@@ -56,7 +56,7 @@ if (!genreInfo?.name) throw new Error(`Genre not found for slug: ${genre}`);
 
 const tierLists = await directusFetchItems("tier_lists", {
   fields: ["id", "title", "status"],
-  limit: 500,
+  limit: -1,
 });
 const normalizeKey = (value) =>
   String(value ?? "")
@@ -97,7 +97,7 @@ const tierEntries = tierListIds.length && gameIds.length
         game: { _in: gameIds },
         tier_row: { tier_list: { _in: tierListIds } },
       },
-      limit: 5000,
+      limit: -10,
     })
   : [];
 const inTierGameIds = new Set(
@@ -114,7 +114,7 @@ if (filteredGameIds.length) {
   const reviews = await directusFetchItems("reviews", {
     fields: ["game.id"],
     filter: { status: { _eq: "published" }, game: { _in: filteredGameIds } },
-    limit: 500,
+    limit: -1,
   });
   for (const review of reviews ?? []) {
     const id = review?.game?.id;

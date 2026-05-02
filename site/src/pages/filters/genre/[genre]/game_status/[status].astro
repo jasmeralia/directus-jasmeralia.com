@@ -88,7 +88,7 @@ if (gameIds.length) {
   const reviews = await directusFetchItems("reviews", {
     fields: ["game.id"],
     filter: { status: { _eq: "published" }, game: { _in: gameIds } },
-    limit: 500,
+    limit: -1,
   });
   for (const review of reviews ?? []) {
     const id = review?.game?.id;

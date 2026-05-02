@@ -7,7 +7,7 @@ const reviews = await directusFetchItems('reviews', {
   fields: ['id', 'title', 'slug', 'published_at', 'rating'],
   filter: { status: { _eq: "published" } },
   sort: ['-published_at', 'title'],
-  limit: 500,
+  limit: -1,
 });
 ---
 

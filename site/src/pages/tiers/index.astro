@@ -14,7 +14,7 @@ const tiers = await directusFetchItems("tier_lists", {
   ],
   filter: { status: { _eq: "published" } },
   sort: ["-updated_at", "title"],
-  limit: 500,
+  limit: -1,
 });
 const countTierEntries = (tier) => {
   const rows = tier?.tier_rows ?? [];

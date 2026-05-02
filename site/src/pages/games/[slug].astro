@@ -7,7 +7,7 @@ import { getDownloadLinkMeta } from "../../lib/download-link";
 export async function getStaticPaths() {
   const games = await directusFetchItems('games', {
     fields: ['slug'],
-    limit: 500,
+    limit: -1,
     sort: ['sort', 'title'],
   });
 

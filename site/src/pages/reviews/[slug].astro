@@ -8,7 +8,7 @@ export async function getStaticPaths() {
   const reviews = await directusFetchItems("reviews", {
     fields: ["slug"],
     filter: { status: { _eq: "published" } },
-    limit: 500,
+    limit: -1,
     sort: ["-published_at"],
   });
 

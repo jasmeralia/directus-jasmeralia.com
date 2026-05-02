@@ -7,7 +7,7 @@ import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets"
 const genres = await directusFetchItems("genres", {
   fields: ["id", "name", "slug"],
   sort: ["name"],
-  limit: 500,
+  limit: -1,
 });
 const sortedGenres = [...genres].sort((a, b) =>
   compareLabels(a.name ?? "", b.name ?? ""),

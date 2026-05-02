@@ -12,7 +12,7 @@ import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
 export async function getStaticPaths() {
   const developers = await directusFetchItems("developers", {
     fields: ["slug"],
-    limit: 500,
+    limit: -1,
     sort: ["name"],
   });
 
@@ -54,7 +54,7 @@ if (isUnknown) {
     fields: GAME_THUMB_FIELDS,
     filter: { developers: { developers_id: { slug: { _eq: slug } } } },
     sort: ["title"],
-    limit: 500,
+    limit: -1,
   });
 }
 
@@ -65,7 +65,7 @@ if (gameIds.length) {
     fields: ["id", "title", "slug", "published_at", "rating", "game.id"],
     filter: { status: { _eq: "published" }, game: { _in: gameIds } },
     sort: ["-published_at", "title"],
-    limit: 500,
+    limit: -1,
   });
 }
 const sTierGameIds = await getSTierGameIds(gameIds);

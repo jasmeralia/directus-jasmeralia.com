@@ -33,7 +33,7 @@ const games = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   filter: { game_status: { _eq: slug } },
   sort: ["title"],
-  limit: 500,
+  limit: -1,
 });
 
 const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
@@ -42,7 +42,7 @@ if (gameIds.length) {
   const reviews = await directusFetchItems("reviews", {
     fields: ["game.id"],
     filter: { status: { _eq: "published" }, game: { _in: gameIds } },
-    limit: 500,
+    limit: -1,
   });
   for (const review of reviews ?? []) {
     const id = review?.game?.id;
