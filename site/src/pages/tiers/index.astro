@@ -13,7 +13,7 @@ const tiers = await directusFetchItems("tier_lists", {
     "tier_rows.games.id",
   ],
   filter: { status: { _eq: "published" } },
-  sort: ["-updated_at", "title"],
+  sort: ["title"],
   limit: -1,
 });
 const countTierEntries = (tier) => {
