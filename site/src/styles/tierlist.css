@@ -148,6 +148,8 @@
   border-top: 1px solid #2b2b2b;
   text-align: center;
   overflow-wrap: anywhere;
+  height: 3.75rem;
+  overflow: hidden;
 }
 
 .tier-thumb-fallback {
