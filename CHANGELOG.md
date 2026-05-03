@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.86] - 2026-05-02
+- Add Recent Updates sidebar widget to the home page showing the 10 most recent feed events (game adds/updates, tier list additions/moves, reviews) with colored type badges and `America/Los_Angeles` timestamps.
+- Switch home page layout from centered fixed-width to full-width flex so the widget sits flush with the right viewport edge and the news column fills remaining space.
+
+## [1.0.85] - 2026-05-02
+- Fix S-tier rainbow ring visibility on tier list pages by adding `isolation: isolate` to `.tier-stack`, preventing the `z-index: -1` pseudo-element from rendering behind the parent container background.
+
 ## [1.0.84] - 2026-05-02
 - Add RSS feed validation to fail generation for malformed GUIDs, duplicate GUIDs, `undefined` GUID values, or tier-list item enclosures.
 
