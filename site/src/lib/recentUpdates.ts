@@ -31,7 +31,7 @@ async function get<T>(path: string): Promise<T> {
 }
 
 export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
-  const [gameRevs, reviewRevs, tierActivities, tierMoves] = await Promise.all([
+  const [gameRevs, reviewRevs, tierActivities, tierMoves, tierListRevs] = await Promise.all([
     get<{ data: any[] }>(
       `/revisions?filter[collection][_eq]=games&sort=-id&limit=40` +
       `&fields=id,item,delta,data,activity.action,activity.timestamp`,
@@ -47,6 +47,10 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
     get<{ data: any[] }>(
       `/items/tier_row_game_moves?sort=-moved_at&limit=20` +
       `&fields=id,moved_at,game_id.title,game_id.slug,to_tier_row_id.tier_list.title,to_tier_row_id.tier_list.slug`,
+    ),
+    get<{ data: any[] }>(
+      `/revisions?filter[collection][_eq]=tier_lists&sort=-id&limit=10` +
+      `&fields=id,item,data,activity.action,activity.timestamp`,
     ),
   ]);
 
@@ -106,12 +110,27 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
       const tierList = trg?.tier_row_id?.tier_list;
       if (!tierList?.slug || !tierList?.title) continue;
       entries.push({
-        tag: "tier-added",
+        tag: "tier-updated",
         subject: tierList.title,
         link: `${siteBase}/tiers/${tierList.slug}/index.html`,
         timestamp: date,
       });
     }
+  }
+
+  // ── Tier list creations ───────────────────────────────────────────────────
+  for (const rev of tierListRevs.data ?? []) {
+    if (rev.activity?.action !== "create") continue;
+    const ts = rev.activity?.timestamp;
+    if (!ts || !rev.data?.title || !rev.data?.slug) continue;
+    const date = new Date(ts);
+    if (isNaN(date.getTime())) continue;
+    entries.push({
+      tag: "tier-added",
+      subject: rev.data.title,
+      link: `${siteBase}/tiers/${rev.data.slug}/index.html`,
+      timestamp: date,
+    });
   }
 
   // ── Tier moves ────────────────────────────────────────────────────────────

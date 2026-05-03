@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.87] - 2026-05-02
+- Fix Recent Updates badge logic: tier row game additions now emit "Tier Updated" instead of "Tier Added".
+- Add tier list creation detection via `tier_lists` revisions so "Tier Added" only fires when a new tier list is created.
+
 ## [1.0.86] - 2026-05-02
 - Add Recent Updates sidebar widget to the home page showing the 10 most recent feed events (game adds/updates, tier list additions/moves, reviews) with colored type badges and `America/Los_Angeles` timestamps.
 - Switch home page layout from centered fixed-width to full-width flex so the widget sits flush with the right viewport edge and the news column fills remaining space.
