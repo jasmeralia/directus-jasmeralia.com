@@ -2,46 +2,170 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { renderMarkdown } from "../lib/markdown";
 import { directusFetchItems, fileUrl } from "../lib/directus";
+import { fetchRecentUpdates, formatUpdateTimestamp } from "../lib/recentUpdates";
+import type { UpdateTag } from "../lib/recentUpdates";
 
 const news = await directusFetchItems<{ id: number; date_created: string; body: string }>("news", {
-  // Shared homepage image stored in Directus
   fields: ["id", "date_created", "body"],
   sort: ["-date_created"],
   limit: 50,
 });
 
 const heroImage = fileUrl({ id: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c", filename_disk: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c.png" });
+
+const recentUpdates = await fetchRecentUpdates(10);
+
+const TAG_LABEL: Record<UpdateTag, string> = {
+  added:        "Added",
+  updated:      "Updated",
+  "tier-added": "Tier Added",
+  "tier-updated":"Tier Updated",
+  review:       "Review",
+};
 ---
 
 <BaseLayout title="Jasmeralia">
   <div slot="head">
     <style>
-      main{max-width:960px;margin:0 auto;padding:24px;}
-      .news-item{border:1px solid #232323;border-radius:12px;padding:16px;margin:16px 0;background:#111;}
-      .news-date{font-size:.85rem;opacity:.7;margin-bottom:8px;}
-      .news-body :global(p){margin:0 0 12px 0;}
-      .news-body :global(a){color:#8ab4f8;}
-      .news-body :global(code){background:#222;padding:2px 4px;border-radius:4px;}
-      .hero-image{margin:1.25rem 0 12px 0;}
-      .hero-image img{width:100%;max-width:720px;height:auto;display:block;margin:0 auto;border-radius:12px;}
+      main {
+        display: flex;
+        align-items: flex-start;
+        gap: 28px;
+        padding: 24px;
+      }
+
+      /* ── news column: fills remaining width ── */
+      .news-wrapper { flex: 1 1 0; min-width: 0; }
+      .hero-image { margin: 0 0 20px 0; }
+      .hero-image img {
+        width: 100%; max-width: 720px; height: auto;
+        display: block; border-radius: 12px; margin: 0 auto;
+      }
+      .news-col h1 { margin-top: 0; }
+      .news-item {
+        border: 1px solid #232323; border-radius: 12px;
+        padding: 16px; margin: 0 0 16px 0; background: #111;
+      }
+      .news-date { font-size: .85rem; opacity: .7; margin-bottom: 8px; }
+      .news-body :global(p) { margin: 0 0 12px 0; }
+      .news-body :global(p:last-child) { margin-bottom: 0; }
+      .news-body :global(a) { color: #8ab4f8; }
+      .news-body :global(code) { background: #222; padding: 2px 4px; border-radius: 4px; }
+
+      /* ── updates widget: fixed width, flush with right edge ── */
+      .updates-col {
+        flex: 0 0 260px;
+        position: sticky;
+        top: 20px;
+        align-self: flex-start;
+      }
+      .updates-widget {
+        background: #0e0e1e;
+        border: 1px solid #1e1e30;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .updates-header {
+        padding: 10px 14px;
+        font-size: .75rem; font-weight: 700;
+        letter-spacing: .08em; text-transform: uppercase;
+        color: #9aa6ff;
+        border-bottom: 1px solid #1e1e30;
+        display: flex; align-items: center; gap: 7px;
+      }
+      .updates-header svg { width: 13px; height: 13px; opacity: .75; flex-shrink: 0; }
+      .updates-list { list-style: none; margin: 0; padding: 0; }
+      .update-item {
+        padding: 8px 14px;
+        border-top: 1px solid #14142a;
+        font-size: .8rem;
+      }
+      .update-item:first-child { border-top: none; }
+      .update-item:hover { background: #12122a; }
+      .update-main { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+      .update-tag {
+        flex-shrink: 0;
+        font-size: .65rem; font-weight: 700;
+        letter-spacing: .04em; text-transform: uppercase;
+        padding: 1px 5px; border-radius: 3px; line-height: 1.5;
+      }
+      .tag-added        { background: #0f2e18; color: #5fd87a; border: 1px solid #1a4a28; }
+      .tag-updated      { background: #0d1e3a; color: #6ab0f5; border: 1px solid #1a3060; }
+      .tag-tier-added   { background: #0f2a2a; color: #4dd4d4; border: 1px solid #1a4040; }
+      .tag-tier-updated { background: #1e1a30; color: #a090e8; border: 1px solid #2e2848; }
+      .tag-review       { background: #2a1e08; color: #e8b45a; border: 1px solid #3f2c0e; }
+      .update-subject {
+        overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        flex: 1; min-width: 0;
+      }
+      .update-subject a { color: #c8c8e0; text-decoration: none; }
+      .update-subject a:hover { color: #9aa6ff; text-decoration: underline; }
+      .update-time {
+        font-size: .7rem; color: #48486a;
+        margin-top: 2px; padding-left: 1px;
+      }
+      .updates-footer {
+        padding: 7px 14px;
+        border-top: 1px solid #14142a;
+        font-size: .72rem; text-align: center;
+      }
+      .updates-footer a { color: #48486a; text-decoration: none; }
+      .updates-footer a:hover { color: #9aa6ff; }
+
+      @media (max-width: 700px) {
+        main { flex-direction: column; }
+        .updates-col { flex: none; width: 100%; position: static; }
+      }
     </style>
   </div>
+
   <main>
+    <!-- Left: hero + news -->
+    <div class="news-wrapper">
       {heroImage ? (
         <div class="hero-image">
           <img src={heroImage} alt="Jasmeralia" loading="lazy" />
         </div>
       ) : null}
-      <h1>News</h1>
-      {news.length === 0 ? (
-        <p>No news yet.</p>
-      ) : (
-        news.map((item) => (
-          <article class="news-item">
-            <div class="news-date">{new Date(item.date_created).toLocaleDateString()}</div>
-            <div class="news-body" set:html={renderMarkdown(item.body ?? "")} />
-          </article>
-        ))
-      )}
+      <section class="news-col">
+        <h1>News</h1>
+        {news.length === 0 ? (
+          <p>No news yet.</p>
+        ) : (
+          news.map((item) => (
+            <article class="news-item">
+              <div class="news-date">{new Date(item.date_created).toLocaleDateString()}</div>
+              <div class="news-body" set:html={renderMarkdown(item.body ?? "")} />
+            </article>
+          ))
+        )}
+      </section>
+    </div>
+
+    <!-- Right: recent updates widget -->
+    <aside class="updates-col">
+      <div class="updates-widget">
+        <div class="updates-header">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19.01 7.38 20 6.18 20C4.98 20 4 19.01 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1z"/>
+          </svg>
+          Recent Updates
+        </div>
+        <ul class="updates-list">
+          {recentUpdates.map((entry) => (
+            <li class="update-item">
+              <div class="update-main">
+                <span class={`update-tag tag-${entry.tag}`}>{TAG_LABEL[entry.tag]}</span>
+                <span class="update-subject"><a href={entry.link}>{entry.subject}</a></span>
+              </div>
+              <div class="update-time">{formatUpdateTimestamp(entry.timestamp)}</div>
+            </li>
+          ))}
+        </ul>
+        <div class="updates-footer">
+          <a href="/feed.xml">Full feed ↗</a>
+        </div>
+      </div>
+    </aside>
   </main>
 </BaseLayout>
