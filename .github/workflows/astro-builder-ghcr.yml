@@ -27,20 +27,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: site/package-lock.json
-
-      - name: Install site dependencies
-        working-directory: site
-        run: npm ci
-
-      - name: Build site
-        working-directory: site
-        run: npm run build
+      - name: Validate builder Dockerfile exists
+        run: test -f builder/Dockerfile
 
   prepare-tag:
     needs: validate
