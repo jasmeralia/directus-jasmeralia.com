@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.88] - 2026-05-11
+- Sort games case-insensitively on all grid pages and tier lists using `localeCompare` with `sensitivity: "base"`.
+- Add `sortByTitle` helper to `list-format.ts`; apply it after every game fetch across all grid and filter pages.
+- Rename `getDownloadPlatform`/`DownloadPlatform`/`getDownloadLinkMeta`/`DownloadLinkMeta` to `getUrlPlatform`/`UrlPlatform`/`getUrlLinkMeta`/`UrlLinkMeta` (old names kept as deprecated aliases).
+- Add platform icon support for: PlayStation, Xbox, IGN, Scribd, F95Zone, Game Rant, Neoseeker, TrueAchievements, Stealth Optional.
+- Extend `WalkthroughKind` and walkthrough filter page static paths to cover all new platforms.
+- Add PlayStation and Xbox to the download-platform filter page.
+
 ## [1.0.87] - 2026-05-02
 - Fix Recent Updates badge logic: tier row game additions now emit "Tier Updated" instead of "Tier Added".
 - Add tier list creation detection via `tier_lists` revisions so "Tier Added" only fires when a new tier list is created.

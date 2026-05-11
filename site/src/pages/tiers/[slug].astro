@@ -106,7 +106,7 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
                 <div class="tier-empty">No entries</div>
               ) : (
                 [...(row.games ?? [])]
-                  .sort((a, b) => (a.game_id?.title || "").localeCompare(b.game_id?.title || ""))
+                  .sort((a, b) => (a.game_id?.title || "").localeCompare(b.game_id?.title || "", undefined, { sensitivity: "base" }))
                   .map((entry) => {
                   const game = entry.game_id;
                   const img = fileUrl(game.cover_image);

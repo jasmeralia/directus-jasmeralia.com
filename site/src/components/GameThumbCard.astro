@@ -1,6 +1,6 @@
 ---
 import { fileUrl, isFamilySharingDisabled } from "../lib/directus";
-import { getDownloadLinkMeta } from "../lib/download-link";
+import { getUrlLinkMeta } from "../lib/download-link";
 
 const { game, reviewed = false, sTier = false } = Astro.props;
 const labelize = (value) =>
@@ -36,7 +36,7 @@ const stackStyle = [
 ].join(";");
 
 const img = game?.cover_image ? fileUrl(game.cover_image) : null;
-const downloadMeta = getDownloadLinkMeta(game?.download_url);
+const downloadMeta = getUrlLinkMeta(game?.download_url);
 const showDownloadPlatform = downloadMeta.label !== "Download" || Boolean(downloadMeta.host);
 const hasDownloadUrl = typeof game?.download_url === "string" && /^https?:\/\//i.test(game.download_url.trim());
 const genres = (game?.genres ?? [])
