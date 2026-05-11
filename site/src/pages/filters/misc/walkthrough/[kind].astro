@@ -10,34 +10,16 @@ import { sortByTitle } from "../../../../lib/list-format";
 import {
   classifyWalkthroughValue,
   WALKTHROUGH_KIND_LABEL,
+  WALKTHROUGH_KINDS,
   type WalkthroughKind,
 } from "../../../../lib/walkthrough-link";
 
-const walkthroughKinds: WalkthroughKind[] = [
-  "steam",
-  "itch",
-  "gog",
-  "patreon",
-  "playstation",
-  "xbox",
-  "ign",
-  "scribd",
-  "f95zone",
-  "gamerant",
-  "neoseeker",
-  "trueachievements",
-  "stealthoptional",
-  "unknown",
-  "text-note",
-  "none-provided",
-];
-
 export async function getStaticPaths() {
-  return walkthroughKinds.map((kind) => ({ params: { kind } }));
+  return WALKTHROUGH_KINDS.map((kind) => ({ params: { kind } }));
 }
 
 const { kind } = Astro.params;
-if (!walkthroughKinds.includes(kind as WalkthroughKind)) {
+if (!WALKTHROUGH_KINDS.includes(kind as WalkthroughKind)) {
   throw new Error(`Unsupported walkthrough filter: ${kind}`);
 }
 
