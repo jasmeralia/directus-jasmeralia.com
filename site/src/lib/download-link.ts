@@ -39,20 +39,22 @@ const shortHostFromUrl = (value: string): string | null => {
 export const getUrlLinkMeta = (value: string | null | undefined): UrlLinkMeta => {
   const platform = getUrlPlatform(value);
   const host = shortHostFromUrl(value ?? "");
-  if (!platform) return { icon: null, label: "Download", host };
-  if (platform === "itch") return { icon: "/icons/simple/itchdotio.svg", label: "itch.io", host };
-  if (platform === "gog") return { icon: "/icons/simple/gogdotcom.svg", label: "GOG", host };
-  if (platform === "patreon") return { icon: "/icons/simple/patreon.svg", label: "Patreon", host };
-  if (platform === "playstation") return { icon: "/icons/simple/playstation.svg", label: "PlayStation", host };
-  if (platform === "xbox") return { icon: "/icons/simple/xbox.svg", label: "Xbox", host };
-  if (platform === "ign") return { icon: "/icons/simple/ign.svg", label: "IGN", host };
-  if (platform === "scribd") return { icon: "/icons/simple/scribd.svg", label: "Scribd", host };
-  if (platform === "f95zone") return { icon: "/icons/f95zone.png", label: "F95Zone", host };
-  if (platform === "gamerant") return { icon: "/icons/gamerant.png", label: "Game Rant", host };
-  if (platform === "neoseeker") return { icon: "/icons/neoseeker.ico", label: "Neoseeker", host };
-  if (platform === "trueachievements") return { icon: "/icons/trueachievements.png", label: "TrueAchievements", host };
-  if (platform === "stealthoptional") return { icon: "/icons/stealthoptional.png", label: "Stealth Optional", host };
-  return { icon: "/icons/simple/steam.svg", label: "Steam", host };
+  switch (platform) {
+    case "itch":           return { icon: "/icons/simple/itchdotio.svg",    label: "itch.io",          host };
+    case "gog":            return { icon: "/icons/simple/gogdotcom.svg",     label: "GOG",              host };
+    case "patreon":        return { icon: "/icons/simple/patreon.svg",       label: "Patreon",          host };
+    case "playstation":    return { icon: "/icons/simple/playstation.svg",   label: "PlayStation",      host };
+    case "xbox":           return { icon: "/icons/simple/xbox.svg",          label: "Xbox",             host };
+    case "ign":            return { icon: "/icons/simple/ign.svg",           label: "IGN",              host };
+    case "scribd":         return { icon: "/icons/simple/scribd.svg",        label: "Scribd",           host };
+    case "f95zone":        return { icon: "/icons/f95zone.png",              label: "F95Zone",          host };
+    case "gamerant":       return { icon: "/icons/gamerant.png",             label: "Game Rant",        host };
+    case "neoseeker":      return { icon: "/icons/neoseeker.ico",            label: "Neoseeker",        host };
+    case "trueachievements": return { icon: "/icons/trueachievements.png",   label: "TrueAchievements", host };
+    case "stealthoptional": return { icon: "/icons/stealthoptional.png",     label: "Stealth Optional", host };
+    case "steam":          return { icon: "/icons/simple/steam.svg",         label: "Steam",            host };
+    default:               return { icon: null,                              label: "Download",         host };
+  }
 };
 
 /** @deprecated Use getUrlLinkMeta */

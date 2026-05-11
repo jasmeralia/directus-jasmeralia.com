@@ -44,18 +44,22 @@ export const classifyWalkthroughValue = (value: unknown): WalkthroughKind => {
   if (!text) return "none-provided";
   if (!isUrl(text)) return "text-note";
   const platform = getUrlPlatform(text);
-  if (platform === "steam") return "steam";
-  if (platform === "itch") return "itch";
-  if (platform === "gog") return "gog";
-  if (platform === "patreon") return "patreon";
-  if (platform === "playstation") return "playstation";
-  if (platform === "xbox") return "xbox";
-  if (platform === "ign") return "ign";
-  if (platform === "scribd") return "scribd";
-  if (platform === "f95zone") return "f95zone";
-  if (platform === "gamerant") return "gamerant";
-  if (platform === "neoseeker") return "neoseeker";
-  if (platform === "trueachievements") return "trueachievements";
-  if (platform === "stealthoptional") return "stealthoptional";
-  return "unknown";
+  switch (platform) {
+    case "steam":
+    case "itch":
+    case "gog":
+    case "patreon":
+    case "playstation":
+    case "xbox":
+    case "ign":
+    case "scribd":
+    case "f95zone":
+    case "gamerant":
+    case "neoseeker":
+    case "trueachievements":
+    case "stealthoptional":
+      return platform;
+    default:
+      return "unknown";
+  }
 };
