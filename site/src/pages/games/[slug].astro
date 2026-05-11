@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
-import { getDownloadLinkMeta } from "../../lib/download-link";
+import { getUrlLinkMeta } from "../../lib/download-link";
 
 export async function getStaticPaths() {
   const games = await directusFetchItems('games', {
@@ -66,7 +66,7 @@ const engines = (game.engines ?? [])
 const developers = (game.developers ?? [])
   .map((developer) => developer?.developers_id)
   .filter((value) => value && (value.name || value.title) && value.slug)
-  .sort((a, b) => (a.name ?? a.title ?? "").localeCompare(b.name ?? b.title ?? ""));
+  .sort((a, b) => (a.name ?? a.title ?? "").localeCompare(b.name ?? b.title ?? "", undefined, { sensitivity: "base" }));
 const reviews = await directusFetchItems('reviews', {
   fields: ['id', 'title', 'slug', 'published_at'],
   filter: { status: { _eq: "published" }, game: { _eq: game.id } },
@@ -96,8 +96,8 @@ for (const entry of (tierEntries ?? [])) {
   }
 }
 const tierLists = Array.from(tierListsMap.values())
-  .sort((a, b) => a.title.localeCompare(b.title));
-const downloadLinkMeta = getDownloadLinkMeta(game.download_url);
+  .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+const downloadLinkMeta = getUrlLinkMeta(game.download_url);
 const downloadLinkText =
   downloadLinkMeta.label === "Download"
     ? downloadLinkMeta.host
@@ -111,7 +111,7 @@ const walkthroughEntries = walkthroughValue
   .filter(Boolean)
   .map((value) => {
     const isThirdPartyWalkthrough = /^https?:\/\//i.test(value);
-    const linkMeta = getDownloadLinkMeta(value);
+    const linkMeta = getUrlLinkMeta(value);
     return {
       value,
       isThirdPartyWalkthrough,

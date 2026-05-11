@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
-import { getDownloadPlatform } from "../../lib/download-link";
+import { getUrlPlatform } from "../../lib/download-link";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown } from "../../lib/list-format";
 import {
@@ -317,10 +317,10 @@ const avnMissingWalkthroughCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && !hasValue(game.walkthrough_url),
 ).length;
 const platformCounts = {
-  steam: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "steam").length,
-  itch: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "itch").length,
-  gog: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "gog").length,
-  patreon: (games ?? []).filter((game) => getDownloadPlatform(game.download_url) === "patreon").length,
+  steam: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "steam").length,
+  itch: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "itch").length,
+  gog: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "gog").length,
+  patreon: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "patreon").length,
 };
 const unknownPlatformCount = Math.max(
   0,

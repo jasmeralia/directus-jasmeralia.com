@@ -50,7 +50,7 @@ export const tierListToCsv = (tierRows: any[]): string => {
   const headers = ["tier", "title", "slug", "release_year", "player_status"];
   const rows = (tierRows ?? []).flatMap((row) =>
     [...(row.games ?? [])]
-      .sort((a, b) => (a.game_id?.title || "").localeCompare(b.game_id?.title || ""))
+      .sort((a, b) => (a.game_id?.title || "").localeCompare(b.game_id?.title || "", undefined, { sensitivity: "base" }))
       .map((entry) => {
         const game = entry.game_id;
         return [row.label, game?.title, game?.slug, game?.release_year, game?.player_status]
