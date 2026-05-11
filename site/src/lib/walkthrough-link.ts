@@ -18,6 +18,14 @@ export type WalkthroughKind =
   | "text-note"
   | "none-provided";
 
+export const WALKTHROUGH_KINDS: WalkthroughKind[] = [
+  "steam", "itch", "gog", "patreon",
+  "playstation", "xbox",
+  "ign", "scribd", "f95zone",
+  "gamerant", "neoseeker", "trueachievements", "stealthoptional",
+  "unknown", "text-note", "none-provided",
+];
+
 export const WALKTHROUGH_KIND_LABEL: Record<WalkthroughKind, string> = {
   steam: "Steam",
   itch: "itch.io",
