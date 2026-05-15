@@ -54,7 +54,7 @@ const links = [
   async function loadPagefind() {
     if (pagefind) return;
     try {
-      pagefind = await import('/pagefind/pagefind.js' as any);
+      pagefind = await import(/* @vite-ignore */ '/pagefind/pagefind.js');
     } catch {
       // Not available in dev mode — search is a build-time feature
     }
