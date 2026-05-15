@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.91] - 2026-05-15
+- Abbreviate nav bar labels to reduce wrap on tablet: Developers→Devs, Game Statuses→Game Status, Played Statuses→Play Status, Release Years→Releases, Walkthroughs→Guides.
+
 ## [1.0.90] - 2026-05-15
 - Fix search result images rendering at full resolution: Astro scopes component styles with a data attribute that dynamically-injected HTML doesn't receive; switch affected selectors to `:global()`.
 - Scale search result thumbnails down to 28×28px icon size.
