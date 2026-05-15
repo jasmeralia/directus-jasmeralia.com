@@ -42,50 +42,50 @@ const links = [
   </nav>
 </header>
 
-<script>
+<script is:inline>
   const container = document.getElementById('search-container');
-  const input = document.getElementById('search-input') as HTMLInputElement | null;
-  const results = document.getElementById('search-results') as HTMLElement | null;
+  const input = document.getElementById('search-input');
+  const results = document.getElementById('search-results');
   if (!container || !input || !results) throw new Error('Search elements missing');
 
-  let pagefind: any;
-  let debounceTimer: ReturnType<typeof setTimeout>;
+  let pagefind;
+  let debounceTimer;
 
   async function loadPagefind() {
     if (pagefind) return;
     try {
-      pagefind = await import(/* @vite-ignore */ '/pagefind/pagefind.js');
+      pagefind = await import('/pagefind/pagefind.js');
     } catch {
       // Not available in dev mode — search is a build-time feature
     }
   }
 
   function hideResults() {
-    results!.hidden = true;
-    results!.innerHTML = '';
-    input!.setAttribute('aria-expanded', 'false');
+    results.hidden = true;
+    results.innerHTML = '';
+    input.setAttribute('aria-expanded', 'false');
   }
 
-  function showResults(html: string) {
-    results!.innerHTML = html;
-    results!.hidden = false;
-    input!.setAttribute('aria-expanded', 'true');
+  function showResults(html) {
+    results.innerHTML = html;
+    results.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
   }
 
   async function runSearch() {
     if (!pagefind) return;
-    const query = input!.value.trim();
+    const query = input.value.trim();
     if (!query) { hideResults(); return; }
 
     const res = await pagefind.search(query, { filters: { type: 'game' } });
-    const top = await Promise.all(res.results.slice(0, 8).map((r: any) => r.data()));
+    const top = await Promise.all(res.results.slice(0, 8).map((r) => r.data()));
 
     if (!top.length) {
       showResults('<div class="search-no-results">No results</div>');
       return;
     }
 
-    const html = top.map((r: any) => `
+    const html = top.map((r) => `
       <a href="${r.url}" class="search-result-item">
         ${r.meta?.image
           ? `<img src="${r.meta.image}" alt="" class="search-result-img" />`
@@ -101,14 +101,14 @@ const links = [
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(runSearch, 200);
   });
-  input.addEventListener('keydown', (e: KeyboardEvent) => {
+  input.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       hideResults();
-      input!.blur();
+      input.blur();
     }
   });
-  document.addEventListener('click', (e: MouseEvent) => {
-    if (!container!.contains(e.target as Node)) hideResults();
+  document.addEventListener('click', (e) => {
+    if (!container.contains(e.target)) hideResults();
   });
 </script>
 
