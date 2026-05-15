@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.90] - 2026-05-15
+- Fix search result images rendering at full resolution: Astro scopes component styles with a data attribute that dynamically-injected HTML doesn't receive; switch affected selectors to `:global()`.
+- Scale search result thumbnails down to 28×28px icon size.
+- Restructure nav bar so search input is a separate flex child of the header and never wraps with the nav links on tablet/narrow viewports.
+
 ## [1.0.89] - 2026-05-15
 - Add nav bar search powered by Pagefind: a search input in the sticky nav instantly queries a build-time index and shows a dropdown of up to 8 matching games with cover thumbnails.
 - Index covers game title, genres, developers, release year, and player/game status; non-game pages are excluded via `data-pagefind-filter="type:game"`.
