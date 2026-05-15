@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "directus": {
+      "command": "npx",
+      "args": ["@directus/content-mcp@latest"],
+      "env": {
+        "DIRECTUS_URL": "https://directus.jasmer.tools",
+        "DIRECTUS_TOKEN": "<VALUE>",
+        "DATABASE_URL": "<VALUE>",
+        "MCP_SYSTEM_PROMPT_ENABLED": "false",
+        "DIRECTUS_PROMPTS_COLLECTION_ENABLED": "false"
+      }
+    },
+    "steam": {
+      "command": "npx",
+      "args": ["-y", "steam-mcp"],
+      "env": {
+        "STEAM_API_KEY": "<VALUE>",
+        "STEAM_ID": "<VALUE>"
+      }
+    },
+    "game-encyclopedia": {
+      "command": "npx",
+      "args": ["videogame-encyclopedia-mcp-server"],
+      "env": {
+        "STEAMGRIDDB_API_KEY": "<VALUE>",
+        "SCREENSCRAPER_USER_ID": "<VALUE>",
+        "SCREENSCRAPER_USER_PASSWORD": "<VALUE>",
+        "TWITCH_CLIENT_ID": "<VALUE>",
+        "TWITCH_CLIENT_SECRET": "<VALUE>"
+      }
+    }
+  }
+}

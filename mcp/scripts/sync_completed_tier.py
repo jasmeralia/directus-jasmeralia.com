@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""
+Sync the ~Completed Games tier list.
+
+Finds all games with player_status=completed that are missing from the
+~Completed Games tier list, inherits their rank label from other tier lists
+if present, and places them in U otherwise.
+
+Usage:
+    python3 sync_completed_tier.py           # dry run (show what would be added)
+    python3 sync_completed_tier.py --apply   # apply changes and trigger rebuild
+"""
+
+import argparse
+import json
+import sys
+import urllib.request
+from pathlib import Path
+
+import psycopg2
+
+_cfg = json.load(open(Path(__file__).parent.parent.parent / ".mcp.json"))
+DIRECTUS_URL = "https://directus.jasmer.tools"
+DIRECTUS_TOKEN = _cfg["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
+DATABASE_URL = _cfg["mcpServers"]["directus"]["env"]["DATABASE_URL"]
+REBUILD_FLOW_URL = f"{DIRECTUS_URL}/flows/trigger/e3aa03ad-3352-4ade-8156-22d53f107907"
+
+COMPLETED_TIER_LIST_ID = 10  # ~Completed Games
+
+
+def directus_post(path: str, body: dict) -> dict:
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(f"{DIRECTUS_URL}{path}", data=data, method="POST", headers={
+        "Authorization": f"Bearer {DIRECTUS_TOKEN}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    })
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read())
+
+
+def trigger_rebuild():
+    data = json.dumps({"collection": "tier_lists", "keys": [str(COMPLETED_TIER_LIST_ID)]}).encode()
+    req = urllib.request.Request(REBUILD_FLOW_URL, data=data, method="POST", headers={
+        "Authorization": f"Bearer {DIRECTUS_TOKEN}",
+        "Content-Type": "application/json",
+    })
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.status
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--apply", action="store_true", help="Apply changes and trigger rebuild")
+    args = parser.parse_args()
+
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+
+    # Rows in ~Completed Games: label → row_id
+    cur.execute("SELECT label, id FROM tier_rows WHERE tier_list = %s ORDER BY sort", (COMPLETED_TIER_LIST_ID,))
+    label_to_row = {label: row_id for label, row_id in cur.fetchall()}
+    print(f"~Completed Games rows: {list(label_to_row.keys())}", file=sys.stderr)
+
+    # All completed games
+    cur.execute("SELECT id, title FROM games WHERE player_status = 'completed' ORDER BY title")
+    completed_games = cur.fetchall()
+    print(f"Total completed games: {len(completed_games)}", file=sys.stderr)
+
+    # Games already in ~Completed
+    cur.execute("""
+        SELECT trg.game_id
+        FROM tier_row_games trg
+        JOIN tier_rows tr ON tr.id = trg.tier_row_id
+        WHERE tr.tier_list = %s
+    """, (COMPLETED_TIER_LIST_ID,))
+    already_in = {row[0] for row in cur.fetchall()}
+    print(f"Already in ~Completed: {len(already_in)}", file=sys.stderr)
+
+    # Missing games
+    missing = [(gid, title) for gid, title in completed_games if gid not in already_in]
+    print(f"Missing: {len(missing)}", file=sys.stderr)
+
+    if not missing:
+        print("Nothing to add.", file=sys.stderr)
+        conn.close()
+        return
+
+    # For each missing game, find best rank from other tier lists (prefer non-U labels)
+    additions = []
+    for game_id, title in missing:
+        cur.execute("""
+            SELECT tr.label
+            FROM tier_row_games trg
+            JOIN tier_rows tr ON tr.id = trg.tier_row_id
+            WHERE trg.game_id = %s AND tr.tier_list != %s
+            ORDER BY tr.sort
+        """, (game_id, COMPLETED_TIER_LIST_ID))
+        other_ranks = [r[0] for r in cur.fetchall()]
+        # Pick first non-U rank if available, else U
+        inherited = next((r for r in other_ranks if r != "U"), None)
+        target_label = inherited if inherited and inherited in label_to_row else "U"
+        target_row_id = label_to_row[target_label]
+        additions.append((game_id, title, target_label, target_row_id))
+
+    print(f"\nProposed additions:", file=sys.stderr)
+    for game_id, title, label, _ in additions:
+        print(f"  [{label}] {title} (id={game_id})", file=sys.stderr)
+
+    if not args.apply:
+        print("\nDry run — pass --apply to write changes.", file=sys.stderr)
+        conn.close()
+        return
+
+    conn.close()
+
+    # Use the REST API so Directus flows fire (updates tier_lists.updated_at → feed entry)
+    for game_id, title, label, row_id in additions:
+        directus_post("/items/tier_row_games", {"tier_row_id": row_id, "game_id": game_id})
+        print(f"  Added [{label}] {title}", file=sys.stderr)
+
+    print(f"\nInserted {len(additions)} games.", file=sys.stderr)
+
+    status = trigger_rebuild()
+    print(f"Rebuild triggered: HTTP {status}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
