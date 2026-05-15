@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.89] - 2026-05-15
+- Add nav bar search powered by Pagefind: a search input in the sticky nav instantly queries a build-time index and shows a dropdown of up to 8 matching games with cover thumbnails.
+- Index covers game title, genres, developers, release year, and player/game status; non-game pages are excluded via `data-pagefind-filter="type:game"`.
+- Pagefind runs automatically after `astro build` via an updated `build` script; search is a no-op in `astro dev` mode (gracefully silent).
+- Add `data-pagefind-ignore` to nav and footer to prevent boilerplate from polluting the search index.
+
 ## [1.0.88] - 2026-05-11
 - Sort games case-insensitively on all grid pages and tier lists using `localeCompare` with `sensitivity: "base"`.
 - Add `sortByTitle` helper to `list-format.ts`; apply it after every game fetch across all grid and filter pages.

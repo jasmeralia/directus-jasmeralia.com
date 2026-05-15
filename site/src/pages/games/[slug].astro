@@ -189,7 +189,7 @@ const coverStackStyle = [
       .download-link .gsl-icon{filter:none;}
     </style>
   </div>
-  <main class="container">
+  <main class="container" data-pagefind-body data-pagefind-filter="type:game">
       <section class="header">
         <div class="cover-stack" style={coverStackStyle}>
           <div class="cover-ring-rainbow">
@@ -199,7 +199,7 @@ const coverStackStyle = [
                   <div class="cover-ring-status">
                     <div class="cover-gap-status">
                       <div class="cover-card">
-                        {cover ? <img src={cover} alt={game.title} loading="lazy" /> : null}
+                        {cover ? <img src={cover} alt={game.title} loading="lazy" data-pagefind-meta="image[src]" /> : null}
                       </div>
                     </div>
                   </div>
@@ -209,7 +209,7 @@ const coverStackStyle = [
           </div>
         </div>
         <div>
-          <h1>{game.title}</h1>
+          <h1 data-pagefind-meta="title">{game.title}</h1>
                     {game.download_url || game.gamestorylog_url ? (
             <div class="meta">
               {game.download_url ? (

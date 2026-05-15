@@ -17,7 +17,7 @@ const links = [
 ];
 ---
 
-<header class="site-nav">
+<header class="site-nav" data-pagefind-ignore>
   <nav class="site-nav__inner">
     {links.map((link, index) => (
       <>
@@ -25,8 +25,92 @@ const links = [
         <a href={base ? `${base}${link.href}` : link.href}>{link.label}</a>
       </>
     ))}
+    <div class="search-container" id="search-container">
+      <input
+        type="search"
+        id="search-input"
+        class="search-input"
+        placeholder="Search games…"
+        autocomplete="off"
+        aria-label="Search games"
+        aria-haspopup="listbox"
+        aria-expanded="false"
+        spellcheck="false"
+      />
+      <div id="search-results" class="search-results" role="listbox" aria-label="Search results" hidden></div>
+    </div>
   </nav>
 </header>
+
+<script>
+  const container = document.getElementById('search-container');
+  const input = document.getElementById('search-input') as HTMLInputElement | null;
+  const results = document.getElementById('search-results') as HTMLElement | null;
+  if (!container || !input || !results) throw new Error('Search elements missing');
+
+  let pagefind: any;
+  let debounceTimer: ReturnType<typeof setTimeout>;
+
+  async function loadPagefind() {
+    if (pagefind) return;
+    try {
+      pagefind = await import('/pagefind/pagefind.js' as any);
+    } catch {
+      // Not available in dev mode — search is a build-time feature
+    }
+  }
+
+  function hideResults() {
+    results!.hidden = true;
+    results!.innerHTML = '';
+    input!.setAttribute('aria-expanded', 'false');
+  }
+
+  function showResults(html: string) {
+    results!.innerHTML = html;
+    results!.hidden = false;
+    input!.setAttribute('aria-expanded', 'true');
+  }
+
+  async function runSearch() {
+    if (!pagefind) return;
+    const query = input!.value.trim();
+    if (!query) { hideResults(); return; }
+
+    const res = await pagefind.search(query, { filters: { type: 'game' } });
+    const top = await Promise.all(res.results.slice(0, 8).map((r: any) => r.data()));
+
+    if (!top.length) {
+      showResults('<div class="search-no-results">No results</div>');
+      return;
+    }
+
+    const html = top.map((r: any) => `
+      <a href="${r.url}" class="search-result-item">
+        ${r.meta?.image
+          ? `<img src="${r.meta.image}" alt="" class="search-result-img" />`
+          : `<div class="search-result-img search-result-img--placeholder"></div>`}
+        <span class="search-result-title">${r.meta?.title ?? ''}</span>
+      </a>
+    `).join('');
+    showResults(html);
+  }
+
+  input.addEventListener('focus', loadPagefind, { once: true });
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(runSearch, 200);
+  });
+  input.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      hideResults();
+      input!.blur();
+    }
+  });
+  document.addEventListener('click', (e: MouseEvent) => {
+    if (!container!.contains(e.target as Node)) hideResults();
+  });
+</script>
 
 <style>
   .site-nav {
@@ -54,5 +138,93 @@ const links = [
   .site-nav__divider {
     color: #5f667a;
     margin: 0 8px;
+  }
+
+  /* Search */
+  .search-container {
+    margin-left: auto;
+    position: relative;
+  }
+
+  .search-input {
+    background: #1a1a2e;
+    border: 1px solid #2a2a3a;
+    border-radius: 6px;
+    color: #eaeaea;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+    padding: 5px 10px;
+    width: 200px;
+    transition: border-color 0.15s, width 0.2s;
+  }
+
+  .search-input:focus {
+    border-color: #9aa6ff;
+    width: 260px;
+  }
+
+  .search-input::placeholder {
+    color: #5f667a;
+  }
+
+  /* hide the browser's native clear button — we handle it ourselves */
+  .search-input::-webkit-search-cancel-button { display: none; }
+
+  .search-results {
+    background: #0d0d0d;
+    border: 1px solid #2a2a3a;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    max-height: 400px;
+    overflow-y: auto;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    width: 320px;
+    z-index: 100;
+  }
+
+  .search-result-item {
+    align-items: center;
+    color: #eaeaea;
+    display: flex;
+    gap: 10px;
+    padding: 8px 12px;
+    text-decoration: none;
+    transition: background 0.1s;
+  }
+
+  .search-result-item:hover,
+  .search-result-item:focus {
+    background: #1a1a2e;
+    outline: none;
+  }
+
+  .search-result-img {
+    border-radius: 4px;
+    flex-shrink: 0;
+    height: 36px;
+    object-fit: cover;
+    width: 36px;
+  }
+
+  .search-result-img--placeholder {
+    background: #2a2a3a;
+  }
+
+  .search-result-title {
+    font-size: 0.875rem;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-no-results {
+    color: #5f667a;
+    font-size: 0.85rem;
+    padding: 12px;
+    text-align: center;
   }
 </style>
