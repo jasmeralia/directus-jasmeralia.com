@@ -1,3 +1,6 @@
 .env
 db_data/
 backups/
+.mcp.json
+mcp/cache/
+__pycache__/

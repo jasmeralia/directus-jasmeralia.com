@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.92] - 2026-05-15
+- Add `mcp/` directory consolidating all Directus/Steam enrichment scripts from the former standalone `directus-steam-enhancer` repo.
+- `mcp/scripts/` contains 18 Python scripts for bulk import, metadata enrichment, cover fetching, tier list management, and crossref work.
+- `mcp/plans/` contains planning docs (PSN/Xbox import plan).
+- `mcp/cache/` is gitignored local state.
+- Add `.mcp.json.example` documenting required credential structure; `.mcp.json` itself is gitignored.
+- Add `AGENTS.md` with full project instructions (schema rules, script conventions, credential policy, exponential backoff pattern); `CLAUDE.md` is a one-line stub pointing to it.
+- Scrub all hardcoded credentials from scripts; all tokens and API keys now load from `.mcp.json` at runtime.
+
 ## [1.0.91] - 2026-05-15
 - Abbreviate nav bar labels to reduce wrap on tablet: Developers→Devs, Game Statuses→Game Status, Played Statuses→Play Status, Release Years→Releases, Walkthroughs→Guides.
 
