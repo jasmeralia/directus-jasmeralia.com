@@ -54,6 +54,16 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
     ),
   ]);
 
+  // Fetch live slugs so a renamed slug doesn't produce a stale link
+  const gameRevIds = (gameRevs.data ?? []).map((r: any) => Number(r.item)).filter(Boolean);
+  const liveSlugMap: Record<number, string> = {};
+  if (gameRevIds.length) {
+    const liveGames = await get<{ data: any[] }>(
+      `/items/games?filter[id][_in]=${gameRevIds.join(",")}&fields=id,slug&limit=${gameRevIds.length + 5}`,
+    );
+    for (const g of liveGames.data ?? []) liveSlugMap[Number(g.id)] = g.slug;
+  }
+
   const entries: UpdateEntry[] = [];
 
   // ── Game revisions ────────────────────────────────────────────────────────
@@ -62,7 +72,7 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
     if (!ts || !rev.data?.title) continue;
     const date = new Date(ts);
     if (isNaN(date.getTime())) continue;
-    const slug = rev.data?.slug ?? rev.item;
+    const slug = liveSlugMap[Number(rev.item)] ?? rev.data?.slug ?? rev.item;
     if (!slug) continue;
     const isCreate = rev.activity?.action === "create";
     if (!isCreate && !hasMeaningfulDelta(rev.delta)) continue;
