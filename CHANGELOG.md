@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.107] - 2026-05-21
+- Add "Missing from ~Completed Games Tier List + Completed Player Status" misc filter page and index entry.
+
 ## [1.0.106] - 2026-05-21
 - Fix tier list matching for "FPSes" tier list (was not matching FPS genre due to "es" plural suffix).
 - Add "Cover Art – Non-Standard Aspect Ratio" misc filter page listing games whose cover image deviates more than 2% from the 2:3 ratio.
