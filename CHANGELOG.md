@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.97] - 2026-05-20
+- Reposition pie chart legends to sit alongside the chart (flex row) instead of beneath it, on game statuses, played statuses, genres, and engines pages.
+
 ## [1.0.96] - 2026-05-20
 - Show percentage alongside raw count in pie chart legends on game statuses, played statuses, genres, and engines pages (e.g. "Action (123, 45%)").
 
