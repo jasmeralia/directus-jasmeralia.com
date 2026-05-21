@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.96] - 2026-05-20
+- Show percentage alongside raw count in pie chart legends on game statuses, played statuses, genres, and engines pages (e.g. "Action (123, 45%)").
+
 ## [1.0.94] - 2026-05-20
 - Fix pie chart list swatches: all bullet items now always show their color, no cap on the list.
 - Chart legends below the pie are now capped to the top 3 items by count when there are more than 6 segments (applies to genres), keeping the legend readable.
