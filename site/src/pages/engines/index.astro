@@ -104,15 +104,6 @@ const engineColorMap = new Map();
 renderEngines.forEach((e, i) => engineColorMap.set(e.slug, renderingPie.segments[i].color));
 gamingEngines.forEach((e, i) => engineColorMap.set(e.slug, gamingPie.segments[i].color));
 const unknownEngineColor = unknownCount > 0 ? gamingPie.segments[gamingEngines.length].color : null;
-const allEngineItems = [
-  ...engines.map((e) => ({ key: e.slug, count: engineCounts.get(e.slug) || 0 })),
-  ...(unknownCount > 0 ? [{ key: "__unknown__", count: unknownCount }] : []),
-];
-const showAllEngineSwatches = allEngineItems.length <= 8;
-const topEngineKeys = showAllEngineSwatches
-  ? null
-  : new Set([...allEngineItems].sort((a, b) => b.count - a.count).slice(0, 3).map((i) => i.key));
-const showEngineSwatch = (key) => showAllEngineSwatches || topEngineKeys.has(key);
 ---
 
 <BaseLayout title="Engines">
@@ -139,19 +130,16 @@ const showEngineSwatch = (key) => showAllEngineSwatches || topEngineKeys.has(key
           <p>No engines yet.</p>
         ) : (
           <ul>
-          {sortedEngines.map((engine) => {
-            const swatchColor = showEngineSwatch(engine.slug) ? (engineColorMap.get(engine.slug) ?? null) : null;
-            return (
-              <li>
-                {swatchColor ? <span class="li-swatch" style={`background:${swatchColor};`}></span> : null}
-                <a href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
-                <span style="opacity:.7;"> ({engineCounts.get(engine.slug) || 0})</span>
-              </li>
-            );
-          })}
+          {sortedEngines.map((engine) => (
+            <li>
+              <span class="li-swatch" style={`background:${engineColorMap.get(engine.slug) ?? '#555'};`}></span>
+              <a href={`/engines/${engine.slug}/index.html`}>{engine.title}</a>
+              <span style="opacity:.7;"> ({engineCounts.get(engine.slug) || 0})</span>
+            </li>
+          ))}
           {unknownCount > 0 ? (
             <li>
-              {showEngineSwatch("__unknown__") && unknownEngineColor ? <span class="li-swatch" style={`background:${unknownEngineColor};`}></span> : null}
+              {unknownEngineColor ? <span class="li-swatch" style={`background:${unknownEngineColor};`}></span> : null}
               <a href="/engines/unknown/index.html">{unknownLabel}</a>
               <span style="opacity:.7;"> ({unknownCount})</span>
             </li>
