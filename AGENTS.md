@@ -39,6 +39,10 @@ Cache lives in `mcp/cache/` (gitignored).
 | `mcp/cache/import_progress.json` | Per-appid import status (done/error_game) |
 | `mcp/cache/backup_YYYYMMDD_HHMMSS/` | Full Directus backup taken before bulk import |
 
+## Git workflow
+
+The `master` branch is protected — direct pushes are rejected. **All changes must go through a pull request.** Always push to a feature branch and open a PR via `gh pr create`.
+
 ## Updating site source on TrueNAS
 
 **After merging any PR to master, always pull on TrueNAS immediately** — before triggering a build. Data-only changes (Directus field updates) don't require this, but any code change will silently build stale without it.
