@@ -16,10 +16,11 @@ const platformMeta = {
   patreon: { label: "Patreon" },
   playstation: { label: "PlayStation" },
   xbox: { label: "Xbox" },
+  unknown: { label: "Unknown" },
 };
 
 export async function getStaticPaths() {
-  return ["steam", "itch", "gog", "patreon", "playstation", "xbox"].map((platform) => ({ params: { platform } }));
+  return ["steam", "itch", "gog", "patreon", "playstation", "xbox", "unknown"].map((platform) => ({ params: { platform } }));
 }
 
 const { platform } = Astro.params;
@@ -32,8 +33,10 @@ const games = sortByTitle(await directusFetchItems("games", {
   sort: ["title"],
   limit: -1,
 }));
-const filteredGames = games.filter(
-  (game) => getUrlPlatform(game?.download_url) === platform,
+const filteredGames = games.filter((game) =>
+  platform === "unknown"
+    ? getUrlPlatform(game?.download_url) === null
+    : getUrlPlatform(game?.download_url) === platform,
 );
 
 const gameIds = filteredGames

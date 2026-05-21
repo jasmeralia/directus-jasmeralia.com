@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.101] - 2026-05-21
+- Add "Unknown" download platform filter page for games with unrecognized or missing download URLs.
+
 ## [1.0.100] - 2026-05-21
 - Fix game grid cards: all cards in a row now stretch to equal height, with tags pushed to the bottom of each card.
 
