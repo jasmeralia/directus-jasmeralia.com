@@ -41,9 +41,15 @@ Cache lives in `mcp/cache/` (gitignored).
 
 ## Updating site source on TrueNAS
 
-After pushing changes to the repo, pull them onto TrueNAS before triggering a build:
+**After merging any PR to master, always pull on TrueNAS immediately** — before triggering a build. Data-only changes (Directus field updates) don't require this, but any code change will silently build stale without it.
+
 ```bash
 ssh morgan@truenas.windsofstorm.net "git -C /mnt/myzmirror/directus-jasmeralia pull"
+```
+
+If the pull fails due to untracked files (e.g. `.serena/`), clean them first:
+```bash
+ssh morgan@truenas.windsofstorm.net "git -C /mnt/myzmirror/directus-jasmeralia clean -f .serena/ && git -C /mnt/myzmirror/directus-jasmeralia pull"
 ```
 
 ## Checking build logs
