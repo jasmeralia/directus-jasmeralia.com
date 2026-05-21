@@ -38,6 +38,7 @@ const FIELD_LABEL: Record<string, string> = {
 const ENUM_LABEL: Record<string, string> = {
   not_started: "Not Started",
   in_progress: "In Progress",
+  on_hold: "On Hold",
   completed: "Completed",
   did_not_finish: "Did Not Finish",
   waiting_for_update: "Waiting for Update",

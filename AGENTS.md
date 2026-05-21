@@ -19,7 +19,7 @@ Copy `.mcp.json.example` to `.mcp.json` at the repo root and fill in all `<VALUE
 
 | Collection | Notes |
 |---|---|
-| `games` | Primary library. Fields: `id`, `title`, `slug`, `cover_image` (file UUID), `release_year`, `player_status`, `game_status`, `download_url`, `family_sharing` (bool). **Always set `download_url` to `https://store.steampowered.com/app/{appid}/` when creating a Steam-sourced game.** |
+| `games` | Primary library. Fields: `id`, `title`, `slug`, `cover_image` (file UUID), `release_year`, `player_status`, `game_status`, `download_url`, `family_sharing` (bool). **Always set `download_url` to `https://store.steampowered.com/app/{appid}/` when creating a Steam-sourced game.** Valid `player_status` values: `not_started`, `in_progress`, `on_hold`, `waiting_for_update`, `did_not_finish`, `completed`. |
 | `genres` | id + name + slug. Cannot be written by the MCP user via the `genres` endpoint directly — use the REST API with the static token instead. |
 | `developers` | id + name + slug |
 | `games_genres` | Junction: `games_id`, `genres_id`. Unique constraint on `(games_id, genres_id)` applied. |
