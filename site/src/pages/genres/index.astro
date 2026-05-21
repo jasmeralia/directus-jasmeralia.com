@@ -102,6 +102,17 @@ const arcSegments = (() => {
   }
   return result;
 })();
+const genreColorMap = new Map(sortedGenres.map((g, i) => [g.slug, segments[i].color]));
+const unknownGenreColor = unknownCount > 0 ? segments[segments.length - 1].color : "#7a7a7a";
+const allGenreItems = [
+  ...sortedGenres.map((g) => ({ key: g.slug, count: genreCounts.get(g.slug) || 0 })),
+  ...(unknownCount > 0 ? [{ key: "__unknown__", count: unknownCount }] : []),
+];
+const showAllGenreSwatches = allGenreItems.length <= 8;
+const topGenreKeys = showAllGenreSwatches
+  ? null
+  : new Set([...allGenreItems].sort((a, b) => b.count - a.count).slice(0, 3).map((i) => i.key));
+const showGenreSwatch = (key) => showAllGenreSwatches || topGenreKeys.has(key);
 ---
 
 <BaseLayout title="Genres">
@@ -117,6 +128,7 @@ const arcSegments = (() => {
       .legend{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;margin-top:12px;padding:0;list-style:none;}
       .legend-item{display:flex;align-items:center;gap:8px;font-size:.85rem;opacity:.9;}
       .legend-swatch{width:12px;height:12px;border-radius:3px;border:1px solid #2b2b2b;display:inline-block;}
+      .li-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px;}
     </style>
   </div>
   <main>
@@ -130,8 +142,10 @@ const arcSegments = (() => {
             const distinctCount = genreCounts.get(genre.slug) || 0;
             const totalCount = totalGenreCounts.get(genre.slug) || 0;
             const isSuperset = Object.prototype.hasOwnProperty.call(GENRE_SUPERSETS, genre.slug);
+            const swatchColor = showGenreSwatch(genre.slug) ? genreColorMap.get(genre.slug) : null;
             return (
               <li>
+                {swatchColor ? <span class="li-swatch" style={`background:${swatchColor};`}></span> : null}
                 <a href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
                 {isSuperset ? (
                   <span style="opacity:.7;"> ({distinctCount} distinct, {totalCount} total)</span>
@@ -143,6 +157,7 @@ const arcSegments = (() => {
           })}
           {unknownCount > 0 ? (
             <li>
+              {showGenreSwatch("__unknown__") ? <span class="li-swatch" style={`background:${unknownGenreColor};`}></span> : null}
               <a href="/genres/unknown/index.html">{unknownLabel}</a>
               <span style="opacity:.7;"> ({unknownCount})</span>
             </li>
