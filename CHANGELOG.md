@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.106] - 2026-05-21
+- Fix tier list matching for "FPSes" tier list (was not matching FPS genre due to "es" plural suffix).
+- Add "Cover Art – Non-Standard Aspect Ratio" misc filter page listing games whose cover image deviates more than 2% from the 2:3 ratio.
+- Add "Cover Art – Non-Standard Aspect Ratio" entry to filters index misc list.
+
 ## [1.0.105] - 2026-05-21
 - Add top padding to pie chart wrappers on the filters page so inline SVG labels don't overlap the panel title.
 

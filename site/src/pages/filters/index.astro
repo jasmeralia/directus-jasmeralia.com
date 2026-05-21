@@ -401,9 +401,10 @@ const normalizeKey = (value) =>
 const keyVariants = (value) => {
   const base = normalizeKey(value);
   if (!base) return [];
-  const variants = [base];
-  if (base.endsWith("s") && base.length > 1) variants.push(base.slice(0, -1));
-  return Array.from(new Set(variants));
+  const variants = new Set([base]);
+  if (base.endsWith("s") && base.length > 1) variants.add(base.slice(0, -1));
+  if (base.endsWith("es") && base.length > 2) variants.add(base.slice(0, -2));
+  return Array.from(variants);
 };
 const tierListByGenreSlug = new Map();
 const rankedTierLists = [...(tierLists ?? [])].sort((a, b) => {
@@ -475,6 +476,19 @@ const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; co
   { kind: "none-provided", label: WALKTHROUGH_KIND_LABEL["none-provided"], count: walkthroughCounts["none-provided"] },
 ].filter((entry) => entry.count > 0);
 const familySharingDisabledCount = (games ?? []).filter((game) => isFamilySharingDisabled(game)).length;
+const coverArtGames = await directusFetchItems("games", {
+  fields: ["id", "cover_image.width", "cover_image.height"],
+  filter: { cover_image: { _nnull: true } },
+  limit: -1,
+});
+const COVER_TARGET_RATIO = 2 / 3;
+const COVER_RATIO_TOLERANCE = 0.02;
+const nonStandardCoverCount = (coverArtGames ?? []).filter((game) => {
+  const w = game?.cover_image?.width;
+  const h = game?.cover_image?.height;
+  if (!w || !h) return false;
+  return Math.abs(w / h - COVER_TARGET_RATIO) > COVER_RATIO_TOLERANCE;
+}).length;
 const labelRadius = 130;
 const platformLabeledArcs = platformPieArcs
   .filter((seg) => seg.end - seg.start >= 8)
@@ -505,6 +519,7 @@ const miscFilterEntries = [
   { label: "Download Platform + Steam", href: "/filters/misc/platform/steam/index.html", count: platformCounts.steam },
   { label: "Download Platform + Unknown", href: "/filters/misc/platform/unknown/index.html", count: unknownPlatformCount },
   { label: "Download Platform + Xbox", href: "/filters/misc/platform/xbox/index.html", count: platformCounts.xbox },
+  { label: "Cover Art – Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
   ...walkthroughFilterEntries.map((entry) => ({
     label: `Walkthrough URL + ${entry.label}`,
