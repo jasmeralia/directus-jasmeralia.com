@@ -9,17 +9,13 @@ const tiers = await directusFetchItems("tier_lists", {
     "slug",
     "description",
     "updated_at",
-    "tier_rows.id",
-    "tier_rows.games.id",
+    "tier_list_games.id",
   ],
   filter: { status: { _eq: "published" } },
   sort: ["title"],
   limit: -1,
 });
-const countTierEntries = (tier) => {
-  const rows = tier?.tier_rows ?? [];
-  return rows.reduce((sum, row) => sum + ((row?.games ?? []).length), 0);
-};
+const countTierEntries = (tier) => (tier?.tier_list_games ?? []).length;
 ---
 
 <BaseLayout title="Tier Lists">

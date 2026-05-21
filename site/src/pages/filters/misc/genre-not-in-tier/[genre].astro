@@ -92,11 +92,11 @@ const games = sortByTitle(await directusFetchItems("games", {
 const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
 
 const tierEntries = tierListIds.length && gameIds.length
-  ? await directusFetchItems("tier_row_games", {
+  ? await directusFetchItems("tier_list_games", {
       fields: ["game_id.id"],
       filter: {
         game_id: { _in: gameIds },
-        tier_row_id: { tier_list: { _in: tierListIds } },
+        tier_list_id: { _in: tierListIds },
       },
       limit: -1,
     })

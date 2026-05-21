@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.108] - 2026-05-21
+- Migrate tier list rendering from tier_rows/tier_row_games to tier_list_games with static rating config.
+- tier_list_games collection: 353 records migrated, unique constraint on (tier_list_id, game_id) added.
+- Update tiers/[slug].astro, tiers/index.astro, games/[slug].astro, filters/index.astro, and misc filter pages to query tier_list_games.
+- Add TIER_RATING_CONFIG static rating config to directus.ts for consistent colors and display labels.
+- Update tierListToCsv to work with flat tier_list_games format.
+- Grant Astro Readonly policy read access to tier_list_games collection.
+
 ## [1.0.107] - 2026-05-21
 - Add "Missing from ~Completed Games Tier List + Completed Player Status" misc filter page and index entry.
 
