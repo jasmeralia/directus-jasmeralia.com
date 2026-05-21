@@ -88,7 +88,7 @@ print(f'HTTP {resp.status}')  # expect 204
 ```
 Use `https://directus.jasmer.tools` (public URL) — `truenas.local` is not reachable from WSL.
 
-**After triggering a rebuild, always monitor it to completion via OpenSearch.** Use `ScheduleWakeup` with a 120s interval and poll until a `Build/publish completed successfully.` or `Build/publish FAILED` line appears with a timestamp after the trigger time. Notify the user of the result. Use the query from the "Checking build logs" section above, filtered to the last few `Build/publish` and `Starting build` lines.
+**After triggering a rebuild, always monitor it to completion via OpenSearch.** Record the exact trigger time before firing, then poll until a `Build/publish completed successfully.` or `Build/publish FAILED` line appears with a timestamp **strictly after** the trigger time. Never match the most-recent completed line without verifying its timestamp is newer than the trigger — the previous build's completion line will otherwise cause a false early exit. Notify the user of the result. Use the query from the "Checking build logs" section above, filtered to the last few `Build/publish` and `Starting build` lines.
 
 ## Rules for Astro site changes
 
