@@ -178,7 +178,7 @@ const legendSegments = segments.length > 6
         {legendSegments.map((segment) => (
           <li class="legend-item">
             <span class="legend-swatch" style={`background:${segment.color};`}></span>
-            <span>{segment.label} ({segment.value})</span>
+            <span>{segment.label} ({segment.value}{total > 0 ? `, ${Math.round((segment.value / total) * 100)}%` : ''})</span>
           </li>
         ))}
       </ul>

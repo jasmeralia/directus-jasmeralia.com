@@ -168,7 +168,7 @@ const unknownEngineColor = unknownCount > 0 ? gamingPie.segments[gamingEngines.l
               {renderingPie.segments.map((segment) => (
                 <li>
                   <span class="swatch" style={`background:${segment.color};`}></span>
-                  {segment.title} ({segment.value})
+                  {segment.title} ({segment.value}{renderingPie.total > 0 ? `, ${Math.round((segment.value / renderingPie.total) * 100)}%` : ''})
                 </li>
               ))}
             </ul>
@@ -194,7 +194,7 @@ const unknownEngineColor = unknownCount > 0 ? gamingPie.segments[gamingEngines.l
               {gamingPie.segments.map((segment) => (
                 <li>
                   <span class="swatch" style={`background:${segment.color};`}></span>
-                  {segment.title} ({segment.value})
+                  {segment.title} ({segment.value}{gamingPie.total > 0 ? `, ${Math.round((segment.value / gamingPie.total) * 100)}%` : ''})
                 </li>
               ))}
             </ul>
