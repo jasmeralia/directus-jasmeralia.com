@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.102] - 2026-05-21
+- Add PlayStation, Xbox, and Unknown download platform filter links to the filters index page, and add them to the platform pie chart.
+
 ## [1.0.101] - 2026-05-21
 - Add "Unknown" download platform filter page for games with unrecognized or missing download URLs.
 

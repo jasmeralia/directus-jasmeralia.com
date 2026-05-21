@@ -321,17 +321,14 @@ const platformCounts = {
   itch: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "itch").length,
   gog: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "gog").length,
   patreon: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "patreon").length,
+  playstation: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "playstation").length,
+  xbox: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "xbox").length,
 };
-const unknownPlatformCount = Math.max(
-  0,
-  (games?.length ?? 0) -
-    platformCounts.steam -
-    platformCounts.itch -
-    platformCounts.gog -
-    platformCounts.patreon,
-);
+const unknownPlatformCount = (games ?? []).filter((game) => getUrlPlatform(game.download_url) === null).length;
 const platformPieSegments = [
   { label: "Steam", value: platformCounts.steam, color: "#4aa3ff" },
+  { label: "PlayStation", value: platformCounts.playstation, color: "#003087" },
+  { label: "Xbox", value: platformCounts.xbox, color: "#107c10" },
   { label: "itch.io", value: platformCounts.itch, color: "#ff7a7a" },
   { label: "GOG", value: platformCounts.gog, color: "#ffd966" },
   { label: "Patreon", value: platformCounts.patreon, color: "#c788ff" },
@@ -672,6 +669,18 @@ const miscCount = 8 + walkthroughFilterEntries.length + genreTierCoverageEntries
         <li>
           <a href="/filters/misc/platform/patreon/index.html">Download Platform + Patreon</a>
           <span style="opacity:.7;"> ({platformCounts.patreon})</span>
+        </li>
+        <li>
+          <a href="/filters/misc/platform/playstation/index.html">Download Platform + PlayStation</a>
+          <span style="opacity:.7;"> ({platformCounts.playstation})</span>
+        </li>
+        <li>
+          <a href="/filters/misc/platform/xbox/index.html">Download Platform + Xbox</a>
+          <span style="opacity:.7;"> ({platformCounts.xbox})</span>
+        </li>
+        <li>
+          <a href="/filters/misc/platform/unknown/index.html">Download Platform + Unknown</a>
+          <span style="opacity:.7;"> ({unknownPlatformCount})</span>
         </li>
         <li>
           <a href="/filters/misc/steam-family-sharing-disabled/index.html">Steam Family Sharing Disabled</a>
