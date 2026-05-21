@@ -48,11 +48,21 @@ ssh morgan@truenas.windsofstorm.net "git -C /mnt/myzmirror/directus-jasmeralia p
 
 ## Checking build logs
 
-SSH into TrueNAS and tail the site builder container:
+OpenSearch is running on TrueNAS and indexes all container logs. Query it directly — no auth required from LAN:
+
+```bash
+curl -s "http://truenas.windsofstorm.net:9200/container-logs/_search" \
+  -H "Content-Type: application/json" \
+  -d '{"size":30,"query":{"term":{"container_name.keyword":"directus-site-builder"}},"sort":[{"@timestamp":{"order":"desc"}}],"_source":["@timestamp","log"]}' \
+  | python3 -c "import json,sys; [print(h['_source']['@timestamp'][:19], h['_source']['log'].rstrip()) for h in reversed(json.load(sys.stdin)['hits']['hits'])]"
+```
+
+The `container-logs` index holds logs for all TrueNAS containers. Look for the final `Build/publish completed successfully.` or `Build/publish FAILED` line. The OpenSearch Dashboards UI is at https://opensearch.jasmer.tools/ (LAN only).
+
+As a fallback, SSH and tail docker directly:
 ```bash
 ssh morgan@truenas.windsofstorm.net "docker logs directus-site-builder --tail 100 2>&1"
 ```
-Look for `[ERROR]` lines and the final `Build/publish FAILED` or `Build/publish completed` line.
 
 ## Site rebuild
 
@@ -67,6 +77,8 @@ resp = urllib.request.urlopen(req, timeout=30)
 print(f'HTTP {resp.status}')  # expect 204
 ```
 Use `https://directus.jasmer.tools` (public URL) — `truenas.local` is not reachable from WSL.
+
+**After triggering a rebuild, always monitor it to completion via OpenSearch.** Use `ScheduleWakeup` with a 120s interval and poll until a `Build/publish completed successfully.` or `Build/publish FAILED` line appears with a timestamp after the trigger time. Notify the user of the result. Use the query from the "Checking build logs" section above, filtered to the last few `Build/publish` and `Starting build` lines.
 
 ## Rules for Astro site changes
 
