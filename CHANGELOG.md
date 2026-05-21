@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.105] - 2026-05-21
+- Add top padding to pie chart wrappers on the filters page so inline SVG labels don't overlap the panel title.
+
 ## [1.0.104] - 2026-05-21
 - Exclude "None Provided" from the walkthrough URL platform pie chart so remaining segments are readable.
 
