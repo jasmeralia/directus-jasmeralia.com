@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.104] - 2026-05-21
+- Exclude "None Provided" from the walkthrough URL platform pie chart so remaining segments are readable.
+
 ## [1.0.103] - 2026-05-21
 - Replace pie chart legend lists with inline SVG labels on the filters index page, matching the pattern used by other pie chart pages.
 - Sort all misc filter links alphabetically on the filters index page.
