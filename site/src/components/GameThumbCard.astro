@@ -8,6 +8,7 @@ const labelize = (value) =>
 const completed = game?.player_status === "completed";
 const didNotFinish = game?.player_status === "did_not_finish";
 const inProgress = game?.player_status === "in_progress";
+const onHold = game?.player_status === "on_hold";
 const waitingForUpdate = game?.player_status === "waiting_for_update";
 const hasWalkthrough = typeof game?.walkthrough_url === "string" && game.walkthrough_url.trim().length > 0;
 const statusColor = completed
@@ -16,9 +17,11 @@ const statusColor = completed
     ? "#d14b4b"
     : inProgress
       ? "#70b7ff"
-      : waitingForUpdate
-        ? "#1f6b2b"
-        : null;
+      : onHold
+        ? "#e8a020"
+        : waitingForUpdate
+          ? "#1f6b2b"
+          : null;
 const hasStatus = Boolean(statusColor);
 const innerBorderColor = hasWalkthrough
   ? "#8c58ff"
