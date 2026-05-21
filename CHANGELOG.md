@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.94] - 2026-05-20
+- Fix pie chart list swatches: all bullet items now always show their color, no cap on the list.
+- Chart legends below the pie are now capped to the top 3 items by count when there are more than 6 segments (applies to genres), keeping the legend readable.
+
 ## [1.0.93] - 2026-05-20
 - Add color swatches next to list items on pie chart index pages (game statuses, played statuses, genres, engines, developers), matching the corresponding pie chart segment colors.
 - For pages with more than 8 items (genres, developers), only the top 3 items by count receive a swatch to avoid clutter.
