@@ -74,6 +74,9 @@ TITLE_EXCLUSIONS: dict[str, set[str]] = {
     "Fe":                                           {"metroidvania"},
     "Super Panda Adventures":                       {"metroidvania"},
     "The Rogue Prince of Persia":                   {"metroidvania"},
+    # Not AVNs — genre manually removed, prevent re-addition
+    "Doki Doki Literature Club Plus!":              {"avn", "visual-novel"},
+    "The Ballad Singer":                            {"avn"},
 }
 
 
