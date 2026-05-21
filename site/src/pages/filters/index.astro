@@ -433,7 +433,11 @@ for (const game of games ?? []) {
     gamesByGenreSlug.get(slug).add(game.id);
   }
 }
-const relevantTierListIds = Array.from(new Set(Array.from(tierListByGenreSlug.values()).map((item) => item.id)));
+const COMPLETED_GAMES_TIER_LIST_ID = 10;
+const relevantTierListIds = Array.from(new Set([
+  ...Array.from(tierListByGenreSlug.values()).map((item) => item.id),
+  COMPLETED_GAMES_TIER_LIST_ID,
+]));
 const tierEntries = relevantTierListIds.length
   ? await directusFetchItems("tier_row_games", {
       fields: ["tier_row_id.tier_list.id", "game_id.id"],
@@ -466,6 +470,10 @@ const genreTierCoverageEntries = Array.from(tierListByGenreSlug.entries())
   })
   .filter((entry) => entry.missingCount > 0)
   .sort((a, b) => a.genreName.localeCompare(b.genreName));
+const completedInTierIds = gameIdsByTierListId.get(COMPLETED_GAMES_TIER_LIST_ID) ?? new Set();
+const completedNotInTierCount = (games ?? []).filter(
+  (game) => game.player_status === "completed" && !completedInTierIds.has(game.id),
+).length;
 const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; count: number }> = [
   { kind: "steam", label: WALKTHROUGH_KIND_LABEL.steam, count: walkthroughCounts.steam },
   { kind: "itch", label: WALKTHROUGH_KIND_LABEL.itch, count: walkthroughCounts.itch },
@@ -520,6 +528,7 @@ const miscFilterEntries = [
   { label: "Download Platform + Unknown", href: "/filters/misc/platform/unknown/index.html", count: unknownPlatformCount },
   { label: "Download Platform + Xbox", href: "/filters/misc/platform/xbox/index.html", count: platformCounts.xbox },
   { label: "Cover Art – Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
+  { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
   ...walkthroughFilterEntries.map((entry) => ({
     label: `Walkthrough URL + ${entry.label}`,
