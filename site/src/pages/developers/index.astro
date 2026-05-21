@@ -108,6 +108,27 @@ const arcSegments = (() => {
   }
   return result;
 })();
+const developerColorMap = new Map();
+let devColorIdx = 0;
+for (const developer of sortedDevelopers) {
+  const count = developerCounts.get(developer.slug) || 0;
+  if (count > 0) {
+    developerColorMap.set(developer.slug, pieColors[devColorIdx % pieColors.length]);
+    devColorIdx++;
+  }
+}
+const unknownDevColor = unknownCount > 0 ? pieColors[devColorIdx % pieColors.length] : null;
+const allDevItems = [
+  ...sortedDevelopers
+    .filter((d) => (developerCounts.get(d.slug) || 0) > 0)
+    .map((d) => ({ key: d.slug, count: developerCounts.get(d.slug) || 0 })),
+  ...(unknownCount > 0 ? [{ key: "__unknown__", count: unknownCount }] : []),
+];
+const showAllDevSwatches = allDevItems.length <= 8;
+const topDevKeys = showAllDevSwatches
+  ? null
+  : new Set([...allDevItems].sort((a, b) => b.count - a.count).slice(0, 3).map((i) => i.key));
+const showDevSwatch = (key) => showAllDevSwatches || topDevKeys.has(key);
 ---
 
 <BaseLayout title="Developers">
@@ -121,6 +142,7 @@ const arcSegments = (() => {
       .pie-wrap{display:flex;justify-content:center;margin-top:16px;}
       .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;}
       .note{opacity:.7;font-size:.85rem;margin-top:12px;text-align:center;}
+      .li-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px;}
     </style>
   </div>
   <main>
@@ -130,14 +152,19 @@ const arcSegments = (() => {
         <p>No developers yet.</p>
       ) : (
         <ul>
-          {sortedDevelopers.map((developer) => (
-            <li>
-              <a href={`/developers/${developer.slug}/index.html`}>{developer.name}</a>
-              <span style="opacity:.7;"> ({developerCounts.get(developer.slug) || 0})</span>
-            </li>
-          ))}
+          {sortedDevelopers.map((developer) => {
+            const swatchColor = showDevSwatch(developer.slug) ? (developerColorMap.get(developer.slug) ?? null) : null;
+            return (
+              <li>
+                {swatchColor ? <span class="li-swatch" style={`background:${swatchColor};`}></span> : null}
+                <a href={`/developers/${developer.slug}/index.html`}>{developer.name}</a>
+                <span style="opacity:.7;"> ({developerCounts.get(developer.slug) || 0})</span>
+              </li>
+            );
+          })}
           {unknownCount > 0 ? (
             <li>
+              {showDevSwatch("__unknown__") && unknownDevColor ? <span class="li-swatch" style={`background:${unknownDevColor};`}></span> : null}
               <a href="/developers/unknown/index.html">{unknownLabel}</a>
               <span style="opacity:.7;"> ({unknownCount})</span>
             </li>

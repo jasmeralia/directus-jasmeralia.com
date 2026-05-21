@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.93] - 2026-05-20
+- Add color swatches next to list items on pie chart index pages (game statuses, played statuses, genres, engines, developers), matching the corresponding pie chart segment colors.
+- For pages with more than 8 items (genres, developers), only the top 3 items by count receive a swatch to avoid clutter.
+
 ## [1.0.92] - 2026-05-15
 - Add `mcp/` directory consolidating all Directus/Steam enrichment scripts from the former standalone `directus-steam-enhancer` repo.
 - `mcp/scripts/` contains 18 Python scripts for bulk import, metadata enrichment, cover fetching, tier list management, and crossref work.

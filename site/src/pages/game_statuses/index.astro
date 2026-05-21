@@ -76,6 +76,7 @@ const arcSegments = (() => {
   }
   return result;
 })();
+const colorMap = new Map(statuses.map((s, i) => [s.value, segments[i].color]));
 ---
 
 <BaseLayout title="Game Statuses">
@@ -91,6 +92,7 @@ const arcSegments = (() => {
       .legend{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;margin-top:12px;padding:0;list-style:none;}
       .legend-item{display:flex;align-items:center;gap:8px;font-size:.85rem;opacity:.9;}
       .legend-swatch{width:12px;height:12px;border-radius:3px;border:1px solid #2b2b2b;display:inline-block;}
+      .li-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px;}
     </style>
   </div>
   <main>
@@ -99,6 +101,7 @@ const arcSegments = (() => {
         <ul>
           {statuses.map((status) => (
             <li>
+              <span class="li-swatch" style={`background:${colorMap.get(status.value) ?? '#555'};`}></span>
               <a href={`/game_statuses/${status.value}/index.html`}>{status.label}</a>
               <span style="opacity:.7;"> ({statusCounts.get(status.value) || 0})</span>
             </li>
