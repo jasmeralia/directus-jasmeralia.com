@@ -104,9 +104,16 @@ const arcSegments = (() => {
 })();
 const genreColorMap = new Map(sortedGenres.map((g, i) => [g.slug, segments[i].color]));
 const unknownGenreColor = unknownCount > 0 ? segments[segments.length - 1].color : "#7a7a7a";
-const legendSegments = segments.length > 6
-  ? [...segments].sort((a, b) => b.value - a.value).slice(0, 3)
-  : segments;
+const labelRadius = 130;
+const labeledArcs = arcSegments
+  .filter(seg => seg.endAngle - seg.startAngle >= 8)
+  .map(seg => {
+    const mid = (seg.startAngle + seg.endAngle) / 2;
+    const pos = polarToCartesian(cx, cy, labelRadius, mid);
+    const anchor = pos.x < cx - 5 ? 'end' : pos.x > cx + 5 ? 'start' : 'middle';
+    const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
+    return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
+  });
 ---
 
 <BaseLayout title="Genres">
@@ -117,11 +124,8 @@ const legendSegments = segments.length > 6
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
-      .chart-wrap{display:flex;flex-direction:row;align-items:center;gap:20px;margin-top:16px;flex-wrap:wrap;}
-      .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;flex-shrink:0;}
-      .legend{display:flex;flex-direction:column;gap:8px;padding:0;list-style:none;}
-      .legend-item{display:flex;align-items:center;gap:8px;font-size:.85rem;opacity:.9;}
-      .legend-swatch{width:12px;height:12px;border-radius:3px;border:1px solid #2b2b2b;display:inline-block;}
+      .chart-outer{display:flex;justify-content:center;padding:45px 100px;margin-top:16px;}
+      .pie{width:220px;height:220px;overflow:visible;border:1px solid #2b2b2b;border-radius:50%;background:#222;display:block;}
       .li-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px;}
     </style>
   </div>
@@ -157,8 +161,8 @@ const legendSegments = segments.length > 6
           ) : null}
         </ul>
       )}
-      <div class="chart-wrap">
-        <svg class="pie" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Genre distribution">
+      <div class="chart-outer">
+        <svg class="pie" viewBox={`0 0 ${size} ${size}`} overflow="visible" role="img" aria-label="Genre distribution">
           {arcSegments.length === 0 ? (
             <circle cx={cx} cy={cy} r={radius} fill="#222" />
           ) : arcSegments.length === 1 ? (
@@ -172,15 +176,13 @@ const legendSegments = segments.length > 6
               </path>
             ))
           )}
-        </svg>
-        <ul class="legend" aria-label="Legend">
-          {legendSegments.map((segment) => (
-            <li class="legend-item">
-              <span class="legend-swatch" style={`background:${segment.color};`}></span>
-              <span>{segment.label} ({segment.value}{total > 0 ? `, ${Math.round((segment.value / total) * 100)}%` : ''})</span>
-            </li>
+          {labeledArcs.map((seg) => (
+            <g>
+              <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
+              <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
+            </g>
           ))}
-        </ul>
+        </svg>
       </div>
       </div>
   </main>

@@ -104,6 +104,18 @@ const engineColorMap = new Map();
 renderEngines.forEach((e, i) => engineColorMap.set(e.slug, renderingPie.segments[i].color));
 gamingEngines.forEach((e, i) => engineColorMap.set(e.slug, gamingPie.segments[i].color));
 const unknownEngineColor = unknownCount > 0 ? gamingPie.segments[gamingEngines.length].color : null;
+const labelRadius = 113;
+const buildLabeledArcs = (arcs, total) => arcs
+  .filter(seg => seg.endAngle - seg.startAngle >= 8)
+  .map(seg => {
+    const mid = (seg.startAngle + seg.endAngle) / 2;
+    const pos = polarToCartesian(cx, cy, labelRadius, mid);
+    const anchor = pos.x < cx - 5 ? 'end' : pos.x > cx + 5 ? 'start' : 'middle';
+    const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
+    return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
+  });
+const renderingLabeledArcs = buildLabeledArcs(renderingArcs, renderingPie.total);
+const gamingLabeledArcs = buildLabeledArcs(gamingArcs, gamingPie.total);
 ---
 
 <BaseLayout title="Engines">
@@ -114,12 +126,10 @@ const unknownEngineColor = unknownCount > 0 ? gamingPie.segments[gamingEngines.l
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
-      .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px;}
-      .chart{display:flex;flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap;}
-      .pie{width:180px;height:180px;border-radius:50%;border:1px solid #2b2b2b;display:block;}
-      .legend{list-style:none;padding:0;margin:0;}
-      .legend li{display:flex;align-items:center;gap:8px;font-size:.9rem;}
-      .swatch{width:12px;height:12px;border-radius:3px;display:inline-block;}
+      .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:16px;}
+      .chart{display:flex;flex-direction:column;align-items:flex-start;gap:6px;}
+      .pie-outer{padding:40px 80px;}
+      .pie{width:180px;height:180px;overflow:visible;border:1px solid #2b2b2b;border-radius:50%;background:#222;display:block;}
       .li-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px;}
     </style>
   </div>
@@ -149,55 +159,55 @@ const unknownEngineColor = unknownCount > 0 ? gamingPie.segments[gamingEngines.l
         <div class="charts">
           <div class="chart">
             <strong>Rendering Engines</strong>
-            <svg class="pie" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Rendering engines breakdown">
-              {renderingArcs.length === 0 ? (
-                <circle cx={cx} cy={cy} r={radius} fill="#222" />
-              ) : renderingArcs.length === 1 ? (
-                <circle cx={cx} cy={cy} r={radius} fill={renderingArcs[0].color}>
-                  <title>{renderingArcs[0].title} ({renderingArcs[0].value})</title>
-                </circle>
-              ) : (
-                renderingArcs.map((segment) => (
-                  <path d={describeArc(cx, cy, radius, segment.startAngle, segment.endAngle)} fill={segment.color}>
-                    <title>{segment.title} ({segment.value})</title>
-                  </path>
-                ))
-              )}
-            </svg>
-            <ul class="legend">
-              {renderingPie.segments.map((segment) => (
-                <li>
-                  <span class="swatch" style={`background:${segment.color};`}></span>
-                  {segment.title} ({segment.value}{renderingPie.total > 0 ? `, ${Math.round((segment.value / renderingPie.total) * 100)}%` : ''})
-                </li>
-              ))}
-            </ul>
+            <div class="pie-outer">
+              <svg class="pie" viewBox={`0 0 ${size} ${size}`} overflow="visible" role="img" aria-label="Rendering engines breakdown">
+                {renderingArcs.length === 0 ? (
+                  <circle cx={cx} cy={cy} r={radius} fill="#222" />
+                ) : renderingArcs.length === 1 ? (
+                  <circle cx={cx} cy={cy} r={radius} fill={renderingArcs[0].color}>
+                    <title>{renderingArcs[0].title} ({renderingArcs[0].value})</title>
+                  </circle>
+                ) : (
+                  renderingArcs.map((segment) => (
+                    <path d={describeArc(cx, cy, radius, segment.startAngle, segment.endAngle)} fill={segment.color}>
+                      <title>{segment.title} ({segment.value})</title>
+                    </path>
+                  ))
+                )}
+                {renderingLabeledArcs.map((seg) => (
+                  <g>
+                    <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="10">{seg.title}</text>
+                    <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="8.5">{seg.value} · {seg.pct}%</text>
+                  </g>
+                ))}
+              </svg>
+            </div>
           </div>
           <div class="chart">
             <strong>Gaming Engines</strong>
-            <svg class="pie" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Gaming engines breakdown">
-              {gamingArcs.length === 0 ? (
-                <circle cx={cx} cy={cy} r={radius} fill="#222" />
-              ) : gamingArcs.length === 1 ? (
-                <circle cx={cx} cy={cy} r={radius} fill={gamingArcs[0].color}>
-                  <title>{gamingArcs[0].title} ({gamingArcs[0].value})</title>
-                </circle>
-              ) : (
-                gamingArcs.map((segment) => (
-                  <path d={describeArc(cx, cy, radius, segment.startAngle, segment.endAngle)} fill={segment.color}>
-                    <title>{segment.title} ({segment.value})</title>
-                  </path>
-                ))
-              )}
-            </svg>
-            <ul class="legend">
-              {gamingPie.segments.map((segment) => (
-                <li>
-                  <span class="swatch" style={`background:${segment.color};`}></span>
-                  {segment.title} ({segment.value}{gamingPie.total > 0 ? `, ${Math.round((segment.value / gamingPie.total) * 100)}%` : ''})
-                </li>
-              ))}
-            </ul>
+            <div class="pie-outer">
+              <svg class="pie" viewBox={`0 0 ${size} ${size}`} overflow="visible" role="img" aria-label="Gaming engines breakdown">
+                {gamingArcs.length === 0 ? (
+                  <circle cx={cx} cy={cy} r={radius} fill="#222" />
+                ) : gamingArcs.length === 1 ? (
+                  <circle cx={cx} cy={cy} r={radius} fill={gamingArcs[0].color}>
+                    <title>{gamingArcs[0].title} ({gamingArcs[0].value})</title>
+                  </circle>
+                ) : (
+                  gamingArcs.map((segment) => (
+                    <path d={describeArc(cx, cy, radius, segment.startAngle, segment.endAngle)} fill={segment.color}>
+                      <title>{segment.title} ({segment.value})</title>
+                    </path>
+                  ))
+                )}
+                {gamingLabeledArcs.map((seg) => (
+                  <g>
+                    <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="10">{seg.title}</text>
+                    <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="8.5">{seg.value} · {seg.pct}%</text>
+                  </g>
+                ))}
+              </svg>
+            </div>
           </div>
         </div>
       </div>
