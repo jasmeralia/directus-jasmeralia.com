@@ -1,8 +1,10 @@
 import { marked } from "marked";
+import type { Tokens } from "marked";
 
 const renderer = new marked.Renderer();
 
-renderer.link = (href, title, text) => {
+// marked v5+ passes a token object, not individual (href, title, text) args
+renderer.link = ({ href, title, text }: Tokens.Link) => {
   if (!href) return text;
   const isExternal = /^https?:\/\//i.test(href);
   const attrs = [
@@ -15,4 +17,4 @@ renderer.link = (href, title, text) => {
 };
 
 export const renderMarkdown = (value: string): string =>
-  marked.parse(value ?? "", { renderer });
+  marked.parse(value ?? "", { renderer }) as string;

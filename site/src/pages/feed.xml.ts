@@ -17,6 +17,7 @@ const LIMIT_TIER_MOVES  = 100;
 // Fields skipped when building delta descriptions
 const SKIP_DELTA = new Set([
   "date_updated", "date_created", "sort", "id", "slug", "body", "updated_at",
+  "engines",
 ]);
 
 const FIELD_LABEL: Record<string, string> = {

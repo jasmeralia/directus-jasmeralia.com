@@ -18,6 +18,7 @@ export type UpdateEntry = {
 
 const SKIP_DELTA = new Set([
   "date_updated", "date_created", "sort", "id", "slug", "body", "updated_at",
+  "engines",
 ]);
 
 function hasMeaningfulDelta(delta: Record<string, unknown> | null): boolean {
@@ -33,7 +34,7 @@ async function get<T>(path: string): Promise<T> {
 export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
   const [gameRevs, reviewRevs, tierActivities, tierMoves, tierListRevs] = await Promise.all([
     get<{ data: any[] }>(
-      `/revisions?filter[collection][_eq]=games&sort=-id&limit=40` +
+      `/revisions?filter[collection][_eq]=games&sort=-id&limit=100` +
       `&fields=id,item,delta,data,activity.action,activity.timestamp`,
     ),
     get<{ data: any[] }>(

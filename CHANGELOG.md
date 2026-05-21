@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.98] - 2026-05-21
+- Fix news article links rendering as "undefined": update custom marked renderer to use the v5+ token-object API instead of the old `(href, title, text)` signature.
+- Fix homepage Recent Updates widget showing engine-patch "Game Updated" noise instead of new game additions: add `engines` to SKIP_DELTA in both the widget and the RSS feed, and bump the widget's game revision fetch limit from 40 to 100.
+
 ## [1.0.97] - 2026-05-20
 - Reposition pie chart legends to sit alongside the chart (flex row) instead of beneath it, on game statuses, played statuses, genres, and engines pages.
 
