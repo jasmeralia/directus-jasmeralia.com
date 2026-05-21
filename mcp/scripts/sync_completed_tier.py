@@ -57,23 +57,13 @@ def main():
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
 
-    # Rows in ~Completed Games: label → row_id
-    cur.execute("SELECT label, id FROM tier_rows WHERE tier_list = %s ORDER BY sort", (COMPLETED_TIER_LIST_ID,))
-    label_to_row = {label: row_id for label, row_id in cur.fetchall()}
-    print(f"~Completed Games rows: {list(label_to_row.keys())}", file=sys.stderr)
-
     # All completed games
     cur.execute("SELECT id, title FROM games WHERE player_status = 'completed' ORDER BY title")
     completed_games = cur.fetchall()
     print(f"Total completed games: {len(completed_games)}", file=sys.stderr)
 
     # Games already in ~Completed
-    cur.execute("""
-        SELECT trg.game_id
-        FROM tier_row_games trg
-        JOIN tier_rows tr ON tr.id = trg.tier_row_id
-        WHERE tr.tier_list = %s
-    """, (COMPLETED_TIER_LIST_ID,))
+    cur.execute("SELECT game_id FROM tier_list_games WHERE tier_list_id = %s", (COMPLETED_TIER_LIST_ID,))
     already_in = {row[0] for row in cur.fetchall()}
     print(f"Already in ~Completed: {len(already_in)}", file=sys.stderr)
 
@@ -86,25 +76,24 @@ def main():
         conn.close()
         return
 
-    # For each missing game, find best rank from other tier lists (prefer non-U labels)
+    # Rating sort order for inheritance
+    RATING_ORDER = ["S", "A", "B", "C", "D", "F", "U"]
+
+    # For each missing game, inherit best rating from other tier lists (prefer non-U)
     additions = []
     for game_id, title in missing:
         cur.execute("""
-            SELECT tr.label
-            FROM tier_row_games trg
-            JOIN tier_rows tr ON tr.id = trg.tier_row_id
-            WHERE trg.game_id = %s AND tr.tier_list != %s
-            ORDER BY tr.sort
+            SELECT rating FROM tier_list_games
+            WHERE game_id = %s AND tier_list_id != %s
         """, (game_id, COMPLETED_TIER_LIST_ID))
         other_ranks = [r[0] for r in cur.fetchall()]
-        # Pick first non-U rank if available, else U
+        other_ranks.sort(key=lambda r: RATING_ORDER.index(r) if r in RATING_ORDER else 99)
         inherited = next((r for r in other_ranks if r != "U"), None)
-        target_label = inherited if inherited and inherited in label_to_row else "U"
-        target_row_id = label_to_row[target_label]
-        additions.append((game_id, title, target_label, target_row_id))
+        target_label = inherited if inherited else "U"
+        additions.append((game_id, title, target_label))
 
     print(f"\nProposed additions:", file=sys.stderr)
-    for game_id, title, label, _ in additions:
+    for game_id, title, label in additions:
         print(f"  [{label}] {title} (id={game_id})", file=sys.stderr)
 
     if not args.apply:
@@ -115,8 +104,8 @@ def main():
     conn.close()
 
     # Use the REST API so Directus flows fire (updates tier_lists.updated_at → feed entry)
-    for game_id, title, label, row_id in additions:
-        directus_post("/items/tier_row_games", {"tier_row_id": row_id, "game_id": game_id})
+    for game_id, title, label in additions:
+        directus_post("/items/tier_list_games", {"tier_list_id": COMPLETED_TIER_LIST_ID, "game_id": game_id, "rating": label})
         print(f"  Added [{label}] {title}", file=sys.stderr)
 
     print(f"\nInserted {len(additions)} games.", file=sys.stderr)
