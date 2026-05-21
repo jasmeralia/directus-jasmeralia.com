@@ -355,7 +355,6 @@ const walkthroughPieSegments = [
   { label: "Patreon", value: walkthroughCounts.patreon, color: "#c788ff" },
   { label: WALKTHROUGH_KIND_LABEL.unknown, value: walkthroughCounts.unknown, color: "#7fe29a" },
   { label: WALKTHROUGH_KIND_LABEL["text-note"], value: walkthroughCounts["text-note"], color: "#ffb86c" },
-  { label: WALKTHROUGH_KIND_LABEL["none-provided"], value: walkthroughCounts["none-provided"], color: "#999999" },
 ].filter((segment) => segment.value > 0);
 const walkthroughPieTotal = walkthroughPieSegments.reduce((sum, segment) => sum + segment.value, 0);
 const pieSize = 220;
