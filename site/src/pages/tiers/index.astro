@@ -2,20 +2,24 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
 
-const tiers = await directusFetchItems("tier_lists", {
-  fields: [
-    "id",
-    "title",
-    "slug",
-    "description",
-    "updated_at",
-    "tier_list_games.id",
-  ],
-  filter: { status: { _eq: "published" } },
-  sort: ["title"],
-  limit: -1,
-});
-const countTierEntries = (tier) => (tier?.tier_list_games ?? []).length;
+const [tiers, allTierGames] = await Promise.all([
+  directusFetchItems("tier_lists", {
+    fields: ["id", "title", "slug", "description", "updated_at"],
+    filter: { status: { _eq: "published" } },
+    sort: ["title"],
+    limit: -1,
+  }),
+  directusFetchItems("tier_list_games", {
+    fields: ["tier_list_id"],
+    limit: -1,
+  }),
+]);
+const countsByTierList = new Map<number, number>();
+for (const entry of allTierGames ?? []) {
+  const id = entry?.tier_list_id;
+  if (typeof id === "number") countsByTierList.set(id, (countsByTierList.get(id) ?? 0) + 1);
+}
+const countTierEntries = (tier) => countsByTierList.get(tier?.id) ?? 0;
 ---
 
 <BaseLayout title="Tier Lists">
