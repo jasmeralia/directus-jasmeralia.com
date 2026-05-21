@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.100] - 2026-05-21
+- Fix game grid cards: all cards in a row now stretch to equal height, with tags pushed to the bottom of each card.
+
 ## [1.0.99] - 2026-05-21
 - Replace pie chart legend lists with inline SVG labels positioned at each slice's midpoint, on game statuses, played statuses, genres, and engines pages. Labels float outside the pie circle using SVG overflow:visible.
 
