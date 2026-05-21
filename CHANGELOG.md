@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.103] - 2026-05-21
+- Replace pie chart legend lists with inline SVG labels on the filters index page, matching the pattern used by other pie chart pages.
+- Sort all misc filter links alphabetically on the filters index page.
+- Rename genre tier coverage entries from "{Genre} + Missing from … Tier List" to "Missing from … Tier List + {Genre}".
+
 ## [1.0.102] - 2026-05-21
 - Add PlayStation, Xbox, and Unknown download platform filter links to the filters index page, and add them to the platform pie chart.
 

@@ -476,7 +476,49 @@ const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; co
   { kind: "none-provided", label: WALKTHROUGH_KIND_LABEL["none-provided"], count: walkthroughCounts["none-provided"] },
 ].filter((entry) => entry.count > 0);
 const familySharingDisabledCount = (games ?? []).filter((game) => isFamilySharingDisabled(game)).length;
-const miscCount = 8 + walkthroughFilterEntries.length + genreTierCoverageEntries.length;
+const labelRadius = 130;
+const platformLabeledArcs = platformPieArcs
+  .filter((seg) => seg.end - seg.start >= 8)
+  .map((seg) => {
+    const mid = (seg.start + seg.end) / 2;
+    const pos = polarToCartesian(pieCenter, pieCenter, labelRadius, mid);
+    const anchor = pos.x < pieCenter - 5 ? "end" : pos.x > pieCenter + 5 ? "start" : "middle";
+    const pct = platformPieTotal > 0 ? Math.round((seg.value / platformPieTotal) * 100) : 0;
+    return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
+  });
+const walkthroughLabeledArcs = walkthroughPieArcs
+  .filter((seg) => seg.end - seg.start >= 8)
+  .map((seg) => {
+    const mid = (seg.start + seg.end) / 2;
+    const pos = polarToCartesian(pieCenter, pieCenter, labelRadius, mid);
+    const anchor = pos.x < pieCenter - 5 ? "end" : pos.x > pieCenter + 5 ? "start" : "middle";
+    const pct = walkthroughPieTotal > 0 ? Math.round((seg.value / walkthroughPieTotal) * 100) : 0;
+    return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
+  });
+const miscFilterEntries = [
+  { label: "AVN + Has GameStoryLog URL", href: "/filters/misc/avn-with-gamestorylog/index.html", count: avnWithGamestorylogCount },
+  { label: "AVN + Missing GameStoryLog URL", href: "/filters/misc/avn-missing-gamestorylog/index.html", count: avnMissingGamestorylogCount },
+  { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
+  { label: "Download Platform + GOG", href: "/filters/misc/platform/gog/index.html", count: platformCounts.gog },
+  { label: "Download Platform + itch.io", href: "/filters/misc/platform/itch/index.html", count: platformCounts.itch },
+  { label: "Download Platform + Patreon", href: "/filters/misc/platform/patreon/index.html", count: platformCounts.patreon },
+  { label: "Download Platform + PlayStation", href: "/filters/misc/platform/playstation/index.html", count: platformCounts.playstation },
+  { label: "Download Platform + Steam", href: "/filters/misc/platform/steam/index.html", count: platformCounts.steam },
+  { label: "Download Platform + Unknown", href: "/filters/misc/platform/unknown/index.html", count: unknownPlatformCount },
+  { label: "Download Platform + Xbox", href: "/filters/misc/platform/xbox/index.html", count: platformCounts.xbox },
+  { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
+  ...walkthroughFilterEntries.map((entry) => ({
+    label: `Walkthrough URL + ${entry.label}`,
+    href: `/filters/misc/walkthrough/${entry.kind}/index.html`,
+    count: entry.count,
+  })),
+  ...genreTierCoverageEntries.map((entry) => ({
+    label: `Missing from ${entry.tierListTitle} Tier List + ${entry.genreName}`,
+    href: `/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`,
+    count: entry.missingCount,
+  })),
+].sort((a, b) => a.label.localeCompare(b.label));
+const miscCount = miscFilterEntries.length;
 ---
 
 <BaseLayout title="Filters">
@@ -489,12 +531,9 @@ const miscCount = 8 + walkthroughFilterEntries.length + genreTierCoverageEntries
       .panel a:visited{color:#9aa6ff;}
       .pie-wrap{display:flex;justify-content:center;margin-top:16px;}
       .pie-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:16px;}
-      .pie-panel{background:#151515;border:1px solid #252525;border-radius:10px;padding:12px;}
+      .pie-panel{background:#151515;border:1px solid #252525;border-radius:10px;padding:12px 48px;}
       .pie-panel h3{margin:0 0 8px 0;font-size:1rem;}
-      .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;}
-      .legend{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;margin-top:12px;padding:0;list-style:none;}
-      .legend-item{display:flex;align-items:center;gap:8px;font-size:.85rem;opacity:.9;}
-      .legend-swatch{width:12px;height:12px;border-radius:3px;border:1px solid #2b2b2b;display:inline-block;}
+      .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;overflow:visible;}
     </style>
   </div>
   <main>
@@ -642,64 +681,10 @@ const miscCount = 8 + walkthroughFilterEntries.length + genreTierCoverageEntries
     <div class="panel" id="misc">
       <h2>Misc ({miscCount} combinations)</h2>
       <ul>
-        <li>
-          <a href="/filters/misc/avn-missing-gamestorylog/index.html">AVN + Missing GameStoryLog URL</a>
-          <span style="opacity:.7;"> ({avnMissingGamestorylogCount})</span>
-        </li>
-        <li>
-          <a href="/filters/misc/avn-with-gamestorylog/index.html">AVN + Has GameStoryLog URL</a>
-          <span style="opacity:.7;"> ({avnWithGamestorylogCount})</span>
-        </li>
-        <li>
-          <a href="/filters/misc/avn-missing-walkthrough/index.html">AVN + Missing Walkthrough URL</a>
-          <span style="opacity:.7;"> ({avnMissingWalkthroughCount})</span>
-        </li>
-        <li>
-          <a href="/filters/misc/platform/steam/index.html">Download Platform + Steam</a>
-          <span style="opacity:.7;"> ({platformCounts.steam})</span>
-        </li>
-        <li>
-          <a href="/filters/misc/platform/itch/index.html">Download Platform + itch.io</a>
-          <span style="opacity:.7;"> ({platformCounts.itch})</span>
-        </li>
-        <li>
-          <a href="/filters/misc/platform/gog/index.html">Download Platform + GOG</a>
-          <span style="opacity:.7;"> ({platformCounts.gog})</span>
-        </li>
-        <li>
-          <a href="/filters/misc/platform/patreon/index.html">Download Platform + Patreon</a>
-          <span style="opacity:.7;"> ({platformCounts.patreon})</span>
-        </li>
-        <li>
-          <a href="/filters/misc/platform/playstation/index.html">Download Platform + PlayStation</a>
-          <span style="opacity:.7;"> ({platformCounts.playstation})</span>
-        </li>
-        <li>
-          <a href="/filters/misc/platform/xbox/index.html">Download Platform + Xbox</a>
-          <span style="opacity:.7;"> ({platformCounts.xbox})</span>
-        </li>
-        <li>
-          <a href="/filters/misc/platform/unknown/index.html">Download Platform + Unknown</a>
-          <span style="opacity:.7;"> ({unknownPlatformCount})</span>
-        </li>
-        <li>
-          <a href="/filters/misc/steam-family-sharing-disabled/index.html">Steam Family Sharing Disabled</a>
-          <span style="opacity:.7;"> ({familySharingDisabledCount})</span>
-        </li>
-        {walkthroughFilterEntries.map((entry) => (
+        {miscFilterEntries.map((entry) => (
           <li>
-            <a href={`/filters/misc/walkthrough/${entry.kind}/index.html`}>
-              Walkthrough URL + {entry.label}
-            </a>
+            <a href={entry.href}>{entry.label}</a>
             <span style="opacity:.7;"> ({entry.count})</span>
-          </li>
-        ))}
-        {genreTierCoverageEntries.map((entry) => (
-          <li>
-            <a href={`/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`}>
-              {entry.genreName} + Missing from {entry.tierListTitle} Tier List
-            </a>
-            <span style="opacity:.7;"> ({entry.missingCount})</span>
           </li>
         ))}
       </ul>
@@ -709,7 +694,7 @@ const miscCount = 8 + walkthroughFilterEntries.length + genreTierCoverageEntries
           <div class="pie-panel">
             <h3>Download URL Platform</h3>
             <div class="pie-wrap">
-              <svg class="pie" viewBox={`0 0 ${pieSize} ${pieSize}`} role="img" aria-label="Download platform distribution">
+              <svg class="pie" viewBox={`0 0 ${pieSize} ${pieSize}`} overflow="visible" role="img" aria-label="Download platform distribution">
                 {platformPieArcs.length === 1 ? (
                   <circle cx={pieCenter} cy={pieCenter} r={pieRadius} fill={platformPieArcs[0].color}>
                     <title>{platformPieArcs[0].label} ({platformPieArcs[0].value})</title>
@@ -721,23 +706,21 @@ const miscCount = 8 + walkthroughFilterEntries.length + genreTierCoverageEntries
                     </path>
                   ))
                 )}
+                {platformLabeledArcs.map((seg) => (
+                  <g>
+                    <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
+                    <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
+                  </g>
+                ))}
               </svg>
             </div>
-            <ul class="legend" aria-label="Download URL platform legend">
-              {platformPieSegments.map((segment) => (
-                <li class="legend-item">
-                  <span class="legend-swatch" style={`background:${segment.color};`}></span>
-                  <span>{segment.label} ({segment.value})</span>
-                </li>
-              ))}
-            </ul>
           </div>
           ) : null}
           {walkthroughPieSegments.length ? (
           <div class="pie-panel">
             <h3>Walkthrough URL Platform</h3>
             <div class="pie-wrap">
-              <svg class="pie" viewBox={`0 0 ${pieSize} ${pieSize}`} role="img" aria-label="Walkthrough platform distribution">
+              <svg class="pie" viewBox={`0 0 ${pieSize} ${pieSize}`} overflow="visible" role="img" aria-label="Walkthrough platform distribution">
                 {walkthroughPieArcs.length === 1 ? (
                   <circle cx={pieCenter} cy={pieCenter} r={pieRadius} fill={walkthroughPieArcs[0].color}>
                     <title>{walkthroughPieArcs[0].label} ({walkthroughPieArcs[0].value})</title>
@@ -749,16 +732,14 @@ const miscCount = 8 + walkthroughFilterEntries.length + genreTierCoverageEntries
                     </path>
                   ))
                 )}
+                {walkthroughLabeledArcs.map((seg) => (
+                  <g>
+                    <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
+                    <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
+                  </g>
+                ))}
               </svg>
             </div>
-            <ul class="legend" aria-label="Walkthrough URL platform legend">
-              {walkthroughPieSegments.map((segment) => (
-                <li class="legend-item">
-                  <span class="legend-swatch" style={`background:${segment.color};`}></span>
-                  <span>{segment.label} ({segment.value})</span>
-                </li>
-              ))}
-            </ul>
           </div>
           ) : null}
         </div>
