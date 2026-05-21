@@ -73,26 +73,24 @@ const reviews = await directusFetchItems('reviews', {
   sort: ['-published_at'],
   limit: 100,
 });
-const tierEntries = await directusFetchItems('tier_row_games', {
+const tierEntries = await directusFetchItems('tier_list_games', {
   fields: [
     'id',
-    'tier_row_id.id',
-    'tier_row_id.label',
-    'tier_row_id.tier_list.id',
-    'tier_row_id.tier_list.title',
-    'tier_row_id.tier_list.slug',
+    'rating',
+    'tier_list_id.id',
+    'tier_list_id.title',
+    'tier_list_id.slug',
   ],
-  filter: { game_id: { _eq: game.id }, tier_row_id: { tier_list: { status: { _eq: "published" } } } },
-  sort: ['tier_row_id.tier_list.title'],
+  filter: { game_id: { _eq: game.id }, tier_list_id: { status: { _eq: "published" } } },
+  sort: ['tier_list_id.title'],
   limit: 200,
 });
 const tierListsMap = new Map();
 for (const entry of (tierEntries ?? [])) {
-  const row = entry?.tier_row_id;
-  const list = row?.tier_list;
+  const list = entry?.tier_list_id;
   if (!list?.slug || !list?.title) continue;
   if (!tierListsMap.has(list.slug)) {
-    tierListsMap.set(list.slug, { slug: list.slug, title: list.title, label: row?.label ?? "" });
+    tierListsMap.set(list.slug, { slug: list.slug, title: list.title, label: entry?.rating ?? "" });
   }
 }
 const tierLists = Array.from(tierListsMap.values())

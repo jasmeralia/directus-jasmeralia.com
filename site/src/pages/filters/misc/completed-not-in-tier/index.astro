@@ -16,9 +16,9 @@ const [completedGames, tierEntries] = await Promise.all([
     filter: { player_status: { _eq: "completed" } },
     limit: -1,
   }),
-  directusFetchItems("tier_row_games", {
+  directusFetchItems("tier_list_games", {
     fields: ["game_id.id"],
-    filter: { tier_row_id: { tier_list: { _eq: COMPLETED_TIER_LIST_ID } } },
+    filter: { tier_list_id: { _eq: COMPLETED_TIER_LIST_ID } },
     limit: -1,
   }),
 ]);

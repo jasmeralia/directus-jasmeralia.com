@@ -42,7 +42,7 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
       `&fields=id,item,delta,data,activity.action,activity.timestamp`,
     ),
     get<{ data: any[] }>(
-      `/activity?filter[collection][_eq]=tier_row_games&filter[action][_eq]=create` +
+      `/activity?filter[collection][_eq]=tier_list_games&filter[action][_eq]=create` +
       `&sort=-timestamp&limit=30&fields=id,item,timestamp`,
     ),
     get<{ data: any[] }>(
@@ -102,23 +102,23 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
     });
   }
 
-  // ── Tier row game additions ───────────────────────────────────────────────
+  // ── Tier list game additions ──────────────────────────────────────────────
   const activityItems = (tierActivities.data ?? []).map((a: any) => Number(a.item)).filter(Boolean);
   if (activityItems.length) {
-    const trgRes = await get<{ data: any[] }>(
-      `/items/tier_row_games?filter[id][_in]=${activityItems.join(",")}&limit=${activityItems.length + 5}` +
-      `&fields=id,tier_row_id.tier_list.title,tier_row_id.tier_list.slug`,
+    const tlgRes = await get<{ data: any[] }>(
+      `/items/tier_list_games?filter[id][_in]=${activityItems.join(",")}&limit=${activityItems.length + 5}` +
+      `&fields=id,tier_list_id.title,tier_list_id.slug`,
     );
-    const trgMap: Record<number, any> = {};
-    for (const trg of trgRes.data ?? []) trgMap[trg.id] = trg;
+    const tlgMap: Record<number, any> = {};
+    for (const tlg of tlgRes.data ?? []) tlgMap[tlg.id] = tlg;
 
     for (const act of tierActivities.data ?? []) {
       const ts = act.timestamp;
       if (!ts) continue;
       const date = new Date(ts);
       if (isNaN(date.getTime())) continue;
-      const trg = trgMap[Number(act.item)];
-      const tierList = trg?.tier_row_id?.tier_list;
+      const tlg = tlgMap[Number(act.item)];
+      const tierList = tlg?.tier_list_id;
       if (!tierList?.slug || !tierList?.title) continue;
       entries.push({
         tag: "tier-updated",

@@ -46,18 +46,22 @@ export const gamesToCsv = (games: any[]): string => {
   return [headers.join(","), ...rows].join("\n");
 };
 
-export const tierListToCsv = (tierRows: any[]): string => {
+export const tierListToCsv = (tierGames: any[]): string => {
+  const ratingOrder = ["S", "A", "B", "C", "D", "F", "U"];
   const headers = ["tier", "title", "slug", "release_year", "player_status"];
-  const rows = (tierRows ?? []).flatMap((row) =>
-    [...(row.games ?? [])]
-      .sort((a, b) => (a.game_id?.title || "").localeCompare(b.game_id?.title || "", undefined, { sensitivity: "base" }))
-      .map((entry) => {
-        const game = entry.game_id;
-        return [row.label, game?.title, game?.slug, game?.release_year, game?.player_status]
-          .map(escapeCsv)
-          .join(",");
-      })
-  );
+  const rows = [...(tierGames ?? [])]
+    .sort((a, b) => {
+      const ai = ratingOrder.indexOf(a.rating ?? "U");
+      const bi = ratingOrder.indexOf(b.rating ?? "U");
+      if (ai !== bi) return ai - bi;
+      return (a.game_id?.title || "").localeCompare(b.game_id?.title || "", undefined, { sensitivity: "base" });
+    })
+    .map((entry) => {
+      const game = entry.game_id;
+      return [entry.rating, game?.title, game?.slug, game?.release_year, game?.player_status]
+        .map(escapeCsv)
+        .join(",");
+    });
   return [headers.join(","), ...rows].join("\n");
 };
 

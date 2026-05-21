@@ -22,17 +22,28 @@ export function isFamilySharingDisabled(game: { family_sharing?: boolean | null;
   return game.family_sharing === false && getUrlPlatform(game.download_url) === "steam";
 }
 
-export type TierRowGame = {
-  id: number;
-  game_id: Game;
+export const TIER_RATING_CONFIG: Record<string, { color: string; displayLabel: string; sort: number }> = {
+  S: { color: "#FFD700", displayLabel: "S",         sort: 0 },
+  A: { color: "#4CAF50", displayLabel: "A",         sort: 1 },
+  B: { color: "#2196F3", displayLabel: "B",         sort: 2 },
+  C: { color: "#FFC107", displayLabel: "C",         sort: 3 },
+  D: { color: "#FF9800", displayLabel: "D",         sort: 4 },
+  F: { color: "#F44336", displayLabel: "F",         sort: 5 },
+  U: { color: "#FFFFFF", displayLabel: "Too Early", sort: 6 },
 };
 
-export type TierRow = {
+export type TierListGame = {
   id: number;
-  label: string;
-  color: string;
-  sort: number;
-  games: TierRowGame[];
+  rating: string;
+  game_id: {
+    id: number;
+    title: string;
+    slug: string;
+    player_status?: string | null;
+    release_year?: number | null;
+    walkthrough_url?: string | null;
+    cover_image?: { id: string; filename_disk: string } | null;
+  };
 };
 
 export type TierList = {
@@ -41,7 +52,7 @@ export type TierList = {
   slug: string;
   description?: string | null;
   status: "draft" | "published";
-  tier_rows: TierRow[];
+  tier_list_games: TierListGame[];
 };
 
 function mustEnv(name: string): string {
@@ -155,23 +166,10 @@ export async function listPublishedTierListSlugs(): Promise<string[]> {
 }
 
 export async function getPublishedTierListBySlug(slug: string): Promise<TierList | null> {
-  // Deep query:
-  // - fetch tier_rows sorted
-  // - fetch tier_rows.games sorted
-  // - include game + cover_image
   const qs = new URLSearchParams({
     "filter[slug][_eq]": slug,
     "filter[status][_eq]": "published",
-    "fields": [
-      "id","title","slug","description","status",
-      "tier_rows.id","tier_rows.label","tier_rows.color","tier_rows.sort",
-      "tier_rows.games.id",
-      "tier_rows.games.game_id.id","tier_rows.games.game_id.title","tier_rows.games.game_id.slug","tier_rows.games.game_id.player_status","tier_rows.games.game_id.release_year",
-      "tier_rows.games.game_id.walkthrough_url",
-      "tier_rows.games.game_id.cover_image.id","tier_rows.games.game_id.cover_image.filename_disk",
-    ].join(","),
-    "deep[tier_rows][_sort]": "sort",
-    "deep[tier_rows][games][game_id][cover_image][_limit]": "1",
+    "fields": "id,title,slug,description,status",
     "limit": "1",
   });
 
@@ -179,26 +177,31 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
   const item = res.data?.[0];
   if (!item) return null;
 
-  // Normalize: make sure arrays exist
-  item.tier_rows = (item.tier_rows ?? []).map((r: any) => ({
-    ...r,
-    games: (r.games ?? []),
-  }));
-  return item as TierList;
+  const games = await directusFetchItems<TierListGame>("tier_list_games", {
+    fields: [
+      "id", "rating",
+      "game_id.id", "game_id.title", "game_id.slug", "game_id.player_status", "game_id.release_year",
+      "game_id.walkthrough_url",
+      "game_id.cover_image.id", "game_id.cover_image.filename_disk",
+    ],
+    filter: { tier_list_id: { _eq: item.id } },
+    limit: -1,
+  });
+
+  item.tier_list_games = games ?? [];
+  return item;
 }
 
 export async function getSTierGameIds(gameIds: number[]): Promise<Set<number>> {
   const ids = gameIds.filter((id) => typeof id === "number");
   if (!ids.length) return new Set();
 
-  const entries = await directusFetchItems("tier_row_games", {
+  const entries = await directusFetchItems("tier_list_games", {
     fields: ["game_id.id"],
     filter: {
       game_id: { _in: ids },
-      tier_row_id: {
-        label: { _eq: "S" },
-        tier_list: { status: { _eq: "published" } },
-      },
+      rating: { _eq: "S" },
+      tier_list_id: { status: { _eq: "published" } },
     },
     limit: -1,
   });

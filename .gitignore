@@ -5,3 +5,4 @@ backups/
 mcp/cache/
 __pycache__/
 mcp/scripts/gsl_import.py
+.claude/*.lock

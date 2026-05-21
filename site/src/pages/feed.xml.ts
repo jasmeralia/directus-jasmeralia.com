@@ -9,7 +9,7 @@ const siteBase = (assetsBaseUrl() || "https://jasmeralia.com").replace(/\/$/, ""
 const LIMIT_GAMES       = 100;
 const LIMIT_REVIEWS     = 50;
 const LIMIT_TIER_LISTS  = 50;
-const LIMIT_JUNCTIONS   = 300; // tier_row_games activities
+const LIMIT_JUNCTIONS   = 300; // tier_list_games activities
 const LIMIT_TIER_MOVES  = 100;
 
 // ─── field / enum labels ─────────────────────────────────────────────────────
@@ -428,54 +428,51 @@ function buildTierListEntry(rev: Revision): Entry | null {
   };
 }
 
-// Build one or more entries for a batch of tier_row_games additions to the same
+// Build one or more entries for a batch of tier_list_games additions to the same
 // tier list within the same minute. Batching avoids flooding Discord when a tier
 // list is first populated with many games at once.
-function buildTierRowGameEntries(
+function buildTierListGameEntries(
   batch: Activity[],
-  tierRowGameMap: Record<number, any>, // id → {game_id, tier_row_id}
+  tlgMap: Record<number, any>, // id → {game_id, tier_list_id, rating}
   gameMap: Record<number, any>,
-  tierRowMap: Record<number, any>,
+  tierListMap: Record<number, any>,
 ): Entry[] {
-  // Resolve items
   const resolved = batch
     .map((act) => {
-      const trg     = tierRowGameMap[Number(act.item)];
-      const game    = gameMap[Number(trg?.game_id)];
-      const tierRow = tierRowMap[Number(trg?.tier_row_id)];
-      if (!trg || !game || !tierRow?.tier_list) return null;
-      return { act, game, tierRow };
+      const tlg      = tlgMap[Number(act.item)];
+      const game     = gameMap[Number(tlg?.game_id)];
+      const tierList = tierListMap[Number(tlg?.tier_list_id)];
+      if (!tlg || !game || !tierList) return null;
+      return { act, game, tierList, rating: tlg.rating as string };
     })
-    .filter(Boolean) as { act: Activity; game: any; tierRow: any }[];
+    .filter(Boolean) as { act: Activity; game: any; tierList: any; rating: string }[];
 
   if (!resolved.length) return [];
 
-  const date      = requireDate(resolved[0].act.timestamp, `tier row game activity ${resolved[0].act.id}`);
-  const tierList  = resolved[0].tierRow.tier_list;
-  const tierSlug  = requireGuidPart(tierList?.slug ?? tierList?.id, `tier row game activity ${resolved[0].act.id} tier list slug`);
-  const link      = `${siteBase}/tiers/${tierSlug}/index.html`;
+  const date     = requireDate(resolved[0].act.timestamp, `tier list game activity ${resolved[0].act.id}`);
+  const tierList = resolved[0].tierList;
+  const tierSlug = requireGuidPart(tierList?.slug ?? tierList?.id, `tier list game activity ${resolved[0].act.id} tier list slug`);
+  const link     = `${siteBase}/tiers/${tierSlug}/index.html`;
 
   if (resolved.length === 1) {
-    const { game, tierRow } = resolved[0];
+    const { game, rating } = resolved[0];
     return [{
       title: `Game Added to Tier List: ${game.title}`,
       link,
-      description: `**${game.title}** added to **${tierList.title}** — tier **${tierRow.label}**`,
+      description: `**${game.title}** added to **${tierList.title}** — tier **${rating}**`,
       pubDate: date,
-      guid: rssGuid("tier-list", tierSlug, "game_added", date, `tier row game activity ${resolved[0].act.id}`),
+      guid: rssGuid("tier-list", tierSlug, "game_added", date, `tier list game activity ${resolved[0].act.id}`),
     }];
   }
 
   // Multiple games added at once
-  const lines = resolved.map(({ game, tierRow }) =>
-    `**${tierRow.label}**: ${game.title}`
-  );
+  const lines = resolved.map(({ game, rating }) => `**${rating}**: ${game.title}`);
   return [{
     title: `Games Added to Tier List: ${tierList.title}`,
     link,
     description: lines.join("\n"),
     pubDate: date,
-    guid: rssGuid("tier-list", tierSlug, "games_added", date, `tier row game activity batch ${tierList.id}`),
+    guid: rssGuid("tier-list", tierSlug, "games_added", date, `tier list game activity batch ${tierList.id}`),
   }];
 }
 
@@ -503,11 +500,11 @@ function buildTierMoveEntry(
 
 export const GET: APIRoute = async () => {
   // 1. Fetch all revision/activity streams + move log in parallel
-  const [gameRevs, reviewRevs, tierListRevs, trGameActs, tierMoves] = await Promise.all([
+  const [gameRevs, reviewRevs, tierListRevs, tlgActs, tierMoves] = await Promise.all([
     fetchRevisions("games",       LIMIT_GAMES),
     fetchRevisions("reviews",     LIMIT_REVIEWS),
     fetchRevisions("tier_lists",  LIMIT_TIER_LISTS),
-    fetchCreateActivity("tier_row_games", LIMIT_JUNCTIONS),
+    fetchCreateActivity("tier_list_games", LIMIT_JUNCTIONS),
     directusFetchRaw<{ data: any[] }>(
       `/items/tier_row_game_moves?sort=-moved_at&limit=${LIMIT_TIER_MOVES}` +
       `&fields=id,tier_row_game_id,game_id,from_tier_row_id,to_tier_row_id,moved_at`
@@ -516,40 +513,39 @@ export const GET: APIRoute = async () => {
 
   // 2. Resolve IDs needed for batch lookups
 
-  // tier_row_games: fetch the actual junction records (for additions)
-  const trGameItemIds = trGameActs.map((a) => Number(a.item));
+  // tier_list_games: fetch the actual records (for additions)
+  const tlgItemIds = tlgActs.map((a) => Number(a.item));
   const reviewItemIds = reviewRevs.map((r) => Number(r.item));
   const gameRevisionIds = gameRevs.map((r) => Number(r.item));
 
-  const [trGameItemMap, reviewItemMap] = await Promise.all([
-    fetchItemMap("tier_row_games", trGameItemIds, "id,game_id,tier_row_id"),
+  const [tlgItemMap, reviewItemMap] = await Promise.all([
+    fetchItemMap("tier_list_games", tlgItemIds, "id,game_id,tier_list_id,rating"),
     fetchItemMap("reviews", reviewItemIds,
       "id,title,slug,status,rating,published_at,game.id,game.title,game.cover_image.id,game.cover_image.filename_disk"),
   ]);
 
-  // Collect referenced game / tier_row IDs for tier additions
-  const tierRowIds      = new Set<number>();
-  const gameIdsForTiers = new Set<number>();
-  for (const trg of Object.values(trGameItemMap)) {
-    if (trg.tier_row_id) tierRowIds.add(Number(trg.tier_row_id));
-    if (trg.game_id)     gameIdsForTiers.add(Number(trg.game_id));
+  // Collect game IDs and tier_list IDs from tier additions
+  const tierListIdsForAdd = new Set<number>();
+  const gameIdsForTiers   = new Set<number>();
+  for (const tlg of Object.values(tlgItemMap)) {
+    if (tlg.tier_list_id) tierListIdsForAdd.add(Number(tlg.tier_list_id));
+    if (tlg.game_id)      gameIdsForTiers.add(Number(tlg.game_id));
   }
 
-  // Collect IDs for tier move log
-  const moveGameIds   = new Set<number>();
+  // Collect IDs for tier move log (still uses tier_rows)
+  const moveGameIds    = new Set<number>();
   const moveTierRowIds = new Set<number>();
   for (const m of tierMoves) {
     if (m.game_id)          moveGameIds.add(Number(m.game_id));
     if (m.from_tier_row_id) moveTierRowIds.add(Number(m.from_tier_row_id));
     if (m.to_tier_row_id)   moveTierRowIds.add(Number(m.to_tier_row_id));
   }
-  // Merge tier row IDs for a single batch fetch
-  for (const id of moveTierRowIds) tierRowIds.add(id);
 
   // 3. Batch-fetch support data
   const allGameIds = new Set([...gameIdsForTiers, ...moveGameIds, ...gameRevisionIds]);
-  const [tierRowMap, gameMap] = await Promise.all([
-    fetchItemMap("tier_rows", Array.from(tierRowIds),
+  const [tierListMap, tierRowMap, gameMap] = await Promise.all([
+    fetchItemMap("tier_lists", Array.from(tierListIdsForAdd), "id,title,slug"),
+    fetchItemMap("tier_rows", Array.from(moveTierRowIds),
       "id,label,tier_list.id,tier_list.title,tier_list.slug"),
     fetchItemMap("games", Array.from(allGameIds),
       "id,title,slug,cover_image.id,cover_image.filename_disk"),
@@ -597,20 +593,17 @@ export const GET: APIRoute = async () => {
     if (entry) entries.push(entry);
   }
 
-  // Tier row game additions — batch by tier_list + minute to avoid flood
-  const trBuckets = new Map<string, Activity[]>();
-  for (const act of trGameActs) {
-    const trg     = trGameItemMap[Number(act.item)];
-    const tierRow = trg ? tierRowMap[Number(trg.tier_row_id)] : null;
-    const tlId    = tierRow?.tier_list?.id ?? "?";
-    const bucket  = `${tlId}_${act.timestamp.slice(0, 16)}`; // group by tier_list + minute
-    if (!trBuckets.has(bucket)) trBuckets.set(bucket, []);
-    trBuckets.get(bucket)!.push(act);
+  // Tier list game additions — batch by tier_list + minute to avoid flood
+  const tlgBuckets = new Map<string, Activity[]>();
+  for (const act of tlgActs) {
+    const tlg  = tlgItemMap[Number(act.item)];
+    const tlId = tlg?.tier_list_id ?? "?";
+    const bucket = `${tlId}_${act.timestamp.slice(0, 16)}`; // group by tier_list + minute
+    if (!tlgBuckets.has(bucket)) tlgBuckets.set(bucket, []);
+    tlgBuckets.get(bucket)!.push(act);
   }
-  for (const batch of trBuckets.values()) {
-    const batchEntries = buildTierRowGameEntries(
-      batch, trGameItemMap, gameMap, tierRowMap
-    );
+  for (const batch of tlgBuckets.values()) {
+    const batchEntries = buildTierListGameEntries(batch, tlgItemMap, gameMap, tierListMap);
     entries.push(...batchEntries);
   }
 

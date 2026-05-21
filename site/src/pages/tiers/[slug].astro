@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ThumbnailBorderLegend from "../../components/ThumbnailBorderLegend.astro";
-import { directusFetchItems, getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl } from "../../lib/directus";
+import { directusFetchItems, getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl, TIER_RATING_CONFIG } from "../../lib/directus";
 import { csvDataUri, tierListToCsv } from "../../lib/csv";
 import "../../styles/tierlist.css";
 
@@ -17,11 +17,10 @@ if (!slug) throw new Error("Missing slug param");
 const tierList = await getPublishedTierListBySlug(slug);
 if (!tierList) return Astro.redirect("/404");
 
-const csvHref = csvDataUri(tierListToCsv(tierList.tier_rows));
+const csvHref = csvDataUri(tierListToCsv(tierList.tier_list_games));
 const csvName = `${tierList.slug}.csv`;
 
-const gameIds = tierList.tier_rows
-  .flatMap((row) => row.games ?? [])
+const gameIds = (tierList.tier_list_games ?? [])
   .map((entry) => entry?.game_id?.id)
   .filter((id) => typeof id === "number");
 
@@ -37,6 +36,25 @@ if (gameIds.length) {
     if (typeof id === "number") reviewedGameIds.add(id);
   }
 }
+
+// Group games by rating and sort within each group by title
+const gamesByRating = new Map<string, typeof tierList.tier_list_games>();
+for (const entry of tierList.tier_list_games ?? []) {
+  const rating = entry.rating ?? "U";
+  if (!gamesByRating.has(rating)) gamesByRating.set(rating, []);
+  gamesByRating.get(rating)!.push(entry);
+}
+const tierGroups = Object.entries(TIER_RATING_CONFIG)
+  .sort(([, a], [, b]) => a.sort - b.sort)
+  .filter(([rating]) => gamesByRating.has(rating))
+  .map(([rating, config]) => ({
+    rating,
+    color: config.color,
+    displayLabel: config.displayLabel,
+    games: (gamesByRating.get(rating) ?? []).sort((a, b) =>
+      (a.game_id?.title || "").localeCompare(b.game_id?.title || "", undefined, { sensitivity: "base" })
+    ),
+  }));
 
 const RAINBOW_GRAD = "linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf)";
 const RAINBOW_SHADOW = "0 0 0 1px rgba(255,255,255,.06),0 0 14px rgba(255,180,80,.22)";
@@ -95,24 +113,22 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
       {tierList.description && <p class="tier-desc">{tierList.description}</p>}
 
       <section class="tier-board" aria-label="Tier list">
-        {tierList.tier_rows.map((row) => (
+        {tierGroups.map((group) => (
           <div class="tier-row">
-            <div class="tier-label" style={`background:${row.color};`}>
-              {row.label === "U" ? "Too Early" : row.label}
+            <div class="tier-label" style={`background:${group.color};`}>
+              {group.displayLabel}
             </div>
 
             <div class="tier-cells">
-              {(row.games ?? []).length === 0 ? (
+              {group.games.length === 0 ? (
                 <div class="tier-empty">No entries</div>
               ) : (
-                [...(row.games ?? [])]
-                  .sort((a, b) => (a.game_id?.title || "").localeCompare(b.game_id?.title || "", undefined, { sensitivity: "base" }))
-                  .map((entry) => {
+                group.games.map((entry) => {
                   const game = entry.game_id;
                   const img = fileUrl(game.cover_image);
                   const reviewed = reviewedGameIds.has(game.id);
                   const hasWalkthrough = typeof game?.walkthrough_url === "string" && game.walkthrough_url.trim().length > 0;
-                  const sTier = row.label === "S";
+                  const sTier = group.rating === "S";
                   return (
                     <div class="tier-stack" style={thumbBorderStyle(reviewed, game?.player_status, sTier, hasWalkthrough)}>
                       <a

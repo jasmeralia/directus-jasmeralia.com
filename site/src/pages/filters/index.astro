@@ -439,15 +439,15 @@ const relevantTierListIds = Array.from(new Set([
   COMPLETED_GAMES_TIER_LIST_ID,
 ]));
 const tierEntries = relevantTierListIds.length
-  ? await directusFetchItems("tier_row_games", {
-      fields: ["tier_row_id.tier_list.id", "game_id.id"],
-      filter: { tier_row_id: { tier_list: { _in: relevantTierListIds } } },
+  ? await directusFetchItems("tier_list_games", {
+      fields: ["tier_list_id.id", "game_id.id"],
+      filter: { tier_list_id: { _in: relevantTierListIds } },
       limit: -1,
     })
   : [];
 const gameIdsByTierListId = new Map();
 for (const entry of tierEntries ?? []) {
-  const tierListId = entry?.tier_row_id?.tier_list?.id;
+  const tierListId = entry?.tier_list_id?.id;
   const gameId = entry?.game_id?.id;
   if (typeof tierListId !== "number" || typeof gameId !== "number") continue;
   if (!gameIdsByTierListId.has(tierListId)) gameIdsByTierListId.set(tierListId, new Set());
