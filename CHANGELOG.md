@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.111] - 2026-05-21
+- Remove feed.xml.ts and recentUpdates.ts references to dropped tier_row_game_moves and tier_rows collections.
+
 ## [1.0.110] - 2026-05-21
 - Fix releases/[slug].astro to sort games case-insensitively using sortByTitle instead of DB-level sort.
 
