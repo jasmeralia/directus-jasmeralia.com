@@ -1,12 +1,12 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
+import { sortByTitle } from "../../lib/list-format";
 
-const [tiers, allTierGames] = await Promise.all([
+const [tiersRaw, allTierGames] = await Promise.all([
   directusFetchItems("tier_lists", {
     fields: ["id", "title", "slug", "description", "updated_at"],
     filter: { status: { _eq: "published" } },
-    sort: ["title"],
     limit: -1,
   }),
   directusFetchItems("tier_list_games", {
@@ -14,6 +14,7 @@ const [tiers, allTierGames] = await Promise.all([
     limit: -1,
   }),
 ]);
+const tiers = sortByTitle(tiersRaw);
 const countsByTierList = new Map<number, number>();
 for (const entry of allTierGames ?? []) {
   const id = entry?.tier_list_id;

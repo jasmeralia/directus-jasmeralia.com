@@ -5,7 +5,6 @@ import { compareLabels, formatUnknown } from "../../lib/list-format";
 
 const engines = await directusFetchItems("engines", {
   fields: ["id", "title", "slug", "engine_type"],
-  sort: ["title"],
   limit: -1,
 });
 const sortedEngines = [...engines].sort((a, b) =>

@@ -83,7 +83,6 @@ if (genre !== "unknown") {
 let games = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   filter: Object.keys(filter).length ? filter : undefined,
-  sort: ["title"],
   limit: -1,
 });
 

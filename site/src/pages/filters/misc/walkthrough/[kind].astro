@@ -25,7 +25,6 @@ if (!WALKTHROUGH_KINDS.includes(kind as WalkthroughKind)) {
 
 const games = sortByTitle(await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
-  sort: ["title"],
   limit: -1,
 }));
 const filteredGames = games.filter(

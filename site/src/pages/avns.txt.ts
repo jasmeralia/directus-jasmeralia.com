@@ -1,12 +1,12 @@
 import { directusFetchItems } from "../lib/directus";
+import { sortByTitle } from "../lib/list-format";
 
 export async function GET() {
-  const games = await directusFetchItems<{ title: string }>("games", {
+  const games = sortByTitle(await directusFetchItems<{ title: string }>("games", {
     fields: ["title"],
     filter: { genres: { genres_id: { slug: { _eq: "avn" } } } },
-    sort: ["title"],
     limit: -1,
-  });
+  }));
 
   const body = games.map((game) => game.title).join("\n");
 

@@ -9,7 +9,6 @@ const games = sortByTitle(await directusFetchItems("games", {
   filter: {
     walkthrough_url: { _null: false, _nempty: true },
   },
-  sort: ["title"],
   limit: -1,
 }));
 const isUrl = (value) => typeof value === "string" && /^https?:\/\//i.test(value.trim());

@@ -62,7 +62,6 @@ if (engine !== "unknown") {
 let games = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   filter,
-  sort: ["title"],
   limit: -1,
 });
 

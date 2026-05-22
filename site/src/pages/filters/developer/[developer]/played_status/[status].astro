@@ -65,7 +65,6 @@ if (developer !== "unknown") {
 let games = await directusFetchItems("games", {
   fields: [...GAME_THUMB_FIELDS, "developers.id"],
   filter,
-  sort: ["title"],
   limit: -1,
 });
 

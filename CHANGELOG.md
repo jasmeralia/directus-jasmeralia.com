@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.112] - 2026-05-21
+- Replace all remaining DB-level title/name sorts with JS sortByTitle/sortByName across all pages; add sortByName to list-format.ts.
+
 ## [1.0.111] - 2026-05-21
 - Remove feed.xml.ts and recentUpdates.ts references to dropped tier_row_game_moves and tier_rows collections.
 

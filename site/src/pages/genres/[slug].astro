@@ -12,7 +12,6 @@ export async function getStaticPaths() {
   const genres = await directusFetchItems("genres", {
     fields: ["slug"],
     limit: -1,
-    sort: ["name"],
   });
 
   return genres
@@ -30,7 +29,6 @@ let games = [];
 if (isUnknown) {
   const allGames = await directusFetchItems("games", {
     fields: GAME_THUMB_FIELDS,
-    sort: ["title"],
     limit: -1,
   });
   games = allGames.filter((game) => (game.genres ?? []).length === 0);
@@ -50,7 +48,6 @@ if (isUnknown) {
   games = await directusFetchItems("games", {
     fields: GAME_THUMB_FIELDS,
     filter: { genres: { genres_id: { slug: { _eq: slug } } } },
-    sort: ["title"],
     limit: -1,
   });
 }

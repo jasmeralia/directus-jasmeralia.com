@@ -33,7 +33,6 @@ if (!label) {
 const games = sortByTitle(await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   filter: { game_status: { _eq: slug } },
-  sort: ["title"],
   limit: -1,
 }));
 

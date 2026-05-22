@@ -8,3 +8,8 @@ export const sortByTitle = <T extends { title: string }>(arr: T[]): T[] =>
   arr.slice().sort((a, b) =>
     (a.title ?? "").localeCompare(b.title ?? "", undefined, { sensitivity: "base" })
   );
+
+export const sortByName = <T extends { name: string }>(arr: T[]): T[] =>
+  arr.slice().sort((a, b) =>
+    (a.name ?? "").localeCompare(b.name ?? "", undefined, { sensitivity: "base" })
+  );

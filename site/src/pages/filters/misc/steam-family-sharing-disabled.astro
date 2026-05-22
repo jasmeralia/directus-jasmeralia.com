@@ -10,7 +10,6 @@ import { sortByTitle } from "../../../lib/list-format";
 
 const games = sortByTitle(await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
-  sort: ["title"],
   limit: -1,
 }));
 const filteredGames = (games ?? []).filter((game) => isFamilySharingDisabled(game));
