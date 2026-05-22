@@ -92,7 +92,11 @@ Use `https://directus.jasmer.tools` (public URL) — `truenas.local` is not reac
 
 ## Rules for Astro site changes
 
-**Sorting must always be case-insensitive.** Use `sortByTitle` or `compareLabels` from `site/src/lib/list-format.ts` wherever possible. All raw `localeCompare` calls must include `{ sensitivity: "base" }` as the third argument. Never use bare `.localeCompare(x)` or `.sort()` on title/name/label strings.
+**Sorting must always be case-insensitive and done in JavaScript — never rely on PostgreSQL's sort order.** PostgreSQL's default collation is case-sensitive (lowercase sorts after uppercase), so `sort: ["title"]` or `sort: ["name"]` in Directus queries will place titles like "dev_hell" after all uppercase titles. Always omit `sort` from Directus queries for display lists and sort in JS instead:
+- Use `sortByTitle(arr)` for arrays with a `.title` field.
+- Use `sortByName(arr)` for arrays with a `.name` field.
+- Use `compareLabels(a, b)` as a comparator in `.sort()` for other string fields.
+All three are in `site/src/lib/list-format.ts`. All raw `localeCompare` calls must include `{ sensitivity: "base" }` as the third argument. Never use bare `.localeCompare(x)` or `.sort()` on title/name/label strings.
 
 **Steam imports: set `game_status` to `"unreleased"` when `release_year` is null.** A missing release year means the game has not yet shipped. Do not default to `"released"`. This applies to `wishlist_import.py`, `generate_import_proposals.py`, `bulk_import.py`, and any future import scripts.
 
