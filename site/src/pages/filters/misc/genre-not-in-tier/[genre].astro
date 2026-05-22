@@ -86,7 +86,6 @@ const tierListIds = matchingTierLists.map((tierList) => tierList.id).filter((id)
 const games = sortByTitle(await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   filter: { genres: { genres_id: { slug: { _eq: genre } } } },
-  sort: ["title"],
   limit: -1,
 }));
 const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");

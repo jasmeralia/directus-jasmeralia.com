@@ -29,7 +29,6 @@ const labelize = (value) =>
 const games = sortByTitle(await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   filter: { player_status: { _eq: slug } },
-  sort: ["title"],
   limit: -1,
 }));
 

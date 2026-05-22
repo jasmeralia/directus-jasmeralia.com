@@ -12,17 +12,14 @@ import {
 
 const engines = await directusFetchItems("engines", {
   fields: ["slug", "title"],
-  sort: ["title"],
   limit: -1,
 });
 const genres = await directusFetchItems("genres", {
   fields: ["slug", "name"],
-  sort: ["name"],
   limit: -1,
 });
 const developers = await directusFetchItems("developers", {
   fields: ["slug", "name"],
-  sort: ["name"],
   limit: -1,
 });
 const tierLists = await directusFetchItems("tier_lists", {

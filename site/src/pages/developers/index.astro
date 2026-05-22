@@ -5,7 +5,6 @@ import { compareLabels, formatUnknown } from "../../lib/list-format";
 
 const developers = await directusFetchItems("developers", {
   fields: ["id", "name", "slug"],
-  sort: ["name"],
   limit: -1,
 });
 const sortedDevelopers = [...developers].sort((a, b) =>
