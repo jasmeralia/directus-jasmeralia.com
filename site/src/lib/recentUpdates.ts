@@ -32,7 +32,7 @@ async function get<T>(path: string): Promise<T> {
 }
 
 export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
-  const [gameRevs, reviewRevs, tierActivities, tierMoves, tierListRevs] = await Promise.all([
+  const [gameRevs, reviewRevs, tierActivities, tierListRevs] = await Promise.all([
     get<{ data: any[] }>(
       `/revisions?filter[collection][_eq]=games&sort=-id&limit=100` +
       `&fields=id,item,delta,data,activity.action,activity.timestamp`,
@@ -44,10 +44,6 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
     get<{ data: any[] }>(
       `/activity?filter[collection][_eq]=tier_list_games&filter[action][_eq]=create` +
       `&sort=-timestamp&limit=30&fields=id,item,timestamp`,
-    ),
-    get<{ data: any[] }>(
-      `/items/tier_row_game_moves?sort=-moved_at&limit=20` +
-      `&fields=id,moved_at,game_id.title,game_id.slug,to_tier_row_id.tier_list.title,to_tier_row_id.tier_list.slug`,
     ),
     get<{ data: any[] }>(
       `/revisions?filter[collection][_eq]=tier_lists&sort=-id&limit=10` +
@@ -140,22 +136,6 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
       tag: "tier-added",
       subject: rev.data.title,
       link: `${siteBase}/tiers/${rev.data.slug}/index.html`,
-      timestamp: date,
-    });
-  }
-
-  // ── Tier moves ────────────────────────────────────────────────────────────
-  for (const move of tierMoves.data ?? []) {
-    const ts = move.moved_at;
-    if (!ts) continue;
-    const date = new Date(ts);
-    if (isNaN(date.getTime())) continue;
-    const tierList = move.to_tier_row_id?.tier_list;
-    if (!tierList?.slug || !tierList?.title) continue;
-    entries.push({
-      tag: "tier-updated",
-      subject: tierList.title,
-      link: `${siteBase}/tiers/${tierList.slug}/index.html`,
       timestamp: date,
     });
   }

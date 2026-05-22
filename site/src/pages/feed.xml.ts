@@ -10,7 +10,6 @@ const LIMIT_GAMES       = 100;
 const LIMIT_REVIEWS     = 50;
 const LIMIT_TIER_LISTS  = 50;
 const LIMIT_JUNCTIONS   = 300; // tier_list_games activities
-const LIMIT_TIER_MOVES  = 100;
 
 // ─── field / enum labels ─────────────────────────────────────────────────────
 
@@ -476,39 +475,15 @@ function buildTierListGameEntries(
   }];
 }
 
-function buildTierMoveEntry(
-  move: any,
-  game: any,
-  fromRow: any,
-  toRow: any,
-): Entry | null {
-  const date = requireDate(move.moved_at, `tier move ${move.id}`);
-  if (!game || !fromRow || !toRow) return null;
-  const tierList = toRow.tier_list;
-  const tierSlug = requireGuidPart(tierList?.slug ?? tierList?.id, `tier move ${move.id} tier list slug`);
-
-  return {
-    title: `Game Moved in Tier List: ${game.title}`,
-    link: `${siteBase}/tiers/${tierSlug}/index.html`,
-    description: `**${game.title}** moved **${fromRow.label}** → **${toRow.label}** in **${tierList.title}**`,
-    pubDate: date,
-    guid: rssGuid("tier-list", tierSlug, "game_moved", date, `tier move ${move.id}`),
-  };
-}
-
 // ─── main handler ─────────────────────────────────────────────────────────────
 
 export const GET: APIRoute = async () => {
   // 1. Fetch all revision/activity streams + move log in parallel
-  const [gameRevs, reviewRevs, tierListRevs, tlgActs, tierMoves] = await Promise.all([
+  const [gameRevs, reviewRevs, tierListRevs, tlgActs] = await Promise.all([
     fetchRevisions("games",       LIMIT_GAMES),
     fetchRevisions("reviews",     LIMIT_REVIEWS),
     fetchRevisions("tier_lists",  LIMIT_TIER_LISTS),
     fetchCreateActivity("tier_list_games", LIMIT_JUNCTIONS),
-    directusFetchRaw<{ data: any[] }>(
-      `/items/tier_row_game_moves?sort=-moved_at&limit=${LIMIT_TIER_MOVES}` +
-      `&fields=id,tier_row_game_id,game_id,from_tier_row_id,to_tier_row_id,moved_at`
-    ).then((r) => r.data ?? []),
   ]);
 
   // 2. Resolve IDs needed for batch lookups
@@ -532,21 +507,10 @@ export const GET: APIRoute = async () => {
     if (tlg.game_id)      gameIdsForTiers.add(Number(tlg.game_id));
   }
 
-  // Collect IDs for tier move log (still uses tier_rows)
-  const moveGameIds    = new Set<number>();
-  const moveTierRowIds = new Set<number>();
-  for (const m of tierMoves) {
-    if (m.game_id)          moveGameIds.add(Number(m.game_id));
-    if (m.from_tier_row_id) moveTierRowIds.add(Number(m.from_tier_row_id));
-    if (m.to_tier_row_id)   moveTierRowIds.add(Number(m.to_tier_row_id));
-  }
-
   // 3. Batch-fetch support data
-  const allGameIds = new Set([...gameIdsForTiers, ...moveGameIds, ...gameRevisionIds]);
-  const [tierListMap, tierRowMap, gameMap] = await Promise.all([
+  const allGameIds = new Set([...gameIdsForTiers, ...gameRevisionIds]);
+  const [tierListMap, gameMap] = await Promise.all([
     fetchItemMap("tier_lists", Array.from(tierListIdsForAdd), "id,title,slug"),
-    fetchItemMap("tier_rows", Array.from(moveTierRowIds),
-      "id,label,tier_list.id,tier_list.title,tier_list.slug"),
     fetchItemMap("games", Array.from(allGameIds),
       "id,title,slug,cover_image.id,cover_image.filename_disk"),
   ]);
@@ -605,15 +569,6 @@ export const GET: APIRoute = async () => {
   for (const batch of tlgBuckets.values()) {
     const batchEntries = buildTierListGameEntries(batch, tlgItemMap, gameMap, tierListMap);
     entries.push(...batchEntries);
-  }
-
-  // Tier row moves (game moved from one tier to another)
-  for (const move of tierMoves) {
-    const game    = gameMap[Number(move.game_id)];
-    const fromRow = tierRowMap[Number(move.from_tier_row_id)];
-    const toRow   = tierRowMap[Number(move.to_tier_row_id)];
-    const entry   = buildTierMoveEntry(move, game, fromRow, toRow);
-    if (entry) entries.push(entry);
   }
 
   // 6. Sort, dedupe guids, limit, and render
