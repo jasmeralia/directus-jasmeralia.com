@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.110] - 2026-05-21
+- Fix releases/[slug].astro to sort games case-insensitively using sortByTitle instead of DB-level sort.
+
 ## [1.0.109] - 2026-05-21
 - Fix all localeCompare calls in filters/index.astro to use sensitivity:"base" for case-insensitive sort.
 - Fix developer sort in reviews/[slug].astro to use sensitivity:"base".
