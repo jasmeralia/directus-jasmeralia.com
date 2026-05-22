@@ -48,7 +48,7 @@ if (!review) {
 const developers = (review.game?.developers ?? [])
   .map((developer) => developer?.developers_id)
   .filter((value) => value && value.name && value.slug)
-  .sort((a, b) => a.name.localeCompare(b.name));
+  .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 const cover = fileUrl(review.game?.cover_image);
 const published = review.published_at;
 const screenshots = await directusFetchItems("review_screenshots", {

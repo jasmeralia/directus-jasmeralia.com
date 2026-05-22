@@ -137,15 +137,16 @@ def main():
             print(f"  Skipped: playtest", file=sys.stderr)
         else:
             categories = [c["description"] for c in details.get("categories", [])]
+            yr = release_year(details.get("release_date", {}).get("date", ""))
             results.append({
                 "appid": appid,
                 "title": details["name"],
                 "slug": slugify(details["name"]),
-                "release_year": release_year(details.get("release_date", {}).get("date", "")),
+                "release_year": yr,
                 "genres": [g["description"] for g in details.get("genres", [])],
                 "developers": details.get("developers", []),
                 "download_url": f"https://store.steampowered.com/app/{appid}/",
-                "game_status": "released",
+                "game_status": "released" if yr else "unreleased",
                 "player_status": "not_started",
                 "family_sharing": "Family Sharing" in categories,
             })

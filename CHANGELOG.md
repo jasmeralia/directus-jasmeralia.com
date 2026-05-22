@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.109] - 2026-05-21
+- Fix all localeCompare calls in filters/index.astro to use sensitivity:"base" for case-insensitive sort.
+- Fix developer sort in reviews/[slug].astro to use sensitivity:"base".
+- Document case-insensitive sort rule and unreleased game_status rule in AGENTS.md.
+- Fix wishlist_import.py and generate_import_proposals.py to set game_status="unreleased" when release_year is null.
+
 ## [1.0.108] - 2026-05-21
 - Migrate tier list rendering from tier_rows/tier_row_games to tier_list_games with static rating config.
 - tier_list_games collection: 353 records migrated, unique constraint on (tier_list_id, game_id) added.
