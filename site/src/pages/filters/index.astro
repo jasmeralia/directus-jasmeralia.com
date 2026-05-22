@@ -3,7 +3,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
 import { getUrlPlatform } from "../../lib/download-link";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
-import { formatUnknown } from "../../lib/list-format";
+import { formatUnknown, compareLabels } from "../../lib/list-format";
 import {
   classifyWalkthroughValue,
   WALKTHROUGH_KIND_LABEL,
@@ -193,9 +193,9 @@ const engineGenreEntries = Array.from(engineGenreTotalCounts.entries())
   .filter((entry) => !(isSupersetGenre(entry.genre) && entry.count === 0))
   .sort((a, b) =>
     unknownLast(a, b, "engineLabel") ||
-    a.engineLabel.localeCompare(b.engineLabel) ||
+    compareLabels(a.engineLabel, b.engineLabel) ||
     unknownLast(a, b, "genreLabel") ||
-    a.genreLabel.localeCompare(b.genreLabel));
+    compareLabels(a.genreLabel, b.genreLabel));
 
 
 const engineStatusEntries = Array.from(engineStatusCounts.entries())
@@ -212,8 +212,8 @@ const engineStatusEntries = Array.from(engineStatusCounts.entries())
   .filter((entry) => (engineStatusValues.get(entry.engine)?.size ?? 0) > 1)
   .sort((a, b) =>
     unknownLast(a, b, "engineLabel") ||
-    a.engineLabel.localeCompare(b.engineLabel) ||
-    a.statusLabel.localeCompare(b.statusLabel));
+    compareLabels(a.engineLabel, b.engineLabel) ||
+    compareLabels(a.statusLabel, b.statusLabel));
 
 const developerStatusEntries = Array.from(developerStatusCounts.entries())
   .map(([key, count]) => {
@@ -229,8 +229,8 @@ const developerStatusEntries = Array.from(developerStatusCounts.entries())
   .filter((entry) => (developerStatusValues.get(entry.developer)?.size ?? 0) > 1)
   .sort((a, b) =>
     unknownLast(a, b, "developerLabel") ||
-    a.developerLabel.localeCompare(b.developerLabel) ||
-    a.statusLabel.localeCompare(b.statusLabel));
+    compareLabels(a.developerLabel, b.developerLabel) ||
+    compareLabels(a.statusLabel, b.statusLabel));
 
 const genreStatusEntries = Array.from(genreStatusTotalCounts.entries())
   .map(([key, totalCount]) => {
@@ -248,8 +248,8 @@ const genreStatusEntries = Array.from(genreStatusTotalCounts.entries())
   .filter((entry) => !(isSupersetGenre(entry.genre) && entry.count === 0))
   .sort((a, b) =>
     unknownLast(a, b, "genreLabel") ||
-    a.genreLabel.localeCompare(b.genreLabel) ||
-    a.statusLabel.localeCompare(b.statusLabel));
+    compareLabels(a.genreLabel, b.genreLabel) ||
+    compareLabels(a.statusLabel, b.statusLabel));
 
 const enginePlayedEntries = Array.from(enginePlayedCounts.entries())
   .map(([key, count]) => {
@@ -265,8 +265,8 @@ const enginePlayedEntries = Array.from(enginePlayedCounts.entries())
   .filter((entry) => (enginePlayedValues.get(entry.engine)?.size ?? 0) > 1)
   .sort((a, b) =>
     unknownLast(a, b, "engineLabel") ||
-    a.engineLabel.localeCompare(b.engineLabel) ||
-    a.statusLabel.localeCompare(b.statusLabel));
+    compareLabels(a.engineLabel, b.engineLabel) ||
+    compareLabels(a.statusLabel, b.statusLabel));
 
 const developerPlayedEntries = Array.from(developerPlayedCounts.entries())
   .map(([key, count]) => {
@@ -282,8 +282,8 @@ const developerPlayedEntries = Array.from(developerPlayedCounts.entries())
   .filter((entry) => (developerPlayedValues.get(entry.developer)?.size ?? 0) > 1)
   .sort((a, b) =>
     unknownLast(a, b, "developerLabel") ||
-    a.developerLabel.localeCompare(b.developerLabel) ||
-    a.statusLabel.localeCompare(b.statusLabel));
+    compareLabels(a.developerLabel, b.developerLabel) ||
+    compareLabels(a.statusLabel, b.statusLabel));
 
 const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
   .map(([key, totalCount]) => {
@@ -301,8 +301,8 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
   .filter((entry) => !(isSupersetGenre(entry.genre) && entry.count === 0))
   .sort((a, b) =>
     unknownLast(a, b, "genreLabel") ||
-    a.genreLabel.localeCompare(b.genreLabel) ||
-    a.statusLabel.localeCompare(b.statusLabel));
+    compareLabels(a.genreLabel, b.genreLabel) ||
+    compareLabels(a.statusLabel, b.statusLabel));
 
 const hasAvnGenre = (game) =>
   (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "avn");
@@ -469,7 +469,7 @@ const genreTierCoverageEntries = Array.from(tierListByGenreSlug.entries())
     };
   })
   .filter((entry) => entry.missingCount > 0)
-  .sort((a, b) => a.genreName.localeCompare(b.genreName));
+  .sort((a, b) => compareLabels(a.genreName, b.genreName));
 const completedInTierIds = gameIdsByTierListId.get(COMPLETED_GAMES_TIER_LIST_ID) ?? new Set();
 const completedNotInTierCount = (games ?? []).filter(
   (game) => game.player_status === "completed" && !completedInTierIds.has(game.id),
@@ -542,7 +542,7 @@ const miscFilterEntries = [
     href: `/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`,
     count: entry.missingCount,
   })),
-].sort((a, b) => a.label.localeCompare(b.label));
+].sort((a, b) => compareLabels(a.label, b.label));
 const miscCount = miscFilterEntries.length;
 ---
 

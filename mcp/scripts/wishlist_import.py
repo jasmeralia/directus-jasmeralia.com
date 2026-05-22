@@ -444,17 +444,18 @@ def generate_proposals(delay: float):
             genre_slugs.add("avn")
 
         genre_slugs = sorted(genre_slugs)
+        yr = release_year(details.get("release_date", {}).get("date", ""))
 
         proposals.append({
             "appid": appid,
             "title": name,
             "slug": slugify(name),
-            "release_year": release_year(details.get("release_date", {}).get("date", "")),
+            "release_year": yr,
             "genres": genre_slugs,
             "steam_genres": steam_genres,
             "developers": details.get("developers", []),
             "download_url": f"https://store.steampowered.com/app/{appid}/",
-            "game_status": "released",
+            "game_status": "released" if yr else "unreleased",
             "player_status": "not_started",
             "family_sharing": "Family Sharing" in categories,
         })

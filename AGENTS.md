@@ -92,6 +92,10 @@ Use `https://directus.jasmer.tools` (public URL) — `truenas.local` is not reac
 
 ## Rules for Astro site changes
 
+**Sorting must always be case-insensitive.** Use `sortByTitle` or `compareLabels` from `site/src/lib/list-format.ts` wherever possible. All raw `localeCompare` calls must include `{ sensitivity: "base" }` as the third argument. Never use bare `.localeCompare(x)` or `.sort()` on title/name/label strings.
+
+**Steam imports: set `game_status` to `"unreleased"` when `release_year` is null.** A missing release year means the game has not yet shipped. Do not default to `"released"`. This applies to `wishlist_import.py`, `generate_import_proposals.py`, `bulk_import.py`, and any future import scripts.
+
 **After every change to the Astro site, update the changelog and bump the version before committing.**
 
 - **Changelog**: `CHANGELOG.md` — prepend a new `## [x.y.z] - YYYY-MM-DD` section with bullet points describing what changed.
