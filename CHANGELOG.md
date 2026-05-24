@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.113] - 2026-05-24
+- Move build timestamp out of static HTML into /build-info.json loaded by inline JS; HTML pages no longer change on every build, speeding up S3 sync.
+
 ## [1.0.112] - 2026-05-21
 - Replace all remaining DB-level title/name sorts with JS sortByTitle/sortByName across all pages; add sortByName to list-format.ts.
 
