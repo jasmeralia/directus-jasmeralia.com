@@ -75,7 +75,9 @@ fi
 echo "==> Publishing dist/ to s3://$AWS_S3_BUCKET/"
 
 # IMPORTANT: do not delete media/ when syncing site root.
-aws s3 sync "$BUILD_DIR/dist/" "s3://${AWS_S3_BUCKET}/" --delete --exclude "media/*" --region "$AWS_REGION"
+# --size-only skips timestamp comparison (every build produces fresh mtimes in a temp dir,
+# which would otherwise cause aws s3 sync to re-upload the entire site on every run).
+aws s3 sync "$BUILD_DIR/dist/" "s3://${AWS_S3_BUCKET}/" --size-only --delete --exclude "media/*" --region "$AWS_REGION"
 
 if [[ "$INVALIDATE_ON_PUBLISH" == "true" ]]; then
   if [[ -z "$CLOUDFRONT_DISTRIBUTION_ID" ]]; then
