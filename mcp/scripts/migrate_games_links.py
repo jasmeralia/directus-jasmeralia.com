@@ -139,17 +139,25 @@ for game in games:
             stats["error"] += 1
 
     # walkthrough_url → kind=walkthrough
-    wt = (game.get("walkthrough_url") or "").strip()
-    if wt:
-        result = insert_link(gid, wt, "walkthrough", sort=1, existing_set=existing_set)
-        if result in ("ok", "dry"):
-            stats["walkthrough"] += 1
-            if not APPLY:
-                print(f"  [DRY] games/{gid} walkthrough: {wt[:80]}", file=sys.stderr)
-        elif result == "skip":
-            stats["skip"] += 1
-        else:
-            stats["error"] += 1
+    # Legacy values may be pipe-delimited (multiple URLs) or plain text notes (non-URL).
+    # Split on | and skip non-URL tokens.
+    wt_raw = (game.get("walkthrough_url") or "").strip()
+    if wt_raw:
+        wt_tokens = [t.strip() for t in wt_raw.split("|") if t.strip()]
+        wt_urls = [t for t in wt_tokens if t.lower().startswith("http")]
+        for sort_idx, wt_url in enumerate(wt_urls, start=1):
+            result = insert_link(gid, wt_url, "walkthrough", sort=sort_idx, existing_set=existing_set)
+            if result in ("ok", "dry"):
+                stats["walkthrough"] += 1
+                if not APPLY:
+                    print(f"  [DRY] games/{gid} walkthrough: {wt_url[:80]}", file=sys.stderr)
+            elif result == "skip":
+                stats["skip"] += 1
+            else:
+                stats["error"] += 1
+        skipped_notes = [t for t in wt_tokens if not t.lower().startswith("http")]
+        for note in skipped_notes:
+            print(f"  SKIP games/{gid} walkthrough text-note (not a URL): {note[:80]}", file=sys.stderr)
 
     # GSL supplemental URLs from game.other_urls
     gsl_url = (game.get("gamestorylog_url") or "").strip()
