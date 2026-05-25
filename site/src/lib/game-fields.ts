@@ -3,9 +3,7 @@ export const GAME_THUMB_FIELDS = [
   "title",
   "slug",
   "release_year",
-  "download_url",
   "family_sharing",
-  "walkthrough_url",
   "game_status",
   "player_status",
   "cover_image.id",
@@ -22,4 +20,16 @@ export const GAME_THUMB_FIELDS = [
   "developers.developers_id.id",
   "developers.developers_id.name",
   "developers.developers_id.slug",
+  "links.id",
+  "links.url",
+  "links.label",
+  "links.kind",
+  "links.sort",
+];
+
+export const DEVELOPER_LINK_FIELDS = [
+  "links.id",
+  "links.url",
+  "links.label",
+  "links.kind",
 ];

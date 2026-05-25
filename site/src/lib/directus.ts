@@ -1,4 +1,4 @@
-import { getUrlPlatform } from "./download-link";
+import { getUrlPlatform, primaryDownloadLink, type GameLink } from "./download-link";
 
 export type DirectusFile = {
   id: string;
@@ -12,15 +12,17 @@ export type Game = {
   title: string;
   slug: string;
   cover_image?: DirectusFile | string | null;
-  download_url?: string | null;
-  walkthrough_url?: string | null;
+  links?: GameLink[] | null;
   player_status?: string | null;
   family_sharing?: boolean | null;
 };
 
-export function isFamilySharingDisabled(game: { family_sharing?: boolean | null; download_url?: string | null }): boolean {
-  return game.family_sharing === false && getUrlPlatform(game.download_url) === "steam";
+export function isFamilySharingDisabled(game: { family_sharing?: boolean | null; links?: GameLink[] | null }): boolean {
+  const dl = primaryDownloadLink(game.links);
+  return game.family_sharing === false && getUrlPlatform(dl?.url) === "steam";
 }
+
+export type { GameLink };
 
 export const TIER_RATING_CONFIG: Record<string, { color: string; displayLabel: string; sort: number }> = {
   S: { color: "#FFD700", displayLabel: "S",         sort: 0 },
@@ -41,7 +43,7 @@ export type TierListGame = {
     slug: string;
     player_status?: string | null;
     release_year?: number | null;
-    walkthrough_url?: string | null;
+    links?: GameLink[] | null;
     cover_image?: { id: string; filename_disk: string } | null;
   };
 };
@@ -181,7 +183,7 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
     fields: [
       "id", "rating",
       "game_id.id", "game_id.title", "game_id.slug", "game_id.player_status", "game_id.release_year",
-      "game_id.walkthrough_url",
+      "game_id.links.id", "game_id.links.url", "game_id.links.kind", "game_id.links.sort",
       "game_id.cover_image.id", "game_id.cover_image.filename_disk",
     ],
     filter: { tier_list_id: { _eq: item.id } },

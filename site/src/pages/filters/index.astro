@@ -1,11 +1,10 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
-import { getUrlPlatform } from "../../lib/download-link";
+import { getUrlPlatform, primaryDownloadLink, walkthroughLinks } from "../../lib/download-link";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown, compareLabels } from "../../lib/list-format";
 import {
-  classifyWalkthroughValue,
   WALKTHROUGH_KIND_LABEL,
   type WalkthroughKind,
 } from "../../lib/walkthrough-link";
@@ -31,13 +30,15 @@ const games = await directusFetchItems("games", {
     "id",
     "game_status",
     "player_status",
-    "download_url",
     "family_sharing",
-    "walkthrough_url",
     "gamestorylog_url",
     "engines.engines_id.slug",
     "genres.genres_id.slug",
     "developers.developers_id.slug",
+    "links.id",
+    "links.url",
+    "links.kind",
+    "links.sort",
   ],
   limit: -1,
 });
@@ -311,17 +312,17 @@ const avnWithGamestorylogCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && hasValue(game.gamestorylog_url),
 ).length;
 const avnMissingWalkthroughCount = (games ?? []).filter(
-  (game) => hasAvnGenre(game) && !hasValue(game.walkthrough_url),
+  (game) => hasAvnGenre(game) && walkthroughLinks(game?.links).length === 0,
 ).length;
 const platformCounts = {
-  steam: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "steam").length,
-  itch: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "itch").length,
-  gog: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "gog").length,
-  patreon: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "patreon").length,
-  playstation: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "playstation").length,
-  xbox: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "xbox").length,
+  steam: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "steam").length,
+  itch: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "itch").length,
+  gog: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "gog").length,
+  patreon: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "patreon").length,
+  playstation: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "playstation").length,
+  xbox: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "xbox").length,
 };
-const unknownPlatformCount = (games ?? []).filter((game) => getUrlPlatform(game.download_url) === null).length;
+const unknownPlatformCount = (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === null).length;
 const platformPieSegments = [
   { label: "Steam", value: platformCounts.steam, color: "#4aa3ff" },
   { label: "PlayStation", value: platformCounts.playstation, color: "#003087" },
@@ -342,7 +343,14 @@ const walkthroughCounts: Record<WalkthroughKind, number> = {
   "none-provided": 0,
 };
 for (const game of games ?? []) {
-  const kind = classifyWalkthroughValue(game?.walkthrough_url);
+  const wtLinks = walkthroughLinks(game?.links);
+  let kind: WalkthroughKind;
+  if (wtLinks.length === 0) {
+    kind = "none-provided";
+  } else {
+    const platform = getUrlPlatform(wtLinks[0].url);
+    kind = (platform as WalkthroughKind | null) ?? "unknown";
+  }
   walkthroughCounts[kind] += 1;
 }
 const walkthroughPieSegments = [

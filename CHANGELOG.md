@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.118] - 2026-05-25
+- Refactor: replace scalar `download_url`/`walkthrough_url` game fields with relational `games_links` junction collection (M2O→games, fields: url, label, kind, sort). Add `developers_links` junction collection (M2O→developers).
+- Data: migrate 1569 download links, 57 walkthrough links, 46 extra links from GSL cache to `games_links`; migrate 507 developer links (Patreon, website, Discord, SubscribeStar, itch) to `developers_links`.
+- Site: update all pages (GameThumbCard, games/[slug], tiers/[slug], filters/index, platform/[platform], walkthrough/[kind], avn-missing-walkthrough, walkthroughs/index) to use new link helpers (primaryDownloadLink, walkthroughLinks, getLinkMeta).
+- Add GameLink, DeveloperLink types and link helper functions to download-link.ts; update game-fields.ts GAME_THUMB_FIELDS and directus.ts types accordingly.
+
 ## [1.0.117] - 2026-05-24
 - Fix search: sync pagefind/ directory to S3 without --size-only so content-addressed shard files are always re-uploaded; fixes broken search after any build.
 - Data: remove duplicate Borderlands GOTY entry, rename GOTY Enhanced to "Borderlands"; remove DMC4 "Special Edition" suffix; delete FFXV Windows Edition; mark Marvel's Avengers and Shadowrun Chronicles - Boston Lockdown as Abandoned; remove STALKER Ukrainian-spelling duplicate entries.

@@ -4,6 +4,7 @@ import CsvHeader from "../../../components/CsvHeader.astro";
 import ThumbnailBorderLegend from "../../../components/ThumbnailBorderLegend.astro";
 import GameThumbCard from "../../../components/GameThumbCard.astro";
 import { directusFetchItems, getSTierGameIds } from "../../../lib/directus";
+import { walkthroughLinks } from "../../../lib/download-link";
 import { csvDataUri, gamesToCsv } from "../../../lib/csv";
 import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
 import { sortByTitle } from "../../../lib/list-format";
@@ -15,7 +16,7 @@ const games = sortByTitle(await directusFetchItems("games", {
 }));
 
 const filteredGames = (games ?? []).filter(
-  (game) => !game?.walkthrough_url || String(game.walkthrough_url).trim() === "",
+  (game) => walkthroughLinks(game?.links).length === 0,
 );
 
 const gameIds = filteredGames
@@ -52,7 +53,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   <main>
     <div class="panel">
       <CsvHeader title="AVN + Missing Walkthrough URL" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
-      <p>Games tagged as AVN that do not have `walkthrough_url` set.</p>
+      <p>Games tagged as AVN that do not have any walkthrough links.</p>
     </div>
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (

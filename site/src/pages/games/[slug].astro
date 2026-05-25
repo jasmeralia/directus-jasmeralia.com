@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
-import { getUrlLinkMeta } from "../../lib/download-link";
+import { primaryDownloadLink, walkthroughLinks, getLinkMeta } from "../../lib/download-link";
 
 export async function getStaticPaths() {
   const games = await directusFetchItems('games', {
@@ -24,10 +24,8 @@ const games = await directusFetchItems('games', {
     'title',
     'slug',
     'release_year',
-    'download_url',
     'family_sharing',
     'gamestorylog_url',
-    'walkthrough_url',
     'player_status',
     'game_status',
     'cover_image.id',
@@ -44,6 +42,11 @@ const games = await directusFetchItems('games', {
     'developers.developers_id.id',
     'developers.developers_id.name',
     'developers.developers_id.slug',
+    'links.id',
+    'links.url',
+    'links.label',
+    'links.kind',
+    'links.sort',
   ],
   filter: { slug: { _eq: slug } },
   limit: 1,
@@ -104,40 +107,35 @@ for (const entry of (tierEntries ?? [])) {
 }
 const tierLists = Array.from(tierListsMap.values())
   .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
-const downloadLinkMeta = getUrlLinkMeta(game.download_url);
-const downloadLinkText =
-  downloadLinkMeta.label === "Download"
+const downloadLink = primaryDownloadLink(game.links);
+const downloadLinkMeta = downloadLink ? getLinkMeta(downloadLink) : null;
+const downloadLinkText = downloadLinkMeta
+  ? downloadLinkMeta.label === "Download"
     ? downloadLinkMeta.host
       ? `Download (${downloadLinkMeta.host})`
       : "Download"
-    : `Download from ${downloadLinkMeta.label}`;
-const walkthroughValue = typeof game.walkthrough_url === "string" ? game.walkthrough_url.trim() : "";
-const walkthroughEntries = walkthroughValue
-  .split("|")
-  .map((value) => value.trim())
-  .filter(Boolean)
-  .map((value) => {
-    const isThirdPartyWalkthrough = /^https?:\/\//i.test(value);
-    const linkMeta = getUrlLinkMeta(value);
-    return {
-      value,
-      isThirdPartyWalkthrough,
-      linkMeta,
-      linkText:
-        linkMeta.label === "Download"
-          ? linkMeta.host
-            ? `Walkthrough (${linkMeta.host})`
-            : "Walkthrough"
-          : `Walkthrough on ${linkMeta.label}`,
-    };
-  });
+    : `Download from ${downloadLinkMeta.label}`
+  : null;
+const walkthroughEntries = walkthroughLinks(game.links).map((link) => {
+  const linkMeta = getLinkMeta(link);
+  return {
+    url: link.url,
+    linkMeta,
+    linkText:
+      linkMeta.label === "Download"
+        ? linkMeta.host
+          ? `Walkthrough (${linkMeta.host})`
+          : "Walkthrough"
+        : `Walkthrough on ${linkMeta.label}`,
+  };
+});
 const reviewed = reviews.length > 0;
 const sTier = tierLists.some((tier) => tier.label === "S");
 const completed = game?.player_status === "completed";
 const didNotFinish = game?.player_status === "did_not_finish";
 const inProgress = game?.player_status === "in_progress";
 const waitingForUpdate = game?.player_status === "waiting_for_update";
-const hasWalkthrough = walkthroughValue.length > 0;
+const hasWalkthrough = walkthroughEntries.length > 0;
 const statusColor = completed
   ? "#c0c0c0"
   : didNotFinish
@@ -217,13 +215,13 @@ const coverStackStyle = [
         </div>
         <div>
           <h1 data-pagefind-meta="title">{game.title}</h1>
-                    {game.download_url || game.gamestorylog_url ? (
+                    {downloadLink || game.gamestorylog_url ? (
             <div class="meta">
-              {game.download_url ? (
+              {downloadLink ? (
                 <div>
-                  <a class="download-link" href={game.download_url} rel="noopener noreferrer" target="_blank">
-                    {downloadLinkMeta.icon ? (
-                      <img class="platform-icon" src={downloadLinkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
+                  <a class="download-link" href={downloadLink.url} rel="noopener noreferrer" target="_blank">
+                    {downloadLinkMeta!.icon ? (
+                      <img class="platform-icon" src={downloadLinkMeta!.icon} alt="" aria-hidden="true" loading="lazy" />
                     ) : null}
                     <span>{downloadLinkText}</span>
                   </a>
@@ -315,22 +313,18 @@ const coverStackStyle = [
               ))}
             </li>
           ) : null}
-          {walkthroughValue ? (
+          {walkthroughEntries.length > 0 ? (
             <li>
               <strong>Walkthrough:</strong>{" "}
               {walkthroughEntries.map((entry, index) => (
                 <>
                   {index > 0 ? <span> | </span> : null}
-                  {entry.isThirdPartyWalkthrough ? (
-                    <a class="download-link" href={entry.value} rel="noopener noreferrer" target="_blank">
-                      {entry.linkMeta.icon ? (
-                        <img class="platform-icon" src={entry.linkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
-                      ) : null}
-                      <span>{entry.linkText}</span>
-                    </a>
-                  ) : (
-                    <span>{entry.value}</span>
-                  )}
+                  <a class="download-link" href={entry.url} rel="noopener noreferrer" target="_blank">
+                    {entry.linkMeta.icon ? (
+                      <img class="platform-icon" src={entry.linkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
+                    ) : null}
+                    <span>{entry.linkText}</span>
+                  </a>
                 </>
               ))}
             </li>

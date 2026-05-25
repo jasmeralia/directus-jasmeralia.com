@@ -1,3 +1,30 @@
+export type GameLink = {
+  id?: number;
+  url: string;
+  label?: string | null;
+  kind: "download" | "walkthrough" | "other";
+  sort?: number | null;
+};
+
+export type DeveloperLink = {
+  id?: number;
+  url: string;
+  label?: string | null;
+  kind: "website" | "patreon" | "subscribestar" | "discord" | "itch" | "other";
+};
+
+export const primaryDownloadLink = (links: GameLink[] | null | undefined): GameLink | null => {
+  if (!links?.length) return null;
+  const downloads = links.filter((l) => l.kind === "download");
+  if (!downloads.length) return null;
+  return [...downloads].sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999))[0];
+};
+
+export const walkthroughLinks = (links: GameLink[] | null | undefined): GameLink[] => {
+  if (!links?.length) return [];
+  return links.filter((l) => l.kind === "walkthrough").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));
+};
+
 export type UrlLinkMeta = {
   icon: string | null;
   label: string;
@@ -59,6 +86,12 @@ export const getUrlLinkMeta = (value: string | null | undefined): UrlLinkMeta =>
 
 /** @deprecated Use getUrlLinkMeta */
 export const getDownloadLinkMeta = getUrlLinkMeta;
+
+export const getLinkMeta = (link: GameLink): UrlLinkMeta => {
+  const meta = getUrlLinkMeta(link.url);
+  if (link.label) return { ...meta, label: link.label };
+  return meta;
+};
 
 export const getUrlPlatform = (value: string | null | undefined): UrlPlatform | null => {
   if (!value) return null;
