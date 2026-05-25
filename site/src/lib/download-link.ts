@@ -13,6 +13,10 @@ export type DeveloperLink = {
   kind: "website" | "patreon" | "subscribestar" | "discord" | "itch" | "other";
 };
 
+export const DEVELOPER_LINK_KINDS: DeveloperLink["kind"][] = [
+  "patreon", "subscribestar", "discord", "itch", "website",
+];
+
 export const primaryDownloadLink = (links: GameLink[] | null | undefined): GameLink | null => {
   if (!links?.length) return null;
   const downloads = links.filter((l) => l.kind === "download");
