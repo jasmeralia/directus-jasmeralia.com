@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.115] - 2026-05-25
+- Add franchise size distribution pie chart to /franchises index; list items color-coded by bucket (3–4, 5–7, 8–10, 11–19, 20+ games).
+
 ## [1.0.114] - 2026-05-24
 - Add franchise support: franchises collection with ordered game lists, /franchises index and detail pages, franchise membership on game detail pages, Franchises nav link.
 - Directus: franchises + franchise_games collections with M2M relation, sort field for drag ordering, cover/title/slug shown in Directus editor, Astro Readonly permissions granted.
