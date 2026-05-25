@@ -17,12 +17,13 @@ export const DEVELOPER_LINK_KINDS: DeveloperLink["kind"][] = [
   "patreon", "subscribestar", "discord", "itch", "steam", "website",
 ];
 
-export const primaryDownloadLink = (links: GameLink[] | null | undefined): GameLink | null => {
-  if (!links?.length) return null;
-  const downloads = links.filter((l) => l.kind === "download");
-  if (!downloads.length) return null;
-  return [...downloads].sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999))[0];
+export const downloadLinks = (links: GameLink[] | null | undefined): GameLink[] => {
+  if (!links?.length) return [];
+  return links.filter((l) => l.kind === "download").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));
 };
+
+export const primaryDownloadLink = (links: GameLink[] | null | undefined): GameLink | null =>
+  downloadLinks(links)[0] ?? null;
 
 export const walkthroughLinks = (links: GameLink[] | null | undefined): GameLink[] => {
   if (!links?.length) return [];

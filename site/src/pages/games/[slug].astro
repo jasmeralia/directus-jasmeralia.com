@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
-import { primaryDownloadLink, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
+import { downloadLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 
 export async function getStaticPaths() {
   const games = await directusFetchItems('games', {
@@ -107,15 +107,16 @@ for (const entry of (tierEntries ?? [])) {
 const tierLists = Array.from(tierListsMap.values())
   .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 const gslLink = (game.links ?? []).find((l) => l.kind === "gamestorylog") ?? null;
-const downloadLink = primaryDownloadLink(game.links);
-const downloadLinkMeta = downloadLink ? getLinkMeta(downloadLink) : null;
-const downloadLinkText = downloadLinkMeta
-  ? downloadLinkMeta.label === "Download"
-    ? downloadLinkMeta.host
-      ? `Download (${downloadLinkMeta.host})`
-      : "Download"
-    : `Download from ${downloadLinkMeta.label}`
-  : null;
+const downloadEntries = downloadLinks(game.links).map((link) => {
+  const linkMeta = getLinkMeta(link);
+  return {
+    url: link.url,
+    linkMeta,
+    linkText: linkMeta.label === "Download"
+      ? linkMeta.host ? `Download (${linkMeta.host})` : "Download"
+      : `Download from ${linkMeta.label}`,
+  };
+});
 const walkthroughEntries = walkthroughLinks(game.links).map((link) => {
   const linkMeta = getLinkMeta(link);
   return {
@@ -220,18 +221,18 @@ const coverStackStyle = [
         </div>
         <div>
           <h1 data-pagefind-meta="title">{game.title}</h1>
-                    {downloadLink || gslLink ? (
+                    {downloadEntries.length > 0 || gslLink ? (
             <div class="meta">
-              {downloadLink ? (
+              {downloadEntries.map((entry) => (
                 <div>
-                  <a class="download-link" href={downloadLink.url} rel="noopener noreferrer" target="_blank">
-                    {downloadLinkMeta!.icon ? (
-                      <img class="platform-icon" src={downloadLinkMeta!.icon} alt="" aria-hidden="true" loading="lazy" />
+                  <a class="download-link" href={entry.url} rel="noopener noreferrer" target="_blank">
+                    {entry.linkMeta.icon ? (
+                      <img class="platform-icon" src={entry.linkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
                     ) : null}
-                    <span>{downloadLinkText}</span>
+                    <span>{entry.linkText}</span>
                   </a>
                 </div>
-              ) : null}
+              ))}
               {gslLink ? (
                 <div>
                   <a class="download-link" href={gslLink.url} rel="noopener noreferrer" target="_blank">

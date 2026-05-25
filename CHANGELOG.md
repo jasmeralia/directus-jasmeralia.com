@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.128] - 2026-05-25
+- Site: game detail page now shows all download links instead of only the primary one; grid/tier/status pages now show all platform icons in the thumb card instead of preferring Steam when multiple links exist.
+
 ## [1.0.127] - 2026-05-25
 - Data: merge 15 Ubisoft studio entries (Annecy, Belgrade, Bordeaux, Bucharest & Craiova, Chengdu, Montpellier, Montreal, Osaka, Philippines, Québec, Shanghai, Singapore, Sofia, Toronto, Ukraine) into canonical Ubisoft (id=445); reparented 7 games.
 
