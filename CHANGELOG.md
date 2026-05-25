@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.121] - 2026-05-25
+- Fix build: export DEVELOPER_LINK_KINDS from download-link.ts and import it in developer-links/[kind].astro so getStaticPaths can access it (inline frontmatter constants are not available in Astro's getStaticPaths build context).
+
 ## [1.0.120] - 2026-05-25
 - Add text-note support to games_links: add "text-note" kind to the Directus field dropdown; add walkthroughTextNotes() helper to download-link.ts; render text notes as plain text (not links) on game detail, walkthroughs index, and walkthrough filter pages; count text-notes correctly in /filters walkthrough pie and filter entries.
 - Re-insert the deleted walkthrough text note for Forbidden Fantasy (games_id 30, games_links id 1675): "Walkthrough is available in the game settings."

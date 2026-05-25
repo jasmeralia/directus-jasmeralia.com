@@ -2,11 +2,7 @@
 import BaseLayout from "../../../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../../../lib/directus";
 import { compareLabels } from "../../../../lib/list-format";
-import { getDeveloperLinkMeta, type DeveloperLink } from "../../../../lib/download-link";
-
-const DEVELOPER_LINK_KINDS: DeveloperLink["kind"][] = [
-  "patreon", "subscribestar", "discord", "itch", "website",
-];
+import { getDeveloperLinkMeta, DEVELOPER_LINK_KINDS, type DeveloperLink } from "../../../../lib/download-link";
 
 const KIND_LABEL: Record<string, string> = {
   patreon: "Patreon",
