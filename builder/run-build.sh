@@ -74,10 +74,22 @@ fi
 
 echo "==> Publishing dist/ to s3://$AWS_S3_BUCKET/"
 
-# IMPORTANT: do not delete media/ when syncing site root.
-# --size-only skips timestamp comparison (every build produces fresh mtimes in a temp dir,
-# which would otherwise cause aws s3 sync to re-upload the entire site on every run).
-aws s3 sync "$BUILD_DIR/dist/" "s3://${AWS_S3_BUCKET}/" --size-only --delete --exclude "media/*" --region "$AWS_REGION"
+# Sync all site content except media/ (preserved) and pagefind/ (handled separately below).
+# --size-only skips timestamp comparison — every build produces fresh mtimes in a temp dir,
+# which would otherwise cause aws s3 sync to re-upload the entire site on every run.
+aws s3 sync "$BUILD_DIR/dist/" "s3://${AWS_S3_BUCKET}/" \
+  --size-only --delete \
+  --exclude "media/*" \
+  --exclude "pagefind/*" \
+  --region "$AWS_REGION"
+
+# Pagefind index uses content-addressed shard filenames (e.g. en_d549c8a.pf_index).
+# New builds produce new hash-named files that may be the same byte size as old ones,
+# so --size-only would skip them, leaving the index pointing to deleted shard files.
+# Sync pagefind/ separately without --size-only to ensure all shards are re-uploaded.
+aws s3 sync "$BUILD_DIR/dist/pagefind/" "s3://${AWS_S3_BUCKET}/pagefind/" \
+  --delete \
+  --region "$AWS_REGION"
 
 if [[ "$INVALIDATE_ON_PUBLISH" == "true" ]]; then
   if [[ -z "$CLOUDFRONT_DISTRIBUTION_ID" ]]; then
