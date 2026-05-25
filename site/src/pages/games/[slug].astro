@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
-import { primaryDownloadLink, walkthroughLinks, getLinkMeta } from "../../lib/download-link";
+import { primaryDownloadLink, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 
 export async function getStaticPaths() {
   const games = await directusFetchItems('games', {
@@ -119,6 +119,7 @@ const downloadLinkText = downloadLinkMeta
 const walkthroughEntries = walkthroughLinks(game.links).map((link) => {
   const linkMeta = getLinkMeta(link);
   return {
+    isTextNote: false as const,
     url: link.url,
     linkMeta,
     linkText:
@@ -129,13 +130,17 @@ const walkthroughEntries = walkthroughLinks(game.links).map((link) => {
         : `Walkthrough on ${linkMeta.label}`,
   };
 });
+const textNoteEntries = walkthroughTextNotes(game.links).map((link) => ({
+  isTextNote: true as const,
+  text: link.label ?? link.url,
+}));
 const reviewed = reviews.length > 0;
 const sTier = tierLists.some((tier) => tier.label === "S");
 const completed = game?.player_status === "completed";
 const didNotFinish = game?.player_status === "did_not_finish";
 const inProgress = game?.player_status === "in_progress";
 const waitingForUpdate = game?.player_status === "waiting_for_update";
-const hasWalkthrough = walkthroughEntries.length > 0;
+const hasWalkthrough = walkthroughEntries.length > 0 || textNoteEntries.length > 0;
 const statusColor = completed
   ? "#c0c0c0"
   : didNotFinish
@@ -313,7 +318,7 @@ const coverStackStyle = [
               ))}
             </li>
           ) : null}
-          {walkthroughEntries.length > 0 ? (
+          {(walkthroughEntries.length > 0 || textNoteEntries.length > 0) ? (
             <li>
               <strong>Walkthrough:</strong>{" "}
               {walkthroughEntries.map((entry, index) => (
@@ -325,6 +330,12 @@ const coverStackStyle = [
                     ) : null}
                     <span>{entry.linkText}</span>
                   </a>
+                </>
+              ))}
+              {textNoteEntries.map((note, index) => (
+                <>
+                  {(walkthroughEntries.length > 0 || index > 0) ? <span> | </span> : null}
+                  <span>{note.text}</span>
                 </>
               ))}
             </li>

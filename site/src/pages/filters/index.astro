@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
-import { getUrlPlatform, primaryDownloadLink, walkthroughLinks } from "../../lib/download-link";
+import { getUrlPlatform, primaryDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown, compareLabels } from "../../lib/list-format";
 import {
@@ -346,9 +346,12 @@ const WALKTHROUGH_KIND_COLOR: Record<string, string> = {
 };
 for (const game of games ?? []) {
   const wtLinks = walkthroughLinks(game?.links);
+  const notes   = walkthroughTextNotes(game?.links);
   let kind: WalkthroughKind;
-  if (wtLinks.length === 0) {
+  if (wtLinks.length === 0 && notes.length === 0) {
     kind = "none-provided";
+  } else if (wtLinks.length === 0) {
+    kind = "text-note";
   } else {
     const platform = getUrlPlatform(wtLinks[0].url);
     kind = (platform as WalkthroughKind | null) ?? "unknown";

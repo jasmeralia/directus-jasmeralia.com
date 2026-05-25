@@ -12,7 +12,7 @@ import {
   WALKTHROUGH_KINDS,
   type WalkthroughKind,
 } from "../../../../lib/walkthrough-link";
-import { getUrlPlatform, walkthroughLinks } from "../../../../lib/download-link";
+import { getUrlPlatform, walkthroughLinks, walkthroughTextNotes } from "../../../../lib/download-link";
 
 export async function getStaticPaths() {
   return WALKTHROUGH_KINDS.map((kind) => ({ params: { kind } }));
@@ -29,9 +29,12 @@ const games = sortByTitle(await directusFetchItems("games", {
 }));
 const filteredGames = games.filter((game) => {
   const wtLinks = walkthroughLinks(game?.links);
-  if (wtLinks.length === 0) return kind === "none-provided";
-  if (kind === "none-provided") return false;
-  if (kind === "text-note") return false;
+  const notes   = walkthroughTextNotes(game?.links);
+  const hasNone = wtLinks.length === 0 && notes.length === 0;
+  if (kind === "none-provided") return hasNone;
+  if (hasNone) return false;
+  if (kind === "text-note") return wtLinks.length === 0 && notes.length > 0;
+  if (wtLinks.length === 0) return false;
   const platform = getUrlPlatform(wtLinks[0].url);
   return kind === "unknown" ? platform === null : platform === kind;
 });

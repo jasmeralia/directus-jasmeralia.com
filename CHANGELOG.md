@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.120] - 2026-05-25
+- Add text-note support to games_links: add "text-note" kind to the Directus field dropdown; add walkthroughTextNotes() helper to download-link.ts; render text notes as plain text (not links) on game detail, walkthroughs index, and walkthrough filter pages; count text-notes correctly in /filters walkthrough pie and filter entries.
+- Re-insert the deleted walkthrough text note for Forbidden Fantasy (games_id 30, games_links id 1675): "Walkthrough is available in the game settings."
+- RSS feed: track games_links update activities alongside creates using a generalized fetchActivity() helper; emit "Download Link Updated" / "Walkthrough Updated" entries with per-action GUIDs.
+
 ## [1.0.119] - 2026-05-25
 - Fix: import scripts (wishlist_import, bulk_import, import_psn_xbox) now create a `games_links` download row after creating each game record, so newly imported games have a populated download link on the site.
 - Fix: RSS feed (feed.xml.ts) tracks `games_links` create activities; download/walkthrough link additions now produce feed entries ("Download Link Added: {title}" / "Walkthrough Added: {title}").

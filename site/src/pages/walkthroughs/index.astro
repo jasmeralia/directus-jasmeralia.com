@@ -1,12 +1,12 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
-import { walkthroughLinks, getLinkMeta } from "../../lib/download-link";
+import { walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { sortByTitle } from "../../lib/list-format";
 
 const walkthroughLinkRows = await directusFetchItems("games_links", {
   fields: ["games_id"],
-  filter: { kind: { _eq: "walkthrough" } },
+  filter: { kind: { _in: ["walkthrough", "text-note"] } },
   limit: -1,
 });
 const gameIdsWithWalkthrough = [...new Set(
@@ -21,17 +21,23 @@ const games = gameIdsWithWalkthrough.length
     }))
   : [];
 
-const walkthroughEntries = (game) =>
-  walkthroughLinks(game?.links).map((link) => {
+const walkthroughEntries = (game) => [
+  ...walkthroughLinks(game?.links).map((link) => {
     const meta = getLinkMeta(link);
     return {
+      isTextNote: false as const,
       url: link.url,
       icon: meta.icon,
       text: meta.label === "Download"
         ? meta.host ? `Walkthrough (${meta.host})` : "Walkthrough"
         : `Walkthrough on ${meta.label}`,
     };
-  });
+  }),
+  ...walkthroughTextNotes(game?.links).map((link) => ({
+    isTextNote: true as const,
+    text: link.label ?? link.url,
+  })),
+];
 ---
 
 <BaseLayout title="Walkthroughs">
@@ -61,12 +67,16 @@ const walkthroughEntries = (game) =>
                   {entries.map((entry, index) => (
                     <>
                       {index > 0 ? <span> | </span> : null}
-                      <a class="ext-link" href={entry.url} rel="noopener noreferrer" target="_blank">
-                        {entry.icon ? (
-                          <img src={entry.icon} alt="" aria-hidden="true" loading="lazy" />
-                        ) : null}
+                      {entry.isTextNote ? (
                         <span>{entry.text}</span>
-                      </a>
+                      ) : (
+                        <a class="ext-link" href={entry.url} rel="noopener noreferrer" target="_blank">
+                          {entry.icon ? (
+                            <img src={entry.icon} alt="" aria-hidden="true" loading="lazy" />
+                          ) : null}
+                          <span>{entry.text}</span>
+                        </a>
+                      )}
                     </>
                   ))}
                 </li>

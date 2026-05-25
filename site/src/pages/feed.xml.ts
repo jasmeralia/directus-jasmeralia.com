@@ -10,7 +10,7 @@ const LIMIT_GAMES       = 100;
 const LIMIT_REVIEWS     = 50;
 const LIMIT_TIER_LISTS  = 50;
 const LIMIT_JUNCTIONS   = 300; // tier_list_games activities
-const LIMIT_LINKS       = 200; // games_links activities
+const LIMIT_LINKS       = 400; // games_links activities (create + update)
 
 // ─── field / enum labels ─────────────────────────────────────────────────────
 
@@ -260,11 +260,11 @@ async function fetchPrevRevision(collection: string, item: string, beforeId: num
   return res.data?.[0] ?? null;
 }
 
-// Fetch recent create activities for a junction collection (no revision data available).
-async function fetchCreateActivity(collection: string, limit: number): Promise<Activity[]> {
+// Fetch recent activities for a junction collection by one or more actions.
+async function fetchActivity(collection: string, actions: string | string[], limit: number): Promise<Activity[]> {
   const qs = new URLSearchParams({
     "filter[collection][_eq]": collection,
-    "filter[action][_eq]": "create",
+    "filter[action][_in]": Array.isArray(actions) ? actions.join(",") : actions,
     "sort": "-timestamp",
     "limit": String(limit),
     "fields": "id,action,collection,item,timestamp",
@@ -272,6 +272,9 @@ async function fetchCreateActivity(collection: string, limit: number): Promise<A
   const res = await directusFetchRaw<{ data: Activity[] }>(`/activity?${qs.toString()}`);
   return res.data ?? [];
 }
+
+const fetchCreateActivity = (collection: string, limit: number) =>
+  fetchActivity(collection, "create", limit);
 
 // Batch-fetch items from any collection by ID, returning a map of id → item.
 async function fetchItemMap(collection: string, ids: number[], fields: string): Promise<Record<number, any>> {
@@ -487,14 +490,16 @@ function buildGameLinkEntry(
   const link = `${siteBase}/games/${slug}/index.html`;
   const imgUrl = mediaUrl(gameItem.cover_image) ?? undefined;
   const kind: string = glinkItem.kind ?? "download";
-  const isWalkthrough = kind === "walkthrough";
+  const isWalkthrough = kind === "walkthrough" || kind === "text-note";
+  const isUpdate = act.action === "update";
+  const kindLabel = isWalkthrough ? "Walkthrough" : "Download";
   return {
-    title: `${isWalkthrough ? "Walkthrough Added" : "Download Link Added"}: ${gameItem.title}`,
+    title: `${kindLabel} ${isUpdate ? "Updated" : "Added"}: ${gameItem.title}`,
     link,
-    description: `**${isWalkthrough ? "Walkthrough" : "Download"}**: ${glinkItem.url}`,
+    description: `**${kindLabel}**: ${glinkItem.url}`,
     pubDate: date,
     imageUrl: imgUrl,
-    guid: rssGuid("game", slug, `link_${kind}_${act.id}`, date, `games_link activity ${act.id}`),
+    guid: rssGuid("game", slug, `link_${act.action}_${kind}_${act.id}`, date, `games_link activity ${act.id}`),
   };
 }
 
@@ -507,7 +512,7 @@ export const GET: APIRoute = async () => {
     fetchRevisions("reviews",     LIMIT_REVIEWS),
     fetchRevisions("tier_lists",  LIMIT_TIER_LISTS),
     fetchCreateActivity("tier_list_games", LIMIT_JUNCTIONS),
-    fetchCreateActivity("games_links",     LIMIT_LINKS),
+    fetchActivity("games_links", ["create", "update"], LIMIT_LINKS),
   ]);
 
   // 2. Resolve IDs needed for batch lookups

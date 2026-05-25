@@ -2,7 +2,7 @@ export type GameLink = {
   id?: number;
   url: string;
   label?: string | null;
-  kind: "download" | "walkthrough" | "other";
+  kind: "download" | "walkthrough" | "text-note" | "other";
   sort?: number | null;
 };
 
@@ -23,6 +23,11 @@ export const primaryDownloadLink = (links: GameLink[] | null | undefined): GameL
 export const walkthroughLinks = (links: GameLink[] | null | undefined): GameLink[] => {
   if (!links?.length) return [];
   return links.filter((l) => l.kind === "walkthrough").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));
+};
+
+export const walkthroughTextNotes = (links: GameLink[] | null | undefined): GameLink[] => {
+  if (!links?.length) return [];
+  return links.filter((l) => l.kind === "text-note").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));
 };
 
 export type UrlLinkMeta = {
