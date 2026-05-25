@@ -93,6 +93,33 @@ export const getLinkMeta = (link: GameLink): UrlLinkMeta => {
   return meta;
 };
 
+export type DeveloperLinkMeta = { icon: string | null; label: string };
+
+export const getDeveloperLinkMeta = (link: DeveloperLink): DeveloperLinkMeta => {
+  if (link.label) {
+    const icon = getDeveloperKindIcon(link.kind);
+    return { icon, label: link.label };
+  }
+  switch (link.kind) {
+    case "patreon":      return { icon: "/icons/simple/patreon.svg",    label: "Patreon" };
+    case "subscribestar":return { icon: null,                            label: "SubscribeStar" };
+    case "discord":      return { icon: "/icons/simple/discord.svg",    label: "Discord" };
+    case "itch":         return { icon: "/icons/simple/itchdotio.svg",  label: "itch.io" };
+    case "website":
+    case "other":
+    default:             return { icon: null,                            label: "Website" };
+  }
+};
+
+function getDeveloperKindIcon(kind: DeveloperLink["kind"]): string | null {
+  switch (kind) {
+    case "patreon":       return "/icons/simple/patreon.svg";
+    case "discord":       return "/icons/simple/discord.svg";
+    case "itch":          return "/icons/simple/itchdotio.svg";
+    default:              return null;
+  }
+}
+
 export const getUrlPlatform = (value: string | null | undefined): UrlPlatform | null => {
   if (!value) return null;
   const host = hostFromUrl(value);

@@ -503,6 +503,32 @@ const nonStandardCoverCount = (coverArtGames ?? []).filter((game) => {
   if (!w || !h) return false;
   return Math.abs(w / h - COVER_TARGET_RATIO) > COVER_RATIO_TOLERANCE;
 }).length;
+const devLinkRows = await directusFetchItems("developers_links", {
+  fields: ["developers_id", "kind"],
+  limit: -1,
+});
+const devsWithAnyLink = new Set<number>();
+const devLinkKindSeen = new Map<string, Set<number>>();
+const devLinkKindCounts: Record<string, number> = { patreon: 0, subscribestar: 0, discord: 0, itch: 0, website: 0, other: 0 };
+for (const row of devLinkRows ?? []) {
+  const id = row.developers_id;
+  if (typeof id !== "number") continue;
+  devsWithAnyLink.add(id);
+  const k = row.kind as string;
+  if (k in devLinkKindCounts) {
+    if (!devLinkKindSeen.has(k)) devLinkKindSeen.set(k, new Set());
+    if (!devLinkKindSeen.get(k)!.has(id)) {
+      devLinkKindSeen.get(k)!.add(id);
+      devLinkKindCounts[k] += 1;
+    }
+  }
+}
+const allDevCount = (await directusFetchItems("developers", {
+  fields: ["id"],
+  filter: { slug: { _neq: "unknown" } },
+  limit: -1,
+})).length;
+const developerMissingLinksCount = allDevCount - devsWithAnyLink.size;
 const labelRadius = 130;
 const platformLabeledArcs = platformPieArcs
   .filter((seg) => seg.end - seg.start >= 8)
@@ -535,6 +561,13 @@ const miscFilterEntries = [
   { label: "Download Platform + Xbox", href: "/filters/misc/platform/xbox/index.html", count: platformCounts.xbox },
   { label: "Cover Art – Missing", href: "/filters/misc/missing-cover-art/index.html", count: missingCoverArtCount },
   { label: "Cover Art – Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
+  { label: "Developer + Discord", href: "/filters/misc/developer-links/discord/index.html", count: devLinkKindCounts.discord },
+  { label: "Developer + itch.io", href: "/filters/misc/developer-links/itch/index.html", count: devLinkKindCounts.itch },
+  { label: "Developer + Missing Links", href: "/filters/misc/developer-missing-links/index.html", count: developerMissingLinksCount },
+  { label: "Developer + Other Link", href: "/filters/misc/developer-links/other/index.html", count: devLinkKindCounts.other },
+  { label: "Developer + Patreon", href: "/filters/misc/developer-links/patreon/index.html", count: devLinkKindCounts.patreon },
+  { label: "Developer + SubscribeStar", href: "/filters/misc/developer-links/subscribestar/index.html", count: devLinkKindCounts.subscribestar },
+  { label: "Developer + Website", href: "/filters/misc/developer-links/website/index.html", count: devLinkKindCounts.website },
   { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
   ...walkthroughFilterEntries.map((entry) => ({

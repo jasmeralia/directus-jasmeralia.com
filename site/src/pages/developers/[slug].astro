@@ -9,6 +9,7 @@ import { csvDataUri, gamesToCsv } from "../../lib/csv";
 import { formatDate } from "../../lib/date";
 import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
 import { sortByTitle } from "../../lib/list-format";
+import { getDeveloperLinkMeta } from "../../lib/download-link";
 
 export async function getStaticPaths() {
   const developers = await directusFetchItems("developers", {
@@ -38,7 +39,7 @@ if (isUnknown) {
   games = allGames.filter((game) => (game.developers ?? []).length === 0);
 } else {
   const developers = await directusFetchItems("developers", {
-    fields: ["*", "logo.id", "logo.filename_disk"],
+    fields: ["*", "logo.id", "logo.filename_disk", "links.id", "links.url", "links.label", "links.kind"],
     filter: { slug: { _eq: slug } },
     limit: 1,
   });
@@ -79,6 +80,8 @@ const excludedFields = new Set([
   "name",
   "title",
   "logo",
+  "links",
+  "website_url",
   "status",
   "sort",
   "date_created",
@@ -86,6 +89,12 @@ const excludedFields = new Set([
   "user_created",
   "user_updated",
 ]);
+const developerLinks = (developer?.links ?? [])
+  .filter((link) => link?.url && link?.kind)
+  .sort((a, b) => {
+    const kindOrder = { patreon: 0, subscribestar: 1, discord: 2, itch: 3, website: 4, other: 5 };
+    return (kindOrder[a.kind] ?? 9) - (kindOrder[b.kind] ?? 9);
+  });
 const markdownFields = ["description", "body", "notes"];
 const markdownContent = markdownFields
   .map((key) => developer?.[key])
@@ -117,6 +126,10 @@ const csvHref = csvDataUri(gamesToCsv(games));
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;}
       .logo{max-width:200px;margin:12px 0;}
       .logo img{width:100%;height:auto;display:block;}
+      .dev-links{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:4px;}
+      .dev-link{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .7rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;color:#9aa6ff;text-decoration:none;font-size:.875rem;}
+      .dev-link:hover{background:#222;border-color:#444;}
+      .dev-link img{width:.95rem;height:.95rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
     </style>
   </div>
   <main>
@@ -124,6 +137,22 @@ const csvHref = csvDataUri(gamesToCsv(games));
     {logo ? (
       <div class="logo">
         <img src={logo} alt={`${title} logo`} loading="lazy" />
+      </div>
+    ) : null}
+    {developerLinks.length > 0 ? (
+      <div class="panel">
+        <div class="label">Links</div>
+        <div class="dev-links">
+          {developerLinks.map((link) => {
+            const meta = getDeveloperLinkMeta(link);
+            return (
+              <a class="dev-link" href={link.url} target="_blank" rel="noopener noreferrer">
+                {meta.icon ? <img src={meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                <span>{meta.label}</span>
+              </a>
+            );
+          })}
+        </div>
       </div>
     ) : null}
     {detailEntries.length ? (

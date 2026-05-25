@@ -5,6 +5,9 @@
 - Data: migrate 1569 download links, 57 walkthrough links, 46 extra links from GSL cache to `games_links`; migrate 507 developer links (Patreon, website, Discord, SubscribeStar, itch) to `developers_links`.
 - Site: update all pages (GameThumbCard, games/[slug], tiers/[slug], filters/index, platform/[platform], walkthrough/[kind], avn-missing-walkthrough, walkthroughs/index) to use new link helpers (primaryDownloadLink, walkthroughLinks, getLinkMeta).
 - Add GameLink, DeveloperLink types and link helper functions to download-link.ts; update game-fields.ts GAME_THUMB_FIELDS and directus.ts types accordingly.
+- Developer detail pages now display developer links (Patreon, Discord, SubscribeStar, itch, website) as pill badges with platform icons.
+- Add misc filter pages: Developer + {Patreon, Discord, SubscribeStar, itch, website, other} and Developer + Missing Links; surface counts on /filters.
+- Add discord.svg to public/icons/simple/; add getDeveloperLinkMeta helper to download-link.ts.
 
 ## [1.0.117] - 2026-05-24
 - Fix search: sync pagefind/ directory to S3 without --size-only so content-addressed shard files are always re-uploaded; fixes broken search after any build.

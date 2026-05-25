@@ -1,0 +1,104 @@
+---
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+import { directusFetchItems } from "../../../../lib/directus";
+import { compareLabels } from "../../../../lib/list-format";
+import { getDeveloperLinkMeta, type DeveloperLink } from "../../../../lib/download-link";
+
+const DEVELOPER_LINK_KINDS: DeveloperLink["kind"][] = [
+  "patreon", "subscribestar", "discord", "itch", "website", "other",
+];
+
+const KIND_LABEL: Record<DeveloperLink["kind"], string> = {
+  patreon: "Patreon",
+  subscribestar: "SubscribeStar",
+  discord: "Discord",
+  itch: "itch.io",
+  website: "Website",
+  other: "Other",
+};
+
+export async function getStaticPaths() {
+  return DEVELOPER_LINK_KINDS.map((kind) => ({ params: { kind } }));
+}
+
+const { kind } = Astro.params as { kind: DeveloperLink["kind"] };
+if (!DEVELOPER_LINK_KINDS.includes(kind)) {
+  throw new Error(`Unsupported developer link kind: ${kind}`);
+}
+
+const linkRows = await directusFetchItems("developers_links", {
+  fields: ["developers_id", "url", "label", "kind"],
+  filter: { kind: { _eq: kind } },
+  limit: -1,
+});
+
+const devIdToLinks = new Map<number, { url: string; label: string | null; kind: string }[]>();
+for (const row of linkRows ?? []) {
+  const id = row.developers_id;
+  if (typeof id !== "number") continue;
+  if (!devIdToLinks.has(id)) devIdToLinks.set(id, []);
+  devIdToLinks.get(id)!.push({ url: row.url, label: row.label ?? null, kind: row.kind });
+}
+
+const devIds = Array.from(devIdToLinks.keys());
+const developers = devIds.length
+  ? (await directusFetchItems("developers", {
+      fields: ["id", "name", "slug"],
+      filter: { id: { _in: devIds } },
+      limit: -1,
+    })).sort((a, b) =>
+      compareLabels(a.name ?? a.slug ?? "", b.name ?? b.slug ?? "")
+    )
+  : [];
+
+const kindLabel = KIND_LABEL[kind] ?? kind;
+---
+
+<BaseLayout title={`Filters | Developer + ${kindLabel}`}>
+  <div slot="head">
+    <style>
+      main{max-width:980px;margin:0 auto;padding:24px;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+      ul{list-style:disc;padding-left:20px;}
+      .dev-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
+      .dev-link{display:inline-flex;align-items:center;gap:.4rem;padding:.2rem .55rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;color:#9aa6ff;text-decoration:none;font-size:.8rem;}
+      .dev-link:hover{background:#222;border-color:#444;}
+      .dev-link img{width:.85rem;height:.85rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <h1>Developer + {kindLabel} <span style="opacity:.6;font-size:.8em;">({developers.length})</span></h1>
+      <p>Developers with at least one {kindLabel} link.</p>
+    </div>
+    {developers.length === 0 ? (
+      <div class="panel"><p>No developers have a {kindLabel} link.</p></div>
+    ) : (
+      <div class="panel">
+        <ul>
+          {developers.map((dev) => {
+            const links = devIdToLinks.get(dev.id) ?? [];
+            return (
+              <li>
+                <div class="dev-row">
+                  <a href={`/developers/${dev.slug}/index.html`}>{dev.name ?? dev.slug}</a>
+                  {links.map((link) => {
+                    const meta = getDeveloperLinkMeta({ url: link.url, label: link.label, kind: link.kind as DeveloperLink["kind"] });
+                    return (
+                      <a class="dev-link" href={link.url} target="_blank" rel="noopener noreferrer">
+                        {meta.icon ? <img src={meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                        <span>{meta.label}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    )}
+  </main>
+</BaseLayout>
