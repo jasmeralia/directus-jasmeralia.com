@@ -126,10 +126,10 @@ const csvHref = csvDataUri(gamesToCsv(games));
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;}
       .logo{max-width:200px;margin:12px 0;}
       .logo img{width:100%;height:auto;display:block;}
-      .dev-links{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:4px;}
-      .dev-link{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .7rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;color:#9aa6ff;text-decoration:none;font-size:.875rem;}
-      .dev-link:hover{background:#222;border-color:#444;}
-      .dev-link img{width:.95rem;height:.95rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
+      .dev-link{display:inline-flex;align-items:center;gap:.4rem;color:#9aa6ff;text-decoration:none;}
+      .dev-link:hover{text-decoration:underline;}
+      .dev-link img{width:.9rem;height:.9rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
+      .dev-link-url{font-size:.82rem;color:#5f667a;word-break:break-all;}
     </style>
   </div>
   <main>
@@ -142,17 +142,20 @@ const csvHref = csvDataUri(gamesToCsv(games));
     {developerLinks.length > 0 ? (
       <div class="panel">
         <div class="label">Links</div>
-        <div class="dev-links">
+        <ul>
           {developerLinks.map((link) => {
             const meta = getDeveloperLinkMeta(link);
             return (
-              <a class="dev-link" href={link.url} target="_blank" rel="noopener noreferrer">
-                {meta.icon ? <img src={meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
-                <span>{meta.label}</span>
-              </a>
+              <li>
+                <a class="dev-link" href={link.url} target="_blank" rel="noopener noreferrer">
+                  {meta.icon ? <img src={meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                  <span>{meta.label}</span>
+                </a>
+                {" "}<span class="dev-link-url">{link.url}</span>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </div>
     ) : null}
     {detailEntries.length ? (

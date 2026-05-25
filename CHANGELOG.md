@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.122] - 2026-05-25
+- Data: fix 37 developer links misclassified as "website" kind where URL is an itch.io profile (kind→itch); fix 1 misclassified as website where URL is Patreon (kind→patreon); delete 1 duplicate.
+- Data: add Patreon links for 14 developers matched from bookmarks (Classy Lemon, Slate Interactive, Drooskati, JDOR, Jestur, Debatingpanda, Duskduck, Flipdashit, Katanavn, Magnumstories, Noglory, Oppaiodyssey, Saintmcdaniels, Sondertalesstudios).
+- Developer pages: change links section from pill badges to bullet list; show full URL alongside each link.
+- Misc filters: rename "Developer + {kind}" headings/labels to "Developer Links + {kind}"; show full URL for each link on filter detail pages.
+- Add SubscribeStar icon (subscribestar.svg) and wire up in getDeveloperLinkMeta/getDeveloperKindIcon.
+- Nav: sort links alphabetically (Home remains first); Guides moves from last to between Genres and Play Status.
+- Game status tags: Unreleased now shown with blue styling (matching Abandoned/Family Sharing Disabled pattern using red).
+
 ## [1.0.121] - 2026-05-25
 - Fix build: export DEVELOPER_LINK_KINDS from download-link.ts and import it in developer-links/[kind].astro so getStaticPaths can access it (inline frontmatter constants are not available in Astro's getStaticPaths build context).
 
