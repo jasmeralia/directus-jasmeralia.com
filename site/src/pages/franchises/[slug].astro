@@ -1,0 +1,84 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { directusFetchItems, fileUrl } from "../../lib/directus";
+
+export async function getStaticPaths() {
+  const franchises = await directusFetchItems("franchises", {
+    fields: ["slug"],
+    filter: { status: { _eq: "published" } },
+    limit: -1,
+  });
+  return franchises.filter((f) => !!f.slug).map((f) => ({ params: { slug: f.slug } }));
+}
+
+const { slug } = Astro.params;
+if (!slug) throw new Error("Missing slug param");
+
+const [franchiseArr] = await Promise.all([
+  directusFetchItems("franchises", {
+    fields: ["id", "title", "slug", "description"],
+    filter: { slug: { _eq: slug }, status: { _eq: "published" } },
+    limit: 1,
+  }),
+]);
+const franchise = franchiseArr?.[0];
+if (!franchise) return Astro.redirect("/404");
+
+const members = await directusFetchItems("franchise_games", {
+  fields: [
+    "id", "sort",
+    "game_id.id", "game_id.title", "game_id.slug",
+    "game_id.release_year",
+    "game_id.cover_image.id", "game_id.cover_image.filename_disk",
+  ],
+  filter: { franchise_id: { _eq: franchise.id } },
+  sort: ["sort"],
+  limit: -1,
+});
+const games = (members ?? [])
+  .filter((m) => m?.game_id?.slug)
+  .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+---
+
+<BaseLayout title={`Franchises | ${franchise.title}`} description={franchise.description ?? franchise.title}>
+  <div slot="head">
+    <style>
+      main{max-width:900px;margin:0 auto;padding:1.5rem 1rem;}
+      h1{margin-bottom:.25rem;}
+      .desc{opacity:.8;margin:.5rem 0 1.5rem;}
+      .game-list{display:flex;flex-direction:column;gap:.75rem;}
+      .game-item{display:flex;align-items:center;gap:1rem;background:#111;border:1px solid #222;border-radius:10px;padding:.75rem 1rem;text-decoration:none;color:inherit;}
+      .game-item:hover{background:#191929;}
+      .game-thumb{width:56px;height:56px;border-radius:6px;object-fit:cover;background:#1a1a2e;flex-shrink:0;}
+      .game-thumb-placeholder{width:56px;height:56px;border-radius:6px;background:#1a1a2e;flex-shrink:0;}
+      .game-info{display:flex;flex-direction:column;gap:.2rem;}
+      .game-title{font-weight:600;color:#eaeaea;}
+      .game-meta{font-size:.8rem;opacity:.6;}
+      .game-index{font-size:.85rem;opacity:.45;min-width:1.5rem;text-align:right;flex-shrink:0;}
+    </style>
+  </div>
+  <main>
+    <h1>{franchise.title}</h1>
+    {franchise.description && <p class="desc">{franchise.description}</p>}
+    <div class="game-list">
+      {games.map((member, i) => {
+        const game = member.game_id;
+        const img = fileUrl(game.cover_image);
+        return (
+          <a class="game-item" href={`/games/${game.slug}/index.html`}>
+            <span class="game-index">{i + 1}.</span>
+            {img
+              ? <img class="game-thumb" src={img} alt={game.title} loading="lazy" />
+              : <div class="game-thumb-placeholder" />}
+            <div class="game-info">
+              <span class="game-title">{game.title}</span>
+              <span class="game-meta">
+                {game.release_year ? `${game.release_year} · ` : ""}{game.slug}
+              </span>
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  </main>
+</BaseLayout>

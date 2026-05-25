@@ -73,6 +73,15 @@ const reviews = await directusFetchItems('reviews', {
   sort: ['-published_at'],
   limit: 100,
 });
+const franchiseEntries = await directusFetchItems('franchise_games', {
+  fields: ['franchise_id.id', 'franchise_id.title', 'franchise_id.slug'],
+  filter: { game_id: { _eq: game.id }, franchise_id: { status: { _eq: "published" } } },
+  limit: 50,
+});
+const franchises = (franchiseEntries ?? [])
+  .map((e) => e?.franchise_id)
+  .filter((f) => f?.slug && f?.title)
+  .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 const tierEntries = await directusFetchItems('tier_list_games', {
   fields: [
     'id',
@@ -284,6 +293,16 @@ const coverStackStyle = [
           ) : null}
           {isFamilySharingDisabled(game) ? (
             <li><strong>Steam Family Sharing is NOT supported for this title.</strong></li>
+          ) : null}
+          {franchises.length ? (
+            <li>
+              <strong>Franchises:</strong> {franchises.map((f, index) => (
+                <span>
+                  <a href={`/franchises/${f.slug}/index.html`}>{f.title}</a>
+                  {index < franchises.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </li>
           ) : null}
           {tierLists.length ? (
             <li>

@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.114] - 2026-05-24
+- Add franchise support: franchises collection with ordered game lists, /franchises index and detail pages, franchise membership on game detail pages, Franchises nav link.
+- Directus: franchises + franchise_games collections with M2M relation, sort field for drag ordering, cover/title/slug shown in Directus editor, Astro Readonly permissions granted.
+
 ## [1.0.113] - 2026-05-24
 - Move build timestamp out of static HTML into /build-info.json loaded by inline JS; HTML pages no longer change on every build, speeding up S3 sync.
 
