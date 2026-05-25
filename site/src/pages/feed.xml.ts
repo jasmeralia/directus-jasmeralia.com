@@ -10,6 +10,7 @@ const LIMIT_GAMES       = 100;
 const LIMIT_REVIEWS     = 50;
 const LIMIT_TIER_LISTS  = 50;
 const LIMIT_JUNCTIONS   = 300; // tier_list_games activities
+const LIMIT_LINKS       = 400; // games_links activities (create + update)
 
 // ─── field / enum labels ─────────────────────────────────────────────────────
 
@@ -259,11 +260,11 @@ async function fetchPrevRevision(collection: string, item: string, beforeId: num
   return res.data?.[0] ?? null;
 }
 
-// Fetch recent create activities for a junction collection (no revision data available).
-async function fetchCreateActivity(collection: string, limit: number): Promise<Activity[]> {
+// Fetch recent activities for a junction collection by one or more actions.
+async function fetchActivity(collection: string, actions: string | string[], limit: number): Promise<Activity[]> {
   const qs = new URLSearchParams({
     "filter[collection][_eq]": collection,
-    "filter[action][_eq]": "create",
+    "filter[action][_in]": Array.isArray(actions) ? actions.join(",") : actions,
     "sort": "-timestamp",
     "limit": String(limit),
     "fields": "id,action,collection,item,timestamp",
@@ -271,6 +272,9 @@ async function fetchCreateActivity(collection: string, limit: number): Promise<A
   const res = await directusFetchRaw<{ data: Activity[] }>(`/activity?${qs.toString()}`);
   return res.data ?? [];
 }
+
+const fetchCreateActivity = (collection: string, limit: number) =>
+  fetchActivity(collection, "create", limit);
 
 // Batch-fetch items from any collection by ID, returning a map of id → item.
 async function fetchItemMap(collection: string, ids: number[], fields: string): Promise<Record<number, any>> {
@@ -475,26 +479,53 @@ function buildTierListGameEntries(
   }];
 }
 
+function buildGameLinkEntry(
+  act: Activity,
+  glinkItem: any | null,
+  gameItem: any | null,
+): Entry | null {
+  if (!glinkItem || !gameItem) return null;
+  const date = requireDate(act.timestamp, `games_link activity ${act.id}`);
+  const slug = requireGuidPart(gameItem.slug, `games_link activity ${act.id} game slug`);
+  const link = `${siteBase}/games/${slug}/index.html`;
+  const imgUrl = mediaUrl(gameItem.cover_image) ?? undefined;
+  const kind: string = glinkItem.kind ?? "download";
+  const isWalkthrough = kind === "walkthrough" || kind === "text-note";
+  const isUpdate = act.action === "update";
+  const kindLabel = isWalkthrough ? "Walkthrough" : "Download";
+  return {
+    title: `${kindLabel} ${isUpdate ? "Updated" : "Added"}: ${gameItem.title}`,
+    link,
+    description: `**${kindLabel}**: ${glinkItem.url}`,
+    pubDate: date,
+    imageUrl: imgUrl,
+    guid: rssGuid("game", slug, `link_${act.action}_${kind}_${act.id}`, date, `games_link activity ${act.id}`),
+  };
+}
+
 // ─── main handler ─────────────────────────────────────────────────────────────
 
 export const GET: APIRoute = async () => {
   // 1. Fetch all revision/activity streams + move log in parallel
-  const [gameRevs, reviewRevs, tierListRevs, tlgActs] = await Promise.all([
+  const [gameRevs, reviewRevs, tierListRevs, tlgActs, glinkActs] = await Promise.all([
     fetchRevisions("games",       LIMIT_GAMES),
     fetchRevisions("reviews",     LIMIT_REVIEWS),
     fetchRevisions("tier_lists",  LIMIT_TIER_LISTS),
     fetchCreateActivity("tier_list_games", LIMIT_JUNCTIONS),
+    fetchActivity("games_links", ["create", "update"], LIMIT_LINKS),
   ]);
 
   // 2. Resolve IDs needed for batch lookups
 
   // tier_list_games: fetch the actual records (for additions)
-  const tlgItemIds = tlgActs.map((a) => Number(a.item));
+  const tlgItemIds   = tlgActs.map((a) => Number(a.item));
+  const glinkItemIds = glinkActs.map((a) => Number(a.item));
   const reviewItemIds = reviewRevs.map((r) => Number(r.item));
   const gameRevisionIds = gameRevs.map((r) => Number(r.item));
 
-  const [tlgItemMap, reviewItemMap] = await Promise.all([
+  const [tlgItemMap, glinkItemMap, reviewItemMap] = await Promise.all([
     fetchItemMap("tier_list_games", tlgItemIds, "id,game_id,tier_list_id,rating"),
+    fetchItemMap("games_links",     glinkItemIds, "id,games_id,url,kind"),
     fetchItemMap("reviews", reviewItemIds,
       "id,title,slug,status,rating,published_at,game.id,game.title,game.cover_image.id,game.cover_image.filename_disk"),
   ]);
@@ -507,8 +538,14 @@ export const GET: APIRoute = async () => {
     if (tlg.game_id)      gameIdsForTiers.add(Number(tlg.game_id));
   }
 
+  // Collect game IDs referenced by games_links activities
+  const gameIdsForLinks = new Set<number>();
+  for (const glink of Object.values(glinkItemMap)) {
+    if (glink.games_id) gameIdsForLinks.add(Number(glink.games_id));
+  }
+
   // 3. Batch-fetch support data
-  const allGameIds = new Set([...gameIdsForTiers, ...gameRevisionIds]);
+  const allGameIds = new Set([...gameIdsForTiers, ...gameIdsForLinks, ...gameRevisionIds]);
   const [tierListMap, gameMap] = await Promise.all([
     fetchItemMap("tier_lists", Array.from(tierListIdsForAdd), "id,title,slug"),
     fetchItemMap("games", Array.from(allGameIds),
@@ -554,6 +591,14 @@ export const GET: APIRoute = async () => {
   // Tier lists
   for (const rev of tierListRevs) {
     const entry = buildTierListEntry(rev);
+    if (entry) entries.push(entry);
+  }
+
+  // Games link additions (download/walkthrough URLs added to games_links)
+  for (const act of glinkActs) {
+    const glink    = glinkItemMap[Number(act.item)];
+    const gameItem = glink ? gameMap[Number(glink.games_id)] : null;
+    const entry    = buildGameLinkEntry(act, glink ?? null, gameItem ?? null);
     if (entry) entries.push(entry);
   }
 

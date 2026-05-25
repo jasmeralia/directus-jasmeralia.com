@@ -1,12 +1,12 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
-import { getUrlPlatform } from "../../lib/download-link";
+import { getUrlPlatform, primaryDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown, compareLabels } from "../../lib/list-format";
 import {
-  classifyWalkthroughValue,
   WALKTHROUGH_KIND_LABEL,
+  WALKTHROUGH_KINDS,
   type WalkthroughKind,
 } from "../../lib/walkthrough-link";
 
@@ -31,13 +31,15 @@ const games = await directusFetchItems("games", {
     "id",
     "game_status",
     "player_status",
-    "download_url",
     "family_sharing",
-    "walkthrough_url",
     "gamestorylog_url",
     "engines.engines_id.slug",
     "genres.genres_id.slug",
     "developers.developers_id.slug",
+    "links.id",
+    "links.url",
+    "links.kind",
+    "links.sort",
   ],
   limit: -1,
 });
@@ -311,17 +313,17 @@ const avnWithGamestorylogCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && hasValue(game.gamestorylog_url),
 ).length;
 const avnMissingWalkthroughCount = (games ?? []).filter(
-  (game) => hasAvnGenre(game) && !hasValue(game.walkthrough_url),
+  (game) => hasAvnGenre(game) && walkthroughLinks(game?.links).length === 0,
 ).length;
 const platformCounts = {
-  steam: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "steam").length,
-  itch: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "itch").length,
-  gog: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "gog").length,
-  patreon: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "patreon").length,
-  playstation: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "playstation").length,
-  xbox: (games ?? []).filter((game) => getUrlPlatform(game.download_url) === "xbox").length,
+  steam: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "steam").length,
+  itch: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "itch").length,
+  gog: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "gog").length,
+  patreon: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "patreon").length,
+  playstation: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "playstation").length,
+  xbox: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "xbox").length,
 };
-const unknownPlatformCount = (games ?? []).filter((game) => getUrlPlatform(game.download_url) === null).length;
+const unknownPlatformCount = (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === null).length;
 const platformPieSegments = [
   { label: "Steam", value: platformCounts.steam, color: "#4aa3ff" },
   { label: "PlayStation", value: platformCounts.playstation, color: "#003087" },
@@ -332,27 +334,37 @@ const platformPieSegments = [
   { label: formatUnknown("unknown", "Download Platform"), value: unknownPlatformCount, color: "#7fe29a" },
 ].filter((segment) => segment.value > 0);
 const platformPieTotal = platformPieSegments.reduce((sum, segment) => sum + segment.value, 0);
-const walkthroughCounts: Record<WalkthroughKind, number> = {
-  steam: 0,
-  itch: 0,
-  gog: 0,
-  patreon: 0,
-  unknown: 0,
-  "text-note": 0,
-  "none-provided": 0,
+const walkthroughCounts = Object.fromEntries(
+  WALKTHROUGH_KINDS.map((k) => [k, 0]),
+) as Record<WalkthroughKind, number>;
+const WALKTHROUGH_KIND_COLOR: Record<string, string> = {
+  steam: "#4aa3ff",       itch: "#ff7a7a",        gog: "#ffd966",
+  patreon: "#c788ff",     playstation: "#003087",  xbox: "#107c10",
+  ign: "#e2001a",         scribd: "#1a7fd4",       f95zone: "#ff6600",
+  gamerant: "#e23b2e",    neoseeker: "#6699cc",    trueachievements: "#008000",
+  stealthoptional: "#888",unknown: "#7fe29a",      "text-note": "#ffb86c",
 };
 for (const game of games ?? []) {
-  const kind = classifyWalkthroughValue(game?.walkthrough_url);
+  const wtLinks = walkthroughLinks(game?.links);
+  const notes   = walkthroughTextNotes(game?.links);
+  let kind: WalkthroughKind;
+  if (wtLinks.length === 0 && notes.length === 0) {
+    kind = "none-provided";
+  } else if (wtLinks.length === 0) {
+    kind = "text-note";
+  } else {
+    const platform = getUrlPlatform(wtLinks[0].url);
+    kind = (platform as WalkthroughKind | null) ?? "unknown";
+  }
   walkthroughCounts[kind] += 1;
 }
-const walkthroughPieSegments = [
-  { label: "Steam", value: walkthroughCounts.steam, color: "#4aa3ff" },
-  { label: "itch.io", value: walkthroughCounts.itch, color: "#ff7a7a" },
-  { label: "GOG", value: walkthroughCounts.gog, color: "#ffd966" },
-  { label: "Patreon", value: walkthroughCounts.patreon, color: "#c788ff" },
-  { label: WALKTHROUGH_KIND_LABEL.unknown, value: walkthroughCounts.unknown, color: "#7fe29a" },
-  { label: WALKTHROUGH_KIND_LABEL["text-note"], value: walkthroughCounts["text-note"], color: "#ffb86c" },
-].filter((segment) => segment.value > 0);
+const walkthroughPieSegments = WALKTHROUGH_KINDS
+  .filter((k) => k !== "none-provided" && walkthroughCounts[k] > 0)
+  .map((k) => ({
+    label: WALKTHROUGH_KIND_LABEL[k],
+    value: walkthroughCounts[k],
+    color: WALKTHROUGH_KIND_COLOR[k] ?? "#888",
+  }));
 const walkthroughPieTotal = walkthroughPieSegments.reduce((sum, segment) => sum + segment.value, 0);
 const pieSize = 220;
 const pieRadius = 95;
@@ -471,15 +483,10 @@ const completedInTierIds = gameIdsByTierListId.get(COMPLETED_GAMES_TIER_LIST_ID)
 const completedNotInTierCount = (games ?? []).filter(
   (game) => game.player_status === "completed" && !completedInTierIds.has(game.id),
 ).length;
-const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; count: number }> = [
-  { kind: "steam", label: WALKTHROUGH_KIND_LABEL.steam, count: walkthroughCounts.steam },
-  { kind: "itch", label: WALKTHROUGH_KIND_LABEL.itch, count: walkthroughCounts.itch },
-  { kind: "gog", label: WALKTHROUGH_KIND_LABEL.gog, count: walkthroughCounts.gog },
-  { kind: "patreon", label: WALKTHROUGH_KIND_LABEL.patreon, count: walkthroughCounts.patreon },
-  { kind: "unknown", label: WALKTHROUGH_KIND_LABEL.unknown, count: walkthroughCounts.unknown },
-  { kind: "text-note", label: WALKTHROUGH_KIND_LABEL["text-note"], count: walkthroughCounts["text-note"] },
-  { kind: "none-provided", label: WALKTHROUGH_KIND_LABEL["none-provided"], count: walkthroughCounts["none-provided"] },
-].filter((entry) => entry.count > 0);
+const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; count: number }> =
+  WALKTHROUGH_KINDS
+    .map((k) => ({ kind: k, label: WALKTHROUGH_KIND_LABEL[k], count: walkthroughCounts[k] }))
+    .filter((entry) => entry.count > 0);
 const familySharingDisabledCount = (games ?? []).filter((game) => isFamilySharingDisabled(game)).length;
 const coverArtGames = await directusFetchItems("games", {
   fields: ["id", "cover_image.width", "cover_image.height"],
@@ -495,6 +502,32 @@ const nonStandardCoverCount = (coverArtGames ?? []).filter((game) => {
   if (!w || !h) return false;
   return Math.abs(w / h - COVER_TARGET_RATIO) > COVER_RATIO_TOLERANCE;
 }).length;
+const devLinkRows = await directusFetchItems("developers_links", {
+  fields: ["developers_id", "kind"],
+  limit: -1,
+});
+const devsWithAnyLink = new Set<number>();
+const devLinkKindSeen = new Map<string, Set<number>>();
+const devLinkKindCounts: Record<string, number> = { patreon: 0, subscribestar: 0, discord: 0, itch: 0, website: 0, other: 0 };
+for (const row of devLinkRows ?? []) {
+  const id = row.developers_id;
+  if (typeof id !== "number") continue;
+  devsWithAnyLink.add(id);
+  const k = row.kind as string;
+  if (k in devLinkKindCounts) {
+    if (!devLinkKindSeen.has(k)) devLinkKindSeen.set(k, new Set());
+    if (!devLinkKindSeen.get(k)!.has(id)) {
+      devLinkKindSeen.get(k)!.add(id);
+      devLinkKindCounts[k] += 1;
+    }
+  }
+}
+const allDevCount = (await directusFetchItems("developers", {
+  fields: ["id"],
+  filter: { slug: { _neq: "unknown" } },
+  limit: -1,
+})).length;
+const developerMissingLinksCount = allDevCount - devsWithAnyLink.size;
 const labelRadius = 130;
 const platformLabeledArcs = platformPieArcs
   .filter((seg) => seg.end - seg.start >= 8)
@@ -527,6 +560,12 @@ const miscFilterEntries = [
   { label: "Download Platform + Xbox", href: "/filters/misc/platform/xbox/index.html", count: platformCounts.xbox },
   { label: "Cover Art – Missing", href: "/filters/misc/missing-cover-art/index.html", count: missingCoverArtCount },
   { label: "Cover Art – Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
+  { label: "Developer + Discord", href: "/filters/misc/developer-links/discord/index.html", count: devLinkKindCounts.discord },
+  { label: "Developer + itch.io", href: "/filters/misc/developer-links/itch/index.html", count: devLinkKindCounts.itch },
+  { label: "Developer + Missing Links", href: "/filters/misc/developer-missing-links/index.html", count: developerMissingLinksCount },
+  { label: "Developer + Patreon", href: "/filters/misc/developer-links/patreon/index.html", count: devLinkKindCounts.patreon },
+  { label: "Developer + SubscribeStar", href: "/filters/misc/developer-links/subscribestar/index.html", count: devLinkKindCounts.subscribestar },
+  { label: "Developer + Website", href: "/filters/misc/developer-links/website/index.html", count: devLinkKindCounts.website },
   { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
   ...walkthroughFilterEntries.map((entry) => ({

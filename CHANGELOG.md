@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.120] - 2026-05-25
+- Add text-note support to games_links: add "text-note" kind to the Directus field dropdown; add walkthroughTextNotes() helper to download-link.ts; render text notes as plain text (not links) on game detail, walkthroughs index, and walkthrough filter pages; count text-notes correctly in /filters walkthrough pie and filter entries.
+- Re-insert the deleted walkthrough text note for Forbidden Fantasy (games_id 30, games_links id 1675): "Walkthrough is available in the game settings."
+- RSS feed: track games_links update activities alongside creates using a generalized fetchActivity() helper; emit "Download Link Updated" / "Walkthrough Updated" entries with per-action GUIDs.
+
+## [1.0.119] - 2026-05-25
+- Fix: import scripts (wishlist_import, bulk_import, import_psn_xbox) now create a `games_links` download row after creating each game record, so newly imported games have a populated download link on the site.
+- Fix: RSS feed (feed.xml.ts) tracks `games_links` create activities; download/walkthrough link additions now produce feed entries ("Download Link Added: {title}" / "Walkthrough Added: {title}").
+- Fix: walkthrough filter counts and pie segments in /filters now driven from the full WALKTHROUGH_KINDS list instead of a hardcoded subset; platforms like ign, f95zone, trueachievements etc. no longer produce uninitialized counts.
+
+## [1.0.118] - 2026-05-25
+- Refactor: replace scalar `download_url`/`walkthrough_url` game fields with relational `games_links` junction collection (M2O→games, fields: url, label, kind, sort). Add `developers_links` junction collection (M2O→developers).
+- Data: migrate 1569 download links, 57 walkthrough links, 46 extra links from GSL cache to `games_links`; migrate 507 developer links (Patreon, website, Discord, SubscribeStar, itch) to `developers_links`.
+- Site: update all pages (GameThumbCard, games/[slug], tiers/[slug], filters/index, platform/[platform], walkthrough/[kind], avn-missing-walkthrough, walkthroughs/index) to use new link helpers (primaryDownloadLink, walkthroughLinks, getLinkMeta).
+- Add GameLink, DeveloperLink types and link helper functions to download-link.ts; update game-fields.ts GAME_THUMB_FIELDS and directus.ts types accordingly.
+- Developer detail pages now display developer links (Patreon, Discord, SubscribeStar, itch, website) as pill badges with platform icons.
+- Add misc filter pages: Developer + {Patreon, Discord, SubscribeStar, itch, website, other} and Developer + Missing Links; surface counts on /filters.
+- Add discord.svg to public/icons/simple/; add getDeveloperLinkMeta helper to download-link.ts.
+
+
 ## [1.0.117] - 2026-05-24
 - Fix search: sync pagefind/ directory to S3 without --size-only so content-addressed shard files are always re-uploaded; fixes broken search after any build.
 - Data: remove duplicate Borderlands GOTY entry, rename GOTY Enhanced to "Borderlands"; remove DMC4 "Special Edition" suffix; delete FFXV Windows Edition; mark Marvel's Avengers and Shadowrun Chronicles - Boston Lockdown as Abandoned; remove STALKER Ukrainian-spelling duplicate entries.

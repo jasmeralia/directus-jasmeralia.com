@@ -266,7 +266,19 @@ def main():
                 time.sleep(args.delay)
                 continue
 
-        # 3. Genre junctions
+        # 3. Download link junction
+        dl_url = (game.get("download_url") or "").strip()
+        if dl_url:
+            if args.dry_run:
+                print(f"  [link] DRY-RUN create download link: {dl_url[:60]}", file=sys.stderr)
+            else:
+                try:
+                    api("POST", "/items/games_links", {"games_id": game_id, "url": dl_url, "kind": "download", "sort": 1})
+                    print(f"  [link] Created download link", file=sys.stderr)
+                except Exception as e:
+                    print(f"  [link] Error creating download link: {e}", file=sys.stderr)
+
+        # 4. Genre junctions
         genre_ids = [GENRE_MAP[g] for g in game.get("genres", []) if g in GENRE_MAP]
         for genre_id in genre_ids:
             if args.dry_run:
@@ -277,7 +289,7 @@ def main():
             except Exception as e:
                 print(f"  [genre] Error linking genre {genre_id}: {e}", file=sys.stderr)
 
-        # 4. Developer junctions
+        # 5. Developer junctions
         for dev_name in game.get("developers", []):
             dev_id = upsert_developer(dev_name, dev_cache, args.dry_run)
             if dev_id is None:

@@ -1,29 +1,43 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
-import { getUrlLinkMeta } from "../../lib/download-link";
+import { walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { sortByTitle } from "../../lib/list-format";
 
-const games = sortByTitle(await directusFetchItems("games", {
-  fields: ["id", "title", "slug", "walkthrough_url"],
-  filter: {
-    walkthrough_url: { _null: false, _nempty: true },
-  },
+const walkthroughLinkRows = await directusFetchItems("games_links", {
+  fields: ["games_id"],
+  filter: { kind: { _in: ["walkthrough", "text-note"] } },
   limit: -1,
-}));
-const isUrl = (value) => typeof value === "string" && /^https?:\/\//i.test(value.trim());
-const walkthroughMeta = (url) => {
-  const meta = getUrlLinkMeta(url);
-  return {
-    ...meta,
-    text:
-      meta.label === "Download"
-        ? meta.host
-          ? `Walkthrough (${meta.host})`
-          : "Walkthrough"
+});
+const gameIdsWithWalkthrough = [...new Set(
+  (walkthroughLinkRows ?? []).map((r) => r.games_id).filter((id) => typeof id === "number"),
+)];
+
+const games = gameIdsWithWalkthrough.length
+  ? sortByTitle(await directusFetchItems("games", {
+      fields: ["id", "title", "slug", "links.id", "links.url", "links.label", "links.kind", "links.sort"],
+      filter: { id: { _in: gameIdsWithWalkthrough } },
+      limit: -1,
+    }))
+  : [];
+
+const walkthroughEntries = (game) => [
+  ...walkthroughLinks(game?.links).map((link) => {
+    const meta = getLinkMeta(link);
+    return {
+      isTextNote: false as const,
+      url: link.url,
+      icon: meta.icon,
+      text: meta.label === "Download"
+        ? meta.host ? `Walkthrough (${meta.host})` : "Walkthrough"
         : `Walkthrough on ${meta.label}`,
-  };
-};
+    };
+  }),
+  ...walkthroughTextNotes(game?.links).map((link) => ({
+    isTextNote: true as const,
+    text: link.label ?? link.url,
+  })),
+];
 ---
 
 <BaseLayout title="Walkthroughs">
@@ -45,24 +59,29 @@ const walkthroughMeta = (url) => {
           <p>No walkthroughs yet.</p>
         ) : (
           <ul>
-            {games.map((game) => (
-              <li>
-                <a href={`/games/${game.slug}/index.html`}>{game.title}</a>:{" "}
-                {isUrl(game.walkthrough_url) ? (
-                  (() => {
-                    const meta = walkthroughMeta(game.walkthrough_url);
-                    return (
-                      <a class="ext-link" href={game.walkthrough_url} rel="noopener noreferrer" target="_blank">
-                        {meta.icon ? (
-                          <img src={meta.icon} alt="" aria-hidden="true" loading="lazy" />
-                        ) : null}
-                        <span>{meta.text}</span>
-                      </a>
-                    );
-                  })()
-                ) : <span>{game.walkthrough_url}</span>}
-              </li>
-            ))}
+            {games.map((game) => {
+              const entries = walkthroughEntries(game);
+              return (
+                <li>
+                  <a href={`/games/${game.slug}/index.html`}>{game.title}</a>:{" "}
+                  {entries.map((entry, index) => (
+                    <>
+                      {index > 0 ? <span> | </span> : null}
+                      {entry.isTextNote ? (
+                        <span>{entry.text}</span>
+                      ) : (
+                        <a class="ext-link" href={entry.url} rel="noopener noreferrer" target="_blank">
+                          {entry.icon ? (
+                            <img src={entry.icon} alt="" aria-hidden="true" loading="lazy" />
+                          ) : null}
+                          <span>{entry.text}</span>
+                        </a>
+                      )}
+                    </>
+                  ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

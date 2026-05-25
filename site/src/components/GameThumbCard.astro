@@ -1,6 +1,6 @@
 ---
 import { fileUrl, isFamilySharingDisabled } from "../lib/directus";
-import { getUrlLinkMeta } from "../lib/download-link";
+import { primaryDownloadLink, walkthroughLinks, getLinkMeta } from "../lib/download-link";
 
 const { game, reviewed = false, sTier = false } = Astro.props;
 const labelize = (value) =>
@@ -10,7 +10,8 @@ const didNotFinish = game?.player_status === "did_not_finish";
 const inProgress = game?.player_status === "in_progress";
 const onHold = game?.player_status === "on_hold";
 const waitingForUpdate = game?.player_status === "waiting_for_update";
-const hasWalkthrough = typeof game?.walkthrough_url === "string" && game.walkthrough_url.trim().length > 0;
+const downloadLink = primaryDownloadLink(game?.links);
+const hasWalkthrough = walkthroughLinks(game?.links).length > 0;
 const statusColor = completed
   ? "#c0c0c0"
   : didNotFinish
@@ -39,9 +40,9 @@ const stackStyle = [
 ].join(";");
 
 const img = game?.cover_image ? fileUrl(game.cover_image) : null;
-const downloadMeta = getUrlLinkMeta(game?.download_url);
-const showDownloadPlatform = downloadMeta.label !== "Download" || Boolean(downloadMeta.host);
-const hasDownloadUrl = typeof game?.download_url === "string" && /^https?:\/\//i.test(game.download_url.trim());
+const downloadMeta = downloadLink ? getLinkMeta(downloadLink) : null;
+const showDownloadPlatform = downloadMeta && (downloadMeta.label !== "Download" || Boolean(downloadMeta.host));
+const hasDownloadUrl = Boolean(downloadLink?.url);
 const genres = (game?.genres ?? [])
   .map((genre) => genre?.genres_id)
   .filter((genre) => genre?.name && genre?.slug);
@@ -71,14 +72,14 @@ const engines = (game?.engines ?? [])
                   {showDownloadPlatform ? (
                     <div class="platform">
                       {hasDownloadUrl ? (
-                        <a class="platform-link" href={game.download_url} target="_blank" rel="noopener noreferrer">
-                          {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
-                          <span>{downloadMeta.label === "Download" && downloadMeta.host ? `Download (${downloadMeta.host})` : downloadMeta.label}</span>
+                        <a class="platform-link" href={downloadLink!.url} target="_blank" rel="noopener noreferrer">
+                          {downloadMeta!.icon ? <img src={downloadMeta!.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                          <span>{downloadMeta!.label === "Download" && downloadMeta!.host ? `Download (${downloadMeta!.host})` : downloadMeta!.label}</span>
                         </a>
                       ) : (
                         <>
-                          {downloadMeta.icon ? <img src={downloadMeta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
-                          <span>{downloadMeta.label === "Download" && downloadMeta.host ? `Download (${downloadMeta.host})` : downloadMeta.label}</span>
+                          {downloadMeta!.icon ? <img src={downloadMeta!.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                          <span>{downloadMeta!.label === "Download" && downloadMeta!.host ? `Download (${downloadMeta!.host})` : downloadMeta!.label}</span>
                         </>
                       )}
                     </div>

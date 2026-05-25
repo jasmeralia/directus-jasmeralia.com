@@ -209,6 +209,16 @@ def main():
             game_id = result['data']['id']
             print(f"  Created game ID {game_id}")
 
+            # Download link junction
+            if download_url:
+                try:
+                    api_post('/items/games_links', {'games_id': game_id, 'url': download_url, 'kind': 'download', 'sort': 1})
+                    print(f"  Created download link")
+                except urllib.error.HTTPError as e:
+                    print(f"  Download link HTTP {e.code}: {e.read().decode()[:200]}")
+                except Exception as e:
+                    print(f"  Download link error: {e}")
+
             # Link genres
             for genre_name in game.get('genres', []):
                 genre_id = ensure_genre(genre_name, genre_cache)

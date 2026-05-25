@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ThumbnailBorderLegend from "../../components/ThumbnailBorderLegend.astro";
 import { directusFetchItems, getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl, TIER_RATING_CONFIG } from "../../lib/directus";
+import { walkthroughLinks } from "../../lib/download-link";
 import { csvDataUri, tierListToCsv } from "../../lib/csv";
 import "../../styles/tierlist.css";
 
@@ -127,7 +128,7 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
                   const game = entry.game_id;
                   const img = fileUrl(game.cover_image);
                   const reviewed = reviewedGameIds.has(game.id);
-                  const hasWalkthrough = typeof game?.walkthrough_url === "string" && game.walkthrough_url.trim().length > 0;
+                  const hasWalkthrough = walkthroughLinks(game?.links).length > 0;
                   const sTier = group.rating === "S";
                   return (
                     <div class="tier-stack" style={thumbBorderStyle(reviewed, game?.player_status, sTier, hasWalkthrough)}>

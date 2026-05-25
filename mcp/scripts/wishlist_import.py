@@ -553,6 +553,18 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
                 time.sleep(delay)
                 continue
 
+        # Download link junction
+        dl_url = (game.get("download_url") or "").strip()
+        if dl_url:
+            if dry_run:
+                print(f"  [link] DRY-RUN create download link: {dl_url[:60]}", file=sys.stderr)
+            else:
+                try:
+                    directus_post("/items/games_links", {"games_id": game_id, "url": dl_url, "kind": "download", "sort": 1})
+                    print(f"  [link] Created download link", file=sys.stderr)
+                except Exception as e:
+                    print(f"  [link] Error creating download link: {e}", file=sys.stderr)
+
         # Genre junctions
         for genre_slug in game.get("genres", []):
             genre_id = slug_to_id.get(genre_slug)
