@@ -111,7 +111,7 @@ export const getDeveloperLinkMeta = (link: DeveloperLink): DeveloperLinkMeta => 
   }
   switch (link.kind) {
     case "patreon":      return { icon: "/icons/simple/patreon.svg",    label: "Patreon" };
-    case "subscribestar":return { icon: null,                            label: "SubscribeStar" };
+    case "subscribestar":return { icon: "/icons/simple/subscribestar.svg", label: "SubscribeStar" };
     case "discord":      return { icon: "/icons/simple/discord.svg",    label: "Discord" };
     case "itch":         return { icon: "/icons/simple/itchdotio.svg",  label: "itch.io" };
     case "website":
@@ -122,10 +122,11 @@ export const getDeveloperLinkMeta = (link: DeveloperLink): DeveloperLinkMeta => 
 
 function getDeveloperKindIcon(kind: DeveloperLink["kind"]): string | null {
   switch (kind) {
-    case "patreon":       return "/icons/simple/patreon.svg";
-    case "discord":       return "/icons/simple/discord.svg";
-    case "itch":          return "/icons/simple/itchdotio.svg";
-    default:              return null;
+    case "patreon":        return "/icons/simple/patreon.svg";
+    case "subscribestar":  return "/icons/simple/subscribestar.svg";
+    case "discord":        return "/icons/simple/discord.svg";
+    case "itch":           return "/icons/simple/itchdotio.svg";
+    default:               return null;
   }
 }
 
