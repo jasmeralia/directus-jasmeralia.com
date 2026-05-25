@@ -508,7 +508,7 @@ const devLinkRows = await directusFetchItems("developers_links", {
 });
 const devsWithAnyLink = new Set<number>();
 const devLinkKindSeen = new Map<string, Set<number>>();
-const devLinkKindCounts: Record<string, number> = { patreon: 0, subscribestar: 0, discord: 0, itch: 0, website: 0, other: 0 };
+const devLinkKindCounts: Record<string, number> = { patreon: 0, subscribestar: 0, discord: 0, itch: 0, steam: 0, website: 0, other: 0 };
 for (const row of devLinkRows ?? []) {
   const id = row.developers_id;
   if (typeof id !== "number") continue;
@@ -564,6 +564,7 @@ const miscFilterEntries = [
   { label: "Developer Links + itch.io", href: "/filters/misc/developer-links/itch/index.html", count: devLinkKindCounts.itch },
   { label: "Developer + Missing Links", href: "/filters/misc/developer-missing-links/index.html", count: developerMissingLinksCount },
   { label: "Developer Links + Patreon", href: "/filters/misc/developer-links/patreon/index.html", count: devLinkKindCounts.patreon },
+  { label: "Developer Links + Steam", href: "/filters/misc/developer-links/steam/index.html", count: devLinkKindCounts.steam },
   { label: "Developer Links + SubscribeStar", href: "/filters/misc/developer-links/subscribestar/index.html", count: devLinkKindCounts.subscribestar },
   { label: "Developer Links + Website", href: "/filters/misc/developer-links/website/index.html", count: devLinkKindCounts.website },
   { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
