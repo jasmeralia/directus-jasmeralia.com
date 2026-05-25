@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.116] - 2026-05-25
+- Add second pie chart to /franchises index showing each franchise as a slice proportional to its game count.
+
 ## [1.0.115] - 2026-05-25
 - Add franchise size distribution pie chart to /franchises index; list items color-coded by bucket (3–4, 5–7, 8–10, 11–19, 20+ games).
 

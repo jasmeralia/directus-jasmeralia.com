@@ -21,30 +21,7 @@ for (const entry of allFranchiseGames ?? []) {
   if (typeof id === "number") countsByFranchise.set(id, (countsByFranchise.get(id) ?? 0) + 1);
 }
 
-// Size-distribution pie chart
-const BUCKETS = [
-  { label: "3–4 games",   min: 3,  max: 4,   color: "#3f76ff" },
-  { label: "5–7 games",   min: 5,  max: 7,   color: "#24c2a0" },
-  { label: "8–10 games",  min: 8,  max: 10,  color: "#f2b04f" },
-  { label: "11–19 games", min: 11, max: 19,  color: "#e36b6b" },
-  { label: "20+ games",   min: 20, max: Infinity, color: "#9b7bff" },
-];
-const bucketCounts = BUCKETS.map(() => 0);
-for (const franchise of franchises) {
-  const count = countsByFranchise.get(franchise.id) ?? 0;
-  const i = BUCKETS.findIndex((b) => count >= b.min && count <= b.max);
-  if (i >= 0) bucketCounts[i]++;
-}
-const segments = BUCKETS.map((b, i) => ({ label: b.label, value: bucketCounts[i], color: b.color }));
-const total = segments.reduce((s, seg) => s + seg.value, 0);
-
-const franchiseBucketColor = new Map<number, string>();
-for (const franchise of franchises) {
-  const count = countsByFranchise.get(franchise.id) ?? 0;
-  const i = BUCKETS.findIndex((b) => count >= b.min && count <= b.max);
-  franchiseBucketColor.set(franchise.id, i >= 0 ? BUCKETS[i].color : "#555");
-}
-
+// ── Shared SVG helpers ──────────────────────────────────────────────────────
 const size = 220;
 const radius = 100;
 const cx = size / 2;
@@ -59,11 +36,11 @@ const describeArc = (x, y, r, startAngle, endAngle) => {
   const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
   return ["M", x, y, "L", start.x, start.y, "A", r, r, 0, largeArcFlag, 0, end.x, end.y, "Z"].join(" ");
 };
-const arcSegments = (() => {
+const buildArcSegments = (segs, total) => {
   if (!total) return [];
   const result = [];
   let startAngle = 0;
-  for (const seg of segments) {
+  for (const seg of segs) {
     if (!seg.value) continue;
     const angle = (seg.value / total) * 360;
     const endAngle = startAngle + angle;
@@ -71,17 +48,57 @@ const arcSegments = (() => {
     startAngle = endAngle;
   }
   return result;
-})();
+};
 const labelRadius = 130;
-const labeledArcs = arcSegments
-  .filter((seg) => seg.endAngle - seg.startAngle >= 8)
-  .map((seg) => {
-    const mid = (seg.startAngle + seg.endAngle) / 2;
-    const pos = polarToCartesian(cx, cy, labelRadius, mid);
-    const anchor = pos.x < cx - 5 ? "end" : pos.x > cx + 5 ? "start" : "middle";
-    const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
-    return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
-  });
+const buildLabeledArcs = (arcs, total) =>
+  arcs
+    .filter((seg) => seg.endAngle - seg.startAngle >= 8)
+    .map((seg) => {
+      const mid = (seg.startAngle + seg.endAngle) / 2;
+      const pos = polarToCartesian(cx, cy, labelRadius, mid);
+      const anchor = pos.x < cx - 5 ? "end" : pos.x > cx + 5 ? "start" : "middle";
+      const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
+      return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
+    });
+
+// ── Chart 1: size distribution buckets ─────────────────────────────────────
+const BUCKETS = [
+  { label: "3–4 games",   min: 3,  max: 4,          color: "#3f76ff" },
+  { label: "5–7 games",   min: 5,  max: 7,           color: "#24c2a0" },
+  { label: "8–10 games",  min: 8,  max: 10,          color: "#f2b04f" },
+  { label: "11–19 games", min: 11, max: 19,          color: "#e36b6b" },
+  { label: "20+ games",   min: 20, max: Infinity,    color: "#9b7bff" },
+];
+const bucketCounts = BUCKETS.map(() => 0);
+for (const franchise of franchises) {
+  const count = countsByFranchise.get(franchise.id) ?? 0;
+  const i = BUCKETS.findIndex((b) => count >= b.min && count <= b.max);
+  if (i >= 0) bucketCounts[i]++;
+}
+const bucketSegments = BUCKETS.map((b, i) => ({ label: b.label, value: bucketCounts[i], color: b.color }));
+const bucketTotal = bucketSegments.reduce((s, seg) => s + seg.value, 0);
+const bucketArcs = buildArcSegments(bucketSegments, bucketTotal);
+const bucketLabeledArcs = buildLabeledArcs(bucketArcs, bucketTotal);
+
+const franchiseBucketColor = new Map<number, string>();
+for (const franchise of franchises) {
+  const count = countsByFranchise.get(franchise.id) ?? 0;
+  const i = BUCKETS.findIndex((b) => count >= b.min && count <= b.max);
+  franchiseBucketColor.set(franchise.id, i >= 0 ? BUCKETS[i].color : "#555");
+}
+
+// ── Chart 2: per-franchise share ────────────────────────────────────────────
+const palette = ["#3f76ff","#24c2a0","#f2b04f","#e36b6b","#9b7bff","#6fb1ff","#ff8c69","#5fe2c8","#ffd966","#c788ff"];
+const franchiseSegments = [...franchises]
+  .sort((a, b) => (countsByFranchise.get(b.id) ?? 0) - (countsByFranchise.get(a.id) ?? 0))
+  .map((f, i) => ({
+    label: f.title,
+    value: countsByFranchise.get(f.id) ?? 0,
+    color: palette[i % palette.length],
+  }));
+const franchiseTotal = franchiseSegments.reduce((s, seg) => s + seg.value, 0);
+const franchiseArcs = buildArcSegments(franchiseSegments, franchiseTotal);
+const franchiseLabeledArcs = buildLabeledArcs(franchiseArcs, franchiseTotal);
 ---
 
 <BaseLayout title="Franchises">
@@ -92,7 +109,9 @@ const labeledArcs = arcSegments
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
-      .chart-outer{display:flex;justify-content:center;padding:45px 100px;margin-top:16px;}
+      .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:16px;}
+      .chart{display:flex;flex-direction:column;align-items:flex-start;gap:6px;}
+      .pie-outer{padding:45px 80px;}
       .pie{width:220px;height:220px;overflow:visible;border:1px solid #2b2b2b;border-radius:50%;background:#222;display:block;}
       .li-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px;}
     </style>
@@ -114,28 +133,59 @@ const labeledArcs = arcSegments
           ))}
         </ul>
       )}
-      <div class="chart-outer">
-        <svg class="pie" viewBox={`0 0 ${size} ${size}`} overflow="visible" role="img" aria-label="Franchise size distribution">
-          {arcSegments.length === 0 ? (
-            <circle cx={cx} cy={cy} r={radius} fill="#222" />
-          ) : arcSegments.length === 1 ? (
-            <circle cx={cx} cy={cy} r={radius} fill={arcSegments[0].color}>
-              <title>{arcSegments[0].label} ({arcSegments[0].value})</title>
-            </circle>
-          ) : (
-            arcSegments.map((seg) => (
-              <path d={describeArc(cx, cy, radius, seg.startAngle, seg.endAngle)} fill={seg.color}>
-                <title>{seg.label} ({seg.value})</title>
-              </path>
-            ))
-          )}
-          {labeledArcs.map((seg) => (
-            <g>
-              <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
-              <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
-            </g>
-          ))}
-        </svg>
+      <div class="charts">
+        <div class="chart">
+          <strong>Size distribution</strong>
+          <div class="pie-outer">
+            <svg class="pie" viewBox={`0 0 ${size} ${size}`} overflow="visible" role="img" aria-label="Franchise size distribution">
+              {bucketArcs.length === 0 ? (
+                <circle cx={cx} cy={cy} r={radius} fill="#222" />
+              ) : bucketArcs.length === 1 ? (
+                <circle cx={cx} cy={cy} r={radius} fill={bucketArcs[0].color}>
+                  <title>{bucketArcs[0].label} ({bucketArcs[0].value})</title>
+                </circle>
+              ) : (
+                bucketArcs.map((seg) => (
+                  <path d={describeArc(cx, cy, radius, seg.startAngle, seg.endAngle)} fill={seg.color}>
+                    <title>{seg.label} ({seg.value})</title>
+                  </path>
+                ))
+              )}
+              {bucketLabeledArcs.map((seg) => (
+                <g>
+                  <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
+                  <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
+                </g>
+              ))}
+            </svg>
+          </div>
+        </div>
+        <div class="chart">
+          <strong>Games by franchise</strong>
+          <div class="pie-outer">
+            <svg class="pie" viewBox={`0 0 ${size} ${size}`} overflow="visible" role="img" aria-label="Games by franchise">
+              {franchiseArcs.length === 0 ? (
+                <circle cx={cx} cy={cy} r={radius} fill="#222" />
+              ) : franchiseArcs.length === 1 ? (
+                <circle cx={cx} cy={cy} r={radius} fill={franchiseArcs[0].color}>
+                  <title>{franchiseArcs[0].label} ({franchiseArcs[0].value})</title>
+                </circle>
+              ) : (
+                franchiseArcs.map((seg) => (
+                  <path d={describeArc(cx, cy, radius, seg.startAngle, seg.endAngle)} fill={seg.color}>
+                    <title>{seg.label} ({seg.value})</title>
+                  </path>
+                ))
+              )}
+              {franchiseLabeledArcs.map((seg) => (
+                <g>
+                  <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
+                  <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
+                </g>
+              ))}
+            </svg>
+          </div>
+        </div>
       </div>
     </div>
   </main>
