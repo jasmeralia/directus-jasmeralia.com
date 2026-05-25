@@ -19,6 +19,7 @@
 - Add misc filter pages: Developer + {Patreon, Discord, SubscribeStar, itch, website, other} and Developer + Missing Links; surface counts on /filters.
 - Add discord.svg to public/icons/simple/; add getDeveloperLinkMeta helper to download-link.ts.
 
+
 ## [1.0.117] - 2026-05-24
 - Fix search: sync pagefind/ directory to S3 without --size-only so content-addressed shard files are always re-uploaded; fixes broken search after any build.
 - Data: remove duplicate Borderlands GOTY entry, rename GOTY Enhanced to "Borderlands"; remove DMC4 "Special Edition" suffix; delete FFXV Windows Edition; mark Marvel's Avengers and Shadowrun Chronicles - Boston Lockdown as Abandoned; remove STALKER Ukrainian-spelling duplicate entries.
