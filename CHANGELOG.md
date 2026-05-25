@@ -2,6 +2,7 @@
 
 ## [1.0.124] - 2026-05-25
 - Data: merge 32 duplicate developer entries into canonical records (format variants, legal-suffix variants, rebrands, subdivisions). Reparented all games_developers and developers_links associations; deleted one orphaned null-game junction row; removed 32 spare developer records.
+- Data: consolidate SIE Japan Studio, SIE San Diego Studio, and Sony XDev into SIE Santa Monica Studio; rename the unified entry to "Sony Interactive Entertainment" (slug: sony-interactive-entertainment).
 - Scripts: add mcp/scripts/analyze_dev_dupes.py (game/link count report) and mcp/scripts/merge_dev_dupes.py (merge executor with dry-run support).
 
 ## [1.0.123] - 2026-05-25
