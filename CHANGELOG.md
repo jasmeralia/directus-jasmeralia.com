@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.125] - 2026-05-25
+- Schema: add `gamestorylog` kind to `games_links.kind` dropdown.
+- Data: migrate 220 `games.gamestorylog_url` rows to `games_links` kind=gamestorylog; migrate 287 `developers.website_url` rows (21 already present) to `developers_links` kind=website.
+- Schema: drop legacy scalar fields `games.download_url`, `games.walkthrough_url`, `games.gamestorylog_url`, `developers.website_url` — all data now lives in the junction tables.
+- Site: update `games/[slug].astro`, `filters/index.astro`, `avn-with-gamestorylog.astro`, `avn-missing-gamestorylog.astro` to use `games_links` kind=gamestorylog instead of `gamestorylog_url`; remove `website_url` from developer page field fetch; remove dead field references from `feed.xml.ts`.
+
 ## [1.0.124] - 2026-05-25
 - Data: merge 32 duplicate developer entries into canonical records (format variants, legal-suffix variants, rebrands, subdivisions). Reparented all games_developers and developers_links associations; deleted one orphaned null-game junction row; removed 32 spare developer records.
 - Data: consolidate SIE Japan Studio, SIE San Diego Studio, and Sony XDev into SIE Santa Monica Studio; rename the unified entry to "Sony Interactive Entertainment" (slug: sony-interactive-entertainment).
