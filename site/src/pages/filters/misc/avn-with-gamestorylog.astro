@@ -9,13 +9,13 @@ import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
 import { sortByTitle } from "../../../lib/list-format";
 
 const games = sortByTitle(await directusFetchItems("games", {
-  fields: [...GAME_THUMB_FIELDS, "gamestorylog_url"],
+  fields: [...GAME_THUMB_FIELDS, "links.id", "links.url", "links.kind"],
   filter: { genres: { genres_id: { slug: { _eq: "avn" } } } },
   limit: -1,
 }));
 
 const filteredGames = (games ?? []).filter(
-  (game) => game?.gamestorylog_url && String(game.gamestorylog_url).trim() !== "",
+  (game) => (game?.links ?? []).some((l) => l.kind === "gamestorylog"),
 );
 
 const gameIds = filteredGames
@@ -52,7 +52,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   <main>
     <div class="panel">
       <CsvHeader title="AVN + Has GameStoryLog URL" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
-      <p>Games tagged as AVN that have `gamestorylog_url` set.</p>
+      <p>Games tagged as AVN that have a GameStoryLog link.</p>
     </div>
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (

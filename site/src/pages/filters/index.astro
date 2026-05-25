@@ -32,7 +32,6 @@ const games = await directusFetchItems("games", {
     "game_status",
     "player_status",
     "family_sharing",
-    "gamestorylog_url",
     "engines.engines_id.slug",
     "genres.genres_id.slug",
     "developers.developers_id.slug",
@@ -306,11 +305,12 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
 const hasAvnGenre = (game) =>
   (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "avn");
 const hasValue = (value) => typeof value === "string" && value.trim().length > 0;
+const hasGslLink = (game) => (game?.links ?? []).some((l) => l.kind === "gamestorylog");
 const avnMissingGamestorylogCount = (games ?? []).filter(
-  (game) => hasAvnGenre(game) && !hasValue(game.gamestorylog_url),
+  (game) => hasAvnGenre(game) && !hasGslLink(game),
 ).length;
 const avnWithGamestorylogCount = (games ?? []).filter(
-  (game) => hasAvnGenre(game) && hasValue(game.gamestorylog_url),
+  (game) => hasAvnGenre(game) && hasGslLink(game),
 ).length;
 const avnMissingWalkthroughCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && walkthroughLinks(game?.links).length === 0,

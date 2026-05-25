@@ -25,9 +25,6 @@ const FIELD_LABEL: Record<string, string> = {
   release_year: "Year",
   player_status: "Play Status",
   game_status: "Release Status",
-  download_url: "Download",
-  walkthrough_url: "Walkthrough",
-  gamestorylog_url: "Story Log",
   family_sharing: "Family Sharing",
   cover_image: "Cover Image",
   status: "Status",
@@ -194,9 +191,6 @@ function fmtNewGame(data: Record<string, unknown>, genres: string[]): string {
     ["release_year", "Year"],
     ["player_status", "Play Status"],
     ["game_status", "Release Status"],
-    ["download_url", "Download"],
-    ["walkthrough_url", "Walkthrough"],
-    ["gamestorylog_url", "Story Log"],
     ["family_sharing", "Family Sharing"],
   ];
   for (const [f, label] of fields) {
