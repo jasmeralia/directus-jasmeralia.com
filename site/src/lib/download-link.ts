@@ -10,11 +10,11 @@ export type DeveloperLink = {
   id?: number;
   url: string;
   label?: string | null;
-  kind: "website" | "patreon" | "subscribestar" | "discord" | "itch" | "other";
+  kind: "website" | "patreon" | "subscribestar" | "discord" | "itch" | "steam" | "other";
 };
 
 export const DEVELOPER_LINK_KINDS: DeveloperLink["kind"][] = [
-  "patreon", "subscribestar", "discord", "itch", "website",
+  "patreon", "subscribestar", "discord", "itch", "steam", "website",
 ];
 
 export const primaryDownloadLink = (links: GameLink[] | null | undefined): GameLink | null => {
@@ -106,7 +106,7 @@ export type DeveloperLinkMeta = { icon: string | null; label: string };
 
 export const getDeveloperLinkMeta = (link: DeveloperLink): DeveloperLinkMeta => {
   if (link.label) {
-    const icon = getDeveloperKindIcon(link.kind);
+    const icon = getDeveloperKindIcon(link.kind, link.url);
     return { icon, label: link.label };
   }
   switch (link.kind) {
@@ -114,18 +114,27 @@ export const getDeveloperLinkMeta = (link: DeveloperLink): DeveloperLinkMeta => 
     case "subscribestar":return { icon: "/icons/simple/subscribestar.svg", label: "SubscribeStar" };
     case "discord":      return { icon: "/icons/simple/discord.svg",    label: "Discord" };
     case "itch":         return { icon: "/icons/simple/itchdotio.svg",  label: "itch.io" };
+    case "steam": {
+      const isSteamDb = (link.url ?? "").toLowerCase().includes("steamdb.info");
+      return isSteamDb
+        ? { icon: "/icons/simple/steamdb.svg",  label: "SteamDB" }
+        : { icon: "/icons/simple/steam.svg",    label: "Steam" };
+    }
     case "website":
     case "other":
     default:             return { icon: null,                            label: "Website" };
   }
 };
 
-function getDeveloperKindIcon(kind: DeveloperLink["kind"]): string | null {
+function getDeveloperKindIcon(kind: DeveloperLink["kind"], url?: string): string | null {
   switch (kind) {
     case "patreon":        return "/icons/simple/patreon.svg";
     case "subscribestar":  return "/icons/simple/subscribestar.svg";
     case "discord":        return "/icons/simple/discord.svg";
     case "itch":           return "/icons/simple/itchdotio.svg";
+    case "steam":          return (url ?? "").toLowerCase().includes("steamdb.info")
+                             ? "/icons/simple/steamdb.svg"
+                             : "/icons/simple/steam.svg";
     default:               return null;
   }
 }

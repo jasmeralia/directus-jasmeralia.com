@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.123] - 2026-05-25
+- Data: remove 14 duplicate patreon/itch developer links (exact URL duplicates, UTM-param duplicates, and post-URL entries that are not profile pages).
+- Data: merge developer "Andrealphus" (id=1025) into "Andrealphus Games" (id=1055) — reparented one game, deleted the standalone developer record.
+- Schema: add "steam" kind to developers_links.kind dropdown.
+- Data: reclassify 252 developer links from kind=website to kind=steam (all steampowered.com and steamdb.info URLs).
+- Site: add steam/steamdb support to DeveloperLink type, DEVELOPER_LINK_KINDS, getDeveloperLinkMeta, and getDeveloperKindIcon; steamdb.info URLs use the SteamDB icon, steampowered.com URLs use the Steam icon.
+- Site: add steamdb.svg icon (from simple-icons); add KIND_LABEL entry and filter count for steam in filters/index.astro and developer-links/[kind].astro.
+- Odoo: created backlog task #272 to replace steamdb.info search URLs with direct Steam developer/publisher/curator pages.
+
 ## [1.0.122] - 2026-05-25
 - Data: fix 37 developer links misclassified as "website" kind where URL is an itch.io profile (kind→itch); fix 1 misclassified as website where URL is Patreon (kind→patreon); delete 1 duplicate.
 - Data: add Patreon links for 14 developers matched from bookmarks (Classy Lemon, Slate Interactive, Drooskati, JDOR, Jestur, Debatingpanda, Duskduck, Flipdashit, Katanavn, Magnumstories, Noglory, Oppaiodyssey, Saintmcdaniels, Sondertalesstudios).
