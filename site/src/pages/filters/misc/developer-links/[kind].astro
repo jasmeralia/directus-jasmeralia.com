@@ -5,16 +5,14 @@ import { compareLabels } from "../../../../lib/list-format";
 import { getDeveloperLinkMeta, type DeveloperLink } from "../../../../lib/download-link";
 
 const DEVELOPER_LINK_KINDS: DeveloperLink["kind"][] = [
-  "patreon", "subscribestar", "discord", "itch", "website", "other",
+  "patreon", "subscribestar", "discord", "itch",
 ];
 
-const KIND_LABEL: Record<DeveloperLink["kind"], string> = {
+const KIND_LABEL: Record<string, string> = {
   patreon: "Patreon",
   subscribestar: "SubscribeStar",
   discord: "Discord",
   itch: "itch.io",
-  website: "Website",
-  other: "Other",
 };
 
 export async function getStaticPaths() {
