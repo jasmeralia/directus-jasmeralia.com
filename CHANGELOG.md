@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.126] - 2026-05-25
+- Site: add size-distribution pie chart to /developers index alongside the existing per-developer chart; buckets: 1 game, 2 games, 3–5, 6–10, 11+. Reorganize into two-column chart grid matching /franchises layout.
+
 ## [1.0.125] - 2026-05-25
 - Schema: add `gamestorylog` kind to `games_links.kind` dropdown.
 - Data: migrate 220 `games.gamestorylog_url` rows to `games_links` kind=gamestorylog; migrate 287 `developers.website_url` rows (21 already present) to `developers_links` kind=website.

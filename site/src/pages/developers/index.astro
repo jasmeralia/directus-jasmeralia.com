@@ -29,84 +29,73 @@ for (const game of games) {
     developerCounts.set(slug, (developerCounts.get(slug) || 0) + 1);
   }
 }
-const pieColors = [
-  "#d3a43b",
-  "#4aa3ff",
-  "#7fe29a",
-  "#ff7a7a",
-  "#c788ff",
-  "#ffd966",
-  "#7bd3ff",
-  "#e6a8ff",
-  "#ffb370",
-  "#8fd3a9",
-  "#f3a6c6",
-  "#b8a8ff",
-];
-const size = 240;
+
+// ── Shared SVG helpers ──────────────────────────────────────────────────────
+const size = 220;
 const radius = 100;
 const cx = size / 2;
 const cy = size / 2;
-const developerEntries = sortedDevelopers
-  .map((developer) => ({
-    label: developer.name ?? "",
-    value: developerCounts.get(developer.slug) || 0,
-  }))
-  .filter((entry) => entry.value > 0);
-if (unknownCount > 0) {
-  developerEntries.push({ label: unknownLabel, value: unknownCount });
-}
-const segments = developerEntries.map((entry, index) => ({
-  ...entry,
-  color: pieColors[index % pieColors.length],
-}));
-const total = segments.reduce((sum, segment) => sum + segment.value, 0);
-const polarToCartesian = (centerX, centerY, r, angle) => {
-  const rad = (angle - 90) * (Math.PI / 180);
-  return {
-    x: centerX + r * Math.cos(rad),
-    y: centerY + r * Math.sin(rad),
-  };
+const polarToCartesian = (centerX, centerY, r, angleDeg) => {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: centerX + r * Math.cos(rad), y: centerY + r * Math.sin(rad) };
 };
-const describeArc = (centerX, centerY, r, startAngle, endAngle) => {
-  const start = polarToCartesian(centerX, centerY, r, endAngle);
-  const end = polarToCartesian(centerX, centerY, r, startAngle);
+const describeArc = (x, y, r, startAngle, endAngle) => {
+  const start = polarToCartesian(x, y, r, endAngle);
+  const end   = polarToCartesian(x, y, r, startAngle);
   const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-  return [
-    "M",
-    start.x,
-    start.y,
-    "A",
-    r,
-    r,
-    0,
-    largeArcFlag,
-    0,
-    end.x,
-    end.y,
-    "L",
-    centerX,
-    centerY,
-    "Z",
-  ].join(" ");
+  return ["M", x, y, "L", start.x, start.y, "A", r, r, 0, largeArcFlag, 0, end.x, end.y, "Z"].join(" ");
 };
-const arcSegments = (() => {
+const buildArcSegments = (segs, total) => {
   if (!total) return [];
   const result = [];
   let startAngle = 0;
-  for (const segment of segments) {
-    if (!segment.value) continue;
-    const angle = (segment.value / total) * 360;
+  for (const seg of segs) {
+    if (!seg.value) continue;
+    const angle = (seg.value / total) * 360;
     const endAngle = startAngle + angle;
-    result.push({
-      ...segment,
-      startAngle,
-      endAngle,
-    });
+    result.push({ ...seg, startAngle, endAngle });
     startAngle = endAngle;
   }
   return result;
-})();
+};
+const labelRadius = 130;
+const buildLabeledArcs = (arcs, total) =>
+  arcs
+    .filter((seg) => seg.endAngle - seg.startAngle >= 8)
+    .map((seg) => {
+      const mid = (seg.startAngle + seg.endAngle) / 2;
+      const pos = polarToCartesian(cx, cy, labelRadius, mid);
+      const anchor = pos.x < cx - 5 ? "end" : pos.x > cx + 5 ? "start" : "middle";
+      const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
+      return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
+    });
+
+// ── Chart 1: size distribution ──────────────────────────────────────────────
+const BUCKETS = [
+  { label: "1 game",     min: 1,  max: 1,       color: "#3f76ff" },
+  { label: "2 games",    min: 2,  max: 2,        color: "#24c2a0" },
+  { label: "3–5 games",  min: 3,  max: 5,        color: "#f2b04f" },
+  { label: "6–10 games", min: 6,  max: 10,       color: "#e36b6b" },
+  { label: "11+ games",  min: 11, max: Infinity, color: "#9b7bff" },
+];
+const bucketCounts = BUCKETS.map(() => 0);
+for (const developer of sortedDevelopers) {
+  const count = developerCounts.get(developer.slug) || 0;
+  if (!count) continue;
+  const i = BUCKETS.findIndex((b) => count >= b.min && count <= b.max);
+  if (i >= 0) bucketCounts[i]++;
+}
+const bucketSegments = BUCKETS.map((b, i) => ({ label: b.label, value: bucketCounts[i], color: b.color }));
+const bucketTotal = bucketSegments.reduce((s, seg) => s + seg.value, 0);
+const bucketArcs = buildArcSegments(bucketSegments, bucketTotal);
+const bucketLabeledArcs = buildLabeledArcs(bucketArcs, bucketTotal);
+
+// ── Chart 2: per-developer share ────────────────────────────────────────────
+const pieColors = [
+  "#d3a43b","#4aa3ff","#7fe29a","#ff7a7a","#c788ff",
+  "#ffd966","#7bd3ff","#e6a8ff","#ffb370","#8fd3a9",
+  "#f3a6c6","#b8a8ff",
+];
 const developerColorMap = new Map();
 let devColorIdx = 0;
 for (const developer of sortedDevelopers) {
@@ -117,6 +106,14 @@ for (const developer of sortedDevelopers) {
   }
 }
 const unknownDevColor = unknownCount > 0 ? pieColors[devColorIdx % pieColors.length] : null;
+
+const devSegments = sortedDevelopers
+  .map((dev) => ({ label: dev.name ?? "", value: developerCounts.get(dev.slug) || 0, color: developerColorMap.get(dev.slug) ?? "#555" }))
+  .filter((s) => s.value > 0);
+if (unknownCount > 0) devSegments.push({ label: unknownLabel, value: unknownCount, color: unknownDevColor ?? "#555" });
+const devTotal = devSegments.reduce((s, seg) => s + seg.value, 0);
+const devArcs = buildArcSegments(devSegments, devTotal);
+const devLabeledArcs = buildLabeledArcs(devArcs, devTotal);
 ---
 
 <BaseLayout title="Developers">
@@ -127,9 +124,10 @@ const unknownDevColor = unknownCount > 0 ? pieColors[devColorIdx % pieColors.len
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
-      .pie-wrap{display:flex;justify-content:center;margin-top:16px;}
-      .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;}
-      .note{opacity:.7;font-size:.85rem;margin-top:12px;text-align:center;}
+      .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:16px;}
+      .chart{display:flex;flex-direction:column;align-items:flex-start;gap:6px;}
+      .pie-outer{padding:45px 80px;}
+      .pie{width:220px;height:220px;overflow:visible;border:1px solid #2b2b2b;border-radius:50%;background:#222;display:block;}
       .li-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px;}
     </style>
   </div>
@@ -156,28 +154,60 @@ const unknownDevColor = unknownCount > 0 ? pieColors[devColorIdx % pieColors.len
           ) : null}
         </ul>
       )}
-      {segments.length ? (
-        <>
-          <div class="pie-wrap">
-            <svg class="pie" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Developer distribution">
-              {arcSegments.length === 0 ? (
+      <div class="charts">
+        <div class="chart">
+          <strong>Size distribution</strong>
+          <div class="pie-outer">
+            <svg class="pie" viewBox={`0 0 ${size} ${size}`} overflow="visible" role="img" aria-label="Developer size distribution">
+              {bucketArcs.length === 0 ? (
                 <circle cx={cx} cy={cy} r={radius} fill="#222" />
-              ) : arcSegments.length === 1 ? (
-                <circle cx={cx} cy={cy} r={radius} fill={arcSegments[0].color}>
-                  <title>{arcSegments[0].label} ({arcSegments[0].value})</title>
+              ) : bucketArcs.length === 1 ? (
+                <circle cx={cx} cy={cy} r={radius} fill={bucketArcs[0].color}>
+                  <title>{bucketArcs[0].label} ({bucketArcs[0].value})</title>
                 </circle>
               ) : (
-                arcSegments.map((segment) => (
-                  <path d={describeArc(cx, cy, radius, segment.startAngle, segment.endAngle)} fill={segment.color}>
-                    <title>{segment.label} ({segment.value})</title>
+                bucketArcs.map((seg) => (
+                  <path d={describeArc(cx, cy, radius, seg.startAngle, seg.endAngle)} fill={seg.color}>
+                    <title>{seg.label} ({seg.value})</title>
                   </path>
                 ))
               )}
+              {bucketLabeledArcs.map((seg) => (
+                <g>
+                  <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
+                  <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
+                </g>
+              ))}
             </svg>
           </div>
-          <p class="note">Hover the chart to see details.</p>
-        </>
-      ) : null}
+        </div>
+        <div class="chart">
+          <strong>Games by developer</strong>
+          <div class="pie-outer">
+            <svg class="pie" viewBox={`0 0 ${size} ${size}`} overflow="visible" role="img" aria-label="Games by developer">
+              {devArcs.length === 0 ? (
+                <circle cx={cx} cy={cy} r={radius} fill="#222" />
+              ) : devArcs.length === 1 ? (
+                <circle cx={cx} cy={cy} r={radius} fill={devArcs[0].color}>
+                  <title>{devArcs[0].label} ({devArcs[0].value})</title>
+                </circle>
+              ) : (
+                devArcs.map((seg) => (
+                  <path d={describeArc(cx, cy, radius, seg.startAngle, seg.endAngle)} fill={seg.color}>
+                    <title>{seg.label} ({seg.value})</title>
+                  </path>
+                ))
+              )}
+              {devLabeledArcs.map((seg) => (
+                <g>
+                  <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
+                  <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
+                </g>
+              ))}
+            </svg>
+          </div>
+        </div>
+      </div>
     </div>
   </main>
 </BaseLayout>
