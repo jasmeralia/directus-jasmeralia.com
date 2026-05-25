@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.119] - 2026-05-25
+- Fix: import scripts (wishlist_import, bulk_import, import_psn_xbox) now create a `games_links` download row after creating each game record, so newly imported games have a populated download link on the site.
+- Fix: RSS feed (feed.xml.ts) tracks `games_links` create activities; download/walkthrough link additions now produce feed entries ("Download Link Added: {title}" / "Walkthrough Added: {title}").
+- Fix: walkthrough filter counts and pie segments in /filters now driven from the full WALKTHROUGH_KINDS list instead of a hardcoded subset; platforms like ign, f95zone, trueachievements etc. no longer produce uninitialized counts.
+
 ## [1.0.118] - 2026-05-25
 - Refactor: replace scalar `download_url`/`walkthrough_url` game fields with relational `games_links` junction collection (M2O→games, fields: url, label, kind, sort). Add `developers_links` junction collection (M2O→developers).
 - Data: migrate 1569 download links, 57 walkthrough links, 46 extra links from GSL cache to `games_links`; migrate 507 developer links (Patreon, website, Discord, SubscribeStar, itch) to `developers_links`.

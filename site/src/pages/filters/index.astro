@@ -6,6 +6,7 @@ import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets"
 import { formatUnknown, compareLabels } from "../../lib/list-format";
 import {
   WALKTHROUGH_KIND_LABEL,
+  WALKTHROUGH_KINDS,
   type WalkthroughKind,
 } from "../../lib/walkthrough-link";
 
@@ -333,14 +334,15 @@ const platformPieSegments = [
   { label: formatUnknown("unknown", "Download Platform"), value: unknownPlatformCount, color: "#7fe29a" },
 ].filter((segment) => segment.value > 0);
 const platformPieTotal = platformPieSegments.reduce((sum, segment) => sum + segment.value, 0);
-const walkthroughCounts: Record<WalkthroughKind, number> = {
-  steam: 0,
-  itch: 0,
-  gog: 0,
-  patreon: 0,
-  unknown: 0,
-  "text-note": 0,
-  "none-provided": 0,
+const walkthroughCounts = Object.fromEntries(
+  WALKTHROUGH_KINDS.map((k) => [k, 0]),
+) as Record<WalkthroughKind, number>;
+const WALKTHROUGH_KIND_COLOR: Record<string, string> = {
+  steam: "#4aa3ff",       itch: "#ff7a7a",        gog: "#ffd966",
+  patreon: "#c788ff",     playstation: "#003087",  xbox: "#107c10",
+  ign: "#e2001a",         scribd: "#1a7fd4",       f95zone: "#ff6600",
+  gamerant: "#e23b2e",    neoseeker: "#6699cc",    trueachievements: "#008000",
+  stealthoptional: "#888",unknown: "#7fe29a",      "text-note": "#ffb86c",
 };
 for (const game of games ?? []) {
   const wtLinks = walkthroughLinks(game?.links);
@@ -353,14 +355,13 @@ for (const game of games ?? []) {
   }
   walkthroughCounts[kind] += 1;
 }
-const walkthroughPieSegments = [
-  { label: "Steam", value: walkthroughCounts.steam, color: "#4aa3ff" },
-  { label: "itch.io", value: walkthroughCounts.itch, color: "#ff7a7a" },
-  { label: "GOG", value: walkthroughCounts.gog, color: "#ffd966" },
-  { label: "Patreon", value: walkthroughCounts.patreon, color: "#c788ff" },
-  { label: WALKTHROUGH_KIND_LABEL.unknown, value: walkthroughCounts.unknown, color: "#7fe29a" },
-  { label: WALKTHROUGH_KIND_LABEL["text-note"], value: walkthroughCounts["text-note"], color: "#ffb86c" },
-].filter((segment) => segment.value > 0);
+const walkthroughPieSegments = WALKTHROUGH_KINDS
+  .filter((k) => k !== "none-provided" && walkthroughCounts[k] > 0)
+  .map((k) => ({
+    label: WALKTHROUGH_KIND_LABEL[k],
+    value: walkthroughCounts[k],
+    color: WALKTHROUGH_KIND_COLOR[k] ?? "#888",
+  }));
 const walkthroughPieTotal = walkthroughPieSegments.reduce((sum, segment) => sum + segment.value, 0);
 const pieSize = 220;
 const pieRadius = 95;
@@ -479,15 +480,10 @@ const completedInTierIds = gameIdsByTierListId.get(COMPLETED_GAMES_TIER_LIST_ID)
 const completedNotInTierCount = (games ?? []).filter(
   (game) => game.player_status === "completed" && !completedInTierIds.has(game.id),
 ).length;
-const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; count: number }> = [
-  { kind: "steam", label: WALKTHROUGH_KIND_LABEL.steam, count: walkthroughCounts.steam },
-  { kind: "itch", label: WALKTHROUGH_KIND_LABEL.itch, count: walkthroughCounts.itch },
-  { kind: "gog", label: WALKTHROUGH_KIND_LABEL.gog, count: walkthroughCounts.gog },
-  { kind: "patreon", label: WALKTHROUGH_KIND_LABEL.patreon, count: walkthroughCounts.patreon },
-  { kind: "unknown", label: WALKTHROUGH_KIND_LABEL.unknown, count: walkthroughCounts.unknown },
-  { kind: "text-note", label: WALKTHROUGH_KIND_LABEL["text-note"], count: walkthroughCounts["text-note"] },
-  { kind: "none-provided", label: WALKTHROUGH_KIND_LABEL["none-provided"], count: walkthroughCounts["none-provided"] },
-].filter((entry) => entry.count > 0);
+const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; count: number }> =
+  WALKTHROUGH_KINDS
+    .map((k) => ({ kind: k, label: WALKTHROUGH_KIND_LABEL[k], count: walkthroughCounts[k] }))
+    .filter((entry) => entry.count > 0);
 const familySharingDisabledCount = (games ?? []).filter((game) => isFamilySharingDisabled(game)).length;
 const coverArtGames = await directusFetchItems("games", {
   fields: ["id", "cover_image.width", "cover_image.height"],
