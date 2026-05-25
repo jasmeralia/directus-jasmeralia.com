@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.127] - 2026-05-25
+- Data: merge 15 Ubisoft studio entries (Annecy, Belgrade, Bordeaux, Bucharest & Craiova, Chengdu, Montpellier, Montreal, Osaka, Philippines, Québec, Shanghai, Singapore, Sofia, Toronto, Ukraine) into canonical Ubisoft (id=445); reparented 7 games.
+
 ## [1.0.126] - 2026-05-25
 - Site: add size-distribution pie chart to /developers index alongside the existing per-developer chart; buckets: 1 game, 2 games, 3–5, 6–10, 11+. Reorganize into two-column chart grid matching /franchises layout.
 
