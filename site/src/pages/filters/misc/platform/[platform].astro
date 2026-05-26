@@ -5,7 +5,7 @@ import ThumbnailBorderLegend from "../../../../components/ThumbnailBorderLegend.
 import GameThumbCard from "../../../../components/GameThumbCard.astro";
 import { directusFetchItems, getSTierGameIds } from "../../../../lib/directus";
 import { csvDataUri, gamesToCsv } from "../../../../lib/csv";
-import { getUrlPlatform, primaryDownloadLink } from "../../../../lib/download-link";
+import { downloadLinks, getUrlPlatform } from "../../../../lib/download-link";
 import { GAME_THUMB_FIELDS } from "../../../../lib/game-fields";
 import { sortByTitle } from "../../../../lib/list-format";
 
@@ -32,11 +32,13 @@ const games = sortByTitle(await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   limit: -1,
 }));
-const filteredGames = games.filter((game) =>
-  platform === "unknown"
-    ? getUrlPlatform(primaryDownloadLink(game?.links)?.url) === null
-    : getUrlPlatform(primaryDownloadLink(game?.links)?.url) === platform,
-);
+const filteredGames = games.filter((game) => {
+  const links = downloadLinks(game?.links);
+  if (platform === "unknown") {
+    return links.length === 0 || links.some((link) => getUrlPlatform(link.url) === null);
+  }
+  return links.some((link) => getUrlPlatform(link.url) === platform);
+});
 
 const gameIds = filteredGames
   .map((game) => game.id)
