@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.132] - 2026-05-26
+- Site: fix missing genre-not-in-tier detail pages for pluralized tier list names ending in `es`, such as Hack and Slash.
+
 ## [1.0.131] - 2026-05-26
 - Site: platform filter detail pages now include games with matching secondary download links instead of only matching the primary download link.
 
