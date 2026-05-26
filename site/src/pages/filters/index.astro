@@ -356,16 +356,23 @@ const WALKTHROUGH_KIND_COLOR: Record<string, string> = {
 for (const game of games ?? []) {
   const wtLinks = walkthroughLinks(game?.links);
   const notes   = walkthroughTextNotes(game?.links);
-  let kind: WalkthroughKind;
   if (wtLinks.length === 0 && notes.length === 0) {
-    kind = "none-provided";
-  } else if (wtLinks.length === 0) {
-    kind = "text-note";
-  } else {
-    const platform = getUrlPlatform(wtLinks[0].url);
-    kind = (platform as WalkthroughKind | null) ?? "unknown";
+    walkthroughCounts["none-provided"] += 1;
+    continue;
   }
-  walkthroughCounts[kind] += 1;
+  if (notes.length > 0) {
+    walkthroughCounts["text-note"] += 1;
+  }
+  const kinds = new Set<WalkthroughKind>();
+  for (const link of wtLinks) {
+    const platform = getUrlPlatform(link.url);
+    kinds.add((platform as WalkthroughKind | null) ?? "unknown");
+  }
+  for (const kind of kinds) {
+    if (kind !== "text-note" && kind !== "none-provided") {
+      walkthroughCounts[kind] += 1;
+    }
+  }
 }
 const walkthroughPieSegments = WALKTHROUGH_KINDS
   .filter((k) => k !== "none-provided" && walkthroughCounts[k] > 0)
