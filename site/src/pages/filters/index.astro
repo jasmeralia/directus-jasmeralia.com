@@ -321,7 +321,17 @@ const platformCounts = {
   gog: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "gog").length,
   patreon: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "patreon").length,
   playstation: (games ?? []).filter((game) => downloadLinks(game?.links).some((l) => getUrlPlatform(l.url) === "playstation")).length,
+  playstationExclusive: (games ?? []).filter((game) => {
+    const dls = downloadLinks(game?.links);
+    const known = dls.filter((l) => getUrlPlatform(l.url) !== null);
+    return known.length > 0 && known.every((l) => getUrlPlatform(l.url) === "playstation");
+  }).length,
   xbox: (games ?? []).filter((game) => downloadLinks(game?.links).some((l) => getUrlPlatform(l.url) === "xbox")).length,
+  xboxExclusive: (games ?? []).filter((game) => {
+    const dls = downloadLinks(game?.links);
+    const known = dls.filter((l) => getUrlPlatform(l.url) !== null);
+    return known.length > 0 && known.every((l) => getUrlPlatform(l.url) === "xbox");
+  }).length,
 };
 const unknownPlatformCount = (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === null).length;
 const platformPieSegments = [
@@ -554,10 +564,10 @@ const miscFilterEntries = [
   { label: "Download Platform + GOG", href: "/filters/misc/platform/gog/index.html", count: platformCounts.gog },
   { label: "Download Platform + itch.io", href: "/filters/misc/platform/itch/index.html", count: platformCounts.itch },
   { label: "Download Platform + Patreon", href: "/filters/misc/platform/patreon/index.html", count: platformCounts.patreon },
-  { label: "Download Platform + PlayStation", href: "/filters/misc/platform/playstation/index.html", count: platformCounts.playstation },
+  { label: "Download Platform + PlayStation", href: "/filters/misc/platform/playstation/index.html", count: platformCounts.playstation, exclusiveCount: platformCounts.playstationExclusive },
   { label: "Download Platform + Steam", href: "/filters/misc/platform/steam/index.html", count: platformCounts.steam },
   { label: "Download Platform + Unknown", href: "/filters/misc/platform/unknown/index.html", count: unknownPlatformCount },
-  { label: "Download Platform + Xbox", href: "/filters/misc/platform/xbox/index.html", count: platformCounts.xbox },
+  { label: "Download Platform + Xbox", href: "/filters/misc/platform/xbox/index.html", count: platformCounts.xbox, exclusiveCount: platformCounts.xboxExclusive },
   { label: "Cover Art – Missing", href: "/filters/misc/missing-cover-art/index.html", count: missingCoverArtCount },
   { label: "Cover Art – Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
   { label: "Developer Links + Discord", href: "/filters/misc/developer-links/discord/index.html", count: devLinkKindCounts.discord },
@@ -746,7 +756,10 @@ const miscCount = miscFilterEntries.length;
         {miscFilterEntries.map((entry) => (
           <li>
             <a href={entry.href}>{entry.label}</a>
-            <span style="opacity:.7;"> ({entry.count})</span>
+            {"exclusiveCount" in entry
+              ? <span style="opacity:.7;"> ({entry.count} total, {entry.exclusiveCount} exclusive)</span>
+              : <span style="opacity:.7;"> ({entry.count})</span>
+            }
           </li>
         ))}
       </ul>
