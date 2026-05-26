@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.131] - 2026-05-26
+- Site: platform filter detail pages now include games with matching secondary download links instead of only matching the primary download link.
+
 ## [1.0.130] - 2026-05-26
 - Site: show total and exclusive counts for all download platforms in the Misc filter list (e.g. "788 total, 42 exclusive"). Refactor platform count logic to use inclusive any-link matching for all platforms.
 
