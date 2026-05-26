@@ -1,0 +1,136 @@
+---
+import { fileUrl } from "../lib/directus";
+import {
+  getLinkMeta,
+  getUrlPlatform,
+  walkthroughLinks,
+  walkthroughTextNotes,
+} from "../lib/download-link";
+import type { WalkthroughKind } from "../lib/walkthrough-link";
+
+type WalkthroughEntry = {
+  isTextNote: boolean;
+  url?: string;
+  icon?: string | null;
+  text: string;
+};
+
+const { games, kind = null } = Astro.props as {
+  games: any[];
+  kind?: WalkthroughKind | null;
+};
+
+const walkthroughEntries = (game: any): WalkthroughEntry[] => {
+  const links = walkthroughLinks(game?.links);
+  const notes = walkthroughTextNotes(game?.links);
+
+  if (kind === "none-provided") return [];
+  if (kind === "text-note") {
+    return notes.map((link) => ({
+      isTextNote: true,
+      text: link.label ?? link.url,
+    }));
+  }
+
+  const matchingLinks = links.filter((link) => {
+    if (!kind) return true;
+    const platform = getUrlPlatform(link.url);
+    return kind === "unknown" ? platform === null : platform === kind;
+  });
+
+  const linkEntries = matchingLinks.map((link) => {
+    const meta = getLinkMeta(link);
+    return {
+      isTextNote: false,
+      url: link.url,
+      icon: meta.icon,
+      text: meta.label === "Download"
+        ? meta.host ? `Walkthrough (${meta.host})` : "Walkthrough"
+        : `Walkthrough on ${meta.label}`,
+    };
+  });
+
+  if (kind) return linkEntries;
+
+  return [
+    ...linkEntries,
+    ...notes.map((link) => ({
+      isTextNote: true,
+      text: link.label ?? link.url,
+    })),
+  ];
+};
+---
+
+{games.length === 0 ? (
+  <p>No games found.</p>
+) : (
+  <div class="game-list">
+    {games.map((game, index) => {
+      const entries = walkthroughEntries(game);
+      const primaryUrl = entries.find((entry) => !entry.isTextNote && entry.url)?.url;
+      const img = game?.cover_image ? fileUrl(game.cover_image) : null;
+      const gameHref = primaryUrl ?? `/games/${game.slug}/index.html`;
+      const linkAttrs = primaryUrl ? { target: "_blank", rel: "noopener noreferrer" } : {};
+      return (
+        <article class="game-item">
+          <a class="game-main" href={gameHref} {...linkAttrs}>
+            <span class="game-index">{index + 1}.</span>
+            {img
+              ? <img class="game-thumb" src={img} alt={game.title} loading="lazy" />
+              : <div class="game-thumb-placeholder" />}
+            <div class="game-info">
+              <span class="game-title">{game.title}</span>
+              <span class="game-meta">
+                {primaryUrl ? "Opens walkthrough" : "Opens game page"}
+                {game.release_year ? ` · ${game.release_year}` : ""}
+              </span>
+            </div>
+          </a>
+          <div class="walkthrough-links">
+            {entries.length === 0 ? (
+              <span class="walkthrough-note">No walkthrough link provided.</span>
+            ) : entries.map((entry, entryIndex) => (
+              <>
+                {entryIndex > 0 ? <span class="separator">|</span> : null}
+                {entry.isTextNote ? (
+                  <span class="walkthrough-note">{entry.text}</span>
+                ) : (
+                  <a class="ext-link" href={entry.url} rel="noopener noreferrer" target="_blank">
+                    {entry.icon ? (
+                      <img src={entry.icon} alt="" aria-hidden="true" loading="lazy" />
+                    ) : null}
+                    <span>{entry.text}</span>
+                  </a>
+                )}
+              </>
+            ))}
+          </div>
+        </article>
+      );
+    })}
+  </div>
+)}
+
+<style>
+  .game-list{display:flex;flex-direction:column;gap:.75rem;}
+  .game-item{display:grid;grid-template-columns:minmax(0,1fr);gap:.65rem;background:#111;border:1px solid #222;border-radius:10px;padding:.75rem 1rem;color:inherit;}
+  .game-main{display:flex;align-items:center;gap:1rem;text-decoration:none;color:inherit;}
+  .game-main:hover .game-title{color:#cfd4ff;}
+  .game-thumb{width:56px;height:56px;border-radius:6px;object-fit:cover;background:#1a1a2e;flex-shrink:0;}
+  .game-thumb-placeholder{width:56px;height:56px;border-radius:6px;background:#1a1a2e;flex-shrink:0;}
+  .game-info{display:flex;flex-direction:column;gap:.2rem;min-width:0;}
+  .game-title{font-weight:600;color:#eaeaea;}
+  .game-meta{font-size:.8rem;opacity:.6;}
+  .game-index{font-size:.85rem;opacity:.45;min-width:1.5rem;text-align:right;flex-shrink:0;}
+  .walkthrough-links{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;padding-left:calc(1.5rem + 1rem + 56px);font-size:.92rem;}
+  .ext-link{display:inline-flex;align-items:center;gap:.4rem;color:#9aa6ff;}
+  .ext-link:visited{color:#9aa6ff;}
+  .ext-link img{width:1rem;height:1rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
+  .walkthrough-note{opacity:.8;}
+  .separator{opacity:.45;}
+
+  @media (max-width:560px){
+    .walkthrough-links{padding-left:0;}
+  }
+</style>

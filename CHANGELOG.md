@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.133] - 2026-05-26
+- Site: redesign walkthrough index and walkthrough filter pages with franchise-style game rows, visible walkthrough links, and walkthrough-targeted card links.
+
 ## [1.0.132] - 2026-05-26
 - Site: fix missing genre-not-in-tier detail pages for pluralized tier list names ending in `es`, such as Hack and Slash.
 

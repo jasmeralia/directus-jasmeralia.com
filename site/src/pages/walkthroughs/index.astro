@@ -1,7 +1,8 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import WalkthroughGameList from "../../components/WalkthroughGameList.astro";
 import { directusFetchItems } from "../../lib/directus";
-import { walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
+import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
 import { sortByTitle } from "../../lib/list-format";
 
 const walkthroughLinkRows = await directusFetchItems("games_links", {
@@ -15,41 +16,21 @@ const gameIdsWithWalkthrough = [...new Set(
 
 const games = gameIdsWithWalkthrough.length
   ? sortByTitle(await directusFetchItems("games", {
-      fields: ["id", "title", "slug", "links.id", "links.url", "links.label", "links.kind", "links.sort"],
+      fields: GAME_THUMB_FIELDS,
       filter: { id: { _in: gameIdsWithWalkthrough } },
       limit: -1,
     }))
   : [];
 
-const walkthroughEntries = (game) => [
-  ...walkthroughLinks(game?.links).map((link) => {
-    const meta = getLinkMeta(link);
-    return {
-      isTextNote: false as const,
-      url: link.url,
-      icon: meta.icon,
-      text: meta.label === "Download"
-        ? meta.host ? `Walkthrough (${meta.host})` : "Walkthrough"
-        : `Walkthrough on ${meta.label}`,
-    };
-  }),
-  ...walkthroughTextNotes(game?.links).map((link) => ({
-    isTextNote: true as const,
-    text: link.label ?? link.url,
-  })),
-];
 ---
 
 <BaseLayout title="Walkthroughs">
   <div slot="head">
     <style>
       main{max-width:980px;margin:0 auto;padding:24px;}
-      ul{list-style:disc;padding-left:20px;}
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
-      .ext-link{display:inline-flex;align-items:center;gap:.45rem;}
-      .ext-link img{width:1rem;height:1rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
     </style>
   </div>
   <main>
@@ -58,31 +39,7 @@ const walkthroughEntries = (game) => [
         {games.length === 0 ? (
           <p>No walkthroughs yet.</p>
         ) : (
-          <ul>
-            {games.map((game) => {
-              const entries = walkthroughEntries(game);
-              return (
-                <li>
-                  <a href={`/games/${game.slug}/index.html`}>{game.title}</a>:{" "}
-                  {entries.map((entry, index) => (
-                    <>
-                      {index > 0 ? <span> | </span> : null}
-                      {entry.isTextNote ? (
-                        <span>{entry.text}</span>
-                      ) : (
-                        <a class="ext-link" href={entry.url} rel="noopener noreferrer" target="_blank">
-                          {entry.icon ? (
-                            <img src={entry.icon} alt="" aria-hidden="true" loading="lazy" />
-                          ) : null}
-                          <span>{entry.text}</span>
-                        </a>
-                      )}
-                    </>
-                  ))}
-                </li>
-              );
-            })}
-          </ul>
+          <WalkthroughGameList games={games} />
         )}
       </div>
   </main>
