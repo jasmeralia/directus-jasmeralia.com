@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.130] - 2026-05-26
+- Site: show total and exclusive counts for all download platforms in the Misc filter list (e.g. "788 total, 42 exclusive"). Refactor platform count logic to use inclusive any-link matching for all platforms.
+
+## [1.0.129] - 2026-05-26
+- Site: fix Download URL Platform pie chart counting PlayStation and Xbox inclusively (any link) instead of exclusively (primary link only).
+
 ## [1.0.128] - 2026-05-25
 - Site: game detail page now shows all download links instead of only the primary one; grid/tier/status pages now show all platform icons in the thumb card instead of preferring Steam when multiple links exist.
 

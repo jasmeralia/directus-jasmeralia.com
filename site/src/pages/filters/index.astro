@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
-import { getUrlPlatform, primaryDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
+import { getUrlPlatform, downloadLinks, primaryDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown, compareLabels } from "../../lib/list-format";
 import {
@@ -315,13 +315,22 @@ const avnWithGamestorylogCount = (games ?? []).filter(
 const avnMissingWalkthroughCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && walkthroughLinks(game?.links).length === 0,
 ).length;
+const countPlatform = (platform: string) =>
+  (games ?? []).filter((game) =>
+    downloadLinks(game?.links).some((l) => getUrlPlatform(l.url) === platform)
+  ).length;
+const countPlatformExclusive = (platform: string) =>
+  (games ?? []).filter((game) => {
+    const known = downloadLinks(game?.links).filter((l) => getUrlPlatform(l.url) !== null);
+    return known.length > 0 && known.every((l) => getUrlPlatform(l.url) === platform);
+  }).length;
 const platformCounts = {
-  steam: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "steam").length,
-  itch: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "itch").length,
-  gog: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "gog").length,
-  patreon: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "patreon").length,
-  playstation: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "playstation").length,
-  xbox: (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === "xbox").length,
+  steam:        countPlatform("steam"),        steamExclusive:        countPlatformExclusive("steam"),
+  itch:         countPlatform("itch"),         itchExclusive:         countPlatformExclusive("itch"),
+  gog:          countPlatform("gog"),          gogExclusive:          countPlatformExclusive("gog"),
+  patreon:      countPlatform("patreon"),      patreonExclusive:      countPlatformExclusive("patreon"),
+  playstation:  countPlatform("playstation"),  playstationExclusive:  countPlatformExclusive("playstation"),
+  xbox:         countPlatform("xbox"),         xboxExclusive:         countPlatformExclusive("xbox"),
 };
 const unknownPlatformCount = (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === null).length;
 const platformPieSegments = [
@@ -551,13 +560,13 @@ const miscFilterEntries = [
   { label: "AVN + Has GameStoryLog URL", href: "/filters/misc/avn-with-gamestorylog/index.html", count: avnWithGamestorylogCount },
   { label: "AVN + Missing GameStoryLog URL", href: "/filters/misc/avn-missing-gamestorylog/index.html", count: avnMissingGamestorylogCount },
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
-  { label: "Download Platform + GOG", href: "/filters/misc/platform/gog/index.html", count: platformCounts.gog },
-  { label: "Download Platform + itch.io", href: "/filters/misc/platform/itch/index.html", count: platformCounts.itch },
-  { label: "Download Platform + Patreon", href: "/filters/misc/platform/patreon/index.html", count: platformCounts.patreon },
-  { label: "Download Platform + PlayStation", href: "/filters/misc/platform/playstation/index.html", count: platformCounts.playstation },
-  { label: "Download Platform + Steam", href: "/filters/misc/platform/steam/index.html", count: platformCounts.steam },
-  { label: "Download Platform + Unknown", href: "/filters/misc/platform/unknown/index.html", count: unknownPlatformCount },
-  { label: "Download Platform + Xbox", href: "/filters/misc/platform/xbox/index.html", count: platformCounts.xbox },
+  { label: "Download Platform + GOG",          href: "/filters/misc/platform/gog/index.html",          count: platformCounts.gog,          exclusiveCount: platformCounts.gogExclusive },
+  { label: "Download Platform + itch.io",      href: "/filters/misc/platform/itch/index.html",         count: platformCounts.itch,         exclusiveCount: platformCounts.itchExclusive },
+  { label: "Download Platform + Patreon",      href: "/filters/misc/platform/patreon/index.html",      count: platformCounts.patreon,      exclusiveCount: platformCounts.patreonExclusive },
+  { label: "Download Platform + PlayStation",  href: "/filters/misc/platform/playstation/index.html",  count: platformCounts.playstation,  exclusiveCount: platformCounts.playstationExclusive },
+  { label: "Download Platform + Steam",        href: "/filters/misc/platform/steam/index.html",        count: platformCounts.steam,        exclusiveCount: platformCounts.steamExclusive },
+  { label: "Download Platform + Unknown",      href: "/filters/misc/platform/unknown/index.html",      count: unknownPlatformCount },
+  { label: "Download Platform + Xbox",         href: "/filters/misc/platform/xbox/index.html",         count: platformCounts.xbox,         exclusiveCount: platformCounts.xboxExclusive },
   { label: "Cover Art – Missing", href: "/filters/misc/missing-cover-art/index.html", count: missingCoverArtCount },
   { label: "Cover Art – Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
   { label: "Developer Links + Discord", href: "/filters/misc/developer-links/discord/index.html", count: devLinkKindCounts.discord },
@@ -746,7 +755,10 @@ const miscCount = miscFilterEntries.length;
         {miscFilterEntries.map((entry) => (
           <li>
             <a href={entry.href}>{entry.label}</a>
-            <span style="opacity:.7;"> ({entry.count})</span>
+            {"exclusiveCount" in entry
+              ? <span style="opacity:.7;"> ({entry.count} total, {entry.exclusiveCount} exclusive)</span>
+              : <span style="opacity:.7;"> ({entry.count})</span>
+            }
           </li>
         ))}
       </ul>
