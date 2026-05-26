@@ -1,7 +1,7 @@
 # Changelog
 
 ## [1.0.130] - 2026-05-26
-- Site: show total and exclusive counts for PlayStation and Xbox in the Misc filter list (e.g. "788 total, 42 exclusive").
+- Site: show total and exclusive counts for all download platforms in the Misc filter list (e.g. "788 total, 42 exclusive"). Refactor platform count logic to use inclusive any-link matching for all platforms.
 
 ## [1.0.129] - 2026-05-26
 - Site: fix Download URL Platform pie chart counting PlayStation and Xbox inclusively (any link) instead of exclusively (primary link only).
