@@ -83,12 +83,17 @@ aws s3 sync "$BUILD_DIR/dist/" "s3://${AWS_S3_BUCKET}/" \
   --exclude "pagefind/*" \
   --region "$AWS_REGION"
 
-# Pagefind index uses content-addressed shard filenames (e.g. en_d549c8a.pf_index).
-# New builds produce new hash-named files that may be the same byte size as old ones,
-# so --size-only would skip them, leaving the index pointing to deleted shard files.
-# Sync pagefind/ separately without --size-only to ensure all shards are re-uploaded.
+# Pagefind shards use content-addressed filenames (e.g. en_d549c8a.pf_fragment).
+# --size-only is safe here: aws s3 sync compares by key name first, so a shard that
+# doesn't exist in S3 is uploaded regardless of size; a shard with the same hash-based
+# name has identical content and can be skipped. pagefind-entry.json is NOT content-
+# addressed — it lists current shard names and changes every build — so force-upload it
+# after the sync to avoid a stale index if the byte count happens to stay the same.
 aws s3 sync "$BUILD_DIR/dist/pagefind/" "s3://${AWS_S3_BUCKET}/pagefind/" \
-  --delete \
+  --size-only --delete \
+  --region "$AWS_REGION"
+
+aws s3 cp "$BUILD_DIR/dist/pagefind/pagefind-entry.json" "s3://${AWS_S3_BUCKET}/pagefind/pagefind-entry.json" \
   --region "$AWS_REGION"
 
 if [[ "$INVALIDATE_ON_PUBLISH" == "true" ]]; then

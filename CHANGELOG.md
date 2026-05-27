@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.134] - 2026-05-27
+- Builder: skip re-uploading unchanged pagefind shards using --size-only (content-addressed shard filenames are identical when the hash matches, so same-name files in S3 are safe to skip); force-upload pagefind-entry.json after sync to ensure the shard index is always current.
+
 ## [1.0.133] - 2026-05-26
 - Site: redesign walkthrough index and walkthrough filter pages with franchise-style game rows, visible walkthrough links, and walkthrough-targeted card links.
 
