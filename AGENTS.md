@@ -133,9 +133,12 @@ _mcp = json.load(open(Path(__file__).parent.parent.parent / ".mcp.json"))
 TOKEN = _mcp["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
 ```
 
-### Exponential backoff on rate limits (REQUIRED)
+### Rate limiting, retries, and exponential backoff (REQUIRED)
 
-Any script that calls the Steam Store API (`store.steampowered.com/api/appdetails`) **must** implement exponential backoff. The API returns HTTP 403 (not 429) when rate-limited. Without backoff, bulk runs will produce hundreds of failures.
+**Any script that communicates with an external API must implement:**
+1. **A per-request inter-request delay** — at least 1s between calls to the same host. Values below 0.5s will reliably trigger rate limiting on most public APIs.
+2. **Retry with exponential backoff** on rate-limit responses (HTTP 429, and 403 on Steam which uses 403 instead of 429). Silent exception swallowing (`except Exception: return None`) is not acceptable — rate-limit hits must be surfaced so they are distinguishable from genuine no-results.
+3. **A maximum retry cap** (5 attempts) with a clearly logged failure after exhaustion.
 
 Standard pattern used across this project:
 
@@ -143,17 +146,13 @@ Standard pattern used across this project:
 MAX_RETRIES = 5
 BACKOFF_BASE = 2.0  # doubles each retry: 2s, 4s, 8s, 16s, 32s
 
-def fetch_steam_details(appid: int) -> tuple[dict | None, str | None]:
-    url = f"https://store.steampowered.com/api/appdetails?appids={appid}&cc=us&l=en"
+def fetch_with_backoff(url, headers=None) -> tuple[dict | None, str | None]:
     delay = BACKOFF_BASE
     for attempt in range(MAX_RETRIES):
         try:
-            with urllib.request.urlopen(url, timeout=15) as resp:
-                data = json.loads(resp.read())
-            entry = data.get(str(appid), {})
-            if not entry.get("success"):
-                return None, "api_no_success"
-            return entry["data"], None
+            req = urllib.request.Request(url, headers=headers or {})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return json.loads(resp.read()), None
         except urllib.error.HTTPError as e:
             if e.code in (403, 429):
                 print(f"  Rate limited (HTTP {e.code}), backing off {delay:.0f}s...", file=sys.stderr)
@@ -166,7 +165,13 @@ def fetch_steam_details(appid: int) -> tuple[dict | None, str | None]:
     return None, "rate_limit_exceeded"
 ```
 
-A base inter-request delay of **1.5s** has been reliable for full-library runs. Values below 0.5s will reliably trigger rate limiting.
+For the Steam Store API specifically, a base inter-request delay of **1.5s** has been reliable for full-library runs.
+
+### Dry-run / apply pattern: cache external API results (REQUIRED)
+
+Scripts that support a dry-run phase followed by an `--apply` phase **must** cache all external API responses to disk during the dry run. The apply phase must load from that cache and skip re-querying the API entirely. Re-querying wastes rate-limit budget, doubles wall-clock time, and can produce different results between review and commit.
+
+Standard pattern: write a JSON file to `mcp/cache/` keyed by a stable identifier (e.g. `"title|source"`), load it at startup if present, and only call the external API for keys not yet in the cache. Skip the inter-request sleep when serving from cache.
 
 ### Resumability (strongly preferred)
 
