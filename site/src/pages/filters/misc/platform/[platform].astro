@@ -13,6 +13,7 @@ const platformMeta = {
   steam: { label: "Steam" },
   itch: { label: "itch.io" },
   gog: { label: "GOG" },
+  epic: { label: "Epic Games" },
   patreon: { label: "Patreon" },
   playstation: { label: "PlayStation" },
   xbox: { label: "Xbox" },
@@ -20,7 +21,7 @@ const platformMeta = {
 };
 
 export async function getStaticPaths() {
-  return ["steam", "itch", "gog", "patreon", "playstation", "xbox", "unknown"].map((platform) => ({ params: { platform } }));
+  return ["steam", "itch", "gog", "epic", "patreon", "playstation", "xbox", "unknown"].map((platform) => ({ params: { platform } }));
 }
 
 const { platform } = Astro.params;
