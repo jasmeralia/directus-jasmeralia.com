@@ -44,6 +44,7 @@ export type UrlPlatform =
   | "steam"
   | "itch"
   | "gog"
+  | "epic"
   | "patreon"
   | "playstation"
   | "xbox"
@@ -79,6 +80,7 @@ export const getUrlLinkMeta = (value: string | null | undefined): UrlLinkMeta =>
   switch (platform) {
     case "itch":           return { icon: "/icons/simple/itchdotio.svg",    label: "itch.io",          host };
     case "gog":            return { icon: "/icons/simple/gogdotcom.svg",     label: "GOG",              host };
+    case "epic":           return { icon: "/icons/simple/epicgames.svg",     label: "Epic Games",       host };
     case "patreon":        return { icon: "/icons/simple/patreon.svg",       label: "Patreon",          host };
     case "playstation":    return { icon: "/icons/simple/playstation.svg",   label: "PlayStation",      host };
     case "xbox":           return { icon: "/icons/simple/xbox.svg",          label: "Xbox",             host };
@@ -146,6 +148,7 @@ export const getUrlPlatform = (value: string | null | undefined): UrlPlatform | 
 
   if (host.endsWith("itch.io")) return "itch";
   if (host === "gog.com" || host.endsWith(".gog.com")) return "gog";
+  if (host === "epicgames.com" || host.endsWith(".epicgames.com")) return "epic";
   if (host === "patreon.com" || host.endsWith(".patreon.com")) return "patreon";
   if (host.endsWith("steampowered.com") || host.endsWith("steamcommunity.com")) return "steam";
   if (host === "playstation.com" || host.endsWith(".playstation.com")) return "playstation";

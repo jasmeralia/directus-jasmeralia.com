@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.135] - 2026-05-28
+- Site: add Epic Games Store support — URL detection (epicgames.com → "epic"), icon (epicgames.svg), platform filter page (/filters/misc/platform/epic), pie chart segment, and filter list entry with total/exclusive counts.
+- Data: fix Moonlight: Season One Steam link kind from "steam" to "download" so it is correctly picked up by download link helpers.
+
 ## [1.0.134] - 2026-05-27
 - Builder: skip re-uploading unchanged pagefind shards using --size-only (content-addressed shard filenames are identical when the hash matches, so same-name files in S3 are safe to skip); force-upload pagefind-entry.json after sync to ensure the shard index is always current.
 
