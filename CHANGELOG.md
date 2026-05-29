@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.137] - 2026-05-28
+- Filters: shorten pie chart titles to "Download Platform" and "Download Platform (Exclusives)".
+
 ## [1.0.136] - 2026-05-28
 - Filters: add "Download URL Platform – Exclusive" pie chart alongside the existing platform chart; move walkthrough chart after both platform charts.
 
