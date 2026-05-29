@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.138] - 2026-05-28
+- Filters: move walkthrough pie chart to its own row below the two download platform charts.
+
 ## [1.0.137] - 2026-05-28
 - Filters: shorten pie chart titles to "Download Platform" and "Download Platform (Exclusives)".
 
