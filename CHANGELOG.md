@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.139] - 2026-05-28
+- Filters: add bottom padding to pie chart panels so labels near the bottom of the chart are not clipped.
+
 ## [1.0.138] - 2026-05-28
 - Filters: move walkthrough pie chart to its own row below the two download platform charts.
 
