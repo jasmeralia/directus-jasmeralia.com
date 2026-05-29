@@ -45,6 +45,20 @@ The `master` branch is protected — direct pushes are rejected. **All changes m
 
 Before creating any PR, fetch the latest `master` and rebase the feature branch against `origin/master`. Resolve any changelog/version conflicts before opening the PR so the PR starts mergeable.
 
+### publish.sh — full deploy in one command
+
+`mcp/scripts/publish.sh` automates the full post-commit deploy sequence: push branch → create PR → squash merge → update local master → TrueNAS pull → rebuild trigger.
+
+```bash
+mcp/scripts/publish.sh --title "fix: something" [--body "PR body"] [--no-build]
+```
+
+- `--title` is required; `--body` defaults to empty.
+- `--no-build` skips the TrueNAS pull and rebuild trigger — use this for changes that don't affect the built site (e.g. script-only changes in `mcp/scripts/`).
+- Reads `DIRECTUS_TOKEN` from `.mcp.json` for the rebuild trigger.
+- Automatically retries the TrueNAS pull after cleaning `.serena/` if the first pull fails due to untracked files.
+- Must be run from a feature branch; exits with an error if already on `master`.
+
 ## Updating site source on TrueNAS
 
 **After merging any PR to master, always pull on TrueNAS immediately** — before triggering a build. Data-only changes (Directus field updates) don't require this, but any code change will silently build stale without it.
