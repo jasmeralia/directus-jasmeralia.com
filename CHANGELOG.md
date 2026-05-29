@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.136] - 2026-05-28
+- Filters: add "Download URL Platform – Exclusive" pie chart alongside the existing platform chart; move walkthrough chart after both platform charts.
+
 ## [1.0.135] - 2026-05-28
 - Site: add Epic Games Store support — URL detection (epicgames.com → "epic"), icon (epicgames.svg), platform filter page (/filters/misc/platform/epic), pie chart segment, and filter list entry with total/exclusive counts.
 - Data: fix Moonlight: Season One Steam link kind from "steam" to "download" so it is correctly picked up by download link helpers.
