@@ -384,6 +384,16 @@ const walkthroughPieSegments = WALKTHROUGH_KINDS
     color: WALKTHROUGH_KIND_COLOR[k] ?? "#888",
   }));
 const walkthroughPieTotal = walkthroughPieSegments.reduce((sum, segment) => sum + segment.value, 0);
+const platformExclusivePieSegments = [
+  { label: "Steam",        value: platformCounts.steamExclusive,        color: "#4aa3ff" },
+  { label: "PlayStation",  value: platformCounts.playstationExclusive,  color: "#003087" },
+  { label: "Xbox",         value: platformCounts.xboxExclusive,         color: "#107c10" },
+  { label: "itch.io",      value: platformCounts.itchExclusive,         color: "#ff7a7a" },
+  { label: "GOG",          value: platformCounts.gogExclusive,          color: "#ffd966" },
+  { label: "Epic Games",   value: platformCounts.epicExclusive,         color: "#c8c8c8" },
+  { label: "Patreon",      value: platformCounts.patreonExclusive,      color: "#c788ff" },
+].filter((segment) => segment.value > 0);
+const platformExclusivePieTotal = platformExclusivePieSegments.reduce((sum, s) => sum + s.value, 0);
 const pieSize = 220;
 const pieRadius = 95;
 const pieCenter = pieSize / 2;
@@ -406,6 +416,16 @@ const platformPieArcs = (() => {
   return platformPieSegments.map((segment) => {
     const start = current;
     const sweep = (segment.value / platformPieTotal) * 360;
+    current += sweep;
+    return { ...segment, start, end: current };
+  });
+})();
+const platformExclusivePieArcs = (() => {
+  if (!platformExclusivePieTotal) return [];
+  let current = 0;
+  return platformExclusivePieSegments.map((segment) => {
+    const start = current;
+    const sweep = (segment.value / platformExclusivePieTotal) * 360;
     current += sweep;
     return { ...segment, start, end: current };
   });
@@ -554,6 +574,15 @@ const platformLabeledArcs = platformPieArcs
     const pos = polarToCartesian(pieCenter, pieCenter, labelRadius, mid);
     const anchor = pos.x < pieCenter - 5 ? "end" : pos.x > pieCenter + 5 ? "start" : "middle";
     const pct = platformPieTotal > 0 ? Math.round((seg.value / platformPieTotal) * 100) : 0;
+    return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
+  });
+const platformExclusiveLabeledArcs = platformExclusivePieArcs
+  .filter((seg) => seg.end - seg.start >= 8)
+  .map((seg) => {
+    const mid = (seg.start + seg.end) / 2;
+    const pos = polarToCartesian(pieCenter, pieCenter, labelRadius, mid);
+    const anchor = pos.x < pieCenter - 5 ? "end" : pos.x > pieCenter + 5 ? "start" : "middle";
+    const pct = platformExclusivePieTotal > 0 ? Math.round((seg.value / platformExclusivePieTotal) * 100) : 0;
     return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
   });
 const walkthroughLabeledArcs = walkthroughPieArcs
@@ -791,6 +820,32 @@ const miscCount = miscFilterEntries.length;
                   ))
                 )}
                 {platformLabeledArcs.map((seg) => (
+                  <g>
+                    <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
+                    <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
+                  </g>
+                ))}
+              </svg>
+            </div>
+          </div>
+          ) : null}
+          {platformExclusivePieSegments.length ? (
+          <div class="pie-panel">
+            <h3>Download URL Platform – Exclusive</h3>
+            <div class="pie-wrap">
+              <svg class="pie" viewBox={`0 0 ${pieSize} ${pieSize}`} overflow="visible" role="img" aria-label="Download platform exclusive distribution">
+                {platformExclusivePieArcs.length === 1 ? (
+                  <circle cx={pieCenter} cy={pieCenter} r={pieRadius} fill={platformExclusivePieArcs[0].color}>
+                    <title>{platformExclusivePieArcs[0].label} ({platformExclusivePieArcs[0].value})</title>
+                  </circle>
+                ) : (
+                  platformExclusivePieArcs.map((segment) => (
+                    <path d={describeArc(pieCenter, pieCenter, pieRadius, segment.start, segment.end)} fill={segment.color}>
+                      <title>{segment.label} ({segment.value})</title>
+                    </path>
+                  ))
+                )}
+                {platformExclusiveLabeledArcs.map((seg) => (
                   <g>
                     <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
                     <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
