@@ -154,6 +154,8 @@ _EDITION_STRIP_RE = re.compile(
     r'|2019\s+rebalance'                     # Consortium 2019 REBALANCE
     r'|rebalance'
     r'|unrated'                              # Agony UNRATED
+    r'|the\s+final\s+cut'                   # Disco Elysium - The Final Cut
+    r'|final\s+cut'
     r'|classic'                              # standalone (e.g. "Mafia II (Classic)" → handled above)
     r')'
     r')\s*$',
