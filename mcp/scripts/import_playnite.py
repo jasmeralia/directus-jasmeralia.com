@@ -118,6 +118,9 @@ _EDITION_STRIP_RE = re.compile(
     # Parenthetical edition markers: " (Classic)", " (2003)", etc.
     r'\s*\(\s*(?:classic|\d{4})\s*\)'
     r'|'
+    # + bundled content (e.g. "Leap of Faith + Official Walkthrough")
+    r'\s*\+\s*official\s+walkthrough'
+    r'|'
     # Separator + edition phrase at end of string
     r'(?:[\s:–—-]+)'
     r'(?:the\s+)?'   # optional leading "The" (e.g. "The Complete Edition")
