@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.143] - 2026-05-31
+- Filters: add "AVN + Harem" and "AVN + Not Harem" misc filter pages.
+- Filters: replace en-dashes in Cover Art filter labels with hyphens.
+
 ## [1.0.142] - 2026-05-31
 - Filters: add a "Download Platform Count" pie chart showing how many games have 1, 2, 3, or more distinct download platforms.
 
