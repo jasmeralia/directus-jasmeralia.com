@@ -197,6 +197,24 @@ Use the static token directly via `urllib.request` for bulk operations — don't
 
 **Always write data through the Directus API, never directly to the database.** Direct DB writes bypass Directus Flows, which means hooks like "Tier Row Games – Update Tier Row Date" never fire, `updated_at` timestamps don't update, and changes are invisible to the RSS feed. Use `psycopg2` for read-only queries where the REST API returns 403 or is inconvenient, but all inserts, updates, and deletes must go through the API.
 
+**Before deleting any game record, explicitly delete its junction rows first.** Directus does not reliably cascade-delete junction table rows when a parent record is removed. Surviving orphan rows (with a null or dangling foreign key) cause build-time crashes in any Astro page that expands the relation. At minimum, clean up these collections before calling `DELETE /items/games/{id}`:
+
+```python
+GAME_JUNCTIONS = [
+    ("tier_list_games", "game_id"),
+    ("games_genres",    "games_id"),
+    ("games_developers","games_id"),
+    ("games_links",     "games_id"),
+]
+
+for collection, fk in GAME_JUNCTIONS:
+    rows = d_get(f"/items/{collection}?fields=id&filter[{fk}][_eq]={game_id}&limit=-1").get("data", [])
+    for row in rows:
+        d_delete(f"/items/{collection}/{row['id']}")
+```
+
+This has caused build failures more than once (orphaned `tier_list_games` rows leave `game_id: null` entries that crash the tiers page template).
+
 ### Import filters
 
 When importing from Steam, always apply:
