@@ -278,6 +278,8 @@ _NUMBER_WORDS = {
 }
 
 def normalize(s: str) -> list[str]:
+    # Expand & → and before stripping so "Outlaws & Legends" == "Outlaws and Legends"
+    s = re.sub(r'\s*&\s*', ' and ', s)
     tokens = _STRIP_RE.sub(' ', s.lower()).split()
     return [_NUMBER_WORDS.get(t, t) for t in tokens]
 
