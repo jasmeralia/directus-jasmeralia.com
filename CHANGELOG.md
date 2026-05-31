@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.140] - 2026-05-31
+- Tiers: skip orphaned tier entries (null game_id) instead of crashing the build.
+
 ## [1.0.139] - 2026-05-28
 - Filters: add bottom padding to pie chart panels so labels near the bottom of the chart are not clipped.
 
