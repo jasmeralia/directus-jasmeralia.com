@@ -22,6 +22,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+MAX_RETRIES = 5
+BACKOFF_BASE = 2.0
+
 MCP = Path(__file__).parent.parent.parent / ".mcp.json"
 _cfg = json.loads(MCP.read_text())
 DIRECTUS_URL = "https://directus.jasmer.tools"
@@ -61,8 +64,23 @@ def igdb_post(token: str, endpoint: str, body: str) -> list:
             "Accept": "application/json",
         },
     )
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.loads(r.read())
+    delay = BACKOFF_BASE
+    for attempt in range(MAX_RETRIES):
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                print(f"  Rate limited (429), backing off {delay:.0f}s...", file=sys.stderr)
+                time.sleep(delay)
+                delay *= 2
+            else:
+                print(f"  IGDB HTTP {e.code}", file=sys.stderr)
+                return []
+        except Exception as e:
+            print(f"  IGDB error: {e}", file=sys.stderr)
+            return []
+    return []
 
 
 def igdb_cover(token: str, title: str) -> tuple[str | None, str | None]:
@@ -146,12 +164,27 @@ def fetch_bytes(url: str) -> bytes | None:
         return None
 
 
+CACHE_DIR = Path(__file__).parent.parent / "cache"
+IGDB_CACHE_FILE = CACHE_DIR / "igdb_cover_cache.json"
+
+
+def load_igdb_cache() -> dict:
+    if IGDB_CACHE_FILE.exists():
+        return json.loads(IGDB_CACHE_FILE.read_text())
+    return {}
+
+
+def save_igdb_cache(cache: dict) -> None:
+    CACHE_DIR.mkdir(exist_ok=True)
+    IGDB_CACHE_FILE.write_text(json.dumps(cache, indent=2))
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 def get_missing_games() -> list[dict]:
-    qs = "fields=id,title,slug,download_url&filter%5Bcover_image%5D%5B_null%5D=true&limit=-1&sort=title"
+    qs = "fields=id,title,slug&filter%5Bcover_image%5D%5B_null%5D=true&limit=-1&sort=title"
     return directus_get(f"/items/games?{qs}").get("data", [])
 
 
@@ -164,13 +197,29 @@ def main():
     games = get_missing_games()
     print(f"  {len(games)} games missing covers", file=sys.stderr)
 
-    print("Getting IGDB token...", file=sys.stderr)
-    token = get_igdb_token()
+    igdb_cache = load_igdb_cache()
+    cache_hits = sum(1 for g in games if str(g["id"]) in igdb_cache)
+    print(f"  {cache_hits} already cached from prior IGDB lookups", file=sys.stderr)
+
+    needs_token = any(str(g["id"]) not in igdb_cache for g in games)
+    token = None
+    if needs_token:
+        print("Getting IGDB token...", file=sys.stderr)
+        token = get_igdb_token()
 
     fixed = skipped = errors = 0
     for game in games:
         print(f"\n{game['title']} (id {game['id']})", file=sys.stderr)
-        image_id, matched = igdb_cover(token, game["title"])
+        cache_key = str(game["id"])
+
+        if cache_key in igdb_cache:
+            image_id, matched = igdb_cache[cache_key]["image_id"], igdb_cache[cache_key]["matched"]
+        else:
+            time.sleep(0.26)
+            image_id, matched = igdb_cover(token, game["title"])
+            igdb_cache[cache_key] = {"image_id": image_id, "matched": matched}
+            save_igdb_cache(igdb_cache)
+
         if not image_id:
             print(f"  SKIP: no IGDB cover found", file=sys.stderr)
             skipped += 1

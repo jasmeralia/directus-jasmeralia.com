@@ -102,6 +102,101 @@ BLOCKED_TITLES = {
     ("Symphonia (Student Project, 2020)", "GOG"), # matched commercial Symphonia
 }
 
+# ---------------------------------------------------------------------------
+# Edition-suffix deduplication
+# ---------------------------------------------------------------------------
+# When a Playnite CSV contains an edition/variant title (e.g. "BioShock Remastered")
+# whose canonical base game (e.g. "BioShock") is already in Directus, we want to
+# add the store link to the existing entry rather than create a duplicate.
+#
+# Two-stage fallback used in the main lookup (see _find_existing()):
+#   1. Strip known edition suffixes from the incoming title and retry the lookup.
+#   2. If the resolved store URL is already linked to any game, use that game.
+
+_EDITION_STRIP_RE = re.compile(
+    r'(?:'
+    # Parenthetical edition markers: " (Classic)", " (2003)", etc.
+    r'\s*\(\s*(?:classic|\d{4})\s*\)'
+    r'|'
+    # Separator + edition phrase at end of string
+    r'(?:[\s:–—-]+)'
+    r'(?:the\s+)?'   # optional leading "The" (e.g. "The Complete Edition")
+    r'(?:'
+    r'remastered'
+    r'|enhanced\s+plus\s+edition'
+    r'|enhanced\s+edition'
+    r'|enhanced'                              # standalone (e.g. "GTA V Enhanced")
+    r'|definitive\s+edition'
+    r'|definitive'
+    r"|director'?s\s+cut"
+    r'|ultimate\s+edition'
+    r'|ultimate'
+    r'|g\.?o\.?t\.?y\.?\s+edition'
+    r'|game\s+of\s+the\s+year\s+edition'
+    r'|complete\s+edition'
+    r'|complete'                              # e.g. "Neverwinter Nights 2 Complete"
+    r'|\d+(?:st|nd|rd|th)?\s+anniversary(?:\s+edition)?'  # "10th Anniversary"
+    r'|anniversary\s+edition'
+    r'|deluxe\s+edition'
+    r'|gold\s+edition'
+    r'|extended\s+edition'
+    r'|special\s+edition'
+    r'|standard\s+edition'
+    r'|classic\s+and\s+uncut'
+    r'|20\s+year\s+celebration'              # Rise of the Tomb Raider
+    r"|spacer'?s\s+choice\s+edition"        # The Outer Worlds
+    r'|valhalla\s+edition'                   # Jotun
+    r'|jotunn\s+edition'
+    r'|up-armored\s+edition'                 # Brigador
+    r'|trials\s+of\s+fear\s+edition'         # Dandara
+    r'|sovereign\s+edition'                  # Sunless Skies
+    r'|legendary\s+edition'
+    r'|2019\s+rebalance'                     # Consortium 2019 REBALANCE
+    r'|rebalance'
+    r'|unrated'                              # Agony UNRATED
+    r'|classic'                              # standalone (e.g. "Mafia II (Classic)" → handled above)
+    r')'
+    r')\s*$',
+    re.IGNORECASE,
+)
+
+
+def strip_edition_key(title: str) -> str | None:
+    """Return normalized key with known edition suffix stripped, or None if no suffix found."""
+    stripped = _EDITION_STRIP_RE.sub('', title).strip()
+    if stripped.lower() == title.lower():
+        return None
+    return ' '.join(normalize(stripped)) or None
+
+
+def _find_existing(title: str, key: str, db: dict, url_index: dict,
+                   store_url: str | None) -> tuple[dict | None, str]:
+    """Look up an incoming title in the Directus index.
+
+    Returns (game_entry, match_reason) where game_entry is None if not found.
+    Three-stage search:
+      1. Exact normalized title match.
+      2. Edition-suffix-stripped title match (e.g. 'BioShock Remastered' → 'BioShock').
+      3. Store URL match — catches aliases like 'Telltale Batman Season 1' whose
+         store URL already belongs to the canonical 'Batman - The Telltale Series'.
+    """
+    hit = db.get(key)
+    if hit:
+        return hit, 'exact'
+
+    ck = strip_edition_key(title)
+    if ck:
+        hit = db.get(ck)
+        if hit:
+            return hit, f'edition-strip → "{hit["title"]}"'
+
+    if store_url:
+        hit = url_index.get(store_url)
+        if hit:
+            return hit, f'url-match → "{hit["title"]}"'
+
+    return None, ''
+
 # Titles matching any of these patterns are non-game entries and should be skipped.
 _SKIP_RE = re.compile(
     r'\bsoundtrack\b|\boriginal score\b|\bost\b'           # music releases
@@ -225,22 +320,30 @@ def epic_url_from_slug(slug: str) -> str:
 # ---------------------------------------------------------------------------
 
 def load_directus_games():
-    """Returns dict of normalised_title → {id, title, link_kinds}."""
+    """Returns (title_index, url_index).
+
+    title_index: normalised_title → {id, title, link_urls, link_kinds}
+    url_index:   store_url → same entry (for URL-based dedup fallback)
+    """
     games = d_get('/items/games', {
         'fields[]': ['id', 'title', 'links.kind', 'links.url'],
         'limit': -1,
     })['data']
-    index = {}
+    title_index: dict = {}
+    url_index:   dict = {}
     for g in games:
-        key = ' '.join(normalize(g['title']))
+        key   = ' '.join(normalize(g['title']))
         links = g.get('links') or []
-        index[key] = {
-            'id': g['id'],
-            'title': g['title'],
-            'link_urls': {l['url'] for l in links if l.get('url')},
+        entry = {
+            'id':         g['id'],
+            'title':      g['title'],
+            'link_urls':  {l['url'] for l in links if l.get('url')},
             'link_kinds': {l['kind'] for l in links if l.get('kind')},
         }
-    return index
+        title_index[key] = entry
+        for url in entry['link_urls']:
+            url_index[url] = entry
+    return title_index, url_index
 
 # ---------------------------------------------------------------------------
 # Main
@@ -281,7 +384,7 @@ def main():
         print(f'  Loaded {len(url_cache)} cached URLs from {URL_CACHE.name}')
 
     print('Loading Directus games index...')
-    db = load_directus_games()
+    db, url_index = load_directus_games()
     print(f'  {len(db)} games in Directus')
 
     review = []
@@ -356,12 +459,14 @@ def main():
             print(f'  → no URL found, queued for review')
             batch_anom.append(f'NO-URL [{source}] "{title}"')
 
-        # --- Check Directus ---
-        existing = db.get(key)
+        # --- Check Directus (three-stage: exact → edition-strip → URL match) ---
+        existing, match_reason = _find_existing(title, key, db, url_index, store_url)
 
         if existing:
             platform_host = 'gog.com' if source == 'GOG' else 'epicgames.com'
             already_has = any(platform_host in u for u in existing['link_urls'])
+            if match_reason != 'exact':
+                print(f'  → dedup match ({match_reason}): game {existing["id"]}')
             if already_has:
                 stats['skipped'] += 1
                 print(f'  → already has {source} link, skipped')
@@ -373,6 +478,8 @@ def main():
                         'kind': 'download',
                         'sort': 99,
                     })
+                    existing['link_urls'].add(store_url)
+                    url_index[store_url] = existing
                 stats['link_added'] += 1
                 print(f'  → {"ADDED" if not DRY_RUN else "DRY"} link to game {existing["id"]}: {store_url}')
             # low-conf for existing game: already tracked in low_conf + review, no further action
@@ -392,7 +499,9 @@ def main():
                         'kind': 'download',
                         'sort': 1,
                     })
-                    db[key] = {'id': game_id, 'title': title, 'link_urls': {store_url}, 'link_kinds': {'download'}}
+                    new_entry = {'id': game_id, 'title': title, 'link_urls': {store_url}, 'link_kinds': {'download'}}
+                    db[key] = new_entry
+                    url_index[store_url] = new_entry
                 stats['game_created'] += 1
                 print(f'  → {"CREATED" if not DRY_RUN else "DRY"} new game + link: {store_url}')
             else:
