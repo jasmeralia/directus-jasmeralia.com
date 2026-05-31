@@ -273,7 +273,9 @@ def d_post(path, data):
 # Title normalisation / matching
 # ---------------------------------------------------------------------------
 
-_STRIP_RE = re.compile(r"[™®©:'\-–—!?,.()\[\]]+")
+# Includes curly/smart apostrophes (‘ ’) and quotes (“ ”) so
+# "Sid Meier’s" and "Sid Meier's" normalize identically.
+_STRIP_RE = re.compile(r"[™®©:'‘’“”\-–—!?,.()\[\]]+")
 
 # Maps spelled-out numbers to digits so "Week One" and "Week 1" normalize identically.
 _NUMBER_WORDS = {
