@@ -127,7 +127,22 @@ Both files must be updated in the same commit as the site changes. Never batch m
 
 **Never make schema changes (field creation/deletion, relation changes, collection modifications) without explicit user confirmation — even if the user has discussed or approved the plan.** Discussion is not authorization. Wait for a clear "go ahead" directed at the specific schema change before touching `/fields`, `/relations`, or `/collections` endpoints.
 
-**Always take a full backup before any schema change session.** Use the backup pattern from `bulk_import.py` setup: fetch all collections (games, genres, developers, junction tables) via `GET /items/{collection}?limit=-1` and write to a timestamped directory under `mcp/cache/backup_YYYYMMDD_HHMMSS/`. Do this even for small or "safe-looking" changes.
+**Always take a full database backup before any schema change session or bulk delete operation.** This means any operation that deletes or modifies more than a handful of records — game merges, bulk link cleanup, junction row sweeps, etc. Use `pg_dump` via the `cms-db` container on TrueNAS; this is a complete binary-compatible dump that restores in seconds, unlike the old JSON-per-collection approach which only captured a subset of tables and required re-POSTing every record through the API.
+
+```bash
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+ssh morgan@truenas.windsofstorm.net \
+  "docker exec cms-db pg_dump -U directus directus | gzip > /mnt/myzmirror/directus-jasmeralia/backups/directus_${TIMESTAMP}.sql.gz"
+echo "Backup: directus_${TIMESTAMP}.sql.gz"
+```
+
+To restore from a backup:
+```bash
+ssh morgan@truenas.windsofstorm.net \
+  "gunzip -c /mnt/myzmirror/directus-jasmeralia/backups/directus_TIMESTAMP.sql.gz | docker exec -i cms-db psql -U directus directus"
+```
+
+The old pattern (fetching JSON via `GET /items/{collection}?limit=-1`) is **not** a substitute — it misses system tables, file metadata, relation data, and requires painful record-by-record re-insertion. Always use `pg_dump`.
 
 **After creating any new collection that Astro queries (pages, components, feed — anything in the site build), grant the site builder read access before triggering a build.** The site builder runs as the "Astro Readonly" role/policy. Grant via `POST /permissions` with `policy: "84f316ac-2d5e-4b5a-8f56-99e27a8f1cdf"`, `collection: "<name>"`, `action: "read"`, `fields: ["*"]`. Missing permissions cause build-time 403 errors. This applies to both regular collections and system collections (e.g. `directus_revisions`, `directus_activity`).
 
