@@ -270,8 +270,15 @@ def d_post(path, data):
 
 _STRIP_RE = re.compile(r"[™®©:'\-–—!?,.()\[\]]+")
 
-def normalize(s: str) -> str:
-    return _STRIP_RE.sub(' ', s.lower()).split()
+# Maps spelled-out numbers to digits so "Week One" and "Week 1" normalize identically.
+_NUMBER_WORDS = {
+    'one': '1', 'two': '2', 'three': '3', 'four': '4', 'five': '5',
+    'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10',
+}
+
+def normalize(s: str) -> list[str]:
+    tokens = _STRIP_RE.sub(' ', s.lower()).split()
+    return [_NUMBER_WORDS.get(t, t) for t in tokens]
 
 def title_sim(a: str, b: str) -> float:
     na, nb = ' '.join(normalize(a)), ' '.join(normalize(b))
