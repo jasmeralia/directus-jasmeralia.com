@@ -41,6 +41,7 @@ if (gameIds.length) {
 // Group games by rating and sort within each group by title
 const gamesByRating = new Map<string, typeof tierList.tier_list_games>();
 for (const entry of tierList.tier_list_games ?? []) {
+  if (!entry.game_id) continue; // skip orphaned tier entries (game deleted after tier row was added)
   const rating = entry.rating ?? "U";
   if (!gamesByRating.has(rating)) gamesByRating.set(rating, []);
   gamesByRating.get(rating)!.push(entry);

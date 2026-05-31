@@ -157,7 +157,20 @@ def main():
                 d_patch(f"/items/games/{base_id}", {"cover_image": edition["cover_image"]})
             covers_copied += 1
 
-        # Delete edition (junction rows cascade via FK constraints)
+        # Explicitly remove tier_list_games rows before deleting the game.
+        # Directus does not reliably cascade-delete these junction rows, and
+        # any surviving orphan (game_id → null) causes a build-time crash in
+        # the tiers page template.
+        tier_rows = d_get(
+            f"/items/tier_list_games?fields=id,tier_list_id&filter[game_id][_eq]={edition_id}&limit=-1"
+        ).get("data", [])
+        if tier_rows:
+            print(f"  - remove {len(tier_rows)} tier_list_games row(s)")
+            if not DRY_RUN:
+                for tr in tier_rows:
+                    d_delete(f"/items/tier_list_games/{tr['id']}")
+
+        # Delete edition game record
         print(f"  - delete game {edition_id}")
         if not DRY_RUN:
             d_delete(f"/items/games/{edition_id}")
