@@ -294,6 +294,8 @@ _ROMAN_NUMERALS = {
 def normalize(s: str) -> list[str]:
     # Expand & → and before stripping so "Outlaws & Legends" == "Outlaws and Legends"
     s = re.sub(r'\s*&\s*', ' and ', s)
+    # Replace underscores with spaces so "Watch_Dogs" == "Watch Dogs"
+    s = s.replace('_', ' ')
     tokens = _STRIP_RE.sub(' ', s.lower()).split()
     tokens = [_NUMBER_WORDS.get(t, t) for t in tokens]
     tokens = [_ROMAN_NUMERALS.get(t, t) for t in tokens]
