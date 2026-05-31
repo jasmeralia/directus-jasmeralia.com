@@ -208,7 +208,8 @@ _SKIP_RE = re.compile(
     r'|^packs\s*-'                                         # GOG "Packs - ..." bundles
     r'|\bpremium keg\b|\bkegs?\b'                          # GWENT in-game currency
     r'|beta\b|\bexperimental\b|\bpublic testing\b|\btest branch\b'  # beta/test builds
-    r'|\bprologue\b',                                      # free prologue demos
+    r'|\bprologue\b'                                       # free prologue demos
+    r'|\balpha\s+version\b|\bbeta\s+version\b',            # alpha/beta builds
     re.IGNORECASE,
 )
 
