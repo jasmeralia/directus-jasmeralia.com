@@ -315,6 +315,14 @@ const avnWithGamestorylogCount = (games ?? []).filter(
 const avnMissingWalkthroughCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && walkthroughLinks(game?.links).length === 0,
 ).length;
+const hasHaremGenre = (game) =>
+  (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "harem");
+const avnHaremCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && hasHaremGenre(game),
+).length;
+const avnNotHaremCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && !hasHaremGenre(game),
+).length;
 const countPlatform = (platform: string) =>
   (games ?? []).filter((game) =>
     downloadLinks(game?.links).some((l) => getUrlPlatform(l.url) === platform)
@@ -633,8 +641,10 @@ const walkthroughLabeledArcs = walkthroughPieArcs
   });
 const miscFilterEntries = [
   { label: "AVN + Has GameStoryLog URL", href: "/filters/misc/avn-with-gamestorylog/index.html", count: avnWithGamestorylogCount },
+  { label: "AVN + Harem", href: "/filters/misc/avn-harem/index.html", count: avnHaremCount },
   { label: "AVN + Missing GameStoryLog URL", href: "/filters/misc/avn-missing-gamestorylog/index.html", count: avnMissingGamestorylogCount },
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
+  { label: "AVN + Not Harem", href: "/filters/misc/avn-not-harem/index.html", count: avnNotHaremCount },
   { label: "Download Platform + Epic Games",    href: "/filters/misc/platform/epic/index.html",         count: platformCounts.epic,         exclusiveCount: platformCounts.epicExclusive },
   { label: "Download Platform + GOG",          href: "/filters/misc/platform/gog/index.html",          count: platformCounts.gog,          exclusiveCount: platformCounts.gogExclusive },
   { label: "Download Platform + itch.io",      href: "/filters/misc/platform/itch/index.html",         count: platformCounts.itch,         exclusiveCount: platformCounts.itchExclusive },
@@ -643,8 +653,8 @@ const miscFilterEntries = [
   { label: "Download Platform + Steam",        href: "/filters/misc/platform/steam/index.html",        count: platformCounts.steam,        exclusiveCount: platformCounts.steamExclusive },
   { label: "Download Platform + Unknown",      href: "/filters/misc/platform/unknown/index.html",      count: unknownPlatformCount },
   { label: "Download Platform + Xbox",         href: "/filters/misc/platform/xbox/index.html",         count: platformCounts.xbox,         exclusiveCount: platformCounts.xboxExclusive },
-  { label: "Cover Art – Missing", href: "/filters/misc/missing-cover-art/index.html", count: missingCoverArtCount },
-  { label: "Cover Art – Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
+  { label: "Cover Art - Missing", href: "/filters/misc/missing-cover-art/index.html", count: missingCoverArtCount },
+  { label: "Cover Art - Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
   { label: "Developer Links + Discord", href: "/filters/misc/developer-links/discord/index.html", count: devLinkKindCounts.discord },
   { label: "Developer Links + itch.io", href: "/filters/misc/developer-links/itch/index.html", count: devLinkKindCounts.itch },
   { label: "Developer + Missing Links", href: "/filters/misc/developer-missing-links/index.html", count: developerMissingLinksCount },
