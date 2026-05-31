@@ -394,6 +394,24 @@ const platformExclusivePieSegments = [
   { label: "Patreon",      value: platformCounts.patreonExclusive,      color: "#c788ff" },
 ].filter((segment) => segment.value > 0);
 const platformExclusivePieTotal = platformExclusivePieSegments.reduce((sum, s) => sum + s.value, 0);
+const downloadPlatformCountBuckets = new Map<number, number>();
+for (const game of games ?? []) {
+  const platforms = new Set(
+    downloadLinks(game?.links).map((link) => getUrlPlatform(link.url) ?? "unknown"),
+  );
+  if (platforms.size > 0) {
+    downloadPlatformCountBuckets.set(platforms.size, (downloadPlatformCountBuckets.get(platforms.size) ?? 0) + 1);
+  }
+}
+const downloadPlatformCountColors = ["#4aa3ff", "#ff7a7a", "#ffd966", "#7fe29a", "#c788ff", "#ffb86c"];
+const downloadPlatformCountPieSegments = Array.from(downloadPlatformCountBuckets.entries())
+  .sort(([a], [b]) => a - b)
+  .map(([count, value], index) => ({
+    label: `${count} ${count === 1 ? "Platform" : "Platforms"}`,
+    value,
+    color: downloadPlatformCountColors[index % downloadPlatformCountColors.length],
+  }));
+const downloadPlatformCountPieTotal = downloadPlatformCountPieSegments.reduce((sum, s) => sum + s.value, 0);
 const pieSize = 220;
 const pieRadius = 95;
 const pieCenter = pieSize / 2;
@@ -426,6 +444,16 @@ const platformExclusivePieArcs = (() => {
   return platformExclusivePieSegments.map((segment) => {
     const start = current;
     const sweep = (segment.value / platformExclusivePieTotal) * 360;
+    current += sweep;
+    return { ...segment, start, end: current };
+  });
+})();
+const downloadPlatformCountPieArcs = (() => {
+  if (!downloadPlatformCountPieTotal) return [];
+  let current = 0;
+  return downloadPlatformCountPieSegments.map((segment) => {
+    const start = current;
+    const sweep = (segment.value / downloadPlatformCountPieTotal) * 360;
     current += sweep;
     return { ...segment, start, end: current };
   });
@@ -583,6 +611,15 @@ const platformExclusiveLabeledArcs = platformExclusivePieArcs
     const pos = polarToCartesian(pieCenter, pieCenter, labelRadius, mid);
     const anchor = pos.x < pieCenter - 5 ? "end" : pos.x > pieCenter + 5 ? "start" : "middle";
     const pct = platformExclusivePieTotal > 0 ? Math.round((seg.value / platformExclusivePieTotal) * 100) : 0;
+    return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
+  });
+const downloadPlatformCountLabeledArcs = downloadPlatformCountPieArcs
+  .filter((seg) => seg.end - seg.start >= 8)
+  .map((seg) => {
+    const mid = (seg.start + seg.end) / 2;
+    const pos = polarToCartesian(pieCenter, pieCenter, labelRadius, mid);
+    const anchor = pos.x < pieCenter - 5 ? "end" : pos.x > pieCenter + 5 ? "start" : "middle";
+    const pct = downloadPlatformCountPieTotal > 0 ? Math.round((seg.value / downloadPlatformCountPieTotal) * 100) : 0;
     return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
   });
 const walkthroughLabeledArcs = walkthroughPieArcs
@@ -801,7 +838,7 @@ const miscCount = miscFilterEntries.length;
           </li>
         ))}
       </ul>
-      {platformPieSegments.length || walkthroughPieSegments.length ? (
+      {platformPieSegments.length || platformExclusivePieSegments.length ? (
         <div class="pie-grid">
           {platformPieSegments.length ? (
           <div class="pie-panel">
@@ -857,8 +894,35 @@ const miscCount = miscFilterEntries.length;
           ) : null}
         </div>
       ) : null}
-      {walkthroughPieSegments.length ? (
+      {downloadPlatformCountPieSegments.length || walkthroughPieSegments.length ? (
         <div class="pie-grid">
+          {downloadPlatformCountPieSegments.length ? (
+          <div class="pie-panel">
+            <h3>Download Platform Count</h3>
+            <div class="pie-wrap">
+              <svg class="pie" viewBox={`0 0 ${pieSize} ${pieSize}`} overflow="visible" role="img" aria-label="Download platform count distribution">
+                {downloadPlatformCountPieArcs.length === 1 ? (
+                  <circle cx={pieCenter} cy={pieCenter} r={pieRadius} fill={downloadPlatformCountPieArcs[0].color}>
+                    <title>{downloadPlatformCountPieArcs[0].label} ({downloadPlatformCountPieArcs[0].value})</title>
+                  </circle>
+                ) : (
+                  downloadPlatformCountPieArcs.map((segment) => (
+                    <path d={describeArc(pieCenter, pieCenter, pieRadius, segment.start, segment.end)} fill={segment.color}>
+                      <title>{segment.label} ({segment.value})</title>
+                    </path>
+                  ))
+                )}
+                {downloadPlatformCountLabeledArcs.map((seg) => (
+                  <g>
+                    <text x={seg.lx} y={seg.ly - 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{seg.label}</text>
+                    <text x={seg.lx} y={seg.ly + 7} text-anchor={seg.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{seg.value} · {seg.pct}%</text>
+                  </g>
+                ))}
+              </svg>
+            </div>
+          </div>
+          ) : null}
+          {walkthroughPieSegments.length ? (
           <div class="pie-panel">
             <h3>Walkthrough URL Platform</h3>
             <div class="pie-wrap">
@@ -883,6 +947,7 @@ const miscCount = miscFilterEntries.length;
               </svg>
             </div>
           </div>
+          ) : null}
         </div>
       ) : null}
     </div>

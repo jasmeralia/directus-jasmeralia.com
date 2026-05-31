@@ -108,6 +108,8 @@ Use `https://directus.jasmer.tools` (public URL) — `truenas.local` is not reac
 
 ## Rules for Astro site changes
 
+**Do not use local Astro builds as the acceptance test for site changes.** Local builds can fail for unrelated Directus/query/environment issues and are not a reliable validation method for this project. After merging and deploying site changes, validate by watching the real TrueNAS builder through OpenSearch until it reports success or failure.
+
 **Sorting must always be case-insensitive and done in JavaScript — never rely on PostgreSQL's sort order.** PostgreSQL's default collation is case-sensitive (lowercase sorts after uppercase), so `sort: ["title"]` or `sort: ["name"]` in Directus queries will place titles like "dev_hell" after all uppercase titles. Always omit `sort` from Directus queries for display lists and sort in JS instead:
 - Use `sortByTitle(arr)` for arrays with a `.title` field.
 - Use `sortByName(arr)` for arrays with a `.name` field.
