@@ -42,6 +42,8 @@ const axisLabelOffset = 28;
 
 const unique = (values) => Array.from(new Set(values));
 const xTickIndices = items.map((_, index) => index);
+// Show a label every 3 years; always include the last point so the endpoint is visible.
+const xLabelSet = new Set(xTickIndices.filter((i) => i % 3 === 0 || i === items.length - 1));
 const yTickCount = 5;
 const yTicks = unique(
   Array.from({ length: yTickCount }, (_, i) =>
@@ -127,11 +129,12 @@ const points = items
                 : paddingLeft + (innerWidth * (index / (items.length - 1)));
               const y = paddingTop + innerHeight;
               const year = items[index]?.year;
+              const labeled = xLabelSet.has(index);
               return (
                 <>
                   <line class="grid" x1={x} y1={paddingTop} x2={x} y2={paddingTop + innerHeight} />
-                  <line class="tick" x1={x} y1={y} x2={x} y2={y + 4} />
-                  <text x={x} y={y + 14} text-anchor="middle">{year}</text>
+                  {labeled && <line class="tick" x1={x} y1={y} x2={x} y2={y + 4} />}
+                  {labeled && <text x={x} y={y + 14} text-anchor="middle">{year}</text>}
                 </>
               );
             })}

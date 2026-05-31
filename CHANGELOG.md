@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.141] - 2026-05-31
+- Releases: show x-axis labels every 3 years instead of every year to reduce cramping.
+
 ## [1.0.140] - 2026-05-31
 - Tiers: skip orphaned tier entries (null game_id) instead of crashing the build.
 
