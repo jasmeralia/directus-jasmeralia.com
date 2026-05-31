@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.142] - 2026-05-31
+- Filters: add a "Download Platform Count" pie chart showing how many games have 1, 2, 3, or more distinct download platforms.
+
 ## [1.0.141] - 2026-05-31
 - Releases: show x-axis labels every 3 years instead of every year to reduce cramping.
 
