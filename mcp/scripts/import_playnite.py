@@ -277,11 +277,21 @@ _NUMBER_WORDS = {
     'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10',
 }
 
+# Maps unambiguous Roman numerals to digits so "Icewind Dale II" == "Icewind Dale 2".
+# Single-character i/v/x are excluded — they appear as ordinary letters in many titles.
+_ROMAN_NUMERALS = {
+    'ii': '2', 'iii': '3', 'iv': '4',
+    'vii': '7', 'viii': '8', 'ix': '9',
+    'xi': '11', 'xii': '12', 'xiii': '13', 'xiv': '14', 'xv': '15', 'xvi': '16',
+}
+
 def normalize(s: str) -> list[str]:
     # Expand & → and before stripping so "Outlaws & Legends" == "Outlaws and Legends"
     s = re.sub(r'\s*&\s*', ' and ', s)
     tokens = _STRIP_RE.sub(' ', s.lower()).split()
-    return [_NUMBER_WORDS.get(t, t) for t in tokens]
+    tokens = [_NUMBER_WORDS.get(t, t) for t in tokens]
+    tokens = [_ROMAN_NUMERALS.get(t, t) for t in tokens]
+    return tokens
 
 def title_sim(a: str, b: str) -> float:
     na, nb = ' '.join(normalize(a)), ' '.join(normalize(b))
