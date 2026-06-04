@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.144] - 2026-06-04
+- Reviews: add NSFW toggle for screenshots; NSFW images show as greyscale with a label by default and reveal on click-through.
+
 ## [1.0.143] - 2026-05-31
 - Filters: add "AVN + Harem" and "AVN + Not Harem" misc filter pages.
 - Filters: replace en-dashes in Cover Art filter labels with hyphens.
