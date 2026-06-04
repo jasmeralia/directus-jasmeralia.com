@@ -52,7 +52,7 @@ const developers = (review.game?.developers ?? [])
 const cover = fileUrl(review.game?.cover_image);
 const published = review.published_at;
 const screenshots = await directusFetchItems("review_screenshots", {
-  fields: ["id", "sort", "caption", "file.id", "file.filename_disk"],
+  fields: ["id", "sort", "caption", "nsfw", "file.id", "file.filename_disk"],
   filter: { review: { _eq: review.id } },
   sort: ["sort"],
   limit: 200,
@@ -71,8 +71,14 @@ const screenshots = await directusFetchItems("review_screenshots", {
       .content :global(a){color:#8ab4f8;}
       .content :global(code){background:#222;padding:2px 4px;border-radius:4px;}
       .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:1rem;}
-      .shot{background:#0e0e0e;border:1px solid #222;border-radius:10px;overflow:hidden;}
+      .shot{background:#0e0e0e;border:1px solid #222;border-radius:10px;overflow:hidden;position:relative;}
       .shot img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;}
+      .shot.nsfw-hidden img{filter:grayscale(100%) brightness(0.3);pointer-events:none;}
+      .nsfw-badge{display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:6px;cursor:zoom-in;}
+      .shot.nsfw-hidden .nsfw-badge{display:flex;}
+      .nsfw-badge span{color:#fff;font-size:.8rem;font-weight:700;letter-spacing:.08em;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:6px;}
+      .nsfw-toggle{display:flex;align-items:center;gap:8px;margin-top:.75rem;font-size:.9rem;color:#aaa;}
+      .nsfw-toggle input{cursor:pointer;}
       .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:100;}
       .lightbox.open{display:flex;}
       .lightbox img{max-width:92vw;max-height:90vh;object-fit:contain;}
@@ -126,12 +132,19 @@ const screenshots = await directusFetchItems("review_screenshots", {
       {screenshots.length ? (
         <section style="margin-top:2rem;">
           <h2>Screenshots</h2>
+          {screenshots.some((s) => s.nsfw) ? (
+            <label class="nsfw-toggle">
+              <input type="checkbox" id="nsfw-toggle" />
+              Show NSFW screenshots
+            </label>
+          ) : null}
           <div class="shots">
             {screenshots.map((shot) => {
               const img = fileUrl(shot.file);
               return (
-                <div class="shot">
+                <div class={`shot${shot.nsfw ? " nsfw-hidden" : ""}`} data-nsfw={shot.nsfw ? "true" : "false"}>
                   {img ? <img src={img} alt={review.title} loading="lazy" data-shot data-src={img} data-caption={shot.caption || ""} /> : null}
+                  {shot.nsfw ? <div class="nsfw-badge"><span>NSFW</span></div> : null}
                 </div>
               );
             })}
@@ -194,8 +207,14 @@ const screenshots = await directusFetchItems("review_screenshots", {
         const next = () => open((index + 1) % shots.length);
         const prev = () => open((index - 1 + shots.length) % shots.length);
 
+        // Clicking the image or the NSFW badge both open the lightbox
         shots.forEach((el, i) => {
           el.addEventListener("click", () => open(i));
+          const card = el.closest(".shot");
+          if (card) {
+            const badge = card.querySelector(".nsfw-badge");
+            if (badge) badge.addEventListener("click", () => open(i));
+          }
         });
 
         closeBtn.addEventListener("click", close);
@@ -210,6 +229,19 @@ const screenshots = await directusFetchItems("review_screenshots", {
           if (e.key === "ArrowRight") next();
           if (e.key === "ArrowLeft") prev();
         });
+
+        // NSFW toggle
+        const toggle = document.getElementById("nsfw-toggle");
+        if (toggle) {
+          const nsfwCards = Array.from(document.querySelectorAll(".shot[data-nsfw='true']"));
+          toggle.addEventListener("change", () => {
+            nsfwCards.forEach((card) => {
+              card.classList.toggle("nsfw-hidden", !toggle.checked);
+              const shotImg = card.querySelector("[data-shot]");
+              if (shotImg) shotImg.style.pointerEvents = toggle.checked ? "" : "none";
+            });
+          });
+        }
       })();
     </script>
 </BaseLayout>
