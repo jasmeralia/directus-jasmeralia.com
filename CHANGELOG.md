@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.145] - 2026-06-07
+- Markdown: add Discord-style spoiler tag support (`||text||`); spoilers render as hidden text revealed on click.
+
 ## [1.0.144] - 2026-06-04
 - Reviews: add NSFW toggle for screenshots; NSFW images show as greyscale with a label by default and reveal on click-through.
 

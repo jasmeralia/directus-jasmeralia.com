@@ -21,6 +21,8 @@ const year = new Date().getFullYear();
       .footer-link{align-items:center;display:inline-flex;gap:6px;text-decoration:none;}
       .footer-link svg{height:16px;width:16px;}
       .footer-meta{display:block;font-size:0.75rem;margin-top:8px;opacity:0.8;}
+      .spoiler{background:#2a2a2a;color:transparent;border-radius:3px;padding:0 3px;cursor:pointer;user-select:none;transition:color .15s;}
+      .spoiler.revealed{color:inherit;}
     </style>
     <slot name="head" />
   </head>
@@ -56,6 +58,10 @@ const year = new Date().getFullYear();
         var el=document.getElementById('footer-build');
         if(el)el.textContent='Site last published on '+d.built;
       }).catch(function(){});
+      document.addEventListener('click',function(e){
+        var s=e.target.closest('.spoiler');
+        if(s)s.classList.toggle('revealed');
+      });
     </script>
   </body>
 </html>
