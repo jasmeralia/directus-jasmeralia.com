@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.147] - 2026-06-07
+- Tier lists: fix cover art letterboxing for non-standard aspect ratios using position-based image containment.
+
 ## [1.0.146] - 2026-06-07
 - Filters: add "AVN + Download Platform Steam" misc filter page.
 
