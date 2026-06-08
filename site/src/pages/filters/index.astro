@@ -323,6 +323,9 @@ const avnHaremCount = (games ?? []).filter(
 const avnNotHaremCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && !hasHaremGenre(game),
 ).length;
+const avnSteamCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && downloadLinks(game?.links).some((l) => getUrlPlatform(l.url) === "steam"),
+).length;
 const countPlatform = (platform: string) =>
   (games ?? []).filter((game) =>
     downloadLinks(game?.links).some((l) => getUrlPlatform(l.url) === platform)
@@ -645,6 +648,7 @@ const miscFilterEntries = [
   { label: "AVN + Missing GameStoryLog URL", href: "/filters/misc/avn-missing-gamestorylog/index.html", count: avnMissingGamestorylogCount },
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
   { label: "AVN + Not Harem", href: "/filters/misc/avn-not-harem/index.html", count: avnNotHaremCount },
+  { label: "AVN + Download Platform Steam", href: "/filters/misc/avn-steam/index.html", count: avnSteamCount },
   { label: "Download Platform + Epic Games",    href: "/filters/misc/platform/epic/index.html",         count: platformCounts.epic,         exclusiveCount: platformCounts.epicExclusive },
   { label: "Download Platform + GOG",          href: "/filters/misc/platform/gog/index.html",          count: platformCounts.gog,          exclusiveCount: platformCounts.gogExclusive },
   { label: "Download Platform + itch.io",      href: "/filters/misc/platform/itch/index.html",         count: platformCounts.itch,         exclusiveCount: platformCounts.itchExclusive },
