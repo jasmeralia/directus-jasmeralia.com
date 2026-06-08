@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.146] - 2026-06-07
+- Filters: add "AVN + Download Platform Steam" misc filter page.
+
 ## [1.0.145] - 2026-06-07
 - Markdown: add Discord-style spoiler tag support (`||text||`); spoilers render as hidden text revealed on click.
 
