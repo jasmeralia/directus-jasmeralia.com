@@ -302,6 +302,18 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
     compareLabels(a.genreLabel, b.genreLabel) ||
     compareLabels(a.statusLabel, b.statusLabel));
 
+const INCOMPLETE_STATUSES = new Set(["not_started", "in_progress", "on_hold", "waiting_for_update"]);
+const avnIncompleteByGenre = new Map<string, number>();
+for (const game of games ?? []) {
+  if (!game.player_status || !INCOMPLETE_STATUSES.has(game.player_status)) continue;
+  const slugs = (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
+  if (!slugs.includes("avn")) continue;
+  for (const slug of slugs) {
+    if (slug === "avn") continue;
+    avnIncompleteByGenre.set(slug, (avnIncompleteByGenre.get(slug) ?? 0) + 1);
+  }
+}
+
 const hasAvnGenre = (game) =>
   (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "avn");
 const hasValue = (value) => typeof value === "string" && value.trim().length > 0;
@@ -677,6 +689,11 @@ const miscFilterEntries = [
     label: `Missing from ${entry.tierListTitle} Tier List + ${entry.genreName}`,
     href: `/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`,
     count: entry.missingCount,
+  })),
+  ...Array.from(avnIncompleteByGenre.entries()).map(([genreSlug, count]) => ({
+    label: `AVN + ${genreLabel.get(genreSlug) ?? genreSlug} + Incomplete`,
+    href: `/filters/misc/avn-incomplete/${genreSlug}/index.html`,
+    count,
   })),
 ].sort((a, b) => compareLabels(a.label, b.label));
 const miscCount = miscFilterEntries.length;

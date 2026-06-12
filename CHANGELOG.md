@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.148] - 2026-06-12
+- Filters: add "AVN + [Genre] + Incomplete" misc filter pages for each genre, listing AVN games with that genre in a non-terminal played status (not started, in progress, on hold, or waiting for update).
+
 ## [1.0.147] - 2026-06-07
 - Tier lists: fix cover art letterboxing for non-standard aspect ratios using position-based image containment.
 
