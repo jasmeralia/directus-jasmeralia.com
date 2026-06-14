@@ -111,6 +111,10 @@ Use `https://directus.jasmer.tools` (public URL) — `truenas.local` is not reac
 
 **Never use smart quotes, em-dashes, or en-dashes in source code, labels, or content strings.** Use only ASCII equivalents: straight quotes (`'` and `"`), hyphens (`-`). Smart punctuation (`"`, `"`, `'`, `'`, `—`, `–`) causes rendering inconsistencies and sorting anomalies.
 
+## Dependency security
+
+**When npm audit reports vulnerabilities, always fix them by upgrading the affected package — never by lowering the audit severity threshold.** Lowering `--audit-level` masks real issues and leaves the project in a permanently degraded security posture. If a vulnerability cannot be fixed without a breaking change, add a version override in `site/package.json` under `"overrides"` to force the patched version. Only relax the audit level as a last resort if no patched version exists yet, and create a tracking issue immediately.
+
 ## Rules for Astro site changes
 
 **Do not use local Astro builds as the acceptance test for site changes.** Local builds can fail for unrelated Directus/query/environment issues and are not a reliable validation method for this project. After merging and deploying site changes, validate by watching the real TrueNAS builder through OpenSearch until it reports success or failure.
