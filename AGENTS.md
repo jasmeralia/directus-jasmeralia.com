@@ -24,6 +24,7 @@ Copy `.mcp.json.example` to `.mcp.json` at the repo root and fill in all `<VALUE
 | `developers` | id + name + slug |
 | `games_genres` | Junction: `games_id`, `genres_id`. Unique constraint on `(games_id, genres_id)` applied. |
 | `games_developers` | Junction: `games_id`, `developers_id` |
+| `engines` | id + title + slug. Common AVN engines: **Ren'py** (slug `ren-py`, id 1), **Daz 3D** (slug `daz-3d`, id 4), **Honey Select** (slug `honey-select`, id 3). These are engines, not genres — never tag them as genres. Set via nested update on the game record: `{"engines": [{"engines_id": N}]}`. |
 
 ## Key cache files
 
