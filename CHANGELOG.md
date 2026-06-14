@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.149] - 2026-06-14
+- Build: add esbuild override to >=0.28.1 to resolve GHSA-g7r4-m6w7-qqqr and GHSA-gv7w-rqvm-qjhr (high-severity advisories in esbuild 0.17.0-0.28.0).
+
 ## [1.0.148] - 2026-06-12
 - Filters: add "AVN + [Genre] + Incomplete" misc filter pages for each genre, listing AVN games with that genre in a non-terminal played status (not started, in progress, on hold, or waiting for update).
 
