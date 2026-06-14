@@ -53,10 +53,8 @@ else
   npm install
 fi
 
-# Fail the build only on critical vulnerabilities. High-severity advisories that only
-# affect Windows dev servers or Deno runtimes (e.g. esbuild GHSA-g7r4-m6w7-qqqr,
-# GHSA-gv7w-rqvm-qjhr) are not applicable to this Linux static-build environment.
-npm audit --audit-level=critical
+# Fail the build if npm audit reports any vulnerabilities.
+npm audit
 
 # Provide DIRECTUS_URL to the build if your Astro code reads it.
 # Example in Astro: import.meta.env.DIRECTUS_URL (via env prefix rules) or process.env.DIRECTUS_URL.
