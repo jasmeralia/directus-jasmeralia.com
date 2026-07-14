@@ -6,6 +6,10 @@
 FROM node:26-slim
 
 # Needed for aws s3 sync + cloudfront invalidation
+# Pinning exact Debian package versions for bash/curl/unzip/ca-certificates is brittle
+# (mirrors rotate old versions out) for negligible security benefit given the base image
+# tag already floats.
+# hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends bash curl unzip ca-certificates \
   && curl -sS "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip" \

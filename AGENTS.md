@@ -115,6 +115,28 @@ Use `https://directus.jasmer.tools` (public URL) — `truenas.local` is not reac
 
 **When npm audit reports vulnerabilities, always fix them by upgrading the affected package — never by lowering the audit severity threshold.** Lowering `--audit-level` masks real issues and leaves the project in a permanently degraded security posture. If a vulnerability cannot be fixed without a breaking change, add a version override in `site/package.json` under `"overrides"` to force the patched version. Only relax the audit level as a last resort if no patched version exists yet, and create a tracking issue immediately.
 
+## Linting
+
+The whole repo lints through one root `Makefile`, patterned after `~/git/wishlist_monitor`'s:
+
+| Command | Covers |
+|---|---|
+| `make lint` | Everything below, read-only |
+| `make lintfix` | Auto-fixable subset (eslint --fix, ruff check --fix, ruff format) |
+| `make lint-site` | `site/` — eslint (flat config, `eslint-plugin-astro` + `typescript-eslint`) |
+| `make lint-python` | `mcp/scripts/` — ruff, ruff format, pylint, mypy |
+| `make lint-docker` | `builder/Dockerfile` — hadolint |
+| `make lint-shell` | `builder/run-build.sh`, `mcp/scripts/publish.sh` — shellcheck |
+
+**If a change is made on typhoon, run `make lintfix && make lint` before committing to verify it passes.** This isn't something that can be done on the TrueNAS host — it only runs the production build/deploy pipeline (`builder/run-build.sh` in a container with just Node + the AWS CLI) and has no dev tooling installed — so this rule doesn't apply there.
+
+Python lint config lives in the root `pyproject.toml`:
+- `broad-exception-caught` is disabled repo-wide for pylint — this repo's documented retry/backoff pattern (see "Rate limiting, retries, and exponential backoff" below) requires bare `except Exception:` with logging, which that rule would otherwise flag on every script.
+- `[tool.pylint.format]`/`[tool.pylint.design]` calibrate line-length and complexity thresholds (max-branches/locals/statements/etc.) to fit this codebase's linear fetch-transform-write script style, rather than forcing artificial function splits to satisfy pylint's defaults.
+- `mcp/scripts/ignored/` (gitignored, excluded from ruff/mypy/pylint via config) holds scripts that talk to the GameStoryLog API and must never enter git history — see the credentials note under "Setup: credentials" in spirit; if you add a new script that embeds GSL (or any similarly sensitive third-party) credentials, put it here rather than directly in `mcp/scripts/`.
+
+CI (`astro-builder-ghcr.yml`) runs `lint-site`, `lint-python`, `lint-docker`, and `lint-shell` as separate jobs on every push and PR, and the builder Docker image build (`build-publish`) is gated on all four passing. CI never runs `npm run build` for the Astro site itself — the real build needs live Directus DB access that GHA runners don't have (see "Rules for Astro site changes" below).
+
 ## Rules for Astro site changes
 
 **Do not use local Astro builds as the acceptance test for site changes.** Local builds can fail for unrelated Directus/query/environment issues and are not a reliable validation method for this project. After merging and deploying site changes, validate by watching the real TrueNAS builder through OpenSearch until it reports success or failure.

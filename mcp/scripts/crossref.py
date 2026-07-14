@@ -25,6 +25,7 @@ def normalize(title: str) -> str:
 
 
 def extract_steam_appid(url: str | None) -> int | None:
+    """Extract a Steam app ID from a store URL."""
     if not url:
         return None
     m = re.search(r"store\.steampowered\.com/app/(\d+)", url)
@@ -32,6 +33,7 @@ def extract_steam_appid(url: str | None) -> int | None:
 
 
 def fuzzy_match(needle: str, steam_by_norm: dict[str, dict]) -> dict | None:
+    """Find the closest normalized Steam title above threshold."""
     norm = normalize(needle)
     if norm in steam_by_norm:
         return steam_by_norm[norm]
@@ -46,6 +48,7 @@ def fuzzy_match(needle: str, steam_by_norm: dict[str, dict]) -> dict | None:
 
 
 def main():
+    """Cross-reference Directus games against the Steam library."""
     directus: list[dict] = json.loads((CACHE / "directus_games.json").read_text())
     steam: list[dict] = json.loads((CACHE / "steam_library.json").read_text())
 
@@ -72,19 +75,23 @@ def main():
             else:
                 match_method = "no_match"
 
-        results.append({
-            "directus_id": dgame["id"],
-            "directus_title": dgame["title"],
-            "directus_slug": dgame["slug"],
-            "directus_player_status": dgame.get("player_status"),
-            "directus_game_status": dgame.get("game_status"),
-            "directus_url": dgame.get("download_url"),
-            "match_method": match_method,
-            "steam_appid": smatch["appid"] if smatch else appid,
-            "steam_title": smatch["name"] if smatch else None,
-            "steam_playtime_hours": smatch.get("playtime_forever_hours") if smatch else None,
-            "steam_last_played": smatch.get("last_played_date") if smatch else None,
-        })
+        results.append(
+            {
+                "directus_id": dgame["id"],
+                "directus_title": dgame["title"],
+                "directus_slug": dgame["slug"],
+                "directus_player_status": dgame.get("player_status"),
+                "directus_game_status": dgame.get("game_status"),
+                "directus_url": dgame.get("download_url"),
+                "match_method": match_method,
+                "steam_appid": smatch["appid"] if smatch else appid,
+                "steam_title": smatch["name"] if smatch else None,
+                "steam_playtime_hours": smatch.get("playtime_forever_hours")
+                if smatch
+                else None,
+                "steam_last_played": smatch.get("last_played_date") if smatch else None,
+            }
+        )
 
     (CACHE / "crossref.json").write_text(json.dumps(results, indent=2))
 

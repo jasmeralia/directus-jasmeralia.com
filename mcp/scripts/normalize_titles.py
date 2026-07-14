@@ -16,11 +16,11 @@ import argparse
 import json
 import re
 import sys
-from pathlib import Path
 
-CACHE = Path(__file__).parent.parent / "cache"
-DIRECTUS_URL = "https://directus.jasmer.tools"
-DIRECTUS_TOKEN = json.load(open(Path(__file__).parent.parent.parent / ".mcp.json"))["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
+from scriptlib import CACHE_DIR, DirectusClient
+
+CACHE = CACHE_DIR
+DIRECTUS = DirectusClient.from_config()
 
 # Titles that match stripping rules but must not be touched
 EXCLUSIONS = {
@@ -88,50 +88,16 @@ def strip_suffix(title: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# HTTP helpers
-# ---------------------------------------------------------------------------
-
-def directus_get(path: str) -> dict:
-    import urllib.request
-    req = urllib.request.Request(f"{DIRECTUS_URL}{path}", headers={
-        "Authorization": f"Bearer {DIRECTUS_TOKEN}", "Accept": "application/json",
-    })
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def directus_patch(path: str, body: dict) -> dict:
-    import urllib.request
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(f"{DIRECTUS_URL}{path}", data=data, method="PATCH", headers={
-        "Authorization": f"Bearer {DIRECTUS_TOKEN}",
-        "Content-Type": "application/json", "Accept": "application/json",
-    })
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def fetch_all(path: str, page_size: int = 500) -> list:
-    results, offset = [], 0
-    while True:
-        sep = "&" if "?" in path else "?"
-        batch = directus_get(f"{path}{sep}limit={page_size}&offset={offset}").get("data", [])
-        results.extend(batch)
-        if len(batch) < page_size:
-            break
-        offset += page_size
-    return results
-
-
-# ---------------------------------------------------------------------------
 # Phase 1: generate proposals
 # ---------------------------------------------------------------------------
 
+
 def generate():
+    """Generate title-normalization proposals for review."""
     proposals_path = CACHE / "title_normalization_proposals.json"
 
     print("Fetching all games...", file=sys.stderr)
-    games = fetch_all("/items/games?fields=id,title,slug&sort=title")
+    games = DIRECTUS.fetch_all("/items/games?fields=id,title,slug&sort=title")
     print(f"  {len(games)} games", file=sys.stderr)
 
     all_titles_lower = {g["title"].lower(): g["id"] for g in games}
@@ -154,24 +120,32 @@ def generate():
         # Collision check: would the proposed title duplicate an existing entry?
         existing_id = all_titles_lower.get(proposed.lower())
         if existing_id and existing_id != game["id"]:
-            collisions.append({
-                "id": game["id"],
-                "original_title": title,
-                "proposed_title": proposed,
-                "collision_with_id": existing_id,
-            })
+            collisions.append(
+                {
+                    "id": game["id"],
+                    "original_title": title,
+                    "proposed_title": proposed,
+                    "collision_with_id": existing_id,
+                }
+            )
             continue
 
         # Determine which rule matched (best-effort label for review)
-        m = _SPECIFIC_RE.search(title) or _SEP_EDITION_RE.search(title) or _PLAIN_EDITION_RE.search(title)
+        m = (
+            _SPECIFIC_RE.search(title)
+            or _SEP_EDITION_RE.search(title)
+            or _PLAIN_EDITION_RE.search(title)
+        )
         reason = m.group(0).strip() if m else "unknown"
 
-        proposals.append({
-            "id": game["id"],
-            "original_title": title,
-            "proposed_title": proposed,
-            "reason": reason,
-        })
+        proposals.append(
+            {
+                "id": game["id"],
+                "original_title": title,
+                "proposed_title": proposed,
+                "reason": reason,
+            }
+        )
 
     CACHE.mkdir(exist_ok=True)
     proposals_path.write_text(json.dumps(proposals, indent=2))
@@ -179,25 +153,35 @@ def generate():
     print(f"\n{len(proposals)} proposals written to {proposals_path}", file=sys.stderr)
 
     if excluded:
-        print(f"\nExcluded (hardcoded):", file=sys.stderr)
+        print("\nExcluded (hardcoded):", file=sys.stderr)
         for t in excluded:
             print(f"  {t!r}", file=sys.stderr)
 
     if collisions:
-        print(f"\nCollisions (duplicate would result — handle manually):", file=sys.stderr)
+        print(
+            "\nCollisions (duplicate would result — handle manually):", file=sys.stderr
+        )
         for c in collisions:
-            print(f"  [{c['id']}] {c['original_title']!r} → {c['proposed_title']!r}  (conflicts with id={c['collision_with_id']})", file=sys.stderr)
+            print(
+                f"  [{c['id']}] {c['original_title']!r} → {c['proposed_title']!r}  (conflicts with id={c['collision_with_id']})",
+                file=sys.stderr,
+            )
 
-    print(f"\nProposals preview:", file=sys.stderr)
+    print("\nProposals preview:", file=sys.stderr)
     for p in proposals:
-        print(f"  [{p['id']}] {p['original_title']!r}  →  {p['proposed_title']!r}  ({p['reason']})", file=sys.stderr)
+        print(
+            f"  [{p['id']}] {p['original_title']!r}  →  {p['proposed_title']!r}  ({p['reason']})",
+            file=sys.stderr,
+        )
 
 
 # ---------------------------------------------------------------------------
 # Phase 2: apply
 # ---------------------------------------------------------------------------
 
+
 def apply():
+    """Apply reviewed title-normalization proposals."""
     proposals_path = CACHE / "title_normalization_proposals.json"
     if not proposals_path.exists():
         print("No proposals file. Run without --apply first.", file=sys.stderr)
@@ -209,8 +193,11 @@ def apply():
     updated = errors = 0
     for p in proposals:
         try:
-            directus_patch(f"/items/games/{p['id']}", {"title": p["proposed_title"]})
-            print(f"  [{p['id']}] {p['original_title']!r}  →  {p['proposed_title']!r}", file=sys.stderr)
+            DIRECTUS.patch(f"/items/games/{p['id']}", {"title": p["proposed_title"]})
+            print(
+                f"  [{p['id']}] {p['original_title']!r}  →  {p['proposed_title']!r}",
+                file=sys.stderr,
+            )
             updated += 1
         except Exception as e:
             print(f"  ERROR [{p['id']}] {p['original_title']!r}: {e}", file=sys.stderr)
@@ -221,7 +208,9 @@ def apply():
 
 # ---------------------------------------------------------------------------
 
+
 def main():
+    """Generate or apply title-normalization proposals."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()

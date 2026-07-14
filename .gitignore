@@ -4,5 +4,5 @@ backups/
 .mcp.json
 mcp/cache/
 __pycache__/
-mcp/scripts/gsl_import.py
+mcp/scripts/ignored/
 .claude/*.lock

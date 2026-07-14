@@ -18,63 +18,19 @@ import json
 import re
 import sys
 import unicodedata
-from pathlib import Path
 
-CACHE = Path(__file__).parent.parent / "cache"
-DIRECTUS_URL = "https://directus.jasmer.tools"
-DIRECTUS_TOKEN = json.load(open(Path(__file__).parent.parent.parent / ".mcp.json"))["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
+from scriptlib import CACHE_DIR, DirectusClient
+
+CACHE = CACHE_DIR
+DIRECTUS = DirectusClient.from_config()
 
 FUZZY_THRESHOLD = 0.82  # similarity ratio to flag as candidate duplicate
 
 
 # ---------------------------------------------------------------------------
-# HTTP helpers
-# ---------------------------------------------------------------------------
-
-def directus_get(path: str) -> dict:
-    import urllib.request
-    req = urllib.request.Request(f"{DIRECTUS_URL}{path}", headers={
-        "Authorization": f"Bearer {DIRECTUS_TOKEN}", "Accept": "application/json",
-    })
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def directus_patch(path: str, body: dict) -> dict:
-    import urllib.request
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(f"{DIRECTUS_URL}{path}", data=data, method="PATCH", headers={
-        "Authorization": f"Bearer {DIRECTUS_TOKEN}",
-        "Content-Type": "application/json", "Accept": "application/json",
-    })
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def directus_delete(path: str) -> int:
-    import urllib.request
-    req = urllib.request.Request(f"{DIRECTUS_URL}{path}", method="DELETE", headers={
-        "Authorization": f"Bearer {DIRECTUS_TOKEN}",
-    })
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.status
-
-
-def fetch_all(path: str, page_size: int = 500) -> list:
-    results, offset = [], 0
-    while True:
-        sep = "&" if "?" in path else "?"
-        batch = directus_get(f"{path}{sep}limit={page_size}&offset={offset}").get("data", [])
-        results.extend(batch)
-        if len(batch) < page_size:
-            break
-        offset += page_size
-    return results
-
-
-# ---------------------------------------------------------------------------
 # Fuzzy matching
 # ---------------------------------------------------------------------------
+
 
 def normalize(name: str) -> str:
     """Lowercase, strip accents, collapse punctuation/spaces."""
@@ -88,9 +44,11 @@ def normalize(name: str) -> str:
 
 def similarity(a: str, b: str) -> float:
     """Trigram similarity between two strings."""
+
     def trigrams(s):
         s = f"  {s} "
-        return {s[i:i+3] for i in range(len(s) - 2)}
+        return {s[i : i + 3] for i in range(len(s) - 2)}
+
     ta, tb = trigrams(a), trigrams(b)
     if not ta and not tb:
         return 1.0
@@ -103,15 +61,17 @@ def similarity(a: str, b: str) -> float:
 # Phase 1: generate proposals
 # ---------------------------------------------------------------------------
 
+
 def generate():
+    """Generate developer-merge proposals for review."""
     proposals_path = CACHE / "developer_merge_proposals.json"
 
     print("Fetching all developers...", file=sys.stderr)
-    devs = fetch_all("/items/developers?fields=id,name,slug&sort=name")
+    devs = DIRECTUS.fetch_all("/items/developers?fields=id,name,slug&sort=name")
     print(f"  {len(devs)} developers", file=sys.stderr)
 
     print("Fetching games_developers associations...", file=sys.stderr)
-    assocs = fetch_all("/items/games_developers?fields=developers_id")
+    assocs = DIRECTUS.fetch_all("/items/games_developers?fields=developers_id")
     game_count: dict[int, int] = {}
     for a in assocs:
         did = a["developers_id"]
@@ -131,7 +91,7 @@ def generate():
         if d1["id"] in visited:
             continue
         group = [d1]
-        for d2, n2 in norms[i+1:]:
+        for d2, n2 in norms[i + 1 :]:
             if d2["id"] in visited:
                 continue
             if n1 == n2:
@@ -148,14 +108,27 @@ def generate():
 
     def make_proposal(group: list, reason: str) -> dict:
         # Canonical = most game associations; tie-break = shorter/cleaner name
-        canonical = max(group, key=lambda d: (game_count.get(d["id"], 0), -len(d["name"])))
+        canonical = max(
+            group, key=lambda d: (game_count.get(d["id"], 0), -len(d["name"]))
+        )
         merges = [d for d in group if d["id"] != canonical["id"]]
         return {
             "reason": reason,
-            "canonical": {"id": canonical["id"], "name": canonical["name"], "slug": canonical["slug"],
-                          "game_count": game_count.get(canonical["id"], 0)},
-            "merge": [{"id": d["id"], "name": d["name"], "slug": d["slug"],
-                       "game_count": game_count.get(d["id"], 0)} for d in merges],
+            "canonical": {
+                "id": canonical["id"],
+                "name": canonical["name"],
+                "slug": canonical["slug"],
+                "game_count": game_count.get(canonical["id"], 0),
+            },
+            "merge": [
+                {
+                    "id": d["id"],
+                    "name": d["name"],
+                    "slug": d["slug"],
+                    "game_count": game_count.get(d["id"], 0),
+                }
+                for d in merges
+            ],
         }
 
     for slug, group in sorted(slug_collisions.items()):
@@ -173,26 +146,35 @@ def generate():
 
     slug_count = sum(1 for p in proposals if p["reason"].startswith("slug_collision"))
     fuzzy_count = len(proposals) - slug_count
-    print(f"\n{len(proposals)} merge groups: {slug_count} slug collisions, {fuzzy_count} fuzzy matches", file=sys.stderr)
+    print(
+        f"\n{len(proposals)} merge groups: {slug_count} slug collisions, {fuzzy_count} fuzzy matches",
+        file=sys.stderr,
+    )
     print(f"Proposals: {proposals_path}", file=sys.stderr)
     print("\nSlug collisions (safe to apply):", file=sys.stderr)
     for p in proposals:
         if p["reason"].startswith("slug_collision"):
-            merges = ", ".join(f'{m["name"]} ({m["game_count"]}g)' for m in p["merge"])
-            print(f'  KEEP "{p["canonical"]["name"]}" ({p["canonical"]["game_count"]}g) ← merge: {merges}', file=sys.stderr)
+            merges = ", ".join(f"{m['name']} ({m['game_count']}g)" for m in p["merge"])
+            print(
+                f'  KEEP "{p["canonical"]["name"]}" ({p["canonical"]["game_count"]}g) ← merge: {merges}',
+                file=sys.stderr,
+            )
     print("\nFuzzy matches (review before applying):", file=sys.stderr)
     for p in proposals:
         if p["reason"] == "fuzzy_match":
-            all_names = [f'{p["canonical"]["name"]} ({p["canonical"]["game_count"]}g)'] + \
-                        [f'{m["name"]} ({m["game_count"]}g)' for m in p["merge"]]
-            print(f'  {" | ".join(all_names)}', file=sys.stderr)
+            all_names = [
+                f"{p['canonical']['name']} ({p['canonical']['game_count']}g)"
+            ] + [f"{m['name']} ({m['game_count']}g)" for m in p["merge"]]
+            print(f"  {' | '.join(all_names)}", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
 # Phase 2: apply
 # ---------------------------------------------------------------------------
 
+
 def apply():
+    """Apply reviewed developer-merge proposals."""
     proposals_path = CACHE / "developer_merge_proposals.json"
     if not proposals_path.exists():
         print("No proposals file. Run without --apply first.", file=sys.stderr)
@@ -203,17 +185,23 @@ def apply():
 
     # Fetch current games_developers to avoid duplicate inserts
     print("Fetching existing associations...", file=sys.stderr)
-    assocs = fetch_all("/items/games_developers?fields=id,games_id,developers_id")
+    assocs = DIRECTUS.fetch_all(
+        "/items/games_developers?fields=id,games_id,developers_id"
+    )
     # Map (games_id, developers_id) → row id
-    existing: dict[tuple, int] = {(a["games_id"], a["developers_id"]): a["id"] for a in assocs}
+    existing: dict[tuple, int] = {
+        (a["games_id"], a["developers_id"]): a["id"] for a in assocs
+    }
 
-    merged_devs = skipped = errors = 0
+    merged_devs = errors = 0
 
     for p in proposals:
         canonical_id = p["canonical"]["id"]
         for m in p["merge"]:
             merge_id = m["id"]
-            print(f'  Merging "{m["name"]}" → "{p["canonical"]["name"]}"', file=sys.stderr)
+            print(
+                f'  Merging "{m["name"]}" → "{p["canonical"]["name"]}"', file=sys.stderr
+            )
 
             # Find all games_developers rows pointing to merge_id
             rows = [a for a in assocs if a["developers_id"] == merge_id]
@@ -222,26 +210,40 @@ def apply():
                 if (games_id, canonical_id) in existing:
                     # Canonical link already exists — just delete the duplicate row
                     try:
-                        directus_delete(f"/items/games_developers/{row['id']}")
-                        print(f"    Removed duplicate assoc game {games_id}", file=sys.stderr)
+                        DIRECTUS.delete(f"/items/games_developers/{row['id']}")
+                        print(
+                            f"    Removed duplicate assoc game {games_id}",
+                            file=sys.stderr,
+                        )
                     except Exception as e:
-                        print(f"    ERROR removing assoc {row['id']}: {e}", file=sys.stderr)
+                        print(
+                            f"    ERROR removing assoc {row['id']}: {e}",
+                            file=sys.stderr,
+                        )
                         errors += 1
                 else:
                     # Re-point to canonical
                     try:
-                        directus_patch(f"/items/games_developers/{row['id']}", {"developers_id": canonical_id})
+                        DIRECTUS.patch(
+                            f"/items/games_developers/{row['id']}",
+                            {"developers_id": canonical_id},
+                        )
                         existing[(games_id, canonical_id)] = row["id"]
                         existing.pop((games_id, merge_id), None)
                         print(f"    Re-pointed game {games_id}", file=sys.stderr)
                     except Exception as e:
-                        print(f"    ERROR re-pointing game {games_id}: {e}", file=sys.stderr)
+                        print(
+                            f"    ERROR re-pointing game {games_id}: {e}",
+                            file=sys.stderr,
+                        )
                         errors += 1
 
             # Delete the merged developer record
             try:
-                directus_delete(f"/items/developers/{merge_id}")
-                print(f'    Deleted developer {merge_id} ("{m["name"]}")', file=sys.stderr)
+                DIRECTUS.delete(f"/items/developers/{merge_id}")
+                print(
+                    f'    Deleted developer {merge_id} ("{m["name"]}")', file=sys.stderr
+                )
                 merged_devs += 1
             except Exception as e:
                 print(f"    ERROR deleting developer {merge_id}: {e}", file=sys.stderr)
@@ -252,7 +254,9 @@ def apply():
 
 # ---------------------------------------------------------------------------
 
+
 def main():
+    """Generate or apply developer-merge proposals."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()

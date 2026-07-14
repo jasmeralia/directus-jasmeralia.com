@@ -24,13 +24,16 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from collections import Counter
 from pathlib import Path
 
-_mcp = json.load(open(Path(__file__).parent.parent.parent / ".mcp.json"))
-DIRECTUS_TOKEN = _mcp["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
-STEAMGRIDDB_TOKEN = _mcp["mcpServers"]["game-encyclopedia"]["env"]["STEAMGRIDDB_API_KEY"]
-STEAM_API_KEY = _mcp["mcpServers"]["steam"]["env"]["STEAM_API_KEY"]
-STEAM_ID = _mcp["mcpServers"]["steam"]["env"]["STEAM_ID"]
+from scriptlib import server_env
+from steamlib import genres_from_tags
+
+DIRECTUS_TOKEN = server_env("directus")["DIRECTUS_TOKEN"]
+STEAMGRIDDB_TOKEN = server_env("game-encyclopedia")["STEAMGRIDDB_API_KEY"]
+STEAM_API_KEY = server_env("steam")["STEAM_API_KEY"]
+STEAM_ID = server_env("steam")["STEAM_ID"]
 
 DIRECTUS_BASE = "https://directus.jasmer.tools"
 STEAMGRIDDB_BASE = "https://www.steamgriddb.com/api/v2"
@@ -40,7 +43,9 @@ PROGRESS_PATH = CACHE / "wishlist_import_progress.json"
 STEAMSPY_CACHE_PATH = CACHE / "steamspy_tags.json"
 
 COVER_NAMESPACE = uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
-STEAM_PORTRAIT_URL = "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/library_600x900.jpg"
+STEAM_PORTRAIT_URL = (
+    "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/library_600x900.jpg"
+)
 STEAM_FALLBACK_URLS = [
     "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/capsule_616x353.jpg",
     "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/header.jpg",
@@ -50,59 +55,27 @@ BLOCKED_APPIDS: set[int] = {
     223850,  # 3DMark
     440520,  # VirtualHere For Steam Link
     993090,  # Lossless Scaling
-    2693120, # XBPlay
+    2693120,  # XBPlay
 }
 
 STEAMSPY_MIN_VOTES = 20
 
-# Steam community tag → Directus genre slug
-TAG_TO_GENRE: dict[str, str] = {
-    "ARPG":             "arpg",
-    "Card Game":        "card",
-    "Card Battler":     "card",
-    "CRPG":             "crpg",
-    "Fighting":         "fighter",
-    "2D Fighter":       "fighter",
-    "FMV":              "fmv",
-    "FPS":              "fps",
-    "Horror":           "horror",
-    "Isometric":        "isometric",
-    "JRPG":             "jrpg",
-    "Metroidvania":     "metroidvania",
-    "Platformer":       "platformer",
-    "RPG":              "rpg",
-    "RTS":              "rts",
-    "Roguelike":        "roguelike",
-    "Rogue-like":       "roguelike",
-    "Rogue-lite":       "roguelike",
-    "Action Roguelike": "roguelike",
-    "Stealth":          "stealth",
-    "Strategy":         "strategy",
-    "Visual Novel":     "visual-novel",
-}
-
-COMPOUND_RULES: list[tuple[list[str], str]] = [
-    (["Real-Time with Pause", "Party-Based RPG"], "crpg"),
-]
-
-ROGUELIKE_TAGS = {"Roguelike", "Rogue-like", "Rogue-lite", "Action Roguelike"}
-
 # Steam API genre name → Directus genre slug
 STEAM_GENRE_MAP: dict[str, str] = {
-    "Action":              "action",
-    "Adventure":           "adventure",
-    "RPG":                 "rpg",
-    "Strategy":            "strategy",
-    "Simulation":          "simulation",
-    "Racing":              "racing",
-    "Sports":              "sports",
+    "Action": "action",
+    "Adventure": "adventure",
+    "RPG": "rpg",
+    "Strategy": "strategy",
+    "Simulation": "simulation",
+    "Racing": "racing",
+    "Sports": "sports",
 }
 
 TITLE_EXCLUSIONS: dict[str, set[str]] = {
-    "Disco Elysium":    {"avn", "visual-novel"},
-    "Gamedec":          {"visual-novel"},
+    "Disco Elysium": {"avn", "visual-novel"},
+    "Gamedec": {"visual-novel"},
     "Shadows: Awakening": {"crpg"},
-    "Eon Altar":        {"crpg"},
+    "Eon Altar": {"crpg"},
     "Asterigos: Curse of the Stars": {"metroidvania"},
     "Batman: Arkham Asylum": {"metroidvania"},
     "Batman: Arkham City": {"metroidvania"},
@@ -113,35 +86,45 @@ TITLE_EXCLUSIONS: dict[str, set[str]] = {
 
 # ── API helpers ────────────────────────────────────────────────────────────────
 
+
 def directus_get(path: str) -> dict:
+    """Fetch a Directus resource."""
     url = f"{DIRECTUS_BASE}{path}"
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {DIRECTUS_TOKEN}",
-        "Accept": "application/json",
-    })
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {DIRECTUS_TOKEN}",
+            "Accept": "application/json",
+        },
+    )
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.loads(r.read())
 
 
 def directus_post(path: str, body: dict) -> dict:
+    """Create a Directus resource."""
     url = f"{DIRECTUS_BASE}{path}"
-    req = urllib.request.Request(url,
+    req = urllib.request.Request(
+        url,
         data=json.dumps(body).encode(),
         method="POST",
         headers={
             "Authorization": f"Bearer {DIRECTUS_TOKEN}",
             "Content-Type": "application/json",
             "Accept": "application/json",
-        })
+        },
+    )
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.loads(r.read())
 
 
-def fetch_steam_details(appid: int, base_delay: float = 1.5) -> tuple[dict | None, str | None]:
+def fetch_steam_details(
+    appid: int, base_delay: float = 1.5
+) -> tuple[dict | None, str | None]:
     """Fetch Steam appdetails with exponential backoff on 403/429."""
     url = f"https://store.steampowered.com/api/appdetails?appids={appid}&cc=us&l=en"
     delay = base_delay
-    for attempt in range(5):
+    for _attempt in range(5):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=15) as r:
@@ -152,7 +135,10 @@ def fetch_steam_details(appid: int, base_delay: float = 1.5) -> tuple[dict | Non
             return entry["data"], None
         except urllib.error.HTTPError as e:
             if e.code in (403, 429):
-                print(f"  Rate limited ({e.code}), backing off {delay:.0f}s...", file=sys.stderr)
+                print(
+                    f"  Rate limited ({e.code}), backing off {delay:.0f}s...",
+                    file=sys.stderr,
+                )
                 time.sleep(delay)
                 delay *= 2
             else:
@@ -163,6 +149,7 @@ def fetch_steam_details(appid: int, base_delay: float = 1.5) -> tuple[dict | Non
 
 
 def fetch_steamspy_tags(appid: int, cache: dict[str, dict]) -> dict[str, int]:
+    """Fetch and cache SteamSpy tag votes for an app."""
     appid_str = str(appid)
     if appid_str in cache:
         return cache[appid_str]
@@ -176,46 +163,28 @@ def fetch_steamspy_tags(appid: int, cache: dict[str, dict]) -> dict[str, int]:
             return result
         except Exception as e:
             if attempt < 2:
-                time.sleep(2 ** attempt * 2)
+                time.sleep(2**attempt * 2)
             else:
                 print(f"  SteamSpy error for {appid}: {e}", file=sys.stderr)
     cache[appid_str] = {}
     return {}
 
 
-def apply_genre_mapping(tags: dict[str, int], steam_genres: list[str], title: str) -> set[str]:
-    qualified = {tag for tag, votes in tags.items() if votes >= STEAMSPY_MIN_VOTES}
-    is_roguelike = bool(ROGUELIKE_TAGS & qualified)
-    genres: set[str] = set()
-
-    for tag, slug in TAG_TO_GENRE.items():
-        if tag in qualified:
-            if slug == "crpg" and is_roguelike:
-                continue
-            genres.add(slug)
-
-    for required_tags, slug in COMPOUND_RULES:
-        if all(t in qualified for t in required_tags):
-            if slug == "crpg" and is_roguelike:
-                continue
-            genres.add(slug)
-
-    if "Visual Novel" in qualified and "Sexual Content" in qualified:
-        genres.add("avn")
-        genres.add("visual-novel")
-
-    if genres & {"card", "rts", "visual-novel"}:
-        genres.discard("crpg")
+def apply_genre_mapping(
+    tags: dict[str, int], steam_genres: list[str], title: str
+) -> set[str]:
+    """Map Steam metadata to Directus genre slugs."""
+    genres = genres_from_tags(tags, STEAMSPY_MIN_VOTES)
 
     # Add broad Steam API genres (only if no conflicting narrow tag)
-    for sg in steam_genres:
-        slug = STEAM_GENRE_MAP.get(sg)
-        if slug and slug not in genres:
-            if slug == "rpg" and genres & {"arpg", "crpg", "jrpg"}:
+    for steam_genre in steam_genres:
+        mapped_slug = STEAM_GENRE_MAP.get(steam_genre)
+        if mapped_slug and mapped_slug not in genres:
+            if mapped_slug == "rpg" and genres & {"arpg", "crpg", "jrpg"}:
                 continue
-            if slug == "strategy" and genres & {"rts"}:
+            if mapped_slug == "strategy" and genres & {"rts"}:
                 continue
-            genres.add(slug)
+            genres.add(mapped_slug)
 
     excluded = TITLE_EXCLUSIONS.get(title, set())
     return genres - excluded
@@ -223,7 +192,9 @@ def apply_genre_mapping(tags: dict[str, int], steam_genres: list[str], title: st
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 
+
 def slugify(title: str) -> str:
+    """Convert a game title into a URL-safe slug."""
     t = title.lower()
     t = re.sub(r"[™®]", "", t)
     t = re.sub(r"[^a-z0-9]+", "-", t)
@@ -231,11 +202,13 @@ def slugify(title: str) -> str:
 
 
 def release_year(date_str: str) -> int | None:
+    """Extract a four-digit release year from a date string."""
     m = re.search(r"\b(19|20)\d{2}\b", date_str or "")
     return int(m.group(0)) if m else None
 
 
 def extract_steam_appid(url: str | None) -> int | None:
+    """Extract a Steam app ID from a store URL."""
     if not url:
         return None
     m = re.search(r"store\.steampowered\.com/app/(\d+)", url)
@@ -243,10 +216,12 @@ def extract_steam_appid(url: str | None) -> int | None:
 
 
 def cover_uuid(appid: int) -> str:
+    """Return the deterministic Directus file UUID for an app."""
     return str(uuid.uuid5(COVER_NAMESPACE, str(appid)))
 
 
 def url_exists(url: str) -> bool:
+    """Return whether a URL responds successfully to a HEAD request."""
     try:
         req = urllib.request.Request(url, method="HEAD")
         with urllib.request.urlopen(req, timeout=10) as r:
@@ -256,12 +231,15 @@ def url_exists(url: str) -> bool:
 
 
 def find_cover_url(appid: int) -> str | None:
+    """Find the best available Steam cover URL for an app."""
     portrait = STEAM_PORTRAIT_URL.format(appid=appid)
     if url_exists(portrait):
         return portrait
     try:
         url = f"{STEAMGRIDDB_BASE}/grids/steam/{appid}?dimensions=600x900&limit=1"
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {STEAMGRIDDB_TOKEN}"})
+        req = urllib.request.Request(
+            url, headers={"Authorization": f"Bearer {STEAMGRIDDB_TOKEN}"}
+        )
         with urllib.request.urlopen(req, timeout=15) as r:
             data = json.loads(r.read())
         grids = data.get("data", [])
@@ -277,23 +255,27 @@ def find_cover_url(appid: int) -> str | None:
 
 
 def import_cover(appid: int, title: str, slug: str, dry_run: bool) -> str | None:
+    """Import a cover into Directus or report the dry-run action."""
     file_id = cover_uuid(appid)
     cover_url = find_cover_url(appid)
     if not cover_url:
-        print(f"  [cover] No cover found", file=sys.stderr)
+        print("  [cover] No cover found", file=sys.stderr)
         return None
     if dry_run:
         print(f"  [cover] DRY-RUN {cover_url}", file=sys.stderr)
         return file_id
     try:
-        result = directus_post("/files/import", {
-            "url": cover_url,
-            "data": {
-                "id": file_id,
-                "title": f"{title} {appid}",
-                "filename_download": f"{slug}_{appid}.jpg",
+        result = directus_post(
+            "/files/import",
+            {
+                "url": cover_url,
+                "data": {
+                    "id": file_id,
+                    "title": f"{title} {appid}",
+                    "filename_download": f"{slug}_{appid}.jpg",
+                },
             },
-        })
+        )
         return result["data"]["id"]
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
@@ -307,6 +289,7 @@ def import_cover(appid: int, title: str, slug: str, dry_run: bool) -> str | None
 
 
 def upsert_developer(name: str, dev_cache: dict[str, int], dry_run: bool) -> int | None:
+    """Return an existing developer ID or create the developer."""
     if name in dev_cache:
         return dev_cache[name]
     slug = slugify(name)
@@ -325,7 +308,9 @@ def upsert_developer(name: str, dev_cache: dict[str, int], dry_run: bool) -> int
         body = e.read().decode(errors="replace")
         if '"RECORD_NOT_UNIQUE"' in body:
             try:
-                r = directus_get(f"/items/developers?filter[slug][_eq]={slug}&limit=1&fields=id,name")
+                r = directus_get(
+                    f"/items/developers?filter[slug][_eq]={slug}&limit=1&fields=id,name"
+                )
                 if r["data"]:
                     dev_id = r["data"][0]["id"]
                     dev_cache[name] = dev_id
@@ -341,7 +326,9 @@ def upsert_developer(name: str, dev_cache: dict[str, int], dry_run: bool) -> int
 
 # ── Phase 1: generate proposals ───────────────────────────────────────────────
 
+
 def generate_proposals(delay: float):
+    """Generate import proposals for uncatalogued wishlist games."""
     print("Fetching Steam wishlist...", file=sys.stderr)
     wishlist_url = (
         f"https://api.steampowered.com/IWishlistService/GetWishlist/v1/"
@@ -352,8 +339,7 @@ def generate_proposals(delay: float):
         wishlist_data = json.loads(r.read())
 
     wishlist_appids: list[int] = [
-        item["appid"]
-        for item in wishlist_data.get("response", {}).get("items", [])
+        item["appid"] for item in wishlist_data.get("response", {}).get("items", [])
     ]
     print(f"Wishlist: {len(wishlist_appids)} items", file=sys.stderr)
 
@@ -364,7 +350,7 @@ def generate_proposals(delay: float):
     while True:
         data = directus_get(
             f"/items/games?fields=id,title,download_url"
-            f"&limit=500&offset={500*(page-1)}&sort=id"
+            f"&limit=500&offset={500 * (page - 1)}&sort=id"
         )
         batch = data.get("data", [])
         all_games.extend(batch)
@@ -379,7 +365,11 @@ def generate_proposals(delay: float):
     print(f"Directus has {len(directus_appids)} Steam games", file=sys.stderr)
 
     # Cross-reference
-    to_import = [a for a in wishlist_appids if a not in directus_appids and a not in BLOCKED_APPIDS]
+    to_import = [
+        a
+        for a in wishlist_appids
+        if a not in directus_appids and a not in BLOCKED_APPIDS
+    ]
     print(f"Wishlist games not in Directus: {len(to_import)}", file=sys.stderr)
 
     # Load SteamSpy cache
@@ -392,7 +382,7 @@ def generate_proposals(delay: float):
     skipped: list[dict] = []
 
     for i, appid in enumerate(to_import):
-        print(f"[{i+1}/{len(to_import)}] Fetching appid {appid}...", file=sys.stderr)
+        print(f"[{i + 1}/{len(to_import)}] Fetching appid {appid}...", file=sys.stderr)
         details, err = fetch_steam_details(appid, base_delay=delay)
 
         if details is None:
@@ -403,14 +393,18 @@ def generate_proposals(delay: float):
 
         if details.get("type") != "game":
             reason = f"type={details.get('type')}"
-            skipped.append({"appid": appid, "name": details.get("name"), "reason": reason})
+            skipped.append(
+                {"appid": appid, "name": details.get("name"), "reason": reason}
+            )
             print(f"  Skipped: {reason}", file=sys.stderr)
             time.sleep(delay)
             continue
 
         if details.get("is_free"):
-            skipped.append({"appid": appid, "name": details.get("name"), "reason": "free"})
-            print(f"  Skipped: free-to-play", file=sys.stderr)
+            skipped.append(
+                {"appid": appid, "name": details.get("name"), "reason": "free"}
+            )
+            print("  Skipped: free-to-play", file=sys.stderr)
             time.sleep(delay)
             continue
 
@@ -418,13 +412,13 @@ def generate_proposals(delay: float):
 
         if re.search(r"\bVR Edition$|\(VR\)", name):
             skipped.append({"appid": appid, "name": name, "reason": "vr_edition"})
-            print(f"  Skipped: VR edition", file=sys.stderr)
+            print("  Skipped: VR edition", file=sys.stderr)
             time.sleep(delay)
             continue
 
         if "Playtest" in name:
             skipped.append({"appid": appid, "name": name, "reason": "playtest"})
-            print(f"  Skipped: playtest", file=sys.stderr)
+            print("  Skipped: playtest", file=sys.stderr)
             time.sleep(delay)
             continue
 
@@ -443,27 +437,32 @@ def generate_proposals(delay: float):
         if 3 in cd_ids:
             genre_slugs.add("avn")
 
-        genre_slugs = sorted(genre_slugs)
+        sorted_genre_slugs = sorted(genre_slugs)
         yr = release_year(details.get("release_date", {}).get("date", ""))
 
-        proposals.append({
-            "appid": appid,
-            "title": name,
-            "slug": slugify(name),
-            "release_year": yr,
-            "genres": genre_slugs,
-            "steam_genres": steam_genres,
-            "developers": details.get("developers", []),
-            "download_url": f"https://store.steampowered.com/app/{appid}/",
-            "game_status": "released" if yr else "unreleased",
-            "player_status": "not_started",
-            "family_sharing": "Family Sharing" in categories,
-        })
+        proposals.append(
+            {
+                "appid": appid,
+                "title": name,
+                "slug": slugify(name),
+                "release_year": yr,
+                "genres": sorted_genre_slugs,
+                "steam_genres": steam_genres,
+                "developers": details.get("developers", []),
+                "download_url": f"https://store.steampowered.com/app/{appid}/",
+                "game_status": "released" if yr else "unreleased",
+                "player_status": "not_started",
+                "family_sharing": "Family Sharing" in categories,
+            }
+        )
 
         if (i + 1) % 25 == 0:
             PROPOSALS_PATH.write_text(json.dumps(proposals, indent=2))
             STEAMSPY_CACHE_PATH.write_text(json.dumps(steamspy_cache, indent=2))
-            print(f"  [checkpoint] {i+1} processed, {len(proposals)} proposals", file=sys.stderr)
+            print(
+                f"  [checkpoint] {i + 1} processed, {len(proposals)} proposals",
+                file=sys.stderr,
+            )
 
         time.sleep(delay)
 
@@ -475,7 +474,6 @@ def generate_proposals(delay: float):
     print(f"Output: {PROPOSALS_PATH}", file=sys.stderr)
 
     # Summary by genre
-    from collections import Counter
     genre_counts = Counter(slug for p in proposals for slug in p["genres"])
     print("\nGenre breakdown:", file=sys.stderr)
     for slug, count in genre_counts.most_common():
@@ -484,20 +482,27 @@ def generate_proposals(delay: float):
 
 # ── Phase 2: apply proposals ──────────────────────────────────────────────────
 
+
 def apply_proposals(dry_run: bool, limit: int | None, delay: float):
+    """Apply reviewed wishlist import proposals."""
     if not PROPOSALS_PATH.exists():
         print("No proposals found. Run without --apply first.", file=sys.stderr)
         sys.exit(1)
 
     proposals: list[dict] = json.loads(PROPOSALS_PATH.read_text())
-    progress: dict[str, dict] = json.loads(PROGRESS_PATH.read_text()) if PROGRESS_PATH.exists() else {}
+    progress: dict[str, dict] = (
+        json.loads(PROGRESS_PATH.read_text()) if PROGRESS_PATH.exists() else {}
+    )
 
     done_appids = {int(k) for k, v in progress.items() if v.get("status") == "done"}
     pending = [p for p in proposals if p["appid"] not in done_appids]
     if limit:
         pending = pending[:limit]
 
-    print(f"Total: {len(proposals)} | Done: {len(done_appids)} | Pending: {len(pending)}", file=sys.stderr)
+    print(
+        f"Total: {len(proposals)} | Done: {len(done_appids)} | Pending: {len(pending)}",
+        file=sys.stderr,
+    )
     if dry_run:
         print("DRY RUN — no writes", file=sys.stderr)
 
@@ -515,7 +520,7 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
         title = game["title"]
         slug = game["slug"]
 
-        print(f"[{i+1}/{len(pending)}] {appid}: {title}", file=sys.stderr)
+        print(f"[{i + 1}/{len(pending)}] {appid}: {title}", file=sys.stderr)
 
         cover_id = import_cover(appid, title, slug, dry_run)
 
@@ -557,25 +562,45 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
         dl_url = (game.get("download_url") or "").strip()
         if dl_url:
             if dry_run:
-                print(f"  [link] DRY-RUN create download link: {dl_url[:60]}", file=sys.stderr)
+                print(
+                    f"  [link] DRY-RUN create download link: {dl_url[:60]}",
+                    file=sys.stderr,
+                )
             else:
                 try:
-                    directus_post("/items/games_links", {"games_id": game_id, "url": dl_url, "kind": "download", "sort": 1})
-                    print(f"  [link] Created download link", file=sys.stderr)
+                    directus_post(
+                        "/items/games_links",
+                        {
+                            "games_id": game_id,
+                            "url": dl_url,
+                            "kind": "download",
+                            "sort": 1,
+                        },
+                    )
+                    print("  [link] Created download link", file=sys.stderr)
                 except Exception as e:
-                    print(f"  [link] Error creating download link: {e}", file=sys.stderr)
+                    print(
+                        f"  [link] Error creating download link: {e}", file=sys.stderr
+                    )
 
         # Genre junctions
         for genre_slug in game.get("genres", []):
             genre_id = slug_to_id.get(genre_slug)
             if not genre_id:
-                print(f"  [genre] Unknown slug '{genre_slug}', skipping", file=sys.stderr)
+                print(
+                    f"  [genre] Unknown slug '{genre_slug}', skipping", file=sys.stderr
+                )
                 continue
             if dry_run:
-                print(f"  [genre] DRY-RUN link {genre_slug} (id {genre_id})", file=sys.stderr)
+                print(
+                    f"  [genre] DRY-RUN link {genre_slug} (id {genre_id})",
+                    file=sys.stderr,
+                )
                 continue
             try:
-                directus_post("/items/games_genres", {"games_id": game_id, "genres_id": genre_id})
+                directus_post(
+                    "/items/games_genres", {"games_id": game_id, "genres_id": genre_id}
+                )
             except Exception as e:
                 print(f"  [genre] Error linking {genre_slug}: {e}", file=sys.stderr)
 
@@ -588,7 +613,10 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
                 print(f"  [dev] DRY-RUN link {dev_name} (id {dev_id})", file=sys.stderr)
                 continue
             try:
-                directus_post("/items/games_developers", {"games_id": game_id, "developers_id": dev_id})
+                directus_post(
+                    "/items/games_developers",
+                    {"games_id": game_id, "developers_id": dev_id},
+                )
             except Exception as e:
                 print(f"  [dev] Error linking {dev_name!r}: {e}", file=sys.stderr)
 
@@ -601,24 +629,37 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
 
         if (i + 1) % 25 == 0:
             PROGRESS_PATH.write_text(json.dumps(progress, indent=2))
-            print(f"  [checkpoint] {i+1} processed", file=sys.stderr)
+            print(f"  [checkpoint] {i + 1} processed", file=sys.stderr)
 
         time.sleep(delay)
 
     PROGRESS_PATH.write_text(json.dumps(progress, indent=2))
     done_count = sum(1 for v in progress.values() if v.get("status") == "done")
-    err_count = sum(1 for v in progress.values() if v.get("status", "").startswith("error"))
+    err_count = sum(
+        1 for v in progress.values() if v.get("status", "").startswith("error")
+    )
     print(f"\nDone: {done_count} imported, {err_count} errors", file=sys.stderr)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
+
 def main():
+    """Generate or apply wishlist import proposals."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--apply", action="store_true", help="Apply proposals (phase 2)")
-    parser.add_argument("--dry-run", action="store_true", help="Dry run apply without writing")
+    parser.add_argument(
+        "--apply", action="store_true", help="Apply proposals (phase 2)"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Dry run apply without writing"
+    )
     parser.add_argument("--limit", type=int, help="Max games to import this run")
-    parser.add_argument("--delay", type=float, default=0.4, help="Seconds between API calls (default: 0.4)")
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.4,
+        help="Seconds between API calls (default: 0.4)",
+    )
     args = parser.parse_args()
 
     if args.apply or args.dry_run:

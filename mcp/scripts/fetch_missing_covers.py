@@ -20,25 +20,28 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from pathlib import Path
+
+from scriptlib import CACHE_DIR, DirectusClient, server_env
 
 MAX_RETRIES = 5
 BACKOFF_BASE = 2.0
 
-MCP = Path(__file__).parent.parent.parent / ".mcp.json"
-_cfg = json.loads(MCP.read_text())
-DIRECTUS_URL = "https://directus.jasmer.tools"
-DIRECTUS_TOKEN = _cfg["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
-TWITCH_CLIENT_ID = _cfg["mcpServers"]["game-encyclopedia"]["env"]["TWITCH_CLIENT_ID"]
-TWITCH_CLIENT_SECRET = _cfg["mcpServers"]["game-encyclopedia"]["env"]["TWITCH_CLIENT_SECRET"]
+DIRECTUS = DirectusClient.from_config()
+GAME_API_ENV = server_env("game-encyclopedia")
+TWITCH_CLIENT_ID = GAME_API_ENV["TWITCH_CLIENT_ID"]
+TWITCH_CLIENT_SECRET = GAME_API_ENV["TWITCH_CLIENT_SECRET"]
 
-IGDB_COVER_URL = "https://images.igdb.com/igdb/image/upload/t_cover_big_2x/{image_id}.jpg"
+IGDB_COVER_URL = (
+    "https://images.igdb.com/igdb/image/upload/t_cover_big_2x/{image_id}.jpg"
+)
 
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
 
+
 def get_igdb_token() -> str:
+    """Request an application access token for IGDB."""
     url = (
         f"https://id.twitch.tv/oauth2/token"
         f"?client_id={TWITCH_CLIENT_ID}"
@@ -54,7 +57,9 @@ def get_igdb_token() -> str:
 # IGDB helpers
 # ---------------------------------------------------------------------------
 
+
 def igdb_post(token: str, endpoint: str, body: str) -> list:
+    """Submit an IGDB query with retry handling."""
     req = urllib.request.Request(
         f"https://api.igdb.com/v4/{endpoint}",
         data=body.encode(),
@@ -65,13 +70,16 @@ def igdb_post(token: str, endpoint: str, body: str) -> list:
         },
     )
     delay = BACKOFF_BASE
-    for attempt in range(MAX_RETRIES):
+    for _attempt in range(MAX_RETRIES):
         try:
             with urllib.request.urlopen(req, timeout=15) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
             if e.code == 429:
-                print(f"  Rate limited (429), backing off {delay:.0f}s...", file=sys.stderr)
+                print(
+                    f"  Rate limited (429), backing off {delay:.0f}s...",
+                    file=sys.stderr,
+                )
                 time.sleep(delay)
                 delay *= 2
             else:
@@ -87,7 +95,8 @@ def igdb_cover(token: str, title: str) -> tuple[str | None, str | None]:
     """Return (image_id, matched_title) or (None, None)."""
     safe = title.replace('"', '\\"')
     results = igdb_post(
-        token, "games",
+        token,
+        "games",
         f'fields name,cover.image_id; search "{safe}"; where cover != null; limit 10;',
     )
     if not results:
@@ -104,57 +113,8 @@ def igdb_cover(token: str, title: str) -> tuple[str | None, str | None]:
     return image_id, best.get("name")
 
 
-# ---------------------------------------------------------------------------
-# Directus helpers
-# ---------------------------------------------------------------------------
-
-def directus_get(path: str) -> dict:
-    req = urllib.request.Request(
-        f"{DIRECTUS_URL}{path}",
-        headers={"Authorization": f"Bearer {DIRECTUS_TOKEN}", "Accept": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def directus_patch(path: str, body: dict) -> dict:
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(
-        f"{DIRECTUS_URL}{path}", data=data, method="PATCH",
-        headers={
-            "Authorization": f"Bearer {DIRECTUS_TOKEN}",
-            "Content-Type": "application/json", "Accept": "application/json",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def upload_cover(game_id: int, img_bytes: bytes, ext: str = "jpg") -> str | None:
-    boundary = "----FormBoundary7MA4YWxkTrZu0gW"
-    filename = f"cover_{game_id}.{ext}"
-    mime = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
-    body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
-        f"Content-Type: {mime}\r\n\r\n"
-    ).encode() + img_bytes + f"\r\n--{boundary}--\r\n".encode()
-    req = urllib.request.Request(
-        f"{DIRECTUS_URL}/files", data=body, method="POST",
-        headers={
-            "Authorization": f"Bearer {DIRECTUS_TOKEN}",
-            "Content-Type": f"multipart/form-data; boundary={boundary}",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            return json.loads(r.read())["data"]["id"]
-    except Exception as e:
-        print(f"    Upload error: {e}", file=sys.stderr)
-        return None
-
-
 def fetch_bytes(url: str) -> bytes | None:
+    """Download bytes from a URL, returning None on failure."""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=15) as r:
@@ -164,17 +124,18 @@ def fetch_bytes(url: str) -> bytes | None:
         return None
 
 
-CACHE_DIR = Path(__file__).parent.parent / "cache"
 IGDB_CACHE_FILE = CACHE_DIR / "igdb_cover_cache.json"
 
 
 def load_igdb_cache() -> dict:
+    """Load cached IGDB cover matches."""
     if IGDB_CACHE_FILE.exists():
         return json.loads(IGDB_CACHE_FILE.read_text())
     return {}
 
 
 def save_igdb_cache(cache: dict) -> None:
+    """Persist cached IGDB cover matches."""
     CACHE_DIR.mkdir(exist_ok=True)
     IGDB_CACHE_FILE.write_text(json.dumps(cache, indent=2))
 
@@ -183,14 +144,19 @@ def save_igdb_cache(cache: dict) -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def get_missing_games() -> list[dict]:
+    """Fetch games that do not have a cover image."""
     qs = "fields=id,title,slug&filter%5Bcover_image%5D%5B_null%5D=true&limit=-1&sort=title"
-    return directus_get(f"/items/games?{qs}").get("data", [])
+    return DIRECTUS.get(f"/items/games?{qs}").get("data", [])
 
 
 def main():
+    """Find and optionally upload covers for games missing artwork."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fix", action="store_true", help="Upload and patch (default: dry run)")
+    parser.add_argument(
+        "--fix", action="store_true", help="Upload and patch (default: dry run)"
+    )
     args = parser.parse_args()
 
     print("Fetching games with no cover image...", file=sys.stderr)
@@ -213,19 +179,28 @@ def main():
         cache_key = str(game["id"])
 
         if cache_key in igdb_cache:
-            image_id, matched = igdb_cache[cache_key]["image_id"], igdb_cache[cache_key]["matched"]
+            image_id, matched = (
+                igdb_cache[cache_key]["image_id"],
+                igdb_cache[cache_key]["matched"],
+            )
         else:
             time.sleep(0.26)
+            if token is None:
+                raise RuntimeError("IGDB token was not initialized")
             image_id, matched = igdb_cover(token, game["title"])
             igdb_cache[cache_key] = {"image_id": image_id, "matched": matched}
             save_igdb_cache(igdb_cache)
 
         if not image_id:
-            print(f"  SKIP: no IGDB cover found", file=sys.stderr)
+            print("  SKIP: no IGDB cover found", file=sys.stderr)
             skipped += 1
             continue
 
-        match_note = f'matched "{matched}"' if matched and matched.lower() != game["title"].lower() else "exact match"
+        match_note = (
+            f'matched "{matched}"'
+            if matched and matched.lower() != game["title"].lower()
+            else "exact match"
+        )
         print(f"  IGDB cover: {image_id} ({match_note})", file=sys.stderr)
         cover_url = IGDB_COVER_URL.format(image_id=image_id)
 
@@ -239,18 +214,20 @@ def main():
             errors += 1
             continue
 
-        new_uuid = upload_cover(game["id"], img, "jpg")
+        new_uuid = DIRECTUS.upload_cover(game["id"], img, "jpg")
         if not new_uuid:
             errors += 1
             continue
 
-        directus_patch(f"/items/games/{game['id']}", {"cover_image": new_uuid})
+        DIRECTUS.patch(f"/items/games/{game['id']}", {"cover_image": new_uuid})
         print(f"  Updated cover → {new_uuid}", file=sys.stderr)
         fixed += 1
         time.sleep(0.3)
 
     label = "would fix" if not args.fix else "fixed"
-    print(f"\nDone: {label} {fixed}, skipped {skipped}, errors {errors}", file=sys.stderr)
+    print(
+        f"\nDone: {label} {fixed}, skipped {skipped}, errors {errors}", file=sys.stderr
+    )
     if not args.fix and fixed:
         print("Run with --fix to apply.", file=sys.stderr)
 

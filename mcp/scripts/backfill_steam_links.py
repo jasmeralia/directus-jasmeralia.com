@@ -13,110 +13,139 @@ Usage:
   python3 backfill_steam_links.py --apply   # commit links to Directus
 """
 
-import difflib, json, sys, time, urllib.parse, urllib.request, ssl
+import difflib
+import json
+import sys
+import time
+import urllib.parse
+import urllib.request
+import ssl
 
-with open('.mcp.json') as f:
+with open(".mcp.json", encoding="utf-8") as f:
     cfg = json.load(f)
-env = cfg['mcpServers']['directus']['env']
-BASE  = env['DIRECTUS_URL'].rstrip('/')
-TOKEN = env['DIRECTUS_TOKEN']
-H     = {'Authorization': f'Bearer {TOKEN}', 'Content-Type': 'application/json'}
-CTX   = ssl.create_default_context()
+env = cfg["mcpServers"]["directus"]["env"]
+BASE = env["DIRECTUS_URL"].rstrip("/")
+TOKEN = env["DIRECTUS_TOKEN"]
+H = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
+CTX = ssl.create_default_context()
 
-DRY_RUN = '--apply' not in sys.argv
+DRY_RUN = "--apply" not in sys.argv
 
 # Titles that are DLC / expansion packs, not standalone games — never add Steam links.
 TITLE_BLACKLIST = {
-    'DOOM 3: Resurrection of Evil',
-    'DOOM 3 Resurrection of Evil',
+    "DOOM 3: Resurrection of Evil",
+    "DOOM 3 Resurrection of Evil",
 }
 
 # Confidence thresholds
-HIGH_CONF   = 0.82   # auto-add
-REVIEW_CONF = 0.55   # flag for review; below this → no-match
+HIGH_CONF = 0.82  # auto-add
+REVIEW_CONF = 0.55  # flag for review; below this → no-match
 
 # ---------------------------------------------------------------------------
 # Directus helpers
 # ---------------------------------------------------------------------------
 
+
 def d_get(path, params=None):
-    url = f'{BASE}{path}'
+    """Fetch a Directus resource with optional query parameters."""
+    url = f"{BASE}{path}"
     if params:
-        url += '?' + urllib.parse.urlencode(params, doseq=True)
+        url += "?" + urllib.parse.urlencode(params, doseq=True)
     req = urllib.request.Request(url, headers=H)
     with urllib.request.urlopen(req, context=CTX) as r:
         return json.loads(r.read())
 
+
 def d_post(path, data):
+    """Create a Directus resource."""
     body = json.dumps(data).encode()
-    req = urllib.request.Request(f'{BASE}{path}', data=body, headers=H, method='POST')
+    req = urllib.request.Request(f"{BASE}{path}", data=body, headers=H, method="POST")
     with urllib.request.urlopen(req, context=CTX) as r:
         return json.loads(r.read())
+
 
 # ---------------------------------------------------------------------------
 # Steam search
 # ---------------------------------------------------------------------------
 
+
 def steam_search(title, retries=2):
     """Return list of {id, name, windows} for top Steam results."""
-    url = ('https://store.steampowered.com/api/storesearch/?'
-           + urllib.parse.urlencode({'term': title, 'l': 'english', 'cc': 'US'}))
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    url = "https://store.steampowered.com/api/storesearch/?" + urllib.parse.urlencode(
+        {"term": title, "l": "english", "cc": "US"}
+    )
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     for attempt in range(retries + 1):
         try:
             with urllib.request.urlopen(req, context=CTX, timeout=12) as r:
                 data = json.loads(r.read())
             return [
-                {'id': i['id'], 'name': i['name'],
-                 'windows': i.get('platforms', {}).get('windows', False)}
-                for i in data.get('items', [])
-                if i.get('type') == 'app'
+                {
+                    "id": i["id"],
+                    "name": i["name"],
+                    "windows": i.get("platforms", {}).get("windows", False),
+                }
+                for i in data.get("items", [])
+                if i.get("type") == "app"
             ]
-        except Exception as e:
+        except Exception:
             if attempt < retries:
                 time.sleep(3)
             else:
                 return []
+    return []
+
 
 def title_similarity(a, b):
     """Case-insensitive token-sort ratio."""
-    a2 = ' '.join(sorted(a.lower().split()))
-    b2 = ' '.join(sorted(b.lower().split()))
+    a2 = " ".join(sorted(a.lower().split()))
+    b2 = " ".join(sorted(b.lower().split()))
     return difflib.SequenceMatcher(None, a2, b2).ratio()
+
 
 def best_match(our_title, results):
     """Return (steam_item, score) for the best Windows-compatible result."""
     best, best_score = None, 0.0
     for item in results:
-        if not item['windows']:
+        if not item["windows"]:
             continue
-        score = title_similarity(our_title, item['name'])
+        score = title_similarity(our_title, item["name"])
         if score > best_score:
             best, best_score = item, score
     return best, best_score
+
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
-def main():
-    print(f"[{'DRY RUN' if DRY_RUN else 'APPLY'}] Fetching link data from Directus...\n")
 
-    all_links = d_get('/items/games_links', {'limit': -1, 'fields': 'id,url,kind,games_id'})['data']
+def main():
+    """Find and optionally create missing Steam store links."""
+    print(
+        f"[{'DRY RUN' if DRY_RUN else 'APPLY'}] Fetching link data from Directus...\n"
+    )
+
+    all_links = d_get(
+        "/items/games_links", {"limit": -1, "fields": "id,url,kind,games_id"}
+    )["data"]
 
     # Games with PS/Xbox links
     ps_xbox_game_ids = {
-        r['games_id'] for r in all_links
-        if r.get('url') and any(
-            p in r['url'].lower()
-            for p in ['playstation.com', 'xbox.com', 'microsoft.com/store']
+        r["games_id"]
+        for r in all_links
+        if r.get("url")
+        and any(
+            p in r["url"].lower()
+            for p in ["playstation.com", "xbox.com", "microsoft.com/store"]
         )
     }
 
     # Games that already have a Steam app link
     has_steam = {
-        r['games_id'] for r in all_links
-        if r.get('url') and 'store.steampowered.com/app/' in r['url']
+        r["games_id"]
+        for r in all_links
+        if r.get("url") and "store.steampowered.com/app/" in r["url"]
     }
 
     todo_ids = sorted(ps_xbox_game_ids - has_steam)
@@ -125,88 +154,134 @@ def main():
     print(f"Need lookup:           {len(todo_ids)}\n")
 
     # Fetch game titles
-    games_data = d_get('/items/games', {
-        'limit': -1,
-        'fields': 'id,title',
-        'filter[id][_in]': ','.join(map(str, todo_ids)),
-    })['data']
-    game_title = {g['id']: g['title'] for g in games_data}
+    games_data = d_get(
+        "/items/games",
+        {
+            "limit": -1,
+            "fields": "id,title",
+            "filter[id][_in]": ",".join(map(str, todo_ids)),
+        },
+    )["data"]
+    game_title = {g["id"]: g["title"] for g in games_data}
 
     # --- search and classify ---
     added, review, no_match = [], [], []
     total = len(todo_ids)
 
     for i, gid in enumerate(todo_ids, 1):
-        title = game_title.get(gid, f'(unknown game {gid})')
+        title = game_title.get(gid, f"(unknown game {gid})")
         if title in TITLE_BLACKLIST:
-            print(f'[{i}/{total}] SKIP  {title!r}  (blacklisted DLC/expansion)')
+            print(f"[{i}/{total}] SKIP  {title!r}  (blacklisted DLC/expansion)")
             continue
         results = steam_search(title)
         item, score = best_match(title, results) if results else (None, 0.0)
 
-        tag = f'[{i}/{total}]'
+        tag = f"[{i}/{total}]"
         if item and score >= HIGH_CONF:
-            steam_url = f'https://store.steampowered.com/app/{item["id"]}/'
-            added.append({'game_id': gid, 'title': title, 'appid': item['id'],
-                          'steam_name': item['name'], 'score': score, 'url': steam_url})
-            print(f'{tag} ADD   {title!r}  →  "{item["name"]}" ({item["id"]})  [{score:.2f}]')
+            steam_url = f"https://store.steampowered.com/app/{item['id']}/"
+            added.append(
+                {
+                    "game_id": gid,
+                    "title": title,
+                    "appid": item["id"],
+                    "steam_name": item["name"],
+                    "score": score,
+                    "url": steam_url,
+                }
+            )
+            print(
+                f'{tag} ADD   {title!r}  →  "{item["name"]}" ({item["id"]})  [{score:.2f}]'
+            )
         elif item and score >= REVIEW_CONF:
-            steam_url = f'https://store.steampowered.com/app/{item["id"]}/'
-            review.append({'game_id': gid, 'title': title, 'appid': item['id'],
-                           'steam_name': item['name'], 'score': score, 'url': steam_url})
-            print(f'{tag} REVIEW {title!r}  ≈  "{item["name"]}" ({item["id"]})  [{score:.2f}]')
+            steam_url = f"https://store.steampowered.com/app/{item['id']}/"
+            review.append(
+                {
+                    "game_id": gid,
+                    "title": title,
+                    "appid": item["id"],
+                    "steam_name": item["name"],
+                    "score": score,
+                    "url": steam_url,
+                }
+            )
+            print(
+                f'{tag} REVIEW {title!r}  ≈  "{item["name"]}" ({item["id"]})  [{score:.2f}]'
+            )
         else:
-            no_match.append({'game_id': gid, 'title': title,
-                             'best_steam': item['name'] if item else None,
-                             'score': score})
-            print(f'{tag} SKIP  {title!r}  '
-                  + (f'(best: "{item["name"]}" [{score:.2f}])' if item else '(no results)'))
+            no_match.append(
+                {
+                    "game_id": gid,
+                    "title": title,
+                    "best_steam": item["name"] if item else None,
+                    "score": score,
+                }
+            )
+            print(
+                f"{tag} SKIP  {title!r}  "
+                + (
+                    f'(best: "{item["name"]}" [{score:.2f}])'
+                    if item
+                    else "(no results)"
+                )
+            )
 
         time.sleep(0.8)  # polite rate limit
 
     # --- summary ---
-    print(f'\n{"="*70}')
-    print(f'Results: {len(added)} add, {len(review)} review, {len(no_match)} no-match\n')
+    print(f"\n{'=' * 70}")
+    print(
+        f"Results: {len(added)} add, {len(review)} review, {len(no_match)} no-match\n"
+    )
 
     if review:
-        print('── REVIEW (ambiguous matches, verify manually) ──')
+        print("── REVIEW (ambiguous matches, verify manually) ──")
         for r in review:
-            print(f'  game={r["game_id"]}  {r["title"]!r}')
-            print(f'    Steam: {r["steam_name"]!r} ({r["appid"]})  score={r["score"]:.2f}')
-            print(f'    URL:   {r["url"]}')
+            print(f"  game={r['game_id']}  {r['title']!r}")
+            print(
+                f"    Steam: {r['steam_name']!r} ({r['appid']})  score={r['score']:.2f}"
+            )
+            print(f"    URL:   {r['url']}")
         print()
 
     if no_match:
-        print('── NO MATCH (likely console exclusive or not on Steam) ──')
+        print("── NO MATCH (likely console exclusive or not on Steam) ──")
         for r in no_match:
-            suffix = f'  (best: {r["best_steam"]!r} [{r["score"]:.2f}])' if r['best_steam'] else ''
-            print(f'  game={r["game_id"]}  {r["title"]!r}{suffix}')
+            suffix = (
+                f"  (best: {r['best_steam']!r} [{r['score']:.2f}])"
+                if r["best_steam"]
+                else ""
+            )
+            print(f"  game={r['game_id']}  {r['title']!r}{suffix}")
         print()
 
     if DRY_RUN:
-        print('Run with --apply to commit Steam links.')
+        print("Run with --apply to commit Steam links.")
         return
 
     # --- apply ---
     if not added:
-        print('Nothing to add.')
+        print("Nothing to add.")
         return
 
-    print(f'Adding {len(added)} Steam links...')
+    print(f"Adding {len(added)} Steam links...")
     ok = 0
     for entry in added:
         try:
-            d_post('/items/games_links', {
-                'games_id': entry['game_id'],
-                'url': entry['url'],
-                'kind': 'download',
-            })
+            d_post(
+                "/items/games_links",
+                {
+                    "games_id": entry["game_id"],
+                    "url": entry["url"],
+                    "kind": "download",
+                },
+            )
             ok += 1
         except Exception as e:
-            print(f'  ERROR game={entry["game_id"]} {entry["title"]}: {e}')
+            print(f"  ERROR game={entry['game_id']} {entry['title']}: {e}")
         time.sleep(0.1)
 
-    print(f'Done. Added {ok}/{len(added)} Steam links.')
+    print(f"Done. Added {ok}/{len(added)} Steam links.")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

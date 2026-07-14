@@ -1,0 +1,26 @@
+[tool.mypy]
+check_untyped_defs = true
+exclude = ["mcp/scripts/ignored/"]
+
+[tool.pylint.main]
+ignore-paths = ["^mcp/scripts/ignored/.*$"]
+
+[tool.pylint."messages control"]
+disable = ["broad-exception-caught"]
+
+[tool.pylint.format]
+max-line-length = 180
+
+[tool.pylint.design]
+max-args = 6
+max-branches = 32
+max-locals = 55
+max-positional-arguments = 6
+max-returns = 7
+max-statements = 130
+
+[tool.pylint.similarities]
+min-similarity-lines = 15
+
+[tool.ruff]
+exclude = ["mcp/scripts/ignored"]

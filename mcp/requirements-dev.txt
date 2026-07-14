@@ -1,0 +1,6 @@
+-r requirements.txt
+ruff
+mypy
+pylint
+types-psycopg2
+types-requests

@@ -5,6 +5,7 @@ import {
   getUrlPlatform,
   walkthroughLinks,
   walkthroughTextNotes,
+  type GameLink,
 } from "../lib/download-link";
 import type { WalkthroughKind } from "../lib/walkthrough-link";
 
@@ -15,12 +16,20 @@ type WalkthroughEntry = {
   text: string;
 };
 
+type WalkthroughGame = {
+  slug: string;
+  title: string;
+  release_year?: number | null;
+  cover_image?: unknown;
+  links?: GameLink[] | null;
+};
+
 const { games, kind = null } = Astro.props as {
-  games: any[];
+  games: WalkthroughGame[];
   kind?: WalkthroughKind | null;
 };
 
-const walkthroughEntries = (game: any): WalkthroughEntry[] => {
+const walkthroughEntries = (game: WalkthroughGame): WalkthroughEntry[] => {
   const links = walkthroughLinks(game?.links);
   const notes = walkthroughTextNotes(game?.links);
 

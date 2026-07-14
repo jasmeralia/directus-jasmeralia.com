@@ -19,90 +19,43 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from pathlib import Path
+from collections import Counter
 
-CACHE = Path(__file__).parent.parent / "cache"
-DIRECTUS_URL = "https://directus.jasmer.tools"
-DIRECTUS_TOKEN = json.load(open(Path(__file__).parent.parent.parent / ".mcp.json"))["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
+from scriptlib import CACHE_DIR, DirectusClient
+from steamlib import genres_from_tags
+
+CACHE = CACHE_DIR
+DIRECTUS = DirectusClient.from_config()
 STEAMSPY_URL = "https://steamspy.com/api.php?request=appdetails&appid={appid}"
 
 MIN_VOTES = 20
 
-# Direct Steam tag → Directus genre slug
-TAG_TO_GENRE: dict[str, str] = {
-    "ARPG":             "arpg",
-    "Card Game":        "card",
-    "Card Battler":     "card",
-    "CRPG":             "crpg",
-    "Fighting":         "fighter",
-    "2D Fighter":       "fighter",
-    "FMV":              "fmv",
-    "FPS":              "fps",
-    "Horror":           "horror",
-    "Isometric":        "isometric",
-    "JRPG":             "jrpg",
-    "Metroidvania":     "metroidvania",
-    "Platformer":       "platformer",
-    "RPG":              "rpg",
-    "RTS":              "rts",
-    "Roguelike":        "roguelike",
-    "Rogue-like":       "roguelike",
-    "Rogue-lite":       "roguelike",
-    "Action Roguelike": "roguelike",
-    "Stealth":          "stealth",
-    "Strategy":         "strategy",
-    "Visual Novel":     "visual-novel",
-}
-
-# Compound rules: all listed tags must meet MIN_VOTES → add genre slug
-COMPOUND_RULES: list[tuple[list[str], str]] = [
-    (["Real-Time with Pause", "Party-Based RPG"], "crpg"),
-]
-
 # Per-title overrides: genres to never assign to a specific game title.
 TITLE_EXCLUSIONS: dict[str, set[str]] = {
-    "Disco Elysium":    {"avn", "visual-novel"},  # VN tags present but it's a CRPG; keep crpg
-    "Gamedec":          {"visual-novel"},          # VN tags present but it's a CRPG; keep crpg
+    "Disco Elysium": {
+        "avn",
+        "visual-novel",
+    },  # VN tags present but it's a CRPG; keep crpg
+    "Gamedec": {"visual-novel"},  # VN tags present but it's a CRPG; keep crpg
     "Shadows: Awakening": {"crpg"},
-    "Eon Altar":        {"crpg"},
+    "Eon Altar": {"crpg"},
     # Metroidvania tag manually removed — these are not MV games
-    "Asterigos: Curse of the Stars":               {"metroidvania"},
-    "Batman: Arkham Asylum":                        {"metroidvania"},
-    "Batman: Arkham City":                          {"metroidvania"},
-    "Castlevania: Lords of Shadow 2":               {"metroidvania"},
+    "Asterigos: Curse of the Stars": {"metroidvania"},
+    "Batman: Arkham Asylum": {"metroidvania"},
+    "Batman: Arkham City": {"metroidvania"},
+    "Castlevania: Lords of Shadow 2": {"metroidvania"},
     "Castlevania: Lords of Shadow – Ultimate Edition": {"metroidvania"},
-    "Fe":                                           {"metroidvania"},
-    "Super Panda Adventures":                       {"metroidvania"},
-    "The Rogue Prince of Persia":                   {"metroidvania"},
+    "Fe": {"metroidvania"},
+    "Super Panda Adventures": {"metroidvania"},
+    "The Rogue Prince of Persia": {"metroidvania"},
     # Not AVNs — genre manually removed, prevent re-addition
-    "Doki Doki Literature Club Plus!":              {"avn", "visual-novel"},
-    "The Ballad Singer":                            {"avn"},
+    "Doki Doki Literature Club Plus!": {"avn", "visual-novel"},
+    "The Ballad Singer": {"avn"},
 }
-
-
-def directus_get(path: str) -> dict:
-    url = f"{DIRECTUS_URL}{path}"
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {DIRECTUS_TOKEN}",
-        "Accept": "application/json",
-    })
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read())
-
-
-def directus_post(path: str, body: dict) -> dict:
-    url = f"{DIRECTUS_URL}{path}"
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(url, data=data, method="POST", headers={
-        "Authorization": f"Bearer {DIRECTUS_TOKEN}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    })
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read())
 
 
 def extract_steam_appid(url: str | None) -> int | None:
+    """Extract a Steam app ID from a store URL."""
     if not url:
         return None
     m = re.search(r"store\.steampowered\.com/app/(\d+)", url)
@@ -119,48 +72,20 @@ def fetch_steamspy_tags(appid: int) -> dict[str, int] | None:
             return data.get("tags") or {}
         except Exception as e:
             if attempt < 2:
-                time.sleep(2 ** attempt * 2)
+                time.sleep(2**attempt * 2)
             else:
                 print(f"  SteamSpy error for {appid}: {e}", file=sys.stderr)
                 return None
-
-
-ROGUELIKE_TAGS = {"Roguelike", "Rogue-like", "Rogue-lite", "Action Roguelike"}
+    return None
 
 
 def apply_mapping(tags: dict[str, int]) -> set[str]:
     """Return set of genre slugs to add based on tags."""
-    qualified = {tag for tag, votes in tags.items() if votes >= MIN_VOTES}
-    is_roguelike = bool(ROGUELIKE_TAGS & qualified)
-    genres: set[str] = set()
-
-    # Direct mappings
-    for tag, slug in TAG_TO_GENRE.items():
-        if tag in qualified:
-            if slug == "crpg" and is_roguelike:
-                continue
-            genres.add(slug)
-
-    # Compound rules
-    for required_tags, slug in COMPOUND_RULES:
-        if all(t in qualified for t in required_tags):
-            if slug == "crpg" and is_roguelike:
-                continue
-            genres.add(slug)
-
-    # AVN special rule: Visual Novel + Sexual Content → both avn and visual-novel
-    if "Visual Novel" in qualified and "Sexual Content" in qualified:
-        genres.add("avn")
-        genres.add("visual-novel")
-
-    # Card games, RTSes, and visual novels are not CRPGs
-    if genres & {"card", "rts", "visual-novel"}:
-        genres.discard("crpg")
-
-    return genres
+    return genres_from_tags(tags, MIN_VOTES)
 
 
 def generate_proposals():
+    """Generate genre proposals from cached Steam metadata."""
     tags_cache_path = CACHE / "steamspy_tags.json"
     proposals_path = CACHE / "genre_backfill_proposals.json"
 
@@ -175,9 +100,9 @@ def generate_proposals():
     all_games = []
     page = 1
     while True:
-        data = directus_get(
+        data = DIRECTUS.get(
             f"/items/games?fields=id,title,download_url,genres.genres_id.id,genres.genres_id.slug"
-            f"&limit=500&offset={500*(page-1)}&sort=id"
+            f"&limit=500&offset={500 * (page - 1)}&sort=id"
         )
         batch = data.get("data", [])
         all_games.extend(batch)
@@ -187,7 +112,7 @@ def generate_proposals():
     print(f"Fetched {len(all_games)} games", file=sys.stderr)
 
     # Fetch genre slug→id map
-    genre_data = directus_get("/items/genres?fields=id,slug&limit=-1")
+    genre_data = DIRECTUS.get("/items/genres?fields=id,slug&limit=-1")
     slug_to_id = {g["slug"]: g["id"] for g in genre_data["data"]}
     print(f"Loaded {len(slug_to_id)} genres", file=sys.stderr)
 
@@ -202,7 +127,10 @@ def generate_proposals():
     for i, (game, appid) in enumerate(steam_games):
         appid_str = str(appid)
         if appid_str not in tags_cache:
-            print(f"[{i+1}/{len(steam_games)}] Fetching {appid}: {game['title']}...", file=sys.stderr)
+            print(
+                f"[{i + 1}/{len(steam_games)}] Fetching {appid}: {game['title']}...",
+                file=sys.stderr,
+            )
             fetched = fetch_steamspy_tags(appid)
             tags_cache[appid_str] = fetched if fetched is not None else {}
             time.sleep(1.0)
@@ -211,7 +139,9 @@ def generate_proposals():
 
         if (i + 1) % 25 == 0:
             tags_cache_path.write_text(json.dumps(tags_cache, indent=2))
-            print(f"  [checkpoint] {i+1}/{len(steam_games)} processed", file=sys.stderr)
+            print(
+                f"  [checkpoint] {i + 1}/{len(steam_games)} processed", file=sys.stderr
+            )
 
         mapped_slugs = apply_mapping(tags)
         existing_slugs = {
@@ -222,17 +152,23 @@ def generate_proposals():
         new_slugs = mapped_slugs - existing_slugs
         # Filter to slugs that exist in Directus and aren't title-excluded
         title_excluded = TITLE_EXCLUSIONS.get(game["title"], set())
-        valid_new_slugs = {s for s in new_slugs if s in slug_to_id and s not in title_excluded}
+        valid_new_slugs = {
+            s for s in new_slugs if s in slug_to_id and s not in title_excluded
+        }
 
         if valid_new_slugs:
-            proposals.append({
-                "game_id": game["id"],
-                "title": game["title"],
-                "appid": appid,
-                "existing_genres": sorted(existing_slugs),
-                "new_genres": sorted(valid_new_slugs),
-                "steam_tags": dict(sorted(tags.items(), key=lambda x: x[1], reverse=True)[:20]),
-            })
+            proposals.append(
+                {
+                    "game_id": game["id"],
+                    "title": game["title"],
+                    "appid": appid,
+                    "existing_genres": sorted(existing_slugs),
+                    "new_genres": sorted(valid_new_slugs),
+                    "steam_tags": dict(
+                        sorted(tags.items(), key=lambda x: x[1], reverse=True)[:20]
+                    ),
+                }
+            )
 
     tags_cache_path.write_text(json.dumps(tags_cache, indent=2))
     proposals_path.write_text(json.dumps(proposals, indent=2))
@@ -241,7 +177,6 @@ def generate_proposals():
     print(f"SteamSpy cache: {tags_cache_path}", file=sys.stderr)
 
     # Print summary
-    from collections import Counter
     genre_counts = Counter(slug for p in proposals for slug in p["new_genres"])
     print("\nProposed additions by genre:", file=sys.stderr)
     for slug, count in genre_counts.most_common():
@@ -249,6 +184,7 @@ def generate_proposals():
 
 
 def apply_proposals():
+    """Apply reviewed genre proposals to Directus."""
     proposals_path = CACHE / "genre_backfill_proposals.json"
     if not proposals_path.exists():
         print("No proposals file found. Run without --apply first.", file=sys.stderr)
@@ -257,15 +193,16 @@ def apply_proposals():
     proposals = json.loads(proposals_path.read_text())
 
     # Fetch genre slug→id map
-    genre_data = directus_get("/items/genres?fields=id,slug&limit=-1")
+    genre_data = DIRECTUS.get("/items/genres?fields=id,slug&limit=-1")
     slug_to_id = {g["slug"]: g["id"] for g in genre_data["data"]}
 
     # Fetch existing games_genres to avoid duplicate inserts
     print("Fetching existing genre assignments...", file=sys.stderr)
-    existing_data = directus_get("/items/games_genres?fields=games_id,genres_id&limit=-1")
+    existing_data = DIRECTUS.get(
+        "/items/games_genres?fields=games_id,genres_id&limit=-1"
+    )
     existing_pairs: set[tuple[int, int]] = {
-        (row["games_id"], row["genres_id"])
-        for row in existing_data.get("data", [])
+        (row["games_id"], row["genres_id"]) for row in existing_data.get("data", [])
     }
     print(f"Loaded {len(existing_pairs)} existing genre assignments", file=sys.stderr)
 
@@ -273,21 +210,28 @@ def apply_proposals():
     skipped = 0
     errors = 0
     total_to_add = sum(len(p["new_genres"]) for p in proposals)
-    print(f"Applying {total_to_add} genre assignments across {len(proposals)} games...", file=sys.stderr)
+    print(
+        f"Applying {total_to_add} genre assignments across {len(proposals)} games...",
+        file=sys.stderr,
+    )
 
     for p in proposals:
         game_id = p["game_id"]
         for slug in p["new_genres"]:
             genre_id = slug_to_id.get(slug)
             if not genre_id:
-                print(f"  WARN: genre slug '{slug}' not found, skipping", file=sys.stderr)
+                print(
+                    f"  WARN: genre slug '{slug}' not found, skipping", file=sys.stderr
+                )
                 skipped += 1
                 continue
             if (game_id, genre_id) in existing_pairs:
                 skipped += 1
                 continue
             try:
-                directus_post("/items/games_genres", {"games_id": game_id, "genres_id": genre_id})
+                DIRECTUS.post(
+                    "/items/games_genres", {"games_id": game_id, "genres_id": genre_id}
+                )
                 existing_pairs.add((game_id, genre_id))
                 added += 1
                 print(f"  + {p['title']} → {slug}", file=sys.stderr)
@@ -299,8 +243,11 @@ def apply_proposals():
 
 
 def main():
+    """Generate or apply Steam-derived genre proposals."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--apply", action="store_true", help="Apply proposals to Directus")
+    parser.add_argument(
+        "--apply", action="store_true", help="Apply proposals to Directus"
+    )
     args = parser.parse_args()
 
     if args.apply:

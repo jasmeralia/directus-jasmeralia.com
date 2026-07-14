@@ -15,58 +15,39 @@ Usage:
   python3 backfill_release_years.py --apply  # commit to Directus
 """
 
-import argparse, json, re, sys, time, urllib.error, urllib.request
+import argparse
+import json
+import re
+import sys
+import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
-from pathlib import Path
+
+from scriptlib import CACHE_DIR, DirectusClient, server_env
 
 # ── Config ────────────────────────────────────────────────────────────────────
-MCP_JSON = Path(__file__).parent.parent.parent / ".mcp.json"
-CACHE_DIR = Path(__file__).parent.parent / "cache"
 CACHE_FILE = CACHE_DIR / "release_year_cache.json"
 
-cfg = json.load(open(MCP_JSON))
-DIRECTUS_URL   = cfg["mcpServers"]["directus"]["env"]["DIRECTUS_URL"].rstrip("/")
-DIRECTUS_TOKEN = cfg["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
-TWITCH_CLIENT_ID     = cfg["mcpServers"]["game-encyclopedia"]["env"]["TWITCH_CLIENT_ID"]
-TWITCH_CLIENT_SECRET = cfg["mcpServers"]["game-encyclopedia"]["env"]["TWITCH_CLIENT_SECRET"]
+DIRECTUS = DirectusClient.from_config()
+GAME_API_ENV = server_env("game-encyclopedia")
+TWITCH_CLIENT_ID = GAME_API_ENV["TWITCH_CLIENT_ID"]
+TWITCH_CLIENT_SECRET = GAME_API_ENV["TWITCH_CLIENT_SECRET"]
 
-DHDR = {"Authorization": f"Bearer {DIRECTUS_TOKEN}", "Accept": "application/json",
-        "Content-Type": "application/json"}
-
-MAX_RETRIES  = 5
+MAX_RETRIES = 5
 BACKOFF_BASE = 2.0
-
-# ── Directus helpers ──────────────────────────────────────────────────────────
-
-def d_get(path):
-    req = urllib.request.Request(f"{DIRECTUS_URL}{path}", headers=DHDR)
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-def d_patch(path, body):
-    data = json.dumps(body).encode()
-    req  = urllib.request.Request(f"{DIRECTUS_URL}{path}", data=data, headers=DHDR, method="PATCH")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-def fetch_all(path):
-    results, offset = [], 0
-    while True:
-        sep   = "&" if "?" in path else "?"
-        batch = d_get(f"{path}{sep}limit=500&offset={offset}").get("data", [])
-        results.extend(batch)
-        if len(batch) < 500:
-            break
-        offset += 500
-    return results
 
 # ── Steam Store API ───────────────────────────────────────────────────────────
 
+
 def steam_release_year(appid: int) -> int | None:
-    url = (f"https://store.steampowered.com/api/appdetails"
-           f"?appids={appid}&filters=release_date&cc=us&l=en")
+    """Fetch a game's release year from Steam."""
+    url = (
+        f"https://store.steampowered.com/api/appdetails"
+        f"?appids={appid}&filters=release_date&cc=us&l=en"
+    )
     delay = BACKOFF_BASE
-    for attempt in range(MAX_RETRIES):
+    for _attempt in range(MAX_RETRIES):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=15) as r:
@@ -82,8 +63,12 @@ def steam_release_year(appid: int) -> int | None:
             return int(m.group(1)) if m else None
         except urllib.error.HTTPError as e:
             if e.code in (403, 429):
-                print(f"  Steam rate limit ({e.code}), backing off {delay:.0f}s...", file=sys.stderr)
-                time.sleep(delay); delay *= 2
+                print(
+                    f"  Steam rate limit ({e.code}), backing off {delay:.0f}s...",
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+                delay *= 2
             else:
                 print(f"  Steam HTTP {e.code} for appid {appid}", file=sys.stderr)
                 return None
@@ -92,18 +77,25 @@ def steam_release_year(appid: int) -> int | None:
             return None
     return None
 
+
 # ── IGDB ──────────────────────────────────────────────────────────────────────
 
+
 def get_igdb_token() -> str:
-    url = (f"https://id.twitch.tv/oauth2/token"
-           f"?client_id={TWITCH_CLIENT_ID}"
-           f"&client_secret={TWITCH_CLIENT_SECRET}"
-           f"&grant_type=client_credentials")
+    """Request an application access token for IGDB."""
+    url = (
+        f"https://id.twitch.tv/oauth2/token"
+        f"?client_id={TWITCH_CLIENT_ID}"
+        f"&client_secret={TWITCH_CLIENT_SECRET}"
+        f"&grant_type=client_credentials"
+    )
     req = urllib.request.Request(url, method="POST")
     with urllib.request.urlopen(req, timeout=15) as r:
         return json.loads(r.read())["access_token"]
 
+
 def igdb_post(token: str, body: str) -> list:
+    """Submit an IGDB query with retry handling."""
     req = urllib.request.Request(
         "https://api.igdb.com/v4/games",
         data=body.encode(),
@@ -114,14 +106,17 @@ def igdb_post(token: str, body: str) -> list:
         },
     )
     delay = BACKOFF_BASE
-    for attempt in range(MAX_RETRIES):
+    for _attempt in range(MAX_RETRIES):
         try:
             with urllib.request.urlopen(req, timeout=15) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
             if e.code == 429:
-                print(f"  IGDB rate limit, backing off {delay:.0f}s...", file=sys.stderr)
-                time.sleep(delay); delay *= 2
+                print(
+                    f"  IGDB rate limit, backing off {delay:.0f}s...", file=sys.stderr
+                )
+                time.sleep(delay)
+                delay *= 2
             else:
                 print(f"  IGDB HTTP {e.code}", file=sys.stderr)
                 return []
@@ -130,34 +125,46 @@ def igdb_post(token: str, body: str) -> list:
             return []
     return []
 
+
 def igdb_release_year(token: str, title: str) -> tuple[int | None, str | None]:
     """Return (year, matched_title) or (None, None)."""
-    safe    = title.replace('"', '\\"')
-    results = igdb_post(token,
-        f'fields name,first_release_date; search "{safe}"; where first_release_date != null; limit 10;')
+    safe = title.replace('"', '\\"')
+    results = igdb_post(
+        token,
+        f'fields name,first_release_date; search "{safe}"; where first_release_date != null; limit 10;',
+    )
     if not results:
         return None, None
     title_lower = title.lower()
-    exact  = next((r for r in results if r.get("name", "").lower() == title_lower), None)
-    best   = exact or results[0]
-    ts     = best.get("first_release_date")
+    exact = next((r for r in results if r.get("name", "").lower() == title_lower), None)
+    best = exact or results[0]
+    ts = best.get("first_release_date")
     if not ts:
         return None, None
     year = datetime.fromtimestamp(ts, tz=timezone.utc).year
     return year, best.get("name")
 
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def classify(game):
+    """Classify a game as Steam-backed or another source."""
     links = game.get("links") or []
-    urls  = [l["url"] for l in links if l.get("kind") == "download" and l.get("url")]
+    urls = [
+        link["url"]
+        for link in links
+        if link.get("kind") == "download" and link.get("url")
+    ]
     for u in urls:
         m = re.search(r"steampowered\.com/app/(\d+)", u)
         if m:
             return "steam", int(m.group(1))
     return "other", None
 
+
 def main():
+    """Backfill missing release years from Steam and IGDB."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
@@ -171,7 +178,7 @@ def main():
 
     # Fetch games missing release_year
     print("Fetching games with no release_year...", file=sys.stderr)
-    games = fetch_all(
+    games = DIRECTUS.fetch_all(
         "/items/games?fields=id,title,release_year,links.*"
         "&filter%5Brelease_year%5D%5B_null%5D=true&sort=title"
     )
@@ -190,7 +197,6 @@ def main():
     # IGDB token (only if needed)
     igdb_token = None
     needs_igdb = any(str(g["id"]) not in cache for g in other_games)
-    needs_steam = any(str(g["id"]) not in cache for g, _ in steam_games)
     if needs_igdb:
         print("Getting IGDB token...", file=sys.stderr)
         igdb_token = get_igdb_token()
@@ -215,10 +221,10 @@ def main():
             print(f"    year={year}", file=sys.stderr)
             found += 1
             if args.apply:
-                d_patch(f"/items/games/{game['id']}", {"release_year": year})
+                DIRECTUS.patch(f"/items/games/{game['id']}", {"release_year": year})
                 applied += 1
         else:
-            print(f"    no year found", file=sys.stderr)
+            print("    no year found", file=sys.stderr)
             skipped += 1
 
     # ── IGDB games ────────────────────────────────────────────────────────────
@@ -228,30 +234,40 @@ def main():
         print(f"  [{game['id']}] {game['title']}", file=sys.stderr)
 
         if gid in cache:
-            year    = cache[gid]["year"]
+            year = cache[gid]["year"]
             matched = cache[gid].get("matched")
         else:
             time.sleep(0.26)
+            if igdb_token is None:
+                raise RuntimeError("IGDB token was not initialized")
             year, matched = igdb_release_year(igdb_token, game["title"])
             cache[gid] = {"year": year, "matched": matched, "source": "igdb"}
             CACHE_FILE.write_text(json.dumps(cache, indent=2))
 
         if year:
-            note = f' (matched "{matched}")' if matched and matched.lower() != game["title"].lower() else ""
+            note = (
+                f' (matched "{matched}")'
+                if matched and matched.lower() != game["title"].lower()
+                else ""
+            )
             print(f"    year={year}{note}", file=sys.stderr)
             found += 1
             if args.apply:
-                d_patch(f"/items/games/{game['id']}", {"release_year": year})
+                DIRECTUS.patch(f"/items/games/{game['id']}", {"release_year": year})
                 applied += 1
         else:
-            print(f"    no year found", file=sys.stderr)
+            print("    no year found", file=sys.stderr)
             skipped += 1
 
-    print(f"\nDone: {found} years found, {skipped} not found, {errors} errors", file=sys.stderr)
+    print(
+        f"\nDone: {found} years found, {skipped} not found, {errors} errors",
+        file=sys.stderr,
+    )
     if args.apply:
         print(f"Applied {applied} updates to Directus", file=sys.stderr)
     else:
         print("Run with --apply to commit.", file=sys.stderr)
+
 
 if __name__ == "__main__":
     main()

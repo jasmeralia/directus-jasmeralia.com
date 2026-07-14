@@ -24,7 +24,7 @@ const { slug } = Astro.params;
 const isUnknown = slug === "unknown";
 
 let title = "Unknown";
-let games = [];
+let games;
 
 if (isUnknown) {
   const allGames = await directusFetchItems("games", {

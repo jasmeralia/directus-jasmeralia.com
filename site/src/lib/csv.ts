@@ -14,7 +14,22 @@ const listNames = (items: unknown[], getName: (item: unknown) => string | undefi
   return names.join("; ");
 };
 
-export const gamesToCsv = (games: any[]): string => {
+type EngineRef = { engines_id?: { title?: string } | null };
+type GenreRef = { genres_id?: { name?: string } | null };
+type DeveloperRef = { developers_id?: { name?: string } | null };
+
+type CsvGame = {
+  title?: string;
+  slug?: string;
+  release_year?: number;
+  game_status?: string;
+  player_status?: string;
+  engines?: EngineRef[];
+  genres?: GenreRef[];
+  developers?: DeveloperRef[];
+};
+
+export const gamesToCsv = (games: CsvGame[]): string => {
   const headers = [
     "title",
     "slug",
@@ -27,9 +42,9 @@ export const gamesToCsv = (games: any[]): string => {
   ];
 
   const rows = (games ?? []).map((game) => {
-    const engines = listNames(game?.engines ?? [], (entry) => entry?.engines_id?.title);
-    const genres = listNames(game?.genres ?? [], (entry) => entry?.genres_id?.name);
-    const developers = listNames(game?.developers ?? [], (entry) => entry?.developers_id?.name);
+    const engines = listNames(game?.engines ?? [], (entry) => (entry as EngineRef)?.engines_id?.title);
+    const genres = listNames(game?.genres ?? [], (entry) => (entry as GenreRef)?.genres_id?.name);
+    const developers = listNames(game?.developers ?? [], (entry) => (entry as DeveloperRef)?.developers_id?.name);
 
     return [
       game?.title,
@@ -46,7 +61,17 @@ export const gamesToCsv = (games: any[]): string => {
   return [headers.join(","), ...rows].join("\n");
 };
 
-export const tierListToCsv = (tierGames: any[]): string => {
+type CsvTierGame = {
+  rating?: string;
+  game_id?: {
+    title?: string;
+    slug?: string;
+    release_year?: number;
+    player_status?: string;
+  };
+};
+
+export const tierListToCsv = (tierGames: CsvTierGame[]): string => {
   const ratingOrder = ["S", "A", "B", "C", "D", "F", "U"];
   const headers = ["tier", "title", "slug", "release_year", "player_status"];
   const rows = [...(tierGames ?? [])]
