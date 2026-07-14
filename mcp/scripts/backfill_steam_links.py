@@ -15,15 +15,22 @@ Usage:
 
 import difflib
 import json
+import ssl
 import sys
 import time
 import urllib.parse
 import urllib.request
-import ssl
+from functools import partial
 
-with open(".mcp.json", encoding="utf-8") as f:
-    cfg = json.load(f)
-env = cfg["mcpServers"]["directus"]["env"]
+from scriptlib import (
+    CACHE_DIR,
+    ProgressCache,
+    RetryPolicy,
+    fetch_with_backoff,
+    server_env,
+)
+
+env = server_env("directus")
 BASE = env["DIRECTUS_URL"].rstrip("/")
 TOKEN = env["DIRECTUS_TOKEN"]
 H = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
@@ -69,31 +76,31 @@ def d_post(path, data):
 # ---------------------------------------------------------------------------
 
 
-def steam_search(title, retries=2):
+def steam_search(title):
     """Return list of {id, name, windows} for top Steam results."""
     url = "https://store.steampowered.com/api/storesearch/?" + urllib.parse.urlencode(
         {"term": title, "l": "english", "cc": "US"}
     )
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    for attempt in range(retries + 1):
-        try:
-            with urllib.request.urlopen(req, context=CTX, timeout=12) as r:
-                data = json.loads(r.read())
-            return [
-                {
-                    "id": i["id"],
-                    "name": i["name"],
-                    "windows": i.get("platforms", {}).get("windows", False),
-                }
-                for i in data.get("items", [])
-                if i.get("type") == "app"
-            ]
-        except Exception:
-            if attempt < retries:
-                time.sleep(3)
-            else:
-                return []
-    return []
+    data, err = fetch_with_backoff(
+        url,
+        headers={"User-Agent": "Mozilla/5.0"},
+        timeout=12,
+        retry=RetryPolicy(rate_limit_codes=(403, 429)),
+    )
+    if data is None:
+        return None, err
+    return (
+        [
+            {
+                "id": item["id"],
+                "name": item["name"],
+                "windows": item.get("platforms", {}).get("windows", False),
+            }
+            for item in data.get("items", [])
+            if item.get("type") == "app"
+        ],
+        None,
+    )
 
 
 def title_similarity(a, b):
@@ -113,6 +120,44 @@ def best_match(our_title, results):
         if score > best_score:
             best, best_score = item, score
     return best, best_score
+
+
+def _search_and_classify(gid: int, title: str) -> dict:
+    """Return a cacheable Steam-link decision for one game."""
+    if title in TITLE_BLACKLIST:
+        return {
+            "status": "no_match",
+            "game_id": gid,
+            "title": title,
+            "best_steam": None,
+            "score": 0.0,
+        }
+    results, err = steam_search(title)
+    if results is None:
+        status = "rate_limit_exceeded" if err == "rate_limit_exceeded" else "api_error"
+        return {"status": status, "game_id": gid, "title": title, "error": err}
+    item, score = best_match(title, results) if results else (None, 0.0)
+    if item and score >= HIGH_CONF:
+        status = "add"
+    elif item and score >= REVIEW_CONF:
+        status = "review"
+    else:
+        return {
+            "status": "no_match",
+            "game_id": gid,
+            "title": title,
+            "best_steam": item["name"] if item else None,
+            "score": score,
+        }
+    return {
+        "status": status,
+        "game_id": gid,
+        "title": title,
+        "appid": item["id"],
+        "steam_name": item["name"],
+        "score": score,
+        "url": f"https://store.steampowered.com/app/{item['id']}/",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -165,67 +210,59 @@ def main():
     game_title = {g["id"]: g["title"] for g in games_data}
 
     # --- search and classify ---
-    added, review, no_match = [], [], []
-    total = len(todo_ids)
+    cache = ProgressCache(CACHE_DIR / "steam_link_search_progress.json")
+    transient_statuses = {"rate_limit_exceeded", "api_error"}
+    pending_ids = [
+        gid
+        for gid in todo_ids
+        if str(gid) not in cache
+        or cache.get(str(gid), {}).get("status") in transient_statuses
+    ]
+    total = len(pending_ids)
 
-    for i, gid in enumerate(todo_ids, 1):
+    for i, gid in enumerate(pending_ids, 1):
         title = game_title.get(gid, f"(unknown game {gid})")
-        if title in TITLE_BLACKLIST:
-            print(f"[{i}/{total}] SKIP  {title!r}  (blacklisted DLC/expansion)")
-            continue
-        results = steam_search(title)
-        item, score = best_match(title, results) if results else (None, 0.0)
-
+        key = str(gid)
+        if cache.get(key, {}).get("status") in transient_statuses:
+            cache.data.pop(key)
+        decision = cache.get_or_set(key, partial(_search_and_classify, gid, title))
         tag = f"[{i}/{total}]"
-        if item and score >= HIGH_CONF:
-            steam_url = f"https://store.steampowered.com/app/{item['id']}/"
-            added.append(
-                {
-                    "game_id": gid,
-                    "title": title,
-                    "appid": item["id"],
-                    "steam_name": item["name"],
-                    "score": score,
-                    "url": steam_url,
-                }
-            )
+        if decision["status"] == "add":
             print(
-                f'{tag} ADD   {title!r}  →  "{item["name"]}" ({item["id"]})  [{score:.2f}]'
+                f'{tag} ADD   {title!r}  →  "{decision["steam_name"]}" '
+                f"({decision['appid']})  [{decision['score']:.2f}]"
             )
-        elif item and score >= REVIEW_CONF:
-            steam_url = f"https://store.steampowered.com/app/{item['id']}/"
-            review.append(
-                {
-                    "game_id": gid,
-                    "title": title,
-                    "appid": item["id"],
-                    "steam_name": item["name"],
-                    "score": score,
-                    "url": steam_url,
-                }
-            )
+        elif decision["status"] == "review":
             print(
-                f'{tag} REVIEW {title!r}  ≈  "{item["name"]}" ({item["id"]})  [{score:.2f}]'
+                f'{tag} REVIEW {title!r}  ≈  "{decision["steam_name"]}" '
+                f"({decision['appid']})  [{decision['score']:.2f}]"
             )
-        else:
-            no_match.append(
-                {
-                    "game_id": gid,
-                    "title": title,
-                    "best_steam": item["name"] if item else None,
-                    "score": score,
-                }
-            )
+        elif decision["status"] == "no_match":
+            best_steam = decision.get("best_steam")
             print(
                 f"{tag} SKIP  {title!r}  "
                 + (
-                    f'(best: "{item["name"]}" [{score:.2f}])'
-                    if item
+                    f'(best: "{best_steam}" [{decision["score"]:.2f}])'
+                    if best_steam
                     else "(no results)"
                 )
             )
+        else:
+            print(f"{tag} ERROR {title!r}  ({decision.get('error')})")
 
-        time.sleep(0.8)  # polite rate limit
+        if i % 25 == 0:
+            cache.flush()
+        time.sleep(1.0)
+
+    cache.flush()
+    relevant_decisions = [
+        value
+        for key, value in cache.data.items()
+        if key.isdigit() and int(key) in set(todo_ids)
+    ]
+    added = [d for d in relevant_decisions if d.get("status") == "add"]
+    review = [d for d in relevant_decisions if d.get("status") == "review"]
+    no_match = [d for d in relevant_decisions if d.get("status") == "no_match"]
 
     # --- summary ---
     print(f"\n{'=' * 70}")

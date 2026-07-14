@@ -17,14 +17,19 @@ Usage:
 
 import argparse
 import json
-import re
 import sys
 import time
-import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-from scriptlib import CACHE_DIR, DirectusClient, server_env
+from scriptlib import (
+    CACHE_DIR,
+    DirectusClient,
+    RetryPolicy,
+    fetch_with_backoff,
+    server_env,
+)
+from steamlib import extract_release_year, extract_steam_appid
 
 # ── Config ────────────────────────────────────────────────────────────────────
 CACHE_FILE = CACHE_DIR / "release_year_cache.json"
@@ -33,9 +38,6 @@ DIRECTUS = DirectusClient.from_config()
 GAME_API_ENV = server_env("game-encyclopedia")
 TWITCH_CLIENT_ID = GAME_API_ENV["TWITCH_CLIENT_ID"]
 TWITCH_CLIENT_SECRET = GAME_API_ENV["TWITCH_CLIENT_SECRET"]
-
-MAX_RETRIES = 5
-BACKOFF_BASE = 2.0
 
 # ── Steam Store API ───────────────────────────────────────────────────────────
 
@@ -46,36 +48,22 @@ def steam_release_year(appid: int) -> int | None:
         f"https://store.steampowered.com/api/appdetails"
         f"?appids={appid}&filters=release_date&cc=us&l=en"
     )
-    delay = BACKOFF_BASE
-    for _attempt in range(MAX_RETRIES):
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=15) as r:
-                data = json.loads(r.read())
-            entry = data.get(str(appid), {})
-            if not entry.get("success"):
-                return None
-            date_str = entry.get("data", {}).get("release_date", {}).get("date", "")
-            if not date_str or entry["data"]["release_date"].get("coming_soon"):
-                return None
-            # Formats: "21 Oct, 2020" / "Oct 21, 2020" / "2020" / "Q4 2020"
-            m = re.search(r"\b(20\d{2}|19\d{2})\b", date_str)
-            return int(m.group(1)) if m else None
-        except urllib.error.HTTPError as e:
-            if e.code in (403, 429):
-                print(
-                    f"  Steam rate limit ({e.code}), backing off {delay:.0f}s...",
-                    file=sys.stderr,
-                )
-                time.sleep(delay)
-                delay *= 2
-            else:
-                print(f"  Steam HTTP {e.code} for appid {appid}", file=sys.stderr)
-                return None
-        except Exception as e:
-            print(f"  Steam error for appid {appid}: {e}", file=sys.stderr)
-            return None
-    return None
+    data, err = fetch_with_backoff(
+        url,
+        headers={"User-Agent": "Mozilla/5.0"},
+        retry=RetryPolicy(rate_limit_codes=(403, 429)),
+    )
+    if data is None:
+        print(f"  Steam error for appid {appid}: {err}", file=sys.stderr)
+        return None
+    entry = data.get(str(appid), {})
+    if not entry.get("success"):
+        return None
+    release_date = entry.get("data", {}).get("release_date", {})
+    date_str = release_date.get("date", "")
+    if not date_str or release_date.get("coming_soon"):
+        return None
+    return extract_release_year(date_str)
 
 
 # ── IGDB ──────────────────────────────────────────────────────────────────────
@@ -96,7 +84,7 @@ def get_igdb_token() -> str:
 
 def igdb_post(token: str, body: str) -> list:
     """Submit an IGDB query with retry handling."""
-    req = urllib.request.Request(
+    results, err = fetch_with_backoff(
         "https://api.igdb.com/v4/games",
         data=body.encode(),
         headers={
@@ -104,26 +92,13 @@ def igdb_post(token: str, body: str) -> list:
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
         },
+        method="POST",
+        retry=RetryPolicy(rate_limit_codes=(429,)),
     )
-    delay = BACKOFF_BASE
-    for _attempt in range(MAX_RETRIES):
-        try:
-            with urllib.request.urlopen(req, timeout=15) as r:
-                return json.loads(r.read())
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                print(
-                    f"  IGDB rate limit, backing off {delay:.0f}s...", file=sys.stderr
-                )
-                time.sleep(delay)
-                delay *= 2
-            else:
-                print(f"  IGDB HTTP {e.code}", file=sys.stderr)
-                return []
-        except Exception as e:
-            print(f"  IGDB error: {e}", file=sys.stderr)
-            return []
-    return []
+    if results is None:
+        print(f"  IGDB error: {err}", file=sys.stderr)
+        return []
+    return results
 
 
 def igdb_release_year(token: str, title: str) -> tuple[int | None, str | None]:
@@ -156,10 +131,10 @@ def classify(game):
         for link in links
         if link.get("kind") == "download" and link.get("url")
     ]
-    for u in urls:
-        m = re.search(r"steampowered\.com/app/(\d+)", u)
-        if m:
-            return "steam", int(m.group(1))
+    for url in urls:
+        appid = extract_steam_appid(url)
+        if appid:
+            return "steam", appid
     return "other", None
 
 
@@ -237,7 +212,7 @@ def main():
             year = cache[gid]["year"]
             matched = cache[gid].get("matched")
         else:
-            time.sleep(0.26)
+            time.sleep(1.0)
             if igdb_token is None:
                 raise RuntimeError("IGDB token was not initialized")
             year, matched = igdb_release_year(igdb_token, game["title"])

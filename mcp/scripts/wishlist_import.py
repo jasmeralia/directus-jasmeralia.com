@@ -23,33 +23,30 @@ import sys
 import time
 import urllib.error
 import urllib.request
-import uuid
 from collections import Counter
 from pathlib import Path
 
-from scriptlib import server_env
-from steamlib import genres_from_tags
+from scriptlib import DirectusClient, ProgressCache, derive_game_status, server_env
+from steamlib import (
+    cover_uuid,
+    extract_release_year,
+    extract_steam_appid,
+    fetch_steam_details,
+    fetch_steamspy_tags,
+    find_cover_url,
+    genres_from_tags,
+    import_steam_cover,
+)
 
-DIRECTUS_TOKEN = server_env("directus")["DIRECTUS_TOKEN"]
 STEAMGRIDDB_TOKEN = server_env("game-encyclopedia")["STEAMGRIDDB_API_KEY"]
 STEAM_API_KEY = server_env("steam")["STEAM_API_KEY"]
 STEAM_ID = server_env("steam")["STEAM_ID"]
 
-DIRECTUS_BASE = "https://directus.jasmer.tools"
-STEAMGRIDDB_BASE = "https://www.steamgriddb.com/api/v2"
+DIRECTUS = DirectusClient.from_config()
 CACHE = Path(__file__).parent.parent / "cache"
 PROPOSALS_PATH = CACHE / "wishlist_proposed_import.json"
 PROGRESS_PATH = CACHE / "wishlist_import_progress.json"
 STEAMSPY_CACHE_PATH = CACHE / "steamspy_tags.json"
-
-COVER_NAMESPACE = uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
-STEAM_PORTRAIT_URL = (
-    "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/library_600x900.jpg"
-)
-STEAM_FALLBACK_URLS = [
-    "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/capsule_616x353.jpg",
-    "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/header.jpg",
-]
 
 BLOCKED_APPIDS: set[int] = {
     223850,  # 3DMark
@@ -84,92 +81,6 @@ TITLE_EXCLUSIONS: dict[str, set[str]] = {
 }
 
 
-# ── API helpers ────────────────────────────────────────────────────────────────
-
-
-def directus_get(path: str) -> dict:
-    """Fetch a Directus resource."""
-    url = f"{DIRECTUS_BASE}{path}"
-    req = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {DIRECTUS_TOKEN}",
-            "Accept": "application/json",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def directus_post(path: str, body: dict) -> dict:
-    """Create a Directus resource."""
-    url = f"{DIRECTUS_BASE}{path}"
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(body).encode(),
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {DIRECTUS_TOKEN}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def fetch_steam_details(
-    appid: int, base_delay: float = 1.5
-) -> tuple[dict | None, str | None]:
-    """Fetch Steam appdetails with exponential backoff on 403/429."""
-    url = f"https://store.steampowered.com/api/appdetails?appids={appid}&cc=us&l=en"
-    delay = base_delay
-    for _attempt in range(5):
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=15) as r:
-                data = json.loads(r.read())
-            entry = data.get(str(appid), {})
-            if not entry.get("success"):
-                return None, "api_no_success"
-            return entry["data"], None
-        except urllib.error.HTTPError as e:
-            if e.code in (403, 429):
-                print(
-                    f"  Rate limited ({e.code}), backing off {delay:.0f}s...",
-                    file=sys.stderr,
-                )
-                time.sleep(delay)
-                delay *= 2
-            else:
-                return None, f"http_{e.code}"
-        except Exception as e:
-            return None, f"error:{e}"
-    return None, "rate_limit_exceeded"
-
-
-def fetch_steamspy_tags(appid: int, cache: dict[str, dict]) -> dict[str, int]:
-    """Fetch and cache SteamSpy tag votes for an app."""
-    appid_str = str(appid)
-    if appid_str in cache:
-        return cache[appid_str]
-    url = f"https://steamspy.com/api.php?request=appdetails&appid={appid}"
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(url, timeout=15) as r:
-                data = json.loads(r.read())
-            result = data.get("tags") or {}
-            cache[appid_str] = result
-            return result
-        except Exception as e:
-            if attempt < 2:
-                time.sleep(2**attempt * 2)
-            else:
-                print(f"  SteamSpy error for {appid}: {e}", file=sys.stderr)
-    cache[appid_str] = {}
-    return {}
-
-
 def apply_genre_mapping(
     tags: dict[str, int], steam_genres: list[str], title: str
 ) -> set[str]:
@@ -201,93 +112,6 @@ def slugify(title: str) -> str:
     return t.strip("-")
 
 
-def release_year(date_str: str) -> int | None:
-    """Extract a four-digit release year from a date string."""
-    m = re.search(r"\b(19|20)\d{2}\b", date_str or "")
-    return int(m.group(0)) if m else None
-
-
-def extract_steam_appid(url: str | None) -> int | None:
-    """Extract a Steam app ID from a store URL."""
-    if not url:
-        return None
-    m = re.search(r"store\.steampowered\.com/app/(\d+)", url)
-    return int(m.group(1)) if m else None
-
-
-def cover_uuid(appid: int) -> str:
-    """Return the deterministic Directus file UUID for an app."""
-    return str(uuid.uuid5(COVER_NAMESPACE, str(appid)))
-
-
-def url_exists(url: str) -> bool:
-    """Return whether a URL responds successfully to a HEAD request."""
-    try:
-        req = urllib.request.Request(url, method="HEAD")
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return r.status == 200
-    except Exception:
-        return False
-
-
-def find_cover_url(appid: int) -> str | None:
-    """Find the best available Steam cover URL for an app."""
-    portrait = STEAM_PORTRAIT_URL.format(appid=appid)
-    if url_exists(portrait):
-        return portrait
-    try:
-        url = f"{STEAMGRIDDB_BASE}/grids/steam/{appid}?dimensions=600x900&limit=1"
-        req = urllib.request.Request(
-            url, headers={"Authorization": f"Bearer {STEAMGRIDDB_TOKEN}"}
-        )
-        with urllib.request.urlopen(req, timeout=15) as r:
-            data = json.loads(r.read())
-        grids = data.get("data", [])
-        if grids:
-            return grids[0]["url"]
-    except Exception:
-        pass
-    for tmpl in STEAM_FALLBACK_URLS:
-        url = tmpl.format(appid=appid)
-        if url_exists(url):
-            return url
-    return None
-
-
-def import_cover(appid: int, title: str, slug: str, dry_run: bool) -> str | None:
-    """Import a cover into Directus or report the dry-run action."""
-    file_id = cover_uuid(appid)
-    cover_url = find_cover_url(appid)
-    if not cover_url:
-        print("  [cover] No cover found", file=sys.stderr)
-        return None
-    if dry_run:
-        print(f"  [cover] DRY-RUN {cover_url}", file=sys.stderr)
-        return file_id
-    try:
-        result = directus_post(
-            "/files/import",
-            {
-                "url": cover_url,
-                "data": {
-                    "id": file_id,
-                    "title": f"{title} {appid}",
-                    "filename_download": f"{slug}_{appid}.jpg",
-                },
-            },
-        )
-        return result["data"]["id"]
-    except urllib.error.HTTPError as e:
-        body = e.read().decode(errors="replace")
-        if '"RECORD_NOT_UNIQUE"' in body or e.code == 409:
-            return file_id
-        print(f"  [cover] HTTP {e.code}: {body[:120]}", file=sys.stderr)
-        return None
-    except Exception as e:
-        print(f"  [cover] Error: {e}", file=sys.stderr)
-        return None
-
-
 def upsert_developer(name: str, dev_cache: dict[str, int], dry_run: bool) -> int | None:
     """Return an existing developer ID or create the developer."""
     if name in dev_cache:
@@ -299,7 +123,7 @@ def upsert_developer(name: str, dev_cache: dict[str, int], dry_run: bool) -> int
         print(f"  [dev] DRY-RUN create: {name}", file=sys.stderr)
         return fake_id
     try:
-        result = directus_post("/items/developers", {"name": name, "slug": slug})
+        result = DIRECTUS.post("/items/developers", {"name": name, "slug": slug})
         dev_id = result["data"]["id"]
         dev_cache[name] = dev_id
         print(f"  [dev] Created: {name} → id {dev_id}", file=sys.stderr)
@@ -308,7 +132,7 @@ def upsert_developer(name: str, dev_cache: dict[str, int], dry_run: bool) -> int
         body = e.read().decode(errors="replace")
         if '"RECORD_NOT_UNIQUE"' in body:
             try:
-                r = directus_get(
+                r = DIRECTUS.get(
                     f"/items/developers?filter[slug][_eq]={slug}&limit=1&fields=id,name"
                 )
                 if r["data"]:
@@ -348,7 +172,7 @@ def generate_proposals(delay: float):
     all_games: list[dict] = []
     page = 1
     while True:
-        data = directus_get(
+        data = DIRECTUS.get(
             f"/items/games?fields=id,title,download_url"
             f"&limit=500&offset={500 * (page - 1)}&sort=id"
         )
@@ -373,9 +197,7 @@ def generate_proposals(delay: float):
     print(f"Wishlist games not in Directus: {len(to_import)}", file=sys.stderr)
 
     # Load SteamSpy cache
-    steamspy_cache: dict[str, dict] = {}
-    if STEAMSPY_CACHE_PATH.exists():
-        steamspy_cache = json.loads(STEAMSPY_CACHE_PATH.read_text())
+    steamspy_cache = ProgressCache(STEAMSPY_CACHE_PATH)
 
     # Fetch details for each
     proposals: list[dict] = []
@@ -438,7 +260,7 @@ def generate_proposals(delay: float):
             genre_slugs.add("avn")
 
         sorted_genre_slugs = sorted(genre_slugs)
-        yr = release_year(details.get("release_date", {}).get("date", ""))
+        yr = extract_release_year(details.get("release_date", {}).get("date", ""))
 
         proposals.append(
             {
@@ -450,7 +272,7 @@ def generate_proposals(delay: float):
                 "steam_genres": steam_genres,
                 "developers": details.get("developers", []),
                 "download_url": f"https://store.steampowered.com/app/{appid}/",
-                "game_status": "released" if yr else "unreleased",
+                "game_status": derive_game_status(yr),
                 "player_status": "not_started",
                 "family_sharing": "Family Sharing" in categories,
             }
@@ -458,7 +280,7 @@ def generate_proposals(delay: float):
 
         if (i + 1) % 25 == 0:
             PROPOSALS_PATH.write_text(json.dumps(proposals, indent=2))
-            STEAMSPY_CACHE_PATH.write_text(json.dumps(steamspy_cache, indent=2))
+            steamspy_cache.flush()
             print(
                 f"  [checkpoint] {i + 1} processed, {len(proposals)} proposals",
                 file=sys.stderr,
@@ -467,7 +289,7 @@ def generate_proposals(delay: float):
         time.sleep(delay)
 
     PROPOSALS_PATH.write_text(json.dumps(proposals, indent=2))
-    STEAMSPY_CACHE_PATH.write_text(json.dumps(steamspy_cache, indent=2))
+    steamspy_cache.flush()
     (CACHE / "wishlist_skipped.json").write_text(json.dumps(skipped, indent=2))
 
     print(f"\nProposals: {len(proposals)} | Skipped: {len(skipped)}", file=sys.stderr)
@@ -483,7 +305,9 @@ def generate_proposals(delay: float):
 # ── Phase 2: apply proposals ──────────────────────────────────────────────────
 
 
-def apply_proposals(dry_run: bool, limit: int | None, delay: float):
+def apply_proposals(
+    dry_run: bool, limit: int | None, delay: float, cover_cache: ProgressCache
+):
     """Apply reviewed wishlist import proposals."""
     if not PROPOSALS_PATH.exists():
         print("No proposals found. Run without --apply first.", file=sys.stderr)
@@ -507,12 +331,12 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
         print("DRY RUN — no writes", file=sys.stderr)
 
     # Fetch genre slug→id map
-    genre_data = directus_get("/items/genres?fields=id,slug&limit=-1")
+    genre_data = DIRECTUS.get("/items/genres?fields=id,slug&limit=-1")
     slug_to_id: dict[str, int] = {g["slug"]: g["id"] for g in genre_data["data"]}
 
     # Build developer name→id cache from Directus
     print("Fetching developer cache...", file=sys.stderr)
-    dev_data = directus_get("/items/developers?fields=id,name&limit=-1")
+    dev_data = DIRECTUS.get("/items/developers?fields=id,name&limit=-1")
     dev_cache: dict[str, int] = {d["name"]: d["id"] for d in dev_data["data"]}
 
     for i, game in enumerate(pending):
@@ -522,14 +346,25 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
 
         print(f"[{i + 1}/{len(pending)}] {appid}: {title}", file=sys.stderr)
 
-        cover_id = import_cover(appid, title, slug, dry_run)
+        cover_url = find_cover_url(appid, STEAMGRIDDB_TOKEN, cover_cache)
+        if not cover_url:
+            print(f"  [cover] No cover found for appid {appid}", file=sys.stderr)
+            cover_id = None
+        elif dry_run:
+            print(
+                f"  [cover] DRY-RUN import {cover_url} → {cover_uuid(appid)}",
+                file=sys.stderr,
+            )
+            cover_id = cover_uuid(appid)
+        else:
+            cover_id = import_steam_cover(DIRECTUS, appid, title, slug, cover_url)
 
         game_payload: dict = {
             "title": title,
             "slug": slug,
             "release_year": game.get("release_year"),
             "download_url": game["download_url"],
-            "game_status": game.get("game_status", "released"),
+            "game_status": derive_game_status(game.get("release_year")),
             "player_status": game.get("player_status", "not_started"),
             "family_sharing": game.get("family_sharing", False),
         }
@@ -541,7 +376,7 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
             game_id = -(i + 1)
         else:
             try:
-                result = directus_post("/items/games", game_payload)
+                result = DIRECTUS.post("/items/games", game_payload)
                 game_id = result["data"]["id"]
                 print(f"  [game] Created id {game_id}", file=sys.stderr)
             except urllib.error.HTTPError as e:
@@ -568,7 +403,7 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
                 )
             else:
                 try:
-                    directus_post(
+                    DIRECTUS.post(
                         "/items/games_links",
                         {
                             "games_id": game_id,
@@ -598,7 +433,7 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
                 )
                 continue
             try:
-                directus_post(
+                DIRECTUS.post(
                     "/items/games_genres", {"games_id": game_id, "genres_id": genre_id}
                 )
             except Exception as e:
@@ -613,7 +448,7 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
                 print(f"  [dev] DRY-RUN link {dev_name} (id {dev_id})", file=sys.stderr)
                 continue
             try:
-                directus_post(
+                DIRECTUS.post(
                     "/items/games_developers",
                     {"games_id": game_id, "developers_id": dev_id},
                 )
@@ -629,11 +464,13 @@ def apply_proposals(dry_run: bool, limit: int | None, delay: float):
 
         if (i + 1) % 25 == 0:
             PROGRESS_PATH.write_text(json.dumps(progress, indent=2))
+            cover_cache.flush()
             print(f"  [checkpoint] {i + 1} processed", file=sys.stderr)
 
         time.sleep(delay)
 
     PROGRESS_PATH.write_text(json.dumps(progress, indent=2))
+    cover_cache.flush()
     done_count = sum(1 for v in progress.values() if v.get("status") == "done")
     err_count = sum(
         1 for v in progress.values() if v.get("status", "").startswith("error")
@@ -661,11 +498,18 @@ def main():
         help="Seconds between API calls (default: 0.4)",
     )
     args = parser.parse_args()
+    cover_cache = ProgressCache(CACHE / "steam_cover_url_cache.json")
 
     if args.apply or args.dry_run:
-        apply_proposals(dry_run=args.dry_run, limit=args.limit, delay=args.delay)
+        apply_proposals(
+            dry_run=args.dry_run,
+            limit=args.limit,
+            delay=args.delay,
+            cover_cache=cover_cache,
+        )
     else:
         generate_proposals(delay=args.delay)
+        cover_cache.flush()
 
 
 if __name__ == "__main__":

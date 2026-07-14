@@ -13,12 +13,11 @@ Usage:
 
 import json
 import sys
-import datetime
 import urllib.request
 import urllib.error
 from pathlib import Path
 
-from scriptlib import server_env
+from scriptlib import server_env, take_pg_dump_backup
 
 CACHE = Path(__file__).parent.parent / "cache"
 DIRECTUS_ENV = server_env("directus")
@@ -56,21 +55,6 @@ def api(method: str, path: str, body: dict | None = None) -> dict:
         raise RuntimeError(f"HTTP {e.code} {method} {path}: {body_text}") from e
 
 
-def fetch_all(path: str, page_size: int = 500) -> list:
-    """Fetch all pages from a Directus items endpoint."""
-    results, offset = [], 0
-    while True:
-        sep = "&" if "?" in path else "?"
-        batch = api("GET", f"{path}{sep}limit={page_size}&offset={offset}").get(
-            "data", []
-        )
-        results.extend(batch)
-        if len(batch) < page_size:
-            break
-        offset += page_size
-    return results
-
-
 # ---------------------------------------------------------------------------
 # Backup
 # ---------------------------------------------------------------------------
@@ -78,26 +62,7 @@ def fetch_all(path: str, page_size: int = 500) -> list:
 
 def take_backup():
     """Back up collections affected by tier-move tracking."""
-    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_dir = CACHE / f"backup_{ts}"
-    backup_dir.mkdir(parents=True, exist_ok=True)
-
-    collections = [
-        "games",
-        "genres",
-        "developers",
-        "games_genres",
-        "games_developers",
-        "tier_lists",
-        "tier_rows",
-        "tier_row_games",
-    ]
-    for col in collections:
-        items = fetch_all(f"/items/{col}")
-        (backup_dir / f"{col}.json").write_text(json.dumps(items, indent=2))
-        print(f"  Backed up {len(items):>5} {col}", file=sys.stderr)
-
-    print(f"Backup written to {backup_dir}", file=sys.stderr)
+    take_pg_dump_backup("setup_tier_move_tracking")
 
 
 # ---------------------------------------------------------------------------
@@ -260,6 +225,11 @@ def create_relation(many_collection: str, many_field: str, one_collection: str):
 
 FLOW_NAME = "Track Tier Row Game Moves"
 
+# NOTE: this embeds DIRECTUS_TOKEN as a literal into a Directus flow's stored
+# operation config (persisted server-side in plaintext). A cleaner fix would
+# reference an allow-listed Directus flow env var ({{$env.DIRECTUS_TOKEN}} +
+# FLOWS_ENV_ALLOW_LIST on the Directus container), but that requires Directus-side
+# configuration this script can't verify - flagged for manual follow-up, not fixed here.
 EXEC_CODE = r"""
 module.exports = async function (data) {
   const payload = data.$trigger?.payload;

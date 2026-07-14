@@ -10,16 +10,15 @@ Usage:
   python3 sort_franchise_games.py --apply   # commits changes to Directus
 """
 
-import json
 import sys
 import time
 from collections import defaultdict
 
 import requests
 
-with open(".mcp.json", encoding="utf-8") as f:
-    cfg = json.load(f)
-env = cfg["mcpServers"]["directus"]["env"]
+from scriptlib import server_env
+
+env = server_env("directus")
 BASE = env["DIRECTUS_URL"].rstrip("/")
 TOKEN = env["DIRECTUS_TOKEN"]
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}

@@ -13,7 +13,6 @@ Usage:
 
 import argparse
 import json
-import re
 import sys
 import time
 import urllib.error
@@ -21,7 +20,7 @@ import urllib.request
 from pathlib import Path
 
 from scriptlib import server_env
-from steamlib import fetch_steam_details
+from steamlib import extract_steam_appid, fetch_steam_details
 
 DIRECTUS_ENV = server_env("directus")
 TOKEN = DIRECTUS_ENV["DIRECTUS_TOKEN"]
@@ -46,14 +45,6 @@ def directus_patch(game_id: int, family_sharing: bool) -> bool:
     except Exception as e:
         print(f"  PATCH error for game {game_id}: {e}", file=sys.stderr)
         return False
-
-
-def extract_appid(url: str | None) -> int | None:
-    """Extract a Steam app ID from a store URL."""
-    if not url:
-        return None
-    m = re.search(r"store\.steampowered\.com/app/(\d+)", url)
-    return int(m.group(1)) if m else None
 
 
 def main():
@@ -93,21 +84,23 @@ def main():
     pending = [
         g
         for g in games
-        if extract_appid(g.get("download_url")) is not None
+        if extract_steam_appid(g.get("download_url")) is not None
         and (g["id"] not in done_ids or g["id"] in retry_ids)
     ]
 
     if args.limit:
         pending = pending[: args.limit]
 
-    no_steam = sum(1 for g in games if extract_appid(g.get("download_url")) is None)
+    no_steam = sum(
+        1 for g in games if extract_steam_appid(g.get("download_url")) is None
+    )
     print(
         f"Steam games: {len(games) - no_steam} | Already done: {len(done_ids)} | Pending: {len(pending)}",
         file=sys.stderr,
     )
 
     for i, game in enumerate(pending):
-        appid = extract_appid(game["download_url"])
+        appid = extract_steam_appid(game["download_url"])
         print(f"[{i + 1}/{len(pending)}] {appid}: {game['title']}", file=sys.stderr)
 
         if appid is None:

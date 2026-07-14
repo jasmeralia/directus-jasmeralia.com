@@ -20,7 +20,8 @@ import sys
 import time
 from pathlib import Path
 
-from steamlib import fetch_steam_details
+from scriptlib import derive_game_status
+from steamlib import extract_release_year, fetch_steam_details
 
 CACHE = Path(__file__).parent.parent / "cache"
 # Steam appids that pass the type=="game" filter but are not games (utilities, software, tools).
@@ -38,12 +39,6 @@ def slugify(title: str) -> str:
     t = re.sub(r"[™®]", "", t)
     t = re.sub(r"[^a-z0-9]+", "-", t)
     return t.strip("-")
-
-
-def release_year(date_str: str) -> int | None:
-    """Extract a four-digit release year from a date string."""
-    m = re.search(r"\b(19|20)\d{2}\b", date_str or "")
-    return int(m.group(0)) if m else None
 
 
 def main():
@@ -157,7 +152,7 @@ def main():
             print("  Skipped: playtest", file=sys.stderr)
         else:
             categories = [c["description"] for c in details.get("categories", [])]
-            yr = release_year(details.get("release_date", {}).get("date", ""))
+            yr = extract_release_year(details.get("release_date", {}).get("date", ""))
             results.append(
                 {
                     "appid": appid,
@@ -167,7 +162,7 @@ def main():
                     "genres": [g["description"] for g in details.get("genres", [])],
                     "developers": details.get("developers", []),
                     "download_url": f"https://store.steampowered.com/app/{appid}/",
-                    "game_status": "released" if yr else "unreleased",
+                    "game_status": derive_game_status(yr),
                     "player_status": "not_started",
                     "family_sharing": "Family Sharing" in categories,
                 }

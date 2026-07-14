@@ -21,27 +21,14 @@ import re
 import sys
 import time
 import urllib.error
-import urllib.request
-import uuid
 from pathlib import Path
 
-from scriptlib import server_env
+from scriptlib import DirectusClient, ProgressCache, derive_game_status, server_env
+from steamlib import cover_uuid, find_cover_url, import_steam_cover
 
-DIRECTUS_ENV = server_env("directus")
-TOKEN = DIRECTUS_ENV["DIRECTUS_TOKEN"]
 STEAMGRIDDB_TOKEN = server_env("game-encyclopedia")["STEAMGRIDDB_API_KEY"]
-BASE = DIRECTUS_ENV["DIRECTUS_URL"].rstrip("/")
+DIRECTUS = DirectusClient.from_config()
 CACHE = Path(__file__).parent.parent / "cache"
-STEAMGRIDDB_BASE = "https://www.steamgriddb.com/api/v2"
-
-COVER_NAMESPACE = uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
-STEAM_PORTRAIT_URL = (
-    "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/library_600x900.jpg"
-)
-STEAM_FALLBACK_URLS = [
-    "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/capsule_616x353.jpg",
-    "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/header.jpg",
-]
 
 # Steam genre name → Directus genre id (approved genres only)
 GENRE_MAP = {
@@ -56,122 +43,12 @@ GENRE_MAP = {
 }
 
 
-def api(method: str, path: str, body: dict | None = None) -> dict:
-    """Send an authenticated Directus API request."""
-    url = f"{BASE}{path}"
-    data = json.dumps(body).encode() if body else None
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={
-            "Authorization": f"Bearer {TOKEN}",
-            "Content-Type": "application/json",
-        },
-        method=method,
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read())
-
-
 def slugify(title: str) -> str:
     """Convert a game title into a URL-safe slug."""
     t = title.lower()
     t = re.sub(r"[™®]", "", t)
     t = re.sub(r"[^a-z0-9]+", "-", t)
     return t.strip("-")
-
-
-def cover_uuid(appid: int) -> str:
-    """Return the deterministic Directus file UUID for an app."""
-    return str(uuid.uuid5(COVER_NAMESPACE, str(appid)))
-
-
-def url_exists(url: str) -> bool:
-    """Return whether a URL responds successfully to a HEAD request."""
-    try:
-        req = urllib.request.Request(url, method="HEAD")
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return r.status == 200
-    except Exception:
-        return False
-
-
-def steamgriddb_cover_url(appid: int) -> str | None:
-    """Return the top-rated 600x900 grid image URL from SteamGridDB, or None."""
-    url = f"{STEAMGRIDDB_BASE}/grids/steam/{appid}?dimensions=600x900&limit=1"
-    try:
-        req = urllib.request.Request(
-            url,
-            headers={"Authorization": f"Bearer {STEAMGRIDDB_TOKEN}"},
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read())
-        grids = data.get("data", [])
-        if grids:
-            return grids[0]["url"]
-    except Exception:
-        pass
-    return None
-
-
-def find_cover_url(appid: int) -> str | None:
-    """Find the best available cover URL for a Steam app."""
-    # 1. Steam CDN portrait (preferred)
-    portrait = STEAM_PORTRAIT_URL.format(appid=appid)
-    if url_exists(portrait):
-        return portrait
-
-    # 2. SteamGridDB 600x900 (curated, still portrait)
-    sgdb = steamgriddb_cover_url(appid)
-    if sgdb:
-        return sgdb
-
-    # 3. Steam CDN landscape fallbacks
-    for tmpl in STEAM_FALLBACK_URLS:
-        url = tmpl.format(appid=appid)
-        if url_exists(url):
-            return url
-
-    return None
-
-
-def import_cover(appid: int, title: str, slug: str, dry_run: bool) -> str | None:
-    """Import a cover into Directus or report the dry-run action."""
-    file_id = cover_uuid(appid)
-    filename = f"{slug}_{appid}.jpg"
-    cover_url = find_cover_url(appid)
-    if not cover_url:
-        print(f"  [cover] No cover found for appid {appid}", file=sys.stderr)
-        return None
-
-    if dry_run:
-        print(f"  [cover] DRY-RUN import {cover_url} → {file_id}", file=sys.stderr)
-        return file_id
-
-    try:
-        result = api(
-            "POST",
-            "/files/import",
-            {
-                "url": cover_url,
-                "data": {
-                    "id": file_id,
-                    "title": f"{title} {appid}",
-                    "filename_download": filename,
-                },
-            },
-        )
-        return result["data"]["id"]
-    except urllib.error.HTTPError as e:
-        body = e.read().decode(errors="replace")
-        if '"RECORD_NOT_UNIQUE"' in body or e.code == 409:
-            # Already imported in a previous run — UUID is deterministic so reuse it
-            return file_id
-        print(f"  [cover] HTTP {e.code}: {body[:120]}", file=sys.stderr)
-        return None
-    except Exception as e:
-        print(f"  [cover] Error: {e}", file=sys.stderr)
-        return None
 
 
 def upsert_developer(name: str, dev_cache: dict[str, int], dry_run: bool) -> int | None:
@@ -187,7 +64,7 @@ def upsert_developer(name: str, dev_cache: dict[str, int], dry_run: bool) -> int
         return fake_id
 
     try:
-        result = api("POST", "/items/developers", {"name": name, "slug": slug})
+        result = DIRECTUS.post("/items/developers", {"name": name, "slug": slug})
         dev_id = result["data"]["id"]
         dev_cache[name] = dev_id
         print(f"  [dev] Created: {name} → id {dev_id}", file=sys.stderr)
@@ -197,8 +74,7 @@ def upsert_developer(name: str, dev_cache: dict[str, int], dry_run: bool) -> int
         # Might already exist with same slug — try to fetch by slug
         if '"RECORD_NOT_UNIQUE"' in body:
             try:
-                r = api(
-                    "GET",
+                r = DIRECTUS.get(
                     f"/items/developers?filter[slug][_eq]={slug}&limit=1&fields=id,name",
                 )
                 if r["data"]:
@@ -233,6 +109,7 @@ def main():
     progress: dict[str, dict] = (
         json.loads(progress_path.read_text()) if progress_path.exists() else {}
     )
+    cover_cache = ProgressCache(CACHE / "steam_cover_url_cache.json")
 
     # Load existing developers into cache: name → id
     devs: list[dict] = json.loads(
@@ -261,7 +138,18 @@ def main():
         print(f"[{i + 1}/{len(pending)}] {appid}: {title}", file=sys.stderr)
 
         # 1. Cover image
-        cover_id = import_cover(appid, title, slug, args.dry_run)
+        cover_url = find_cover_url(appid, STEAMGRIDDB_TOKEN, cover_cache)
+        if not cover_url:
+            print(f"  [cover] No cover found for appid {appid}", file=sys.stderr)
+            cover_id = None
+        elif args.dry_run:
+            print(
+                f"  [cover] DRY-RUN import {cover_url} → {cover_uuid(appid)}",
+                file=sys.stderr,
+            )
+            cover_id = cover_uuid(appid)
+        else:
+            cover_id = import_steam_cover(DIRECTUS, appid, title, slug, cover_url)
 
         # 2. Create game record
         game_payload = {
@@ -269,7 +157,7 @@ def main():
             "slug": slug,
             "release_year": game.get("release_year"),
             "download_url": game["download_url"],
-            "game_status": game.get("game_status", "released"),
+            "game_status": derive_game_status(game.get("release_year")),
             "player_status": game.get("player_status", "not_started"),
         }
         if cover_id:
@@ -280,7 +168,7 @@ def main():
             game_id = -(i + 1)
         else:
             try:
-                result = api("POST", "/items/games", game_payload)
+                result = DIRECTUS.post("/items/games", game_payload)
                 game_id = result["data"]["id"]
                 print(f"  [game] Created id {game_id}", file=sys.stderr)
             except urllib.error.HTTPError as e:
@@ -307,8 +195,7 @@ def main():
                 )
             else:
                 try:
-                    api(
-                        "POST",
+                    DIRECTUS.post(
                         "/items/games_links",
                         {
                             "games_id": game_id,
@@ -330,8 +217,7 @@ def main():
                 print(f"  [genre] DRY-RUN link genre {genre_id}", file=sys.stderr)
                 continue
             try:
-                api(
-                    "POST",
+                DIRECTUS.post(
                     "/items/games_genres",
                     {"games_id": game_id, "genres_id": genre_id},
                 )
@@ -347,8 +233,7 @@ def main():
                 print(f"  [dev] DRY-RUN link {dev_name} (id {dev_id})", file=sys.stderr)
                 continue
             try:
-                api(
-                    "POST",
+                DIRECTUS.post(
                     "/items/games_developers",
                     {"games_id": game_id, "developers_id": dev_id},
                 )
@@ -365,11 +250,13 @@ def main():
         # Checkpoint every 25 games
         if (i + 1) % 25 == 0:
             progress_path.write_text(json.dumps(progress, indent=2))
+            cover_cache.flush()
             print(f"  [checkpoint] {i + 1} processed", file=sys.stderr)
 
         time.sleep(args.delay)
 
     progress_path.write_text(json.dumps(progress, indent=2))
+    cover_cache.flush()
     done_count = sum(1 for v in progress.values() if v.get("status") == "done")
     err_count = sum(
         1 for v in progress.values() if v.get("status", "").startswith("error")

@@ -19,7 +19,7 @@ import re
 import sys
 import unicodedata
 
-from scriptlib import CACHE_DIR, DirectusClient
+from scriptlib import CACHE_DIR, DirectusClient, take_pg_dump_backup
 
 CACHE = CACHE_DIR
 DIRECTUS = DirectusClient.from_config()
@@ -193,6 +193,7 @@ def apply():
         (a["games_id"], a["developers_id"]): a["id"] for a in assocs
     }
 
+    take_pg_dump_backup("merge_developers")
     merged_devs = errors = 0
 
     for p in proposals:
