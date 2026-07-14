@@ -18,7 +18,7 @@ import urllib.error
 from datetime import datetime
 from pathlib import Path
 
-from scriptlib import server_env
+from scriptlib import derive_game_status, server_env
 
 DIRECTUS_ENV = server_env("directus")
 DIRECTUS_URL = DIRECTUS_ENV["DIRECTUS_URL"].rstrip("/")
@@ -221,7 +221,7 @@ def main():
                 "slug": make_slug(title),
                 "release_year": game.get("release_year"),
                 "player_status": player_status,
-                "game_status": "released",
+                "game_status": derive_game_status(game.get("release_year")),
                 "download_url": download_url,
                 "cover_image": file_uuid,
                 "family_sharing": None,

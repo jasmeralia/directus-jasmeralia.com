@@ -27,6 +27,8 @@ import ssl
 from collections import defaultdict
 from pathlib import Path
 
+from scriptlib import RetryPolicy, fetch_with_backoff
+
 # ---------------------------------------------------------------------------
 # Paths and config
 # ---------------------------------------------------------------------------
@@ -35,6 +37,7 @@ CACHE_DIR = SCRIPT_DIR.parent / "cache"
 MCP_JSON = SCRIPT_DIR.parent.parent / ".mcp.json"
 PROGRESS_FILE = CACHE_DIR / "console_links_progress.json"
 REVIEW_FILE = CACHE_DIR / "console_links_review.md"
+APPLIED_FILE = CACHE_DIR / "console_links_applied.json"
 
 CACHE_DIR.mkdir(exist_ok=True)
 
@@ -113,22 +116,25 @@ def get_igdb_token():
         return json.loads(r.read())["access_token"]
 
 
-def igdb_search(title, igdb_headers, retries=2):
+def _normalized_fetch_error(err: str | None) -> str | None:
+    """Normalize network failures to a resumable cache status."""
+    return "api_error" if err and err.startswith("error:") else err
+
+
+def igdb_search(title, igdb_headers):
     """Search IGDB for a title with retry handling."""
     # Escape double quotes in title
     safe_title = title.replace('"', '\\"')
     body = f'fields name,platforms.id,platforms.abbreviation; search "{safe_title}"; limit 10;'.encode()
-    req = urllib.request.Request(
-        "https://api.igdb.com/v4/games", data=body, headers=igdb_headers, method="POST"
+    results, err = fetch_with_backoff(
+        "https://api.igdb.com/v4/games",
+        data=body,
+        headers=igdb_headers,
+        method="POST",
+        timeout=12,
+        retry=RetryPolicy(rate_limit_codes=(429,)),
     )
-    for attempt in range(retries + 1):
-        try:
-            with urllib.request.urlopen(req, context=CTX, timeout=12) as r:
-                return json.loads(r.read())
-        except Exception:
-            if attempt < retries:
-                time.sleep(3)
-    return []
+    return results, _normalized_fetch_error(err)
 
 
 def igdb_platform_check(our_title, results):
@@ -205,23 +211,22 @@ XBOX_H = {
 }
 
 
-def xbox_search(title, retries=2):
+def xbox_search(title):
     """Search the Xbox store for a title with retry handling."""
     q = urllib.parse.quote(title)
     url = (
         f"https://storeedgefd.dsx.mp.microsoft.com/v9.0/search"
         f"?market=US&locale=en-US&query={q}&apptype=Game"
     )
-    req = urllib.request.Request(url, headers=XBOX_H)
-    for attempt in range(retries + 1):
-        try:
-            with urllib.request.urlopen(req, context=CTX, timeout=12) as r:
-                data = json.loads(r.read())
-            return data.get("Payload", {}).get("SearchResults", [])
-        except Exception:
-            if attempt < retries:
-                time.sleep(3)
-    return []
+    data, err = fetch_with_backoff(
+        url,
+        headers=XBOX_H,
+        timeout=12,
+        retry=RetryPolicy(rate_limit_codes=(429,)),
+    )
+    if data is None:
+        return None, _normalized_fetch_error(err)
+    return data.get("Payload", {}).get("SearchResults", []), None
 
 
 _XBOX_PC_ONLY = re.compile(
@@ -372,37 +377,43 @@ PSN_H = {
 }
 
 
-def psn_search(title, retries=2):
+def _parse_psn_search(raw: bytes) -> list[dict]:
+    """Extract product results from a PlayStation search response."""
+    body = raw.decode("utf-8", errors="replace")
+    match = re.search(
+        r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', body, re.DOTALL
+    )
+    if not match:
+        return []
+    apollo = json.loads(match.group(1)).get("props", {}).get("apolloState", {})
+    results = []
+    for key, value in apollo.items():
+        if key.startswith("Product:") and isinstance(value, dict) and value.get("name"):
+            product_id = key.replace("Product:", "").replace(":en-us", "")
+            results.append(
+                {
+                    "name": value["name"],
+                    "localizedType": value.get("localizedType", ""),
+                    "url": f"https://store.playstation.com/en-us/product/{product_id}",
+                }
+            )
+    return results
+
+
+def psn_search(title):
     """Search the PlayStation store for a title with retries."""
     q = urllib.parse.quote(title)
     url = f"https://store.playstation.com/en-us/search/{q}"
-    req = urllib.request.Request(url, headers=PSN_H)
-    for attempt in range(retries + 1):
-        try:
-            with urllib.request.urlopen(req, context=CTX, timeout=15) as r:
-                body = r.read().decode("utf-8", errors="replace")
-            m = re.search(
-                r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', body, re.DOTALL
-            )
-            if not m:
-                return []
-            apollo = json.loads(m.group(1)).get("props", {}).get("apolloState", {})
-            results = []
-            for k, v in apollo.items():
-                if k.startswith("Product:") and isinstance(v, dict) and v.get("name"):
-                    pid = k.replace("Product:", "").replace(":en-us", "")
-                    results.append(
-                        {
-                            "name": v["name"],
-                            "localizedType": v.get("localizedType", ""),
-                            "url": f"https://store.playstation.com/en-us/product/{pid}",
-                        }
-                    )
-            return results
-        except Exception:
-            if attempt < retries:
-                time.sleep(5)
-    return []
+    results, err = fetch_with_backoff(
+        url,
+        headers=PSN_H,
+        timeout=15,
+        parse=_parse_psn_search,
+        retry=RetryPolicy(rate_limit_codes=(429,)),
+    )
+    if results is None:
+        return None, _normalized_fetch_error(err)
+    return results, None
 
 
 def psn_best(our_title, results):
@@ -428,6 +439,81 @@ def psn_best(our_title, results):
     if best is None:
         return None, 0.0, None
     return best["name"], best_score, best["url"]
+
+
+def write_review_file(
+    review: list[dict], psn_count: int, xbox_count: int, pc_only_count: int
+) -> None:
+    """Write the manual console-link review queue."""
+    lines = [
+        "# Console Links — Manual Review Queue\n\n",
+        "Auto-generated. Games here either had ambiguous store matches or no IGDB match.\n",
+        f"Run date: {time.strftime('%Y-%m-%d')}\n\n",
+        "| Stat | Count |\n|---|---|\n",
+        f"| PSN links auto-added | {psn_count} |\n",
+        f"| Xbox links auto-added | {xbox_count} |\n",
+        f"| Needs review | {len(review)} |\n",
+        f"| Confirmed PC-only | {pc_only_count} |\n\n",
+        "---\n\n",
+    ]
+    for record in review:
+        lines.append(f"## {record['title']} (game_id={record['game_id']})\n\n")
+        if "igdb" in record:
+            lines.append(f"**IGDB match:** {record['igdb']}\n\n")
+        if "reason" in record:
+            lines.append(f"**Note:** {record['reason']}\n\n")
+        for candidate in record.get("candidates", []):
+            url = candidate.get("url")
+            url_md = f"[{url}]({url})" if url else "_no URL found_"
+            lines.append(
+                f"- **{candidate['platform']}** — {candidate['store_name']!r} "
+                f"(score={candidate['score']:.2f}) → {url_md}\n"
+            )
+        lines.append("\n")
+    REVIEW_FILE.write_text("".join(lines))
+    print(f"\nReview file written: {REVIEW_FILE}")
+
+
+def apply_cached_links(progress: dict) -> None:
+    """Apply every cached add decision that has not already been posted."""
+    applied_keys = (
+        set(json.loads(APPLIED_FILE.read_text())) if APPLIED_FILE.exists() else set()
+    )
+    to_add = []
+    for game_id, record in progress.items():
+        if record.get("status") != "done":
+            continue
+        for added in record.get("added", []):
+            url = added.get("url")
+            applied_key = f"{game_id}:{url}"
+            if url and applied_key not in applied_keys:
+                to_add.append(
+                    {"game_id": int(game_id), "url": url, "applied_key": applied_key}
+                )
+    if not to_add:
+        print("Nothing to add.")
+        return
+
+    print(f"\nAdding {len(to_add)} links...")
+    ok = 0
+    for entry in to_add:
+        try:
+            d_post(
+                "/items/games_links",
+                {
+                    "games_id": entry["game_id"],
+                    "url": entry["url"],
+                    "kind": "download",
+                },
+            )
+            ok += 1
+            applied_keys.add(entry["applied_key"])
+        except Exception as error:
+            print(f"  ERROR game={entry['game_id']}: {error}")
+        time.sleep(0.1)
+
+    APPLIED_FILE.write_text(json.dumps(sorted(applied_keys), indent=2))
+    print(f"Done. Added {ok}/{len(to_add)} links.")
 
 
 # ---------------------------------------------------------------------------
@@ -475,6 +561,8 @@ def main():
         if "steam" in plats and "psn" not in plats and "xbox" not in plats
         if gid not in avn_game_ids
         if str(gid) not in progress
+        or progress[str(gid)].get("status") in {"rate_limit_exceeded", "api_error"}
+        or progress[str(gid)].get("status", "").startswith("http_")
     )
 
     # Fetch titles for all todo games
@@ -516,8 +604,13 @@ def main():
         tag = f"[{i}/{total}]"
 
         # --- IGDB platform check ---
-        igdb_results = igdb_search(title, igdb_headers)
-        time.sleep(0.3)
+        igdb_results, err = igdb_search(title, igdb_headers)
+        time.sleep(1.0)
+        if err is not None:
+            print(f"{tag} ERROR {title!r}  (IGDB: {err})")
+            progress[str(gid)] = {"status": err, "title": title}
+            PROGRESS_FILE.write_text(json.dumps(progress, indent=2))
+            continue
         igdb_name, has_ps, has_xbox, igdb_score = igdb_platform_check(
             title, igdb_results
         )
@@ -562,8 +655,13 @@ def main():
 
         # --- PSN ---
         if has_ps:
-            psn_results = psn_search(title)
+            psn_results, err = psn_search(title)
             time.sleep(2.0)
+            if err is not None:
+                print(f"  PSN  ERROR   {err}")
+                progress[str(gid)] = {"status": err, "title": title}
+                PROGRESS_FILE.write_text(json.dumps(progress, indent=2))
+                continue
             psn_name, psn_score, psn_url = psn_best(title, psn_results)
 
             if psn_name and psn_score >= HIGH_CONF:
@@ -609,8 +707,13 @@ def main():
 
         # --- Xbox ---
         if has_xbox:
-            xbox_results = xbox_search(title)
+            xbox_results, err = xbox_search(title)
             time.sleep(1.0)
+            if err is not None:
+                print(f"  Xbox ERROR   {err}")
+                progress[str(gid)] = {"status": err, "title": title}
+                PROGRESS_FILE.write_text(json.dumps(progress, indent=2))
+                continue
             xbox_name, xbox_score, xbox_url = xbox_best(title, xbox_results)
 
             if xbox_name and xbox_score >= HIGH_CONF:
@@ -690,64 +793,13 @@ def main():
     print(f"For review:        {len(review)}")
     print(f"PC-only (skipped): {len(pc_only)}")
 
-    # --- Write review markdown ---
-    lines = [
-        "# Console Links — Manual Review Queue\n\n",
-        "Auto-generated. Games here either had ambiguous store matches or no IGDB match.\n",
-        f"Run date: {time.strftime('%Y-%m-%d')}\n\n",
-        "| Stat | Count |\n|---|---|\n",
-        f"| PSN links auto-added | {len(added_psn)} |\n",
-        f"| Xbox links auto-added | {len(added_xbox)} |\n",
-        f"| Needs review | {len(review)} |\n",
-        f"| Confirmed PC-only | {len(pc_only)} |\n\n",
-        "---\n\n",
-    ]
-    for r in review:
-        lines.append(f"## {r['title']} (game_id={r['game_id']})\n\n")
-        if "igdb" in r:
-            lines.append(f"**IGDB match:** {r['igdb']}\n\n")
-        if "reason" in r:
-            lines.append(f"**Note:** {r['reason']}\n\n")
-        for c in r.get("candidates", []):
-            url_md = f"[{c['url']}]({c['url']})" if c.get("url") else "_no URL found_"
-            lines.append(
-                f"- **{c['platform']}** — {c['store_name']!r} (score={c['score']:.2f}) → {url_md}\n"
-            )
-        lines.append("\n")
-
-    REVIEW_FILE.write_text("".join(lines))
-    print(f"\nReview file written: {REVIEW_FILE}")
+    write_review_file(review, len(added_psn), len(added_xbox), len(pc_only))
 
     if DRY_RUN:
         print("\nRun with --apply to commit links to Directus.")
         return
 
-    # --- Apply ---
-    to_add = [{"game_id": e["game_id"], "url": e["url"]} for e in added_psn] + [
-        {"game_id": e["game_id"], "url": e["url"]} for e in added_xbox
-    ]
-    if not to_add:
-        print("Nothing to add.")
-        return
-
-    print(f"\nAdding {len(to_add)} links...")
-    ok = 0
-    for entry in to_add:
-        try:
-            d_post(
-                "/items/games_links",
-                {
-                    "games_id": entry["game_id"],
-                    "url": entry["url"],
-                    "kind": "download",
-                },
-            )
-            ok += 1
-        except Exception as e:
-            print(f"  ERROR game={entry['game_id']}: {e}")
-        time.sleep(0.1)
-
-    print(f"Done. Added {ok}/{len(to_add)} links.")
+    apply_cached_links(progress)
 
 
 if __name__ == "__main__":

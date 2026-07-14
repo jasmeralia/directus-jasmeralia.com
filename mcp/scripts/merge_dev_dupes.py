@@ -8,7 +8,7 @@ import sys
 import requests
 
 from developer_merge_data import APPROVED_DEVELOPER_MERGES
-from scriptlib import server_env
+from scriptlib import server_env, take_pg_dump_backup
 
 DIRECTUS_ENV = server_env("directus")
 BASE = DIRECTUS_ENV["DIRECTUS_URL"].rstrip("/")
@@ -137,12 +137,13 @@ def merge(canonical_id, canonical_name, spare_id, spare_name, is_dry_run=False):
 # Canonical = the one we KEEP; spare = the one we DELETE after reparenting
 MERGES = APPROVED_DEVELOPER_MERGES
 
-dry_run = "--dry-run" in sys.argv
+dry_run = "--apply" not in sys.argv
 
 if dry_run:
     print("=== DRY RUN MODE ===")
 else:
-    print("=== LIVE MODE — executing merges ===")
+    print("=== LIVE MODE - executing merges ===")
+    take_pg_dump_backup("merge_dev_dupes")
 
 print(f"Total pairs to merge: {len(MERGES)}")
 print()

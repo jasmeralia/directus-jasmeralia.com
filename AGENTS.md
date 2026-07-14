@@ -202,6 +202,8 @@ TOKEN = _mcp["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
 2. **Retry with exponential backoff** on rate-limit responses (HTTP 429, and 403 on Steam which uses 403 instead of 429). Silent exception swallowing (`except Exception: return None`) is not acceptable — rate-limit hits must be surfaced so they are distinguishable from genuine no-results.
 3. **A maximum retry cap** (5 attempts) with a clearly logged failure after exhaustion.
 
+Use `fetch_with_backoff` / `RetryPolicy` from `scriptlib.py` rather than reimplementing this loop — every script listed as non-compliant in the mcp/scripts audit (2026-07) had a bespoke, slightly-wrong copy of this pattern.
+
 Standard pattern used across this project:
 
 ```python
@@ -260,6 +262,8 @@ for collection, fk in GAME_JUNCTIONS:
     for row in rows:
         d_delete(f"/items/{collection}/{row['id']}")
 ```
+
+This list and loop are also available as `scriptlib.GAME_JUNCTIONS` / `scriptlib.delete_game_junctions(client, game_id)` — call that instead of reimplementing the loop.
 
 This has caused build failures more than once (orphaned `tier_list_games` rows leave `game_id: null` entries that crash the tiers page template).
 

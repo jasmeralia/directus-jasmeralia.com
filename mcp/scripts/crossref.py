@@ -11,6 +11,8 @@ import json
 import re
 from pathlib import Path
 
+from steamlib import extract_steam_appid
+
 CACHE = Path(__file__).parent.parent / "cache"
 
 
@@ -22,14 +24,6 @@ def normalize(title: str) -> str:
     t = re.sub(r"\b(the|a|an)\b", "", t)
     t = re.sub(r"\s+", " ", t).strip()
     return t
-
-
-def extract_steam_appid(url: str | None) -> int | None:
-    """Extract a Steam app ID from a store URL."""
-    if not url:
-        return None
-    m = re.search(r"store\.steampowered\.com/app/(\d+)", url)
-    return int(m.group(1)) if m else None
 
 
 def fuzzy_match(needle: str, steam_by_norm: dict[str, dict]) -> dict | None:

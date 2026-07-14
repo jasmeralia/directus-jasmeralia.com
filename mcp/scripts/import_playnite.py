@@ -31,6 +31,8 @@ import ssl
 from pathlib import Path
 from typing import Any
 
+from scriptlib import derive_game_status, parse_playnite_release_year
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
@@ -533,7 +535,13 @@ def main():
             if _SKIP_RE.search(title):
                 print(f"  [SKIP] non-game entry excluded: {title}")
                 continue
-            entries.append({"title": title, "source": source})
+            entries.append(
+                {
+                    "title": title,
+                    "source": source,
+                    "release_date": row.get("ReleaseDate", ""),
+                }
+            )
 
     print(
         f"Found {len(entries)} entries ({sum(1 for e in entries if e['source'] == 'GOG')} GOG, "
@@ -666,6 +674,7 @@ def main():
             # low-conf for existing game: already tracked in low_conf + review, no further action
         else:
             game_slug = slug_from_title(title)
+            release_year = parse_playnite_release_year(entry.get("release_date"))
             if store_url and url_conf >= HIGH_CONF:
                 if not DRY_RUN:
                     result = d_post(
@@ -673,7 +682,8 @@ def main():
                         {
                             "title": title,
                             "slug": game_slug,
-                            "game_status": "released",
+                            "release_year": release_year,
+                            "game_status": derive_game_status(release_year),
                         },
                     )
                     game_id = result["data"]["id"]

@@ -12,24 +12,18 @@ Usage:
   python3 merge_edition_duplicates.py --apply  # commit
 """
 
-import json
 import sys
 import time
-import urllib.request
 
-from scriptlib import server_env
+from scriptlib import (
+    DirectusClient,
+    delete_game_junctions,
+    take_pg_dump_backup,
+)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-DIRECTUS_ENV = server_env("directus")
-BASE = DIRECTUS_ENV["DIRECTUS_URL"].rstrip("/")
-TOKEN = DIRECTUS_ENV["DIRECTUS_TOKEN"]
+DIRECTUS = DirectusClient.from_config()
 DRY_RUN = "--apply" not in sys.argv
-
-HDR = {
-    "Authorization": f"Bearer {TOKEN}",
-    "Content-Type": "application/json",
-    "Accept": "application/json",
-}
 
 # ── (base_id, edition_id): edition deleted, its download links go to base ────
 MERGE_PAIRS = [
@@ -87,44 +81,9 @@ MERGE_PAIRS = [
 ]
 
 
-# ── HTTP helpers ──────────────────────────────────────────────────────────────
-
-
-def d_get(path):
-    """Fetch a Directus resource."""
-    req = urllib.request.Request(f"{BASE}{path}", headers=HDR)
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def d_post(path, body):
-    """Create a Directus resource."""
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(f"{BASE}{path}", data=data, headers=HDR, method="POST")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def d_patch(path, body):
-    """Update a Directus resource."""
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(
-        f"{BASE}{path}", data=data, headers=HDR, method="PATCH"
-    )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
-
-
-def d_delete(path):
-    """Delete a Directus resource."""
-    req = urllib.request.Request(f"{BASE}{path}", headers=HDR, method="DELETE")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.status
-
-
 def get_game(game_id):
     """Fetch one game with the relations needed for merging."""
-    return d_get(
+    return DIRECTUS.get(
         f"/items/games/{game_id}"
         f"?fields=id,title,cover_image,links.id,links.url,links.kind,links.sort"
     )["data"]
@@ -137,6 +96,8 @@ def main():
     """Merge known edition duplicates into canonical games."""
     mode = "DRY RUN" if DRY_RUN else "APPLY"
     print(f"[{mode}] Merging {len(MERGE_PAIRS)} edition pairs\n")
+    if not DRY_RUN:
+        take_pg_dump_backup("merge_edition_duplicates")
 
     links_added = 0
     covers_copied = 0
@@ -169,7 +130,7 @@ def main():
         for link in new_links:
             print(f"  + link: {link['url']}")
             if not DRY_RUN:
-                d_post(
+                DIRECTUS.post(
                     "/items/games_links",
                     {
                         "games_id": base_id,
@@ -188,28 +149,16 @@ def main():
         if not base.get("cover_image") and edition.get("cover_image"):
             print(f"  + cover: {edition['cover_image']}")
             if not DRY_RUN:
-                d_patch(
+                DIRECTUS.patch(
                     f"/items/games/{base_id}", {"cover_image": edition["cover_image"]}
                 )
             covers_copied += 1
 
-        # Explicitly remove tier_list_games rows before deleting the game.
-        # Directus does not reliably cascade-delete these junction rows, and
-        # any surviving orphan (game_id → null) causes a build-time crash in
-        # the tiers page template.
-        tier_rows = d_get(
-            f"/items/tier_list_games?fields=id,tier_list_id&filter[game_id][_eq]={edition_id}&limit=-1"
-        ).get("data", [])
-        if tier_rows:
-            print(f"  - remove {len(tier_rows)} tier_list_games row(s)")
-            if not DRY_RUN:
-                for tr in tier_rows:
-                    d_delete(f"/items/tier_list_games/{tr['id']}")
-
         # Delete edition game record
         print(f"  - delete game {edition_id}")
         if not DRY_RUN:
-            d_delete(f"/items/games/{edition_id}")
+            delete_game_junctions(DIRECTUS, edition_id)
+            DIRECTUS.delete(f"/items/games/{edition_id}")
         deleted += 1
 
         print()

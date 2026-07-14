@@ -3,17 +3,195 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
+from datetime import datetime
 from functools import cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CACHE_DIR = Path(__file__).resolve().parent.parent / "cache"
 MCP_CONFIG_PATH = REPO_ROOT / ".mcp.json"
+
+DEFAULT_MAX_RETRIES = 5
+DEFAULT_BACKOFF_BASE = 2.0
+
+
+@dataclass(frozen=True)
+class RetryPolicy:
+    """Retry/backoff behavior for fetch_with_backoff."""
+
+    max_retries: int = DEFAULT_MAX_RETRIES
+    backoff_base: float = DEFAULT_BACKOFF_BASE
+    rate_limit_codes: tuple[int, ...] = (429,)
+
+
+def fetch_with_backoff(
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    data: bytes | None = None,
+    timeout: float = 15,
+    parse: Callable[[bytes], Any] = json.loads,
+    retry: RetryPolicy | None = None,
+    **request_options: str,
+) -> tuple[Any | None, str | None]:
+    """Fetch a URL with exponential backoff on rate-limit responses.
+
+    `parse` converts the raw response body (default: JSON decode). Pass
+    `parse=lambda raw: raw` to get raw bytes back (e.g. image downloads).
+    Returns (parsed_body, None) on success, or (None, error_code) on
+    failure, where error_code is "http_<code>", "error:<...>", or
+    "rate_limit_exceeded". A rate-limit hit (HTTP code in
+    retry.rate_limit_codes) is retried with exponential backoff and is
+    NEVER silently swallowed as an empty/no-result response - callers must
+    branch on the returned error_code rather than treating None the same
+    as "no data found".
+    """
+    method = request_options.pop("method", "GET")
+    if request_options:
+        names = ", ".join(sorted(request_options))
+        raise TypeError(f"Unexpected request option(s): {names}")
+    policy = retry or RetryPolicy()
+    delay = policy.backoff_base
+    for attempt in range(policy.max_retries):
+        try:
+            req = urllib.request.Request(
+                url, data=data, method=method, headers=headers or {}
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                return parse(response.read()), None
+        except urllib.error.HTTPError as error:
+            if error.code in policy.rate_limit_codes:
+                print(
+                    f"  Rate limited (HTTP {error.code}), backing off {delay:.0f}s "
+                    f"(attempt {attempt + 1}/{policy.max_retries})...",
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+                delay *= 2
+            else:
+                return None, f"http_{error.code}"
+        except Exception as error:  # Network failures are surfaced to the caller.
+            return None, f"error:{error}"
+    return None, "rate_limit_exceeded"
+
+
+class ProgressCache:
+    """JSON-backed key-value cache for resumable, dry-run-then-apply scripts.
+
+    Load once at startup; call get_or_set(key, compute) per item so compute()
+    only runs for keys not already cached. The same cache file backs both the
+    dry-run and the apply phase, so a real run never repeats an external API
+    call that a prior dry run already resolved. Flushes to disk periodically
+    (every `flush_every` new entries) so a crash never loses more than that
+    many unsaved results; call flush() once more at the end of the run.
+    """
+
+    def __init__(self, path: Path, flush_every: int = 25) -> None:
+        self.path = path
+        self.flush_every = flush_every
+        self._dirty_count = 0
+        self.data: dict[str, Any] = (
+            json.loads(path.read_text()) if path.exists() else {}
+        )
+
+    def __contains__(self, key: str) -> bool:
+        """Return whether key has a cached value."""
+        return key in self.data
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Return a cached value or default when key is absent."""
+        return self.data.get(key, default)
+
+    def set(self, key: str, value: Any) -> None:
+        """Cache a value and flush when the checkpoint threshold is reached."""
+        self.data[key] = value
+        self._dirty_count += 1
+        if self._dirty_count >= self.flush_every:
+            self.flush()
+
+    def get_or_set(self, key: str, compute: Callable[[], Any]) -> Any:
+        """Return the cached value for key, computing and storing it if absent."""
+        if key in self.data:
+            return self.data[key]
+        value = compute()
+        self.set(key, value)
+        return value
+
+    def flush(self) -> None:
+        """Persist all cached values to disk."""
+        self.path.parent.mkdir(exist_ok=True)
+        self.path.write_text(json.dumps(self.data, indent=2))
+        self._dirty_count = 0
+
+
+def derive_game_status(release_year: int | None) -> str:
+    """Return the game_status implied by a release year: unreleased when null."""
+    return "released" if release_year else "unreleased"
+
+
+def parse_playnite_release_year(date_str: str | None) -> int | None:
+    """Parse a Playnite CSV M/D/YYYY release date into a year, or None."""
+    if not date_str:
+        return None
+    try:
+        return int(date_str.split("/")[-1])
+    except (ValueError, IndexError):
+        return None
+
+
+GAME_JUNCTIONS: tuple[tuple[str, str], ...] = (
+    ("tier_list_games", "game_id"),
+    ("games_genres", "games_id"),
+    ("games_developers", "games_id"),
+    ("games_links", "games_id"),
+)
+
+
+def delete_game_junctions(client: DirectusClient, game_id: int) -> None:
+    """Delete every junction row referencing a game before deleting the game itself.
+
+    Directus does not reliably cascade-delete these rows; a surviving orphan
+    (game_id pointing at a deleted record) crashes any Astro page that
+    expands the relation. Call this immediately before
+    DELETE /items/games/{game_id}.
+    """
+    for collection, fk in GAME_JUNCTIONS:
+        rows = client.fetch_all(
+            f"/items/{collection}?fields=id&filter[{fk}][_eq]={game_id}"
+        )
+        for row in rows:
+            client.delete(f"/items/{collection}/{row['id']}")
+
+
+def take_pg_dump_backup(label: str) -> str:
+    """Take a pg_dump backup on TrueNAS before a delete or schema change.
+
+    Runs the exact command documented in AGENTS.md's "Rules for schema
+    changes" section over SSH. Returns the backup filename on success;
+    raises RuntimeError if the remote pipeline exits non-zero.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"directus_{timestamp}_{label}.sql.gz"
+    remote_path = f"/mnt/myzmirror/directus-jasmeralia/backups/{filename}"
+    remote_cmd = (
+        f"docker exec cms-db pg_dump -U directus directus | gzip > {remote_path}"
+    )
+    result = subprocess.run(
+        ["ssh", "morgan@truenas.windsofstorm.net", remote_cmd],
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"pg_dump backup failed (ssh exit {result.returncode})")
+    print(f"Backup written: {remote_path}", file=sys.stderr)
+    return filename
 
 
 @cache

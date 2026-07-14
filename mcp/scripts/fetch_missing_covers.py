@@ -21,7 +21,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from scriptlib import CACHE_DIR, DirectusClient, server_env
+from scriptlib import (
+    CACHE_DIR,
+    DirectusClient,
+    RetryPolicy,
+    fetch_with_backoff,
+    server_env,
+)
 
 MAX_RETRIES = 5
 BACKOFF_BASE = 2.0
@@ -115,13 +121,15 @@ def igdb_cover(token: str, title: str) -> tuple[str | None, str | None]:
 
 def fetch_bytes(url: str) -> bytes | None:
     """Download bytes from a URL, returning None on failure."""
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=15) as r:
-            return r.read()
-    except Exception as e:
-        print(f"    Fetch error: {e}", file=sys.stderr)
-        return None
+    payload, err = fetch_with_backoff(
+        url,
+        headers={"User-Agent": "Mozilla/5.0"},
+        parse=lambda raw: raw,
+        retry=RetryPolicy(rate_limit_codes=(403, 429)),
+    )
+    if payload is None:
+        print(f"    Fetch error: {err}", file=sys.stderr)
+    return payload
 
 
 IGDB_CACHE_FILE = CACHE_DIR / "igdb_cover_cache.json"

@@ -14,20 +14,15 @@ Usage:
 
 import argparse
 import json
-import re
 import sys
 import time
-import urllib.error
-import urllib.request
 from collections import Counter
 
-from scriptlib import CACHE_DIR, DirectusClient
-from steamlib import genres_from_tags
+from scriptlib import CACHE_DIR, DirectusClient, ProgressCache
+from steamlib import extract_steam_appid, fetch_steamspy_tags, genres_from_tags
 
 CACHE = CACHE_DIR
 DIRECTUS = DirectusClient.from_config()
-STEAMSPY_URL = "https://steamspy.com/api.php?request=appdetails&appid={appid}"
-
 MIN_VOTES = 20
 
 # Per-title overrides: genres to never assign to a specific game title.
@@ -54,31 +49,6 @@ TITLE_EXCLUSIONS: dict[str, set[str]] = {
 }
 
 
-def extract_steam_appid(url: str | None) -> int | None:
-    """Extract a Steam app ID from a store URL."""
-    if not url:
-        return None
-    m = re.search(r"store\.steampowered\.com/app/(\d+)", url)
-    return int(m.group(1)) if m else None
-
-
-def fetch_steamspy_tags(appid: int) -> dict[str, int] | None:
-    """Returns {tag: vote_count} or None on error."""
-    url = STEAMSPY_URL.format(appid=appid)
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(url, timeout=15) as resp:
-                data = json.loads(resp.read())
-            return data.get("tags") or {}
-        except Exception as e:
-            if attempt < 2:
-                time.sleep(2**attempt * 2)
-            else:
-                print(f"  SteamSpy error for {appid}: {e}", file=sys.stderr)
-                return None
-    return None
-
-
 def apply_mapping(tags: dict[str, int]) -> set[str]:
     """Return set of genre slugs to add based on tags."""
     return genres_from_tags(tags, MIN_VOTES)
@@ -89,11 +59,8 @@ def generate_proposals():
     tags_cache_path = CACHE / "steamspy_tags.json"
     proposals_path = CACHE / "genre_backfill_proposals.json"
 
-    # Load cached SteamSpy results
-    tags_cache: dict[str, dict[str, int]] = {}
-    if tags_cache_path.exists():
-        tags_cache = json.loads(tags_cache_path.read_text())
-    print(f"Loaded {len(tags_cache)} cached SteamSpy entries", file=sys.stderr)
+    tags_cache = ProgressCache(tags_cache_path)
+    print(f"Loaded {len(tags_cache.data)} cached SteamSpy entries", file=sys.stderr)
 
     # Fetch all Steam games from Directus
     print("Fetching games from Directus...", file=sys.stderr)
@@ -125,20 +92,19 @@ def generate_proposals():
 
     proposals = []
     for i, (game, appid) in enumerate(steam_games):
-        appid_str = str(appid)
-        if appid_str not in tags_cache:
+        cache_key = f"steamspy:{appid}"
+        if cache_key not in tags_cache:
             print(
                 f"[{i + 1}/{len(steam_games)}] Fetching {appid}: {game['title']}...",
                 file=sys.stderr,
             )
-            fetched = fetch_steamspy_tags(appid)
-            tags_cache[appid_str] = fetched if fetched is not None else {}
+            tags = fetch_steamspy_tags(appid, tags_cache)
             time.sleep(1.0)
-
-        tags = tags_cache[appid_str]
+        else:
+            tags = fetch_steamspy_tags(appid, tags_cache)
 
         if (i + 1) % 25 == 0:
-            tags_cache_path.write_text(json.dumps(tags_cache, indent=2))
+            tags_cache.flush()
             print(
                 f"  [checkpoint] {i + 1}/{len(steam_games)} processed", file=sys.stderr
             )
@@ -170,7 +136,7 @@ def generate_proposals():
                 }
             )
 
-    tags_cache_path.write_text(json.dumps(tags_cache, indent=2))
+    tags_cache.flush()
     proposals_path.write_text(json.dumps(proposals, indent=2))
     print(f"\nDone: {len(proposals)} games have new genre proposals", file=sys.stderr)
     print(f"Proposals: {proposals_path}", file=sys.stderr)

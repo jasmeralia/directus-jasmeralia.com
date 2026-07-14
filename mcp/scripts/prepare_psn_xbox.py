@@ -19,8 +19,10 @@ import urllib.parse
 from difflib import SequenceMatcher
 from pathlib import Path
 
+from scriptlib import server_env
+
 CSV_PATH = Path.home() / "Downloads" / "playnite_export.csv"
-DIRECTUS_URL = "https://directus.jasmer.tools"
+DIRECTUS_URL = server_env("directus")["DIRECTUS_URL"]
 DIRECTUS_TOKEN = json.loads(
     (Path(__file__).parent.parent.parent / ".mcp.json").read_text(encoding="utf-8")
 )["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
@@ -37,16 +39,6 @@ CONTENT_FILTERS = [
 def is_filtered(title: str) -> bool:
     """Return whether a title matches an import exclusion rule."""
     return any(f(title) for f in CONTENT_FILTERS)
-
-
-def parse_release_year(date_str: str) -> int | None:
-    """Parse M/D/YYYY → year int, or None if blank/invalid."""
-    if not date_str:
-        return None
-    try:
-        return int(date_str.split("/")[-1])
-    except (ValueError, IndexError):
-        return None
 
 
 def fetch_directus_titles() -> list[dict]:

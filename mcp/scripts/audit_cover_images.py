@@ -17,54 +17,38 @@ Usage:
 
 import argparse
 import json
-import re
 import sys
 import time
-import urllib.error
 import urllib.request
 from collections import Counter
+from functools import partial
 
-from scriptlib import CACHE_DIR, DirectusClient, server_env
+from scriptlib import (
+    CACHE_DIR,
+    DirectusClient,
+    ProgressCache,
+    RetryPolicy,
+    fetch_with_backoff,
+    server_env,
+)
+from steamlib import extract_steam_appid
 
 CACHE = CACHE_DIR
 DIRECTUS = DirectusClient.from_config()
 STEAMGRID_KEY = server_env("game-encyclopedia")["STEAMGRIDDB_API_KEY"]
 
-MAX_RETRIES = 5
-BACKOFF_BASE = 2.0
-
-
-def extract_appid(url: str | None) -> int | None:
-    """Extract a Steam app ID from a store URL."""
-    if not url:
-        return None
-    m = re.search(r"store\.steampowered\.com/app/(\d+)", url)
-    return int(m.group(1)) if m else None
-
 
 def fetch_url_bytes(url: str) -> bytes | None:
     """Download bytes with rate-limit retry handling."""
-    delay = BACKOFF_BASE
-    for _attempt in range(MAX_RETRIES):
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=15) as r:
-                return r.read()
-        except urllib.error.HTTPError as e:
-            if e.code in (403, 429):
-                print(
-                    f"    Rate limited ({e.code}), backing off {delay:.0f}s...",
-                    file=sys.stderr,
-                )
-                time.sleep(delay)
-                delay *= 2
-            else:
-                print(f"    HTTP {e.code}: {url}", file=sys.stderr)
-                return None
-        except Exception as e:
-            print(f"    Error: {e}", file=sys.stderr)
-            return None
-    return None
+    payload, err = fetch_with_backoff(
+        url,
+        headers={"User-Agent": "Mozilla/5.0"},
+        parse=lambda raw: raw,
+        retry=RetryPolicy(rate_limit_codes=(403, 429)),
+    )
+    if payload is None:
+        print(f"    Fetch error: {err}", file=sys.stderr)
+    return payload
 
 
 SGDB_HEADERS = {"Authorization": f"Bearer {STEAMGRID_KEY}", "User-Agent": "Mozilla/5.0"}
@@ -75,16 +59,16 @@ def steamgrid_best_portrait(appid: int) -> str | None:
     if not STEAMGRID_KEY:
         return None
     grids_url = f"https://www.steamgriddb.com/api/v2/grids/steam/{appid}?dimensions=600x900&limit=1"
-    req = urllib.request.Request(grids_url, headers=SGDB_HEADERS)
-    try:
-        with urllib.request.urlopen(req, timeout=15) as r:
-            grids = json.loads(r.read())
-        items = grids.get("data") or []
-        if items:
-            return items[0]["url"]
-    except Exception:
-        pass
-    return None
+    grids, err = fetch_with_backoff(
+        grids_url,
+        headers=SGDB_HEADERS,
+        retry=RetryPolicy(rate_limit_codes=(403, 429)),
+    )
+    if grids is None:
+        print(f"    SteamGridDB error: {err}", file=sys.stderr)
+        return None
+    items = grids.get("data") or []
+    return items[0]["url"] if items else None
 
 
 def steam_portrait_url(appid: int) -> str | None:
@@ -101,6 +85,11 @@ def steam_portrait_url(appid: int) -> str | None:
         except Exception:
             pass
     return None
+
+
+def find_portrait_source(appid: int) -> str | None:
+    """Return the preferred portrait source URL for a Steam app."""
+    return steamgrid_best_portrait(appid) or steam_portrait_url(appid)
 
 
 def audit():
@@ -186,10 +175,15 @@ def fix(dry_run: bool):
 
     flagged = json.loads(audit_path.read_text())
     print(f"{len(flagged)} games to fix", file=sys.stderr)
+    cache = ProgressCache(CACHE / "cover_fix_progress.json")
 
     fixed = skipped = errors = 0
     for game in flagged:
-        appid = extract_appid(game.get("download_url"))
+        game_key = str(game["id"])
+        if cache.get(game_key, {}).get("status") == "done":
+            skipped += 1
+            continue
+        appid = extract_steam_appid(game.get("download_url"))
         if not appid:
             print(f"  SKIP (no Steam appid): {game['title']}", file=sys.stderr)
             skipped += 1
@@ -201,7 +195,10 @@ def fix(dry_run: bool):
         )
 
         # Try SteamGridDB first, then Steam portrait CDN
-        img_url = steamgrid_best_portrait(appid) or steam_portrait_url(appid)
+        img_url = cache.get_or_set(
+            f"source:{game['id']}",
+            partial(find_portrait_source, appid),
+        )
         if not img_url:
             print("    No portrait source found, skipping", file=sys.stderr)
             skipped += 1
@@ -229,9 +226,11 @@ def fix(dry_run: bool):
 
         DIRECTUS.patch(f"/items/games/{game['id']}", {"cover_image": new_uuid})
         print(f"    Updated cover → {new_uuid}", file=sys.stderr)
+        cache.set(game_key, {"status": "done", "new_uuid": new_uuid})
         fixed += 1
         time.sleep(0.5)
 
+    cache.flush()
     print(f"\nDone: {fixed} fixed, {skipped} skipped, {errors} errors", file=sys.stderr)
 
 

@@ -14,12 +14,13 @@ Credentials from .mcp.json:
 import json
 import sys
 import time
-import urllib.request
 import urllib.parse
-import urllib.error
+import urllib.request
 from datetime import datetime
 from difflib import SequenceMatcher
 from pathlib import Path
+
+from scriptlib import RetryPolicy, fetch_with_backoff
 
 
 # Load credentials from .mcp.json
@@ -47,13 +48,6 @@ def get_twitch_token(client_id: str, client_secret: str) -> str:
     return data["access_token"]
 
 
-IGDB_MAX_RETRIES = 4
-IGDB_BACKOFF_BASE = 2.0
-
-SGDB_MAX_RETRIES = 4
-SGDB_BACKOFF_BASE = 2.0
-
-
 def igdb_search(title: str, client_id: str, token: str) -> dict | None:
     """Search IGDB for a game, return best-match metadata dict or None."""
     # Platform IDs: PS4=48, PS5=167, Xbox One=49, Xbox Series=169, PC=6
@@ -63,7 +57,7 @@ def igdb_search(title: str, client_id: str, token: str) -> dict | None:
         f"involved_companies.company.name,involved_companies.developer,cover.url; "
         f"where platforms = (48,167,49,169,6); limit 5;"
     )
-    req = urllib.request.Request(
+    results, err = fetch_with_backoff(
         "https://api.igdb.com/v4/games",
         data=query.encode(),
         headers={
@@ -72,28 +66,10 @@ def igdb_search(title: str, client_id: str, token: str) -> dict | None:
             "Content-Type": "text/plain",
         },
         method="POST",
+        retry=RetryPolicy(rate_limit_codes=(429,)),
     )
-    delay = IGDB_BACKOFF_BASE
-    for _attempt in range(IGDB_MAX_RETRIES):
-        try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                results = json.loads(resp.read())
-            break
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                print(
-                    f"  IGDB rate limited, backing off {delay:.0f}s...", file=sys.stderr
-                )
-                time.sleep(delay)
-                delay *= 2
-                continue
-            print(f"  IGDB error for {title!r}: HTTP {e.code}", file=sys.stderr)
-            return None
-        except Exception as e:
-            print(f"  IGDB error for {title!r}: {e}", file=sys.stderr)
-            return None
-    else:
-        print(f"  IGDB: gave up after retries for {title!r}", file=sys.stderr)
+    if results is None:
+        print(f"  IGDB error for {title!r}: {err}", file=sys.stderr)
         return None
 
     if not results:
@@ -145,37 +121,24 @@ _SGDB_403_LIMIT = 20
 
 def _sgdb_request(url: str, api_key: str, title: str) -> dict | None:
     """Make a single SteamGridDB request with exponential backoff on 429/503."""
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
-    delay = SGDB_BACKOFF_BASE
-    for _attempt in range(SGDB_MAX_RETRIES):
-        try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                SGDB_STATE["consecutive_403s"] = 0
-                return json.loads(resp.read())
-        except urllib.error.HTTPError as e:
-            if e.code == 403:
-                SGDB_STATE["consecutive_403s"] += 1
-                if SGDB_STATE["consecutive_403s"] >= _SGDB_403_LIMIT:
-                    print(
-                        "  SteamGridDB: 3 consecutive 403s — disabling for this run (check API key)",
-                        file=sys.stderr,
-                    )
-                    SGDB_STATE["disabled"] = True
-                return None
-            if e.code in (429, 503):
-                print(
-                    f"  SteamGridDB rate limited (HTTP {e.code}), backing off {delay:.0f}s...",
-                    file=sys.stderr,
-                )
-                time.sleep(delay)
-                delay *= 2
-                continue
-            print(f"  SteamGridDB HTTP {e.code} for {title!r}", file=sys.stderr)
-            return None
-        except Exception as e:
-            print(f"  SteamGridDB error for {title!r}: {e}", file=sys.stderr)
-            return None
-    print(f"  SteamGridDB: gave up after retries for {title!r}", file=sys.stderr)
+    payload, err = fetch_with_backoff(
+        url,
+        headers={"Authorization": f"Bearer {api_key}"},
+        retry=RetryPolicy(rate_limit_codes=(429, 503)),
+    )
+    if payload is not None:
+        SGDB_STATE["consecutive_403s"] = 0
+        return payload
+    if err == "http_403":
+        SGDB_STATE["consecutive_403s"] += 1
+        if SGDB_STATE["consecutive_403s"] >= _SGDB_403_LIMIT:
+            print(
+                "  SteamGridDB: 3 consecutive 403s - disabling for this run (check API key)",
+                file=sys.stderr,
+            )
+            SGDB_STATE["disabled"] = True
+        return None
+    print(f"  SteamGridDB error for {title!r}: {err}", file=sys.stderr)
     return None
 
 
@@ -259,7 +222,7 @@ def main():
         print(f"[{i + 1}/{len(candidates)}] {title!r}")
 
         # IGDB
-        time.sleep(0.3)
+        time.sleep(1.0)
         igdb = igdb_search(title, creds["twitch_client_id"], token)
 
         if igdb:
