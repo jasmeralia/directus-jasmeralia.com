@@ -1,5 +1,7 @@
 import type { APIRoute } from "astro";
-import { directusFetchRaw, assetsBaseUrl } from "../lib/directus";
+import { directusFetchRaw, assetsBaseUrl, type DirectusFile } from "../lib/directus";
+
+type DirectusRecord = Record<string, unknown>;
 
 // ─── config ──────────────────────────────────────────────────────────────────
 
@@ -120,8 +122,8 @@ const imageMimeType = (url: string): string => {
 
 const mediaUrl = (file: unknown): string | null => {
   if (!file) return null;
-  const id   = typeof file === "string" ? file : (file as any)?.id;
-  const disk = typeof file === "string" ? null  : ((file as any)?.filename_disk ?? null);
+  const id   = typeof file === "string" ? file : (file as DirectusFile)?.id;
+  const disk = typeof file === "string" ? null  : ((file as DirectusFile)?.filename_disk ?? null);
   if (!id) return null;
   return `${siteBase}/media/${disk || id}`;
 };
@@ -271,16 +273,18 @@ const fetchCreateActivity = (collection: string, limit: number) =>
   fetchActivity(collection, "create", limit);
 
 // Batch-fetch items from any collection by ID, returning a map of id → item.
-async function fetchItemMap(collection: string, ids: number[], fields: string): Promise<Record<number, any>> {
+async function fetchItemMap(collection: string, ids: number[], fields: string): Promise<Record<number, DirectusRecord>> {
   if (!ids.length) return {};
   const qs = new URLSearchParams({
     "filter[id][_in]": ids.join(","),
     "fields": fields,
     "limit": String(ids.length + 10),
   });
-  const res = await directusFetchRaw<{ data: any[] }>(`/items/${collection}?${qs.toString()}`);
-  return Object.fromEntries((res.data ?? []).map((x: any) => [x.id, x]));
+  const res = await directusFetchRaw<{ data: DirectusRecord[] }>(`/items/${collection}?${qs.toString()}`);
+  return Object.fromEntries((res.data ?? []).map((x): [number, DirectusRecord] => [Number(x.id), x]));
 }
+
+type GenreJoinRow = { genres_id?: { name?: string } | null };
 
 // Fetch current genre names for a game (for new-game entries).
 async function fetchGameGenres(gameId: number): Promise<string[]> {
@@ -289,8 +293,10 @@ async function fetchGameGenres(gameId: number): Promise<string[]> {
     "fields": "genres_id.name",
     "limit": "50",
   });
-  const res = await directusFetchRaw<{ data: any[] }>(`/items/games_genres?${qs.toString()}`);
-  return (res.data ?? []).map((r: any) => r.genres_id?.name).filter(Boolean);
+  const res = await directusFetchRaw<{ data: GenreJoinRow[] }>(`/items/games_genres?${qs.toString()}`);
+  return (res.data ?? [])
+    .map((r) => r.genres_id?.name)
+    .filter((name): name is string => Boolean(name));
 }
 
 // ─── entry types ─────────────────────────────────────────────────────────────
@@ -310,7 +316,7 @@ function buildGameEntry(
   rev: Revision,
   prevData: Record<string, unknown> | null,
   genres: string[],
-  gameItem: any | null,
+  gameItem: DirectusRecord | null,
 ): Entry | null {
   const data = rev.data;
   const date = requireDate(rev.activity?.timestamp, `game revision ${rev.id}`);
@@ -347,7 +353,7 @@ function buildGameEntry(
 
 function buildReviewEntry(
   rev: Revision,
-  reviewItem: any | null, // live-fetched with game expanded
+  reviewItem: DirectusRecord | null, // live-fetched with game expanded
 ): Entry | null {
   const data = rev.data;
   const date = requireDate(rev.activity?.timestamp, `review revision ${rev.id}`);
@@ -360,13 +366,14 @@ function buildReviewEntry(
 
   const slug   = requireGuidPart(reviewItem?.slug ?? data.slug ?? rev.item, `review revision ${rev.id} slug`);
   const link   = `${siteBase}/reviews/${slug}/index.html`;
-  const imgUrl = mediaUrl(reviewItem?.game?.cover_image) ?? undefined;
+  const reviewGame = reviewItem?.game as DirectusRecord | undefined;
+  const imgUrl = mediaUrl(reviewGame?.cover_image) ?? undefined;
 
   if (isNewlyPublished) {
     const lines: string[] = [];
-    const game = reviewItem?.game;
-    if (game?.title) lines.push(`**Game**: ${game.title}`);
-    if (data.rating)  lines.push(`**Rating**: ${data.rating}/10`);
+    const game = reviewGame;
+    if (game?.title) lines.push(`**Game**: ${String(game.title)}`);
+    if (data.rating)  lines.push(`**Rating**: ${String(data.rating)}/10`);
     if (data.published_at) lines.push(`**Published**: ${String(data.published_at).slice(0, 10)}`);
     return {
       title: `Review Published: ${data.title}`,
@@ -430,9 +437,9 @@ function buildTierListEntry(rev: Revision): Entry | null {
 // list is first populated with many games at once.
 function buildTierListGameEntries(
   batch: Activity[],
-  tlgMap: Record<number, any>, // id → {game_id, tier_list_id, rating}
-  gameMap: Record<number, any>,
-  tierListMap: Record<number, any>,
+  tlgMap: Record<number, DirectusRecord>, // id → {game_id, tier_list_id, rating}
+  gameMap: Record<number, DirectusRecord>,
+  tierListMap: Record<number, DirectusRecord>,
 ): Entry[] {
   const resolved = batch
     .map((act) => {
@@ -442,7 +449,7 @@ function buildTierListGameEntries(
       if (!tlg || !game || !tierList) return null;
       return { act, game, tierList, rating: tlg.rating as string };
     })
-    .filter(Boolean) as { act: Activity; game: any; tierList: any; rating: string }[];
+    .filter(Boolean) as { act: Activity; game: DirectusRecord; tierList: DirectusRecord; rating: string }[];
 
   if (!resolved.length) return [];
 
@@ -475,15 +482,15 @@ function buildTierListGameEntries(
 
 function buildGameLinkEntry(
   act: Activity,
-  glinkItem: any | null,
-  gameItem: any | null,
+  glinkItem: DirectusRecord | null,
+  gameItem: DirectusRecord | null,
 ): Entry | null {
   if (!glinkItem || !gameItem) return null;
   const date = requireDate(act.timestamp, `games_link activity ${act.id}`);
   const slug = requireGuidPart(gameItem.slug, `games_link activity ${act.id} game slug`);
   const link = `${siteBase}/games/${slug}/index.html`;
   const imgUrl = mediaUrl(gameItem.cover_image) ?? undefined;
-  const kind: string = glinkItem.kind ?? "download";
+  const kind: string = String(glinkItem.kind ?? "download");
   const isWalkthrough = kind === "walkthrough" || kind === "text-note";
   const isUpdate = act.action === "update";
   const kindLabel = isWalkthrough ? "Walkthrough" : "Download";

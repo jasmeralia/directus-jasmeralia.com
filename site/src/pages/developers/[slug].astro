@@ -28,7 +28,7 @@ const isUnknown = slug === "unknown";
 
 let title = "Unknown";
 let developer = null;
-let games = [];
+let games;
 let reviews = [];
 
 if (isUnknown) {
@@ -100,7 +100,7 @@ const markdownContent = markdownFields
   .find((value) => typeof value === "string" && value.trim());
 const detailEntries = developer
   ? Object.entries(developer)
-      .filter(([key, value]) => value !== null && value !== undefined)
+      .filter(([, value]) => value !== null && value !== undefined)
       .filter(([key]) => !excludedFields.has(key))
       .filter(([key]) => !markdownFields.includes(key))
       .filter(([, value]) => ["string", "number", "boolean"].includes(typeof value))

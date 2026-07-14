@@ -23,7 +23,7 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 
 let title = "Unknown";
-let games = [];
+let games;
 
 if (slug === "unknown") {
   const allGames = await directusFetchItems("games", {

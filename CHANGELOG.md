@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.150] - 2026-07-13
+- Build: add ESLint (flat config, eslint-plugin-astro + typescript-eslint) for `site/`; fix all violations surfaced across `.astro` and `.ts` sources (replace `any` with concrete/loosely-typed shapes, remove dead assignments and unused code, fix `no-var` and triple-slash-reference lint errors).
+
 ## [1.0.149] - 2026-06-14
 - Build: add esbuild override to >=0.28.1 to resolve GHSA-g7r4-m6w7-qqqr and GHSA-gv7w-rqvm-qjhr (high-severity advisories in esbuild 0.17.0-0.28.0).
 

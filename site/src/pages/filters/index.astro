@@ -316,7 +316,6 @@ for (const game of games ?? []) {
 
 const hasAvnGenre = (game) =>
   (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "avn");
-const hasValue = (value) => typeof value === "string" && value.trim().length > 0;
 const hasGslLink = (game) => (game?.links ?? []).some((l) => l.kind === "gamestorylog");
 const avnMissingGamestorylogCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && !hasGslLink(game),

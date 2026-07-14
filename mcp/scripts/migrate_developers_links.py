@@ -15,61 +15,54 @@ Usage:
     python3 migrate_developers_links.py          # dry run
     python3 migrate_developers_links.py --apply  # write to Directus
 """
-import json, re, sys, time, urllib.request, urllib.error
-from pathlib import Path
+
+import json
+import re
+import sys
+import time
 from urllib.parse import urlparse
 
-CACHE = Path(__file__).parent.parent / "cache"
-_mcp = json.load(open(Path(__file__).parent.parent.parent / ".mcp.json"))
-TOKEN = _mcp["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
-BASE = "https://directus.jasmer.tools"
+from scriptlib import CACHE_DIR, DirectusClient
+
+CACHE = CACHE_DIR
+DIRECTUS = DirectusClient.from_config()
 APPLY = "--apply" in sys.argv
 
 
-def api(method, path, body=None):
-    data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(f"{BASE}{path}", data=data, method=method, headers={
-        "Authorization": f"Bearer {TOKEN}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    })
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return json.loads(r.read()) if r.length else {}
-    except urllib.error.HTTPError as e:
-        print(f"  ERROR {e.code} {method} {path}: {e.read().decode()[:300]}", file=sys.stderr)
-        return None
-
-
 def fetch_all(path):
-    r = api("GET", path)
+    """Fetch all records from a Directus items endpoint."""
+    r = DIRECTUS.request_or_none("GET", path)
     return r.get("data", []) if r else []
 
 
-def insert_link(developers_id, url, kind, label=None, existing_set=None):
-    key = (developers_id, url)
-    if existing_set is not None and key in existing_set:
+def insert_link(developers_id, link_url, link_kind, label=None, known_links=None):
+    """Insert a unique developer link when applying changes."""
+    key = (developers_id, link_url)
+    if known_links is not None and key in known_links:
         return "skip"
     if not APPLY:
         return "dry"
-    body = {"developers_id": developers_id, "url": url, "kind": kind}
+    body = {"developers_id": developers_id, "url": link_url, "kind": link_kind}
     if label:
         body["label"] = label
-    r = api("POST", "/items/developers_links", body)
+    r = DIRECTUS.request_or_none("POST", "/items/developers_links", body)
     if r and r.get("data"):
-        existing_set and existing_set.add(key)
+        if known_links is not None:
+            known_links.add(key)
         time.sleep(0.05)
         return "ok"
     return "error"
 
 
 def parse_other_urls(raw: str) -> list[str]:
+    """Parse legacy URL text into individual URLs."""
     if not raw:
         return []
     return [u.strip() for u in re.split(r"[;\n]+", raw) if u.strip().startswith("http")]
 
 
 def classify_url(url: str) -> str | None:
+    """Classify a developer URL into a supported link kind."""
     try:
         host = urlparse(url).hostname or ""
     except Exception:
@@ -84,6 +77,14 @@ def classify_url(url: str) -> str | None:
     if host.endswith("itch.io"):
         return "itch"
     return None
+
+
+def maybe_add_creator_link(link_list, known_urls, url, link_kind):
+    """Append a creator link if its URL is new."""
+    clean_url = (url or "").strip()
+    if clean_url and clean_url not in known_urls:
+        link_list.append({"url": clean_url, "kind": link_kind})
+        known_urls.add(clean_url)
 
 
 # ── Load reference data ──────────────────────────────────────────────────────
@@ -113,7 +114,9 @@ stats = {"gsl": 0, "website_url": 0, "inferred": 0, "skip": 0, "error": 0}
 print(f"\n{'DRY RUN — ' if not APPLY else ''}Source 1: GSL cache", file=sys.stderr)
 
 # Collect all links per creator slug first (deduplicate across multiple games)
-creator_links: dict[str, dict] = {}  # creator_slug → {patreon, website, discord, subscribestar, itch...}
+creator_links: dict[
+    str, dict
+] = {}  # creator_slug → {patreon, website, discord, subscribestar, itch...}
 
 for gsl_slug, entry in gsl_data.items():
     if "error" in entry:
@@ -129,61 +132,72 @@ for gsl_slug, entry in gsl_data.items():
         creator_links[cslug] = {"name": cname, "links": []}
 
     links = creator_links[cslug]["links"]
-    seen_urls = {l["url"] for l in links}
+    seen_urls = {link["url"] for link in links}
 
-    def maybe_add(url, kind):
-        url = (url or "").strip()
-        if url and url not in seen_urls:
-            links.append({"url": url, "kind": kind})
-            seen_urls.add(url)
-
-    maybe_add(creator.get("patreon_url"), "patreon")
-    maybe_add(creator.get("website"), "website")
-    maybe_add(creator.get("discord_url"), "discord")
+    maybe_add_creator_link(links, seen_urls, creator.get("patreon_url"), "patreon")
+    maybe_add_creator_link(links, seen_urls, creator.get("website"), "website")
+    maybe_add_creator_link(links, seen_urls, creator.get("discord_url"), "discord")
 
     for u in parse_other_urls(creator.get("other_urls") or ""):
         kind = classify_url(u)
         if kind:
-            maybe_add(u, kind)
+            maybe_add_creator_link(links, seen_urls, u, kind)
 
 for cslug, data in creator_links.items():
     cname = data["name"]
     dev = slug_to_dev.get(cslug) or name_lower_to_dev.get(cname.lower())
     if not dev:
-        print(f"  WARN: no Directus match for creator '{cname}' (slug={cslug})", file=sys.stderr)
+        print(
+            f"  WARN: no Directus match for creator '{cname}' (slug={cslug})",
+            file=sys.stderr,
+        )
         continue
 
     dev_id = dev["id"]
     for link in data["links"]:
-        result = insert_link(dev_id, link["url"], link["kind"], existing_set=existing_set)
+        result = insert_link(
+            dev_id, link["url"], link["kind"], known_links=existing_set
+        )
         if result in ("ok", "dry"):
             stats["gsl"] += 1
             if not APPLY:
-                print(f"  [DRY] dev/{dev_id} ({cname}) {link['kind']}: {link['url'][:80]}", file=sys.stderr)
+                print(
+                    f"  [DRY] dev/{dev_id} ({cname}) {link['kind']}: {link['url'][:80]}",
+                    file=sys.stderr,
+                )
         elif result == "skip":
             stats["skip"] += 1
         else:
             stats["error"] += 1
 
 # ── Source 2: developers.website_url scalar ──────────────────────────────────
-print(f"\n{'DRY RUN — ' if not APPLY else ''}Source 2: developers.website_url", file=sys.stderr)
+print(
+    f"\n{'DRY RUN — ' if not APPLY else ''}Source 2: developers.website_url",
+    file=sys.stderr,
+)
 
 for dev in devs:
     wu = (dev.get("website_url") or "").strip()
     if not wu:
         continue
-    result = insert_link(dev["id"], wu, "website", existing_set=existing_set)
+    result = insert_link(dev["id"], wu, "website", known_links=existing_set)
     if result in ("ok", "dry"):
         stats["website_url"] += 1
         if not APPLY:
-            print(f"  [DRY] dev/{dev['id']} ({dev['name']}) website: {wu[:80]}", file=sys.stderr)
+            print(
+                f"  [DRY] dev/{dev['id']} ({dev['name']}) website: {wu[:80]}",
+                file=sys.stderr,
+            )
     elif result == "skip":
         stats["skip"] += 1
     else:
         stats["error"] += 1
 
 # ── Source 3: Infer Patreon from games.download_url ──────────────────────────
-print(f"\n{'DRY RUN — ' if not APPLY else ''}Source 3: Patreon inference from games.download_url", file=sys.stderr)
+print(
+    f"\n{'DRY RUN — ' if not APPLY else ''}Source 3: Patreon inference from games.download_url",
+    file=sys.stderr,
+)
 
 # Build game→developer map via games_developers junction
 gd_rows = fetch_all("/items/games_developers?fields=games_id,developers_id&limit=-1")
@@ -200,25 +214,31 @@ for game in games:
         continue
     dev_ids = game_to_devs.get(game["id"], [])
     for dev_id in dev_ids:
-        result = insert_link(dev_id, dl, kind, existing_set=existing_set)
+        result = insert_link(dev_id, dl, kind, known_links=existing_set)
         if result in ("ok", "dry"):
             stats["inferred"] += 1
             if not APPLY:
-                print(f"  [DRY] dev/{dev_id} inferred {kind} from game/{game['id']}: {dl[:80]}", file=sys.stderr)
+                print(
+                    f"  [DRY] dev/{dev_id} inferred {kind} from game/{game['id']}: {dl[:80]}",
+                    file=sys.stderr,
+                )
         elif result == "skip":
             stats["skip"] += 1
         else:
             stats["error"] += 1
 
-print(f"""
-Results ({'APPLIED' if APPLY else 'DRY RUN'}):
-  from GSL cache:        {stats['gsl']}
-  from website_url:      {stats['website_url']}
-  inferred from games:   {stats['inferred']}
-  skipped (duplicates):  {stats['skip']}
-  errors:                {stats['error']}
-  total new:             {stats['gsl'] + stats['website_url'] + stats['inferred']}
-""", file=sys.stderr)
+print(
+    f"""
+Results ({"APPLIED" if APPLY else "DRY RUN"}):
+  from GSL cache:        {stats["gsl"]}
+  from website_url:      {stats["website_url"]}
+  inferred from games:   {stats["inferred"]}
+  skipped (duplicates):  {stats["skip"]}
+  errors:                {stats["error"]}
+  total new:             {stats["gsl"] + stats["website_url"] + stats["inferred"]}
+""",
+    file=sys.stderr,
+)
 
 if not APPLY:
     print("Pass --apply to write.", file=sys.stderr)

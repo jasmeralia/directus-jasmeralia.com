@@ -51,8 +51,10 @@ git checkout master
 git pull origin master
 
 echo "==> Pulling on TrueNAS..."
+# shellcheck disable=SC2029 # TRUENAS_REPO is a fixed script constant, not user input; client-side expansion is intended.
 if ! ssh "$TRUENAS" "git -C $TRUENAS_REPO pull" 2>&1; then
   echo "    Retrying after cleaning untracked files..."
+  # shellcheck disable=SC2029 # same rationale as above.
   ssh "$TRUENAS" "git -C $TRUENAS_REPO clean -f .serena/ && git -C $TRUENAS_REPO pull"
 fi
 

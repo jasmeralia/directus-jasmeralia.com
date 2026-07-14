@@ -1,5 +1,5 @@
 export function GET() {
-  const tz = (import.meta as any).env?.SITE_TIMEZONE || "America/Los_Angeles";
+  const tz = (import.meta.env.SITE_TIMEZONE as string | undefined) || "America/Los_Angeles";
   const built = new Date().toLocaleString("en-US", {
     dateStyle: "medium",
     timeStyle: "short",

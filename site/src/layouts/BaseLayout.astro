@@ -55,11 +55,11 @@ const year = new Date().getFullYear();
     </footer>
     <script is:inline>
       fetch('/build-info.json').then(function(r){return r.json();}).then(function(d){
-        var el=document.getElementById('footer-build');
+        const el=document.getElementById('footer-build');
         if(el)el.textContent='Site last published on '+d.built;
       }).catch(function(){});
       document.addEventListener('click',function(e){
-        var s=e.target.closest('.spoiler');
+        const s=e.target.closest('.spoiler');
         if(s)s.classList.toggle('revealed');
       });
     </script>

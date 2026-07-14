@@ -3,7 +3,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { renderMarkdown } from "../../lib/markdown";
 import { directusFetchItems } from "../../lib/directus";
 
-const aboutItems = await directusFetchItems<any>("about", {
+const aboutItems = await directusFetchItems<{ id: number; body?: string | null }>("about", {
   fields: ["id", "body"],
   sort: ["-date_updated", "-date_created"],
   limit: 1,

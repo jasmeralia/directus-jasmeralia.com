@@ -8,50 +8,41 @@ Usage:
     python3 migrate_games_links.py          # dry run
     python3 migrate_games_links.py --apply  # write to Directus
 """
-import json, re, sys, time, urllib.request, urllib.error
-from pathlib import Path
 
-CACHE = Path(__file__).parent.parent / "cache"
-_mcp = json.load(open(Path(__file__).parent.parent.parent / ".mcp.json"))
-TOKEN = _mcp["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
-BASE = "https://directus.jasmer.tools"
+import json
+import re
+import sys
+import time
+
+from scriptlib import CACHE_DIR, DirectusClient
+
+CACHE = CACHE_DIR
+DIRECTUS = DirectusClient.from_config()
 APPLY = "--apply" in sys.argv
 
 
-def api(method, path, body=None):
-    data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(f"{BASE}{path}", data=data, method=method, headers={
-        "Authorization": f"Bearer {TOKEN}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    })
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return json.loads(r.read()) if r.length else {}
-    except urllib.error.HTTPError as e:
-        print(f"  ERROR {e.code} {method} {path}: {e.read().decode()[:300]}", file=sys.stderr)
-        return None
-
-
 def fetch_all(path):
-    r = api("GET", path)
+    """Fetch all records from a Directus items endpoint."""
+    r = DIRECTUS.request_or_none("GET", path)
     return r.get("data", []) if r else []
 
 
-def insert_link(games_id, url, kind, label=None, sort=None, existing_set=None):
-    key = (games_id, url)
-    if existing_set is not None and key in existing_set:
+def insert_link(games_id, link_url, link_kind, label=None, sort=None, known_links=None):
+    """Insert a unique game link when applying changes."""
+    key = (games_id, link_url)
+    if known_links is not None and key in known_links:
         return "skip"
     if not APPLY:
         return "dry"
-    body = {"games_id": games_id, "url": url, "kind": kind}
+    body = {"games_id": games_id, "url": link_url, "kind": link_kind}
     if label:
         body["label"] = label
     if sort is not None:
         body["sort"] = sort
-    r = api("POST", "/items/games_links", body)
+    r = DIRECTUS.request_or_none("POST", "/items/games_links", body)
     if r and r.get("data"):
-        existing_set and existing_set.add(key)
+        if known_links is not None:
+            known_links.add(key)
         return "ok"
     return "error"
 
@@ -85,6 +76,7 @@ for slug, entry in gsl_data.items():
 
 
 def parse_other_urls(raw: str) -> list[str]:
+    """Parse legacy URL text into individual URLs."""
     if not raw:
         return []
     urls = []
@@ -95,10 +87,15 @@ def parse_other_urls(raw: str) -> list[str]:
     return urls
 
 
-def classify_url(url: str) -> str | None:
-    """Return kind hint or None if unrecognised."""
+def classify_url(candidate_url: str) -> str | None:
+    """Return a supported link kind for a URL, or None."""
     try:
-        host = __import__("urllib.parse", fromlist=["urlparse"]).urlparse(url).hostname or ""
+        host = (
+            __import__("urllib.parse", fromlist=["urlparse"])
+            .urlparse(candidate_url)
+            .hostname
+            or ""
+        )
     except Exception:
         return None
     host = host.lower()
@@ -115,7 +112,10 @@ def classify_url(url: str) -> str | None:
     return None
 
 
-SKIP_AS_DOWNLOAD = {"patreon.com", "subscribestar"}  # these belong in developers_links; skip as game download supplemental
+SKIP_AS_DOWNLOAD = {
+    "patreon.com",
+    "subscribestar",
+}  # these belong in developers_links; skip as game download supplemental
 
 
 stats = {"download": 0, "walkthrough": 0, "extra": 0, "skip": 0, "error": 0}
@@ -128,7 +128,7 @@ for game in games:
     # download_url → kind=download
     dl = (game.get("download_url") or "").strip()
     if dl:
-        result = insert_link(gid, dl, "download", sort=1, existing_set=existing_set)
+        result = insert_link(gid, dl, "download", sort=1, known_links=existing_set)
         if result in ("ok", "dry"):
             stats["download"] += 1
             if not APPLY:
@@ -146,18 +146,26 @@ for game in games:
         wt_tokens = [t.strip() for t in wt_raw.split("|") if t.strip()]
         wt_urls = [t for t in wt_tokens if t.lower().startswith("http")]
         for sort_idx, wt_url in enumerate(wt_urls, start=1):
-            result = insert_link(gid, wt_url, "walkthrough", sort=sort_idx, existing_set=existing_set)
+            result = insert_link(
+                gid, wt_url, "walkthrough", sort=sort_idx, known_links=existing_set
+            )
             if result in ("ok", "dry"):
                 stats["walkthrough"] += 1
                 if not APPLY:
-                    print(f"  [DRY] games/{gid} walkthrough: {wt_url[:80]}", file=sys.stderr)
+                    print(
+                        f"  [DRY] games/{gid} walkthrough: {wt_url[:80]}",
+                        file=sys.stderr,
+                    )
             elif result == "skip":
                 stats["skip"] += 1
             else:
                 stats["error"] += 1
         skipped_notes = [t for t in wt_tokens if not t.lower().startswith("http")]
         for note in skipped_notes:
-            print(f"  SKIP games/{gid} walkthrough text-note (not a URL): {note[:80]}", file=sys.stderr)
+            print(
+                f"  SKIP games/{gid} walkthrough text-note (not a URL): {note[:80]}",
+                file=sys.stderr,
+            )
 
     # GSL supplemental URLs from game.other_urls
     gsl_url = (game.get("gamestorylog_url") or "").strip()
@@ -173,12 +181,17 @@ for game in games:
             # Skip if it's the same as the primary download URL
             if url == dl:
                 continue
-            result = insert_link(gid, url, "download", sort=sort_idx, existing_set=existing_set)
+            result = insert_link(
+                gid, url, "download", sort=sort_idx, known_links=existing_set
+            )
             if result in ("ok", "dry"):
                 stats["extra"] += 1
                 sort_idx += 1
                 if not APPLY:
-                    print(f"  [DRY] games/{gid} extra ({kind_hint or '?'}): {url[:80]}", file=sys.stderr)
+                    print(
+                        f"  [DRY] games/{gid} extra ({kind_hint or '?'}): {url[:80]}",
+                        file=sys.stderr,
+                    )
             elif result == "skip":
                 stats["skip"] += 1
             else:
@@ -186,14 +199,17 @@ for game in games:
         if APPLY:
             time.sleep(0.05)
 
-print(f"""
-Results ({'APPLIED' if APPLY else 'DRY RUN'}):
-  download links: {stats['download']}
-  walkthrough links: {stats['walkthrough']}
-  extra (GSL other_urls): {stats['extra']}
-  skipped (already exist): {stats['skip']}
-  errors: {stats['error']}
-""", file=sys.stderr)
+print(
+    f"""
+Results ({"APPLIED" if APPLY else "DRY RUN"}):
+  download links: {stats["download"]}
+  walkthrough links: {stats["walkthrough"]}
+  extra (GSL other_urls): {stats["extra"]}
+  skipped (already exist): {stats["skip"]}
+  errors: {stats["error"]}
+""",
+    file=sys.stderr,
+)
 
 if not APPLY:
     print("Pass --apply to write.", file=sys.stderr)

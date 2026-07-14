@@ -8,26 +8,174 @@ import sys
 import tempfile
 import urllib.request
 import urllib.error
-from pathlib import Path
 
-DIRECTUS_URL = "https://directus.jasmer.tools"
-TOKEN = json.load(open(Path(__file__).parent.parent.parent / ".mcp.json"))["mcpServers"]["directus"]["env"]["DIRECTUS_TOKEN"]
+from scriptlib import server_env
+
+DIRECTUS_ENV = server_env("directus")
+DIRECTUS_URL = DIRECTUS_ENV["DIRECTUS_URL"].rstrip("/")
+TOKEN = DIRECTUS_ENV["DIRECTUS_TOKEN"]
 DEST = "deck@192.168.1.65:/home/deck/00 Covers/"
 
 AVN_GAME_IDS = [
-    1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
-    21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
-    41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,58,59,61,62,
-    63,64,65,66,67,68,69,70,71,72,73,74,81,132,160,169,177,182,183,184,
-    185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,
-    201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,
-    251,254,359,387,409,410,411,412,413,416,417,418,419,420,421,422,423,
-    424,425,426,427,428,429,430,431,432,434,435,436,437,438,439,440,441,
-    442,443,444,445,446,447,992,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    58,
+    59,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    81,
+    132,
+    160,
+    169,
+    177,
+    182,
+    183,
+    184,
+    185,
+    186,
+    187,
+    188,
+    189,
+    190,
+    191,
+    192,
+    193,
+    194,
+    195,
+    196,
+    197,
+    198,
+    199,
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    209,
+    210,
+    211,
+    212,
+    213,
+    214,
+    215,
+    216,
+    217,
+    251,
+    254,
+    359,
+    387,
+    409,
+    410,
+    411,
+    412,
+    413,
+    416,
+    417,
+    418,
+    419,
+    420,
+    421,
+    422,
+    423,
+    424,
+    425,
+    426,
+    427,
+    428,
+    429,
+    430,
+    431,
+    432,
+    434,
+    435,
+    436,
+    437,
+    438,
+    439,
+    440,
+    441,
+    442,
+    443,
+    444,
+    445,
+    446,
+    447,
+    992,
 ]
 
 
 def api_get(path):
+    """Fetch a Directus resource."""
     url = f"{DIRECTUS_URL}{path}"
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {TOKEN}"})
     with urllib.request.urlopen(req, timeout=30) as r:
@@ -58,6 +206,7 @@ def download_asset(uuid, dest_path):
 
 
 def ext_from_mime(mime):
+    """Map a supported image MIME type to a file extension."""
     mapping = {
         "image/jpeg": ".jpg",
         "image/png": ".png",
@@ -68,6 +217,7 @@ def ext_from_mime(mime):
 
 
 def main():
+    """Copy AVN cover assets into the local cover directory."""
     tmpdir = tempfile.mkdtemp(prefix="avn_covers_")
     print(f"Working directory: {tmpdir}")
 
@@ -124,6 +274,7 @@ def main():
     result = subprocess.run(
         ["scp", "-r", tmpdir + "/.", DEST],
         capture_output=False,
+        check=False,
     )
     if result.returncode == 0:
         print("Transfer complete.")

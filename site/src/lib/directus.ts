@@ -91,8 +91,8 @@ export function fileUrl(file: unknown): string | null {
   const base = assetsBaseUrl();
 
   // Directus may return a file as an id string or an object (id, filename_disk, ...).
-  const id = typeof file === "string" ? file : (file as any).id;
-  const filenameDisk = typeof file === "string" ? null : ((file as any).filename_disk ?? null);
+  const id = typeof file === "string" ? file : (file as DirectusFile).id;
+  const filenameDisk = typeof file === "string" ? null : ((file as DirectusFile).filename_disk ?? null);
   if (!id) return null;
 
   // Public CloudFront/S3 URLs served under /media/<filename_disk>.
@@ -101,7 +101,7 @@ export function fileUrl(file: unknown): string | null {
   return `${base}/media/${filenameDisk || id}`;
 }
 
-export async function directusFetchRaw<T = any>(path: string): Promise<T> {
+export async function directusFetchRaw<T = Record<string, unknown>>(path: string): Promise<T> {
   return directusFetch<T>(path);
 }
 
@@ -119,7 +119,7 @@ async function directusFetch<T>(path: string): Promise<T> {
   return await resp.json() as T;
 }
 
-function appendParams(target: URLSearchParams, prefix: string, value: any) {
+function appendParams(target: URLSearchParams, prefix: string, value: unknown) {
   if (value === null || value === undefined) return;
   if (Array.isArray(value)) {
     target.set(prefix, value.join(","));
@@ -137,12 +137,12 @@ function appendParams(target: URLSearchParams, prefix: string, value: any) {
 type FetchItemsParams = {
   fields?: string[];
   sort?: string[];
-  filter?: Record<string, any>;
-  deep?: Record<string, any>;
+  filter?: Record<string, unknown>;
+  deep?: Record<string, unknown>;
   limit?: number;
 };
 
-export async function directusFetchItems<T = any>(collection: string, params: FetchItemsParams = {}): Promise<T[]> {
+export async function directusFetchItems<T = Record<string, unknown>>(collection: string, params: FetchItemsParams = {}): Promise<T[]> {
   const qs = new URLSearchParams();
   if (params.fields?.length) qs.set("fields", params.fields.join(","));
   if (params.sort?.length) qs.set("sort", params.sort.join(","));
@@ -198,7 +198,7 @@ export async function getSTierGameIds(gameIds: number[]): Promise<Set<number>> {
   const ids = gameIds.filter((id) => typeof id === "number");
   if (!ids.length) return new Set();
 
-  const entries = await directusFetchItems("tier_list_games", {
+  const entries = await directusFetchItems<{ game_id?: { id?: number } }>("tier_list_games", {
     fields: ["game_id.id"],
     filter: {
       game_id: { _in: ids },
