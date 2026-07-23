@@ -4,34 +4,29 @@ updates:
   directory: /site
   schedule:
     interval: weekly
-  auto-merge: enable
   reviewers:
   - jasmeralia
 - package-ecosystem: docker
   directory: /
   schedule:
     interval: weekly
-  auto-merge: enable
   reviewers:
   - jasmeralia
 - package-ecosystem: docker
   directory: /builder
   schedule:
     interval: weekly
-  auto-merge: enable
   reviewers:
   - jasmeralia
 - package-ecosystem: pip
   directory: /mcp
   schedule:
     interval: weekly
-  auto-merge: enable
   reviewers:
   - jasmeralia
 - package-ecosystem: github-actions
   directory: /
   schedule:
     interval: weekly
-  auto-merge: enable
   reviewers:
   - jasmeralia
