@@ -11,11 +11,14 @@ FROM node:26-slim
 # tag already floats.
 # hadolint ignore=DL3008
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends bash curl unzip ca-certificates \
+  && apt-get install -y --no-install-recommends bash curl unzip ca-certificates git \
   && curl -sS "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip" \
   && unzip /tmp/awscliv2.zip -d /tmp \
   && /tmp/aws/install \
-  && rm -rf /var/lib/apt/lists/* /tmp/aws /tmp/awscliv2.zip
+  && rm -rf /var/lib/apt/lists/* /tmp/aws /tmp/awscliv2.zip \
+  # The container runs as root against a host-owned bind mount (GIT_AUTO_PULL); recent git
+  # refuses to operate on a repo it doesn't own unless the path is marked safe.
+  && git config --system --add safe.directory '*'
 
 # Pin npm to avoid lockfile format mismatches.
 RUN npm install -g npm@11.8.0

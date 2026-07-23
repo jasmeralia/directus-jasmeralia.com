@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ASTRO_DIR="${ASTRO_DIR:-/work/site}"
+GIT_AUTO_PULL="${GIT_AUTO_PULL:-false}"
 AWS_S3_BUCKET="${AWS_S3_BUCKET:-}"
 AWS_REGION="${AWS_REGION:-}"
 INVALIDATE_ON_PUBLISH="${INVALIDATE_ON_PUBLISH:-true}"
@@ -29,6 +30,15 @@ fi
 if [[ ! -f "$ASTRO_DIR/package.json" ]]; then
   echo "ERROR: package.json not found in ASTRO_DIR ($ASTRO_DIR). Mount your Astro project at ./site"
   exit 2
+fi
+
+if [[ "$GIT_AUTO_PULL" == "true" ]]; then
+  if ! git -C "$ASTRO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    echo "ERROR: GIT_AUTO_PULL=true but $ASTRO_DIR is not inside a git checkout (mount the repo root, not just site/)"
+    exit 2
+  fi
+  echo "==> Pulling latest changes for $ASTRO_DIR"
+  git -C "$ASTRO_DIR" pull --ff-only
 fi
 
 mkdir -p "$BUILD_DIR"
