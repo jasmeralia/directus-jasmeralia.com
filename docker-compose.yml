@@ -99,6 +99,12 @@ services:
       # Where the Astro project lives in the container
       ASTRO_DIR: /work/site
 
+      # If true, `git pull --ff-only` runs against ASTRO_DIR before each build. Requires
+      # ASTRO_DIR to be inside a git checkout with .git present (mount the repo root, not
+      # just site/). Leave false for local dev, where ./site is your live working copy and
+      # you don't want the builder pulling over uncommitted changes.
+      GIT_AUTO_PULL: ${GIT_AUTO_PULL:-false}
+
       # Optional: if you want to pass the Directus URL into build-time env (Astro can read it)
       DIRECTUS_URL: ${DIRECTUS_PUBLIC_URL}
 
