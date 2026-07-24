@@ -19,6 +19,7 @@ import argparse
 import json
 import sys
 import time
+import urllib.error
 import urllib.request
 from collections import Counter
 from functools import partial
@@ -82,8 +83,10 @@ def steam_portrait_url(appid: int) -> str | None:
             req = urllib.request.Request(url, method="HEAD")
             with urllib.request.urlopen(req, timeout=10):
                 return url
-        except Exception:
-            pass
+        except urllib.error.URLError as error:
+            print(
+                f"    Steam portrait probe failed for {url}: {error}", file=sys.stderr
+            )
     return None
 
 

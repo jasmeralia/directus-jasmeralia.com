@@ -65,7 +65,7 @@ def classify_url(url: str) -> str | None:
     """Classify a developer URL into a supported link kind."""
     try:
         host = urlparse(url).hostname or ""
-    except Exception:
+    except ValueError:
         return None
     host = host.lower()
     if "patreon.com" in host:
@@ -118,7 +118,7 @@ creator_links: dict[
     str, dict
 ] = {}  # creator_slug → {patreon, website, discord, subscribestar, itch...}
 
-for gsl_slug, entry in gsl_data.items():
+for entry in gsl_data.values():
     if "error" in entry:
         continue
     game = (entry.get("data") or {}).get("game") or {}

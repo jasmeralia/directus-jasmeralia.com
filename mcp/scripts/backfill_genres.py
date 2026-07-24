@@ -201,7 +201,8 @@ def apply_proposals():
                 existing_pairs.add((game_id, genre_id))
                 added += 1
                 print(f"  + {p['title']} → {slug}", file=sys.stderr)
-            except Exception as e:
+            # Any per-item failure is logged and skipped so the batch continues.
+            except Exception as e:  # noqa: BLE001
                 print(f"  ERROR {p['title']} → {slug}: {e}", file=sys.stderr)
                 errors += 1
 

@@ -252,7 +252,8 @@ def main():
             download_asset(uuid, dest_path)
             size_kb = os.path.getsize(dest_path) // 1024
             print(f"-> {slug}{ext} ({size_kb} KB)")
-        except Exception as e:
+        # Any per-file failure is logged and skipped so the batch continues.
+        except Exception as e:  # noqa: BLE001
             print(f"ERROR: {e}")
             errors.append((game["id"], slug, str(e)))
 

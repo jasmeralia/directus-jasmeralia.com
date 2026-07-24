@@ -450,7 +450,8 @@ def itad_search(title: str) -> tuple[str | None, float]:
             else:
                 print(f'  [ITAD] HTTP {e.code} for "{title}"', flush=True)
                 return None, 0.0
-        except Exception as e:
+        # Any per-title lookup failure is logged so the import can continue.
+        except Exception as e:  # noqa: BLE001
             print(f'  [ITAD] error for "{title}": {e}', flush=True)
             return None, 0.0
     print(

@@ -81,11 +81,16 @@ def upsert_developer(name: str, dev_cache: dict[str, int], dry_run: bool) -> int
                     dev_id = r["data"][0]["id"]
                     dev_cache[name] = dev_id
                     return dev_id
-            except Exception:
-                pass
+            # Any fallback lookup failure is logged before reporting the create error.
+            except Exception as lookup_error:  # noqa: BLE001
+                print(
+                    f"  [dev] Error fetching existing {name!r}: {lookup_error}",
+                    file=sys.stderr,
+                )
         print(f"  [dev] HTTP {e.code} creating {name!r}: {body[:120]}", file=sys.stderr)
         return None
-    except Exception as e:
+    # Any per-developer failure is logged and skipped so the batch continues.
+    except Exception as e:  # noqa: BLE001
         print(f"  [dev] Error creating {name!r}: {e}", file=sys.stderr)
         return None
 
@@ -178,7 +183,8 @@ def main():
                 progress_path.write_text(json.dumps(progress, indent=2))
                 time.sleep(args.delay)
                 continue
-            except Exception as e:
+            # Any per-game failure is logged and skipped so the batch continues.
+            except Exception as e:  # noqa: BLE001
                 print(f"  [game] Error: {e}", file=sys.stderr)
                 progress[str(appid)] = {"status": "error_game", "title": title}
                 progress_path.write_text(json.dumps(progress, indent=2))
@@ -205,7 +211,8 @@ def main():
                         },
                     )
                     print("  [link] Created download link", file=sys.stderr)
-                except Exception as e:
+                # Link failures are logged without stopping the remaining import.
+                except Exception as e:  # noqa: BLE001
                     print(
                         f"  [link] Error creating download link: {e}", file=sys.stderr
                     )
@@ -221,7 +228,8 @@ def main():
                     "/items/games_genres",
                     {"games_id": game_id, "genres_id": genre_id},
                 )
-            except Exception as e:
+            # Genre failures are logged without stopping the remaining import.
+            except Exception as e:  # noqa: BLE001
                 print(f"  [genre] Error linking genre {genre_id}: {e}", file=sys.stderr)
 
         # 5. Developer junctions
@@ -237,7 +245,8 @@ def main():
                     "/items/games_developers",
                     {"games_id": game_id, "developers_id": dev_id},
                 )
-            except Exception as e:
+            # Developer-link failures are logged so the batch can continue.
+            except Exception as e:  # noqa: BLE001
                 print(f"  [dev] Error linking {dev_name!r}: {e}", file=sys.stderr)
 
         progress[str(appid)] = {

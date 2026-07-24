@@ -68,7 +68,8 @@ def itad_get(path):
             else:
                 print(f"  ITAD HTTP {e.code}: {path}", file=sys.stderr)
                 return None
-        except Exception as e:
+        # Any remaining API failure is logged and skipped so the batch continues.
+        except Exception as e:  # noqa: BLE001
             print(f"  ITAD error: {e}", file=sys.stderr)
             return None
     return None
@@ -184,7 +185,8 @@ def itad_prices(itad_id: str) -> dict:
             else:
                 print(f"  ITAD prices HTTP {e.code}", file=sys.stderr)
                 return {}
-        except Exception as e:
+        # Any remaining API failure is logged and skipped so the batch continues.
+        except Exception as e:  # noqa: BLE001
             print(f"  ITAD prices error: {e}", file=sys.stderr)
             return {}
     return {}
@@ -198,7 +200,8 @@ def resolve_store_url(itad_redirect: str) -> str | None:
         )
         with urllib.request.urlopen(req, timeout=10) as r:
             return strip_tracking(r.url)
-    except Exception:
+    # Redirect resolution is best-effort; any failure leaves the link unresolved.
+    except Exception:  # noqa: BLE001
         return None
 
 

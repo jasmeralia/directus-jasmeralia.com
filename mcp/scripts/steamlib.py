@@ -94,7 +94,7 @@ def url_responds(url: str, *, timeout: float = 10) -> bool:
         req = urllib.request.Request(url, method="HEAD")
         with urllib.request.urlopen(req, timeout=timeout) as response:
             return response.status == 200
-    except Exception:
+    except urllib.error.URLError:
         return False
 
 

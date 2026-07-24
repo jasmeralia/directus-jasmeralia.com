@@ -199,7 +199,8 @@ def apply():
                 file=sys.stderr,
             )
             updated += 1
-        except Exception as e:
+        # Any per-item failure is logged and skipped so the batch continues.
+        except Exception as e:  # noqa: BLE001
             print(f"  ERROR [{p['id']}] {p['original_title']!r}: {e}", file=sys.stderr)
             errors += 1
 

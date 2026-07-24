@@ -151,7 +151,8 @@ errors = []
 for args in MERGES:
     try:
         merge(*args, is_dry_run=dry_run)
-    except Exception as e:
+    # Any per-merge failure is logged and skipped so the batch continues.
+    except Exception as e:  # noqa: BLE001
         errors.append((args, str(e)))
         print(f"    ERROR: {e}")
 

@@ -91,7 +91,12 @@ def igdb_post(token: str, endpoint: str, body: str) -> list:
             else:
                 print(f"  IGDB HTTP {e.code}", file=sys.stderr)
                 return []
-        except Exception as e:
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            json.JSONDecodeError,
+            UnicodeDecodeError,
+        ) as e:
             print(f"  IGDB error: {e}", file=sys.stderr)
             return []
     return []

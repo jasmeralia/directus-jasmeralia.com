@@ -508,7 +508,8 @@ def apply_cached_links(progress: dict) -> None:
             )
             ok += 1
             applied_keys.add(entry["applied_key"])
-        except Exception as error:
+        # Any per-link failure is logged and skipped so the batch continues.
+        except Exception as error:  # noqa: BLE001
             print(f"  ERROR game={entry['game_id']}: {error}")
         time.sleep(0.1)
 
