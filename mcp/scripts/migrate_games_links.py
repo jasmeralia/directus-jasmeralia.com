@@ -96,7 +96,7 @@ def classify_url(candidate_url: str) -> str | None:
             .hostname
             or ""
         )
-    except Exception:
+    except ValueError:
         return None
     host = host.lower()
     if "steampowered.com" in host or "steamcommunity.com" in host:

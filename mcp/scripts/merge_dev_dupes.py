@@ -6,7 +6,6 @@ For each pair: reparent games_developers, reparent developers_links, delete spar
 import sys
 
 import requests
-
 from developer_merge_data import APPROVED_DEVELOPER_MERGES
 from scriptlib import server_env, take_pg_dump_backup
 
@@ -152,7 +151,8 @@ errors = []
 for args in MERGES:
     try:
         merge(*args, is_dry_run=dry_run)
-    except Exception as e:
+    # Any per-merge failure is logged and skipped so the batch continues.
+    except Exception as e:  # noqa: BLE001
         errors.append((args, str(e)))
         print(f"    ERROR: {e}")
 

@@ -107,7 +107,8 @@ def main():
                 )
                 print(f"  [{label}] {game['title']}", file=sys.stderr)
                 added += 1
-            except Exception as e:
+            # Any per-item failure is logged and skipped so the batch continues.
+            except Exception as e:  # noqa: BLE001
                 print(f"  ERROR {game['title']}: {e}", file=sys.stderr)
                 errors += 1
 

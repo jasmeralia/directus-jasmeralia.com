@@ -42,7 +42,7 @@ def directus_patch(game_id: int, family_sharing: bool) -> bool:
     try:
         with urllib.request.urlopen(req, timeout=15):
             return True
-    except Exception as e:
+    except (urllib.error.URLError, TimeoutError) as e:
         print(f"  PATCH error for game {game_id}: {e}", file=sys.stderr)
         return False
 

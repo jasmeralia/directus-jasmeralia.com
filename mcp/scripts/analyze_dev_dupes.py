@@ -2,7 +2,6 @@
 """Analyze duplicate developer entries - fetch game/link counts for each pair."""
 
 import requests
-
 from developer_merge_data import (
     APPROVED_DEVELOPER_MERGES,
     CANDIDATE_DEVELOPER_MERGES,

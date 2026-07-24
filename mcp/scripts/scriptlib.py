@@ -9,11 +9,12 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import cache
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CACHE_DIR = Path(__file__).resolve().parent.parent / "cache"
@@ -78,7 +79,7 @@ def fetch_with_backoff(
                 delay *= 2
             else:
                 return None, f"http_{error.code}"
-        except Exception as error:  # Network failures are surfaced to the caller.
+        except Exception as error:  # noqa: BLE001 - Surface network failures to caller.
             return None, f"error:{error}"
     return None, "rate_limit_exceeded"
 
@@ -178,7 +179,7 @@ def take_pg_dump_backup(label: str) -> str:
     changes" section over SSH. Returns the backup filename on success;
     raises RuntimeError if the remote pipeline exits non-zero.
     """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     filename = f"directus_{timestamp}_{label}.sql.gz"
     remote_path = f"/mnt/myzmirror/directus-jasmeralia/backups/{filename}"
     remote_cmd = (
@@ -331,6 +332,6 @@ class DirectusClient:
             with urllib.request.urlopen(request, timeout=60) as response:
                 result = json.loads(response.read())
             return result["data"]["id"]
-        except Exception as error:  # Network errors are reported per cover and skipped.
+        except Exception as error:  # noqa: BLE001 - Report and skip per-cover failures.
             print(f"    Upload error: {error}", file=sys.stderr)
             return None

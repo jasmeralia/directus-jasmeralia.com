@@ -19,11 +19,11 @@ Output:
 import difflib
 import json
 import re
+import ssl
 import sys
 import time
 import urllib.parse
 import urllib.request
-import ssl
 from collections import defaultdict
 from pathlib import Path
 
@@ -508,7 +508,8 @@ def apply_cached_links(progress: dict) -> None:
             )
             ok += 1
             applied_keys.add(entry["applied_key"])
-        except Exception as error:
+        # Any per-link failure is logged and skipped so the batch continues.
+        except Exception as error:  # noqa: BLE001
             print(f"  ERROR game={entry['game_id']}: {error}")
         time.sleep(0.1)
 

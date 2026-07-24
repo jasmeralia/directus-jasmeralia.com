@@ -14,8 +14,8 @@ import csv
 import json
 import re
 import sys
-import urllib.request
 import urllib.parse
+import urllib.request
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -29,10 +29,10 @@ DIRECTUS_TOKEN = json.loads(
 CACHE = Path(__file__).parent.parent / "cache"
 
 CONTENT_FILTERS = [
-    lambda t: bool(re.search(r"\bOST\b|Soundtrack|\- Music", t, re.I)),
+    lambda t: bool(re.search(r"\bOST\b|Soundtrack|\- Music", t, re.IGNORECASE)),
     lambda t: t.rstrip().endswith("Digital Deluxe Content"),
-    lambda t: bool(re.search(r"\bDEMO\b| Demo$", t, re.I)),
-    lambda t: bool(re.search(r" Prologue$|: Prologue", t, re.I)),
+    lambda t: bool(re.search(r"\bDEMO\b| Demo$", t, re.IGNORECASE)),
+    lambda t: bool(re.search(r" Prologue$|: Prologue", t, re.IGNORECASE)),
 ]
 
 

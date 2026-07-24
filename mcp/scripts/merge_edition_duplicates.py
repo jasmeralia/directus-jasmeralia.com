@@ -108,7 +108,8 @@ def main():
         try:
             base = get_game(base_id)
             edition = get_game(edition_id)
-        except Exception as e:
+        # Any per-pair fetch failure is logged and skipped so the batch continues.
+        except Exception as e:  # noqa: BLE001
             print(f"ERROR fetching {base_id}/{edition_id}: {e}")
             errors += 1
             continue

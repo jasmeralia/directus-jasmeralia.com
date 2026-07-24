@@ -12,10 +12,10 @@ import json
 import re
 import sys
 import time
-import urllib.request
-import urllib.parse
 import urllib.error
-from datetime import datetime
+import urllib.parse
+import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 from scriptlib import derive_game_status, server_env
@@ -83,7 +83,7 @@ def upload_cover(cover_url: str, title: str, slug: str) -> str | None:
             f"  Cover upload failed HTTP {e.code}: {body_text[:200]}", file=sys.stderr
         )
         return None
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - Any upload failure is logged and skipped.
         print(f"  Cover upload error: {e}", file=sys.stderr)
         return None
 
@@ -119,7 +119,9 @@ def ensure_developer(name: str, cache: dict) -> int:
 
 def take_backup():
     """Write a JSON backup of collections changed by the import."""
-    backup_dir = CACHE / f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    backup_dir = (
+        CACHE / f"backup_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+    )
     backup_dir.mkdir(parents=True)
     collections = ["games", "genres", "developers", "games_genres", "games_developers"]
     print(f"Taking backup to {backup_dir}/")
@@ -245,7 +247,7 @@ def main():
                     print("  Created download link")
                 except urllib.error.HTTPError as e:
                     print(f"  Download link HTTP {e.code}: {e.read().decode()[:200]}")
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 - Log and skip any link failure.
                     print(f"  Download link error: {e}")
 
             # Link genres
@@ -287,7 +289,7 @@ def main():
             progress[key] = {"status": "error", "error": msg}
             errors += 1
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - Log any per-item failure and continue.
             msg = str(e)
             print(f"  ERROR: {msg}", file=sys.stderr)
             progress[key] = {"status": "error", "error": msg}

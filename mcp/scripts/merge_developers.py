@@ -216,7 +216,7 @@ def apply():
                             f"    Removed duplicate assoc game {games_id}",
                             file=sys.stderr,
                         )
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001 - Log and continue the batch.
                         print(
                             f"    ERROR removing assoc {row['id']}: {e}",
                             file=sys.stderr,
@@ -232,7 +232,7 @@ def apply():
                         existing[(games_id, canonical_id)] = row["id"]
                         existing.pop((games_id, merge_id), None)
                         print(f"    Re-pointed game {games_id}", file=sys.stderr)
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001 - Log and continue the batch.
                         print(
                             f"    ERROR re-pointing game {games_id}: {e}",
                             file=sys.stderr,
@@ -246,7 +246,7 @@ def apply():
                     f'    Deleted developer {merge_id} ("{m["name"]}")', file=sys.stderr
                 )
                 merged_devs += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - Log and continue the batch.
                 print(f"    ERROR deleting developer {merge_id}: {e}", file=sys.stderr)
                 errors += 1
 

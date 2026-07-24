@@ -6,8 +6,8 @@ import os
 import subprocess
 import sys
 import tempfile
-import urllib.request
 import urllib.error
+import urllib.request
 
 from scriptlib import server_env
 
@@ -200,9 +200,8 @@ def download_asset(uuid, dest_path):
     """Download a Directus asset to dest_path."""
     url = f"{DIRECTUS_URL}/assets/{uuid}"
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {TOKEN}"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        with open(dest_path, "wb") as f:
-            f.write(r.read())
+    with urllib.request.urlopen(req, timeout=60) as r, open(dest_path, "wb") as f:
+        f.write(r.read())
 
 
 def ext_from_mime(mime):
@@ -253,7 +252,8 @@ def main():
             download_asset(uuid, dest_path)
             size_kb = os.path.getsize(dest_path) // 1024
             print(f"-> {slug}{ext} ({size_kb} KB)")
-        except Exception as e:
+        # Any per-file failure is logged and skipped so the batch continues.
+        except Exception as e:  # noqa: BLE001
             print(f"ERROR: {e}")
             errors.append((game["id"], slug, str(e)))
 
