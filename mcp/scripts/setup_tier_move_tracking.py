@@ -13,8 +13,8 @@ Usage:
 
 import json
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
 
 from scriptlib import server_env, take_pg_dump_backup

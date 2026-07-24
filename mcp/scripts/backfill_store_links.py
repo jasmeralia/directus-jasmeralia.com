@@ -25,8 +25,8 @@ import re
 import sys
 import time
 import urllib.error
-import urllib.request
 import urllib.parse
+import urllib.request
 
 from scriptlib import CACHE_DIR, DirectusClient, server_env
 

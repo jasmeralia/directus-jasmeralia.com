@@ -6,7 +6,6 @@ For each pair: reparent games_developers, reparent developers_links, delete spar
 import sys
 
 import requests
-
 from developer_merge_data import APPROVED_DEVELOPER_MERGES
 from scriptlib import server_env, take_pg_dump_backup
 

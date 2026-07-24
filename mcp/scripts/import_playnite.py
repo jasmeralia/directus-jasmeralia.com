@@ -23,11 +23,11 @@ import csv
 import difflib
 import json
 import re
+import ssl
 import sys
 import time
 import urllib.parse
 import urllib.request
-import ssl
 from pathlib import Path
 from typing import Any
 

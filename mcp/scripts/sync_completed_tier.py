@@ -17,7 +17,6 @@ import sys
 import urllib.request
 
 import psycopg2
-
 from scriptlib import server_env
 
 DIRECTUS_ENV = server_env("directus")

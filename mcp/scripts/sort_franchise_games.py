@@ -15,7 +15,6 @@ import time
 from collections import defaultdict
 
 import requests
-
 from scriptlib import server_env
 
 env = server_env("directus")
