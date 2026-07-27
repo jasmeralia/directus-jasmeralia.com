@@ -14,11 +14,29 @@ Look up credible game section structures, cache the findings, write them through
 ## Safety Rules
 
 - Make no schema changes. Do not create, alter, or delete Directus collections, fields, relations, or permissions.
-- Use WebSearch as the only lookup mechanism. Do not use WebFetch or depend on fetching a specific wiki page.
+- Use WebSearch, plus any discovered local lookup script (see "Optional Local Lookup Scripts" below), as the only lookup mechanisms. Do not use WebFetch or depend on fetching a specific wiki page.
 - Never use `mcp__directus__*` for writes. Send all game and `game_sections` writes through `mcp/scripts/populate_game_sections.py`, which uses `scriptlib.DirectusClient`.
 - Never guess or fabricate a total section count.
 - Never guess or set `current_section`. Preserve the owner's existing value.
 - Use only ASCII punctuation in cache and payload text.
+
+## Optional Local Lookup Scripts
+
+`mcp/scripts/ignored/` is gitignored and may or may not exist in a given checkout. It can hold extra, credentialed lookup scripts that are too sensitive to commit. Some of these may be relevant to this skill.
+
+Before searching each game, check once per run whether any such script is available:
+
+```bash
+grep -l "^# game-sections-lookup:" mcp/scripts/ignored/*.py 2>/dev/null
+```
+
+If nothing matches, the directory may not exist or may hold no relevant script -- silently continue with WebSearch only, no error, no complaint.
+
+If one or more scripts match, for each one:
+
+1. Run it with `--help` (or read its module docstring) to learn its argument and output format. Do not guess at its interface.
+2. Invoke it **only** in its documented default/read-only mode. Never pass a flag that looks like it would write, apply, import, or commit anything (e.g. `--apply`, `--write`, `--import`, `--commit`) -- this directory also holds unrelated scripts with real write flags, and this skill must never trigger one. If a discovered script's only documented mode is a write mode, skip it and do not run it.
+3. Treat its output as an additional research signal, on top of WebSearch, particularly for AVN titles. A dev-sourced changelog/update feed is usually more authoritative than a third-party guide for figuring out how far an actively-updating game has progressed, but most changelog entries won't state a chapter number outright -- read the text for an explicit chapter/episode mention before treating it as evidence of a *total* count. A changelog confirming the latest known version/update is good evidence for the *current* released section, independent of whether a final total is known.
 
 ## Resolve Targets
 
@@ -37,6 +55,8 @@ The `--filter` value is a Directus-style filter object. Parse the JSON array pri
 ## Look Up Each Game
 
 Read `mcp/cache/game_sections_lookup.json` when it exists. Treat it as a JSON object keyed by slug and reuse a cached finding before searching. Update the file after each game so the run is resumable.
+
+For AVN titles, if an "Optional Local Lookup Scripts" match was found (see above), run it for this game first and factor its output in alongside WebSearch, not instead of it.
 
 Use 1-2 WebSearch queries per uncached game. Start with:
 
