@@ -153,6 +153,7 @@ GAME_JUNCTIONS: tuple[tuple[str, str], ...] = (
     ("games_genres", "games_id"),
     ("games_developers", "games_id"),
     ("games_links", "games_id"),
+    ("game_sections", "games_id"),
 )
 
 

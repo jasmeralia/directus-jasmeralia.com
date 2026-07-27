@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.151] - 2026-07-27
+- Games: add an ordered sections panel with current chapter, act, episode, or mission highlighting to game detail pages.
+- Filters: add an in-progress games missing sections page with CSV export.
+
 ## [1.0.150] - 2026-07-13
 - Build: add ESLint (flat config, eslint-plugin-astro + typescript-eslint) for `site/`; fix all violations surfaced across `.astro` and `.ts` sources (replace `any` with concrete/loosely-typed shapes, remove dead assignments and unused code, fix `no-var` and triple-slash-reference lint errors).
 

@@ -3,6 +3,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
 import { downloadLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
+import { orderedSections, pluralizeNoun, sectionNoun } from "../../lib/game-sections";
 
 export async function getStaticPaths() {
   const games = await directusFetchItems('games', {
@@ -46,6 +47,11 @@ const games = await directusFetchItems('games', {
     'links.label',
     'links.kind',
     'links.sort',
+    'section_noun',
+    'current_section',
+    'sections.id',
+    'sections.number',
+    'sections.title',
   ],
   filter: { slug: { _eq: slug } },
   limit: 1,
@@ -56,6 +62,9 @@ if (!game) {
   throw new Error(`Game not found for slug: ${slug}`);
 }
 
+const noun = sectionNoun(game.section_noun);
+const sections = orderedSections(game.sections);
+const current = game.current_section ?? null;
 const cover = fileUrl(game.cover_image);
 const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 const tierLabel = (value) => value === "U" ? "Too Early" : (value ?? "");
@@ -198,6 +207,10 @@ const coverStackStyle = [
       .download-link img{width:1rem;height:1rem;display:block;}
       .download-link .platform-icon{filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
       .download-link .gsl-icon{filter:none;}
+      .sections-summary{margin:.5rem 0;}
+      .sections-list{margin-bottom:0;}
+      .sections-list li{padding:.2rem .5rem;border-left:2px solid transparent;}
+      .sections-list .current-section{color:#8c58ff;border-left-color:#8c58ff;font-weight:700;}
     </style>
   </div>
   <main class="container" data-pagefind-body data-pagefind-filter="type:game">
@@ -343,6 +356,27 @@ const coverStackStyle = [
           ) : null}
         </ul>
       </div>
+
+      {sections.length > 0 ? (
+        <div class="section panel">
+          <div class="label">{pluralizeNoun(noun)}</div>
+          <p class="sections-summary">
+            {current !== null
+              ? `Currently on ${noun} ${current} of ${sections.length}`
+              : `${sections.length} ${pluralizeNoun(noun)}`}
+          </p>
+          <ol class="sections-list">
+            {sections.map((section) => (
+              <li
+                class:list={{ "current-section": section.number === current }}
+                aria-current={section.number === current ? "step" : undefined}
+              >
+                {section.title}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
 
       {reviews.length ? (
         <div class="section panel">
