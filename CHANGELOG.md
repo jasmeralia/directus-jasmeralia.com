@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.152] - 2026-07-27
+- Games: show a chapter/act/episode/mission progress bar on game cards wherever a current section is set (played statuses, filters, tier lists).
+
 ## [1.0.151] - 2026-07-27
 - Games: add an ordered sections panel with current chapter, act, episode, or mission highlighting to game detail pages.
 - Filters: add an in-progress games missing sections page with CSV export.

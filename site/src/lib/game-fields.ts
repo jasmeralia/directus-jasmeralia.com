@@ -25,6 +25,9 @@ export const GAME_THUMB_FIELDS = [
   "links.label",
   "links.kind",
   "links.sort",
+  "section_noun",
+  "current_section",
+  "sections.id",
 ];
 
 export const DEVELOPER_LINK_FIELDS = [
