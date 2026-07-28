@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.154] - 2026-07-28
+- Games: add a History tab to game detail pages showing revision/activity history (edits, reviews, tier list entries, download/walkthrough links).
+
 ## [1.0.153] - 2026-07-28
 - Filters: link the "In Progress + Missing Sections" misc filter page from the Misc panel on `/filters`; it shipped in 1.0.151 but was never added to the panel's link list, so it was only reachable by typing its exact URL.
 
