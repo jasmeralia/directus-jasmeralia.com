@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.156] - 2026-07-28
+- Filters: replace the single "In Progress + Missing Sections" misc filter with a general "Section Data + Played Status" combinatorial section, crossing whether a game has any chapter/act/episode/mission data recorded (Missing/Present) with every played status, matching the pattern used for Developer/Engine/Genre combinations.
+- Filters: right-align the "Jump to top" link at the bottom of each section on `/filters`.
+
 ## [1.0.155] - 2026-07-28
 - Filters: add a "Jump to top" link at the bottom of each section on `/filters` so long lists (e.g. Misc, Download Platform) don't require manual scrolling back up.
 
