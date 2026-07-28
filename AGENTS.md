@@ -157,6 +157,8 @@ All three are in `site/src/lib/list-format.ts`. All raw `localeCompare` calls mu
 
 Both files must be updated in the same commit as the site changes. Never batch multiple unrelated features under one version; each logical change gets its own version bump.
 
+**New `filters/misc/*.astro` pages must be added to `miscFilterEntries` in `filters/index.astro`, or they're orphaned.** The Misc panel on `/filters/index.html` is a hand-maintained array (`miscFilterEntries`, not a directory scan), so a new misc filter page builds and deploys fine but stays unreachable except by typing its exact URL until an entry (`{ label, href, count }`) is added for it. `games-missing-sections.astro` shipped this way and went unlinked for a release before being caught. When adding a new misc filter page, add its `miscFilterEntries` entry (and any supporting count computation, reusing the shared `games` fetch already in `filters/index.astro` where possible) in the same commit.
+
 ## Rules for schema changes
 
 **Never make schema changes (field creation/deletion, relation changes, collection modifications) without explicit user confirmation — even if the user has discussed or approved the plan.** Discussion is not authorization. Wait for a clear "go ahead" directed at the specific schema change before touching `/fields`, `/relations`, or `/collections` endpoints.
