@@ -576,6 +576,25 @@ const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; co
     .map((k) => ({ kind: k, label: WALKTHROUGH_KIND_LABEL[k], count: walkthroughCounts[k] }))
     .filter((entry) => entry.count > 0);
 const familySharingDisabledCount = (games ?? []).filter((game) => isFamilySharingDisabled(game)).length;
+const inProgressGameIds = (games ?? [])
+  .filter((game) => game.player_status === "in_progress")
+  .map((game) => game.id)
+  .filter((id) => typeof id === "number");
+const gameIdsWithSections = new Set<number>();
+if (inProgressGameIds.length) {
+  const sectionRows = await directusFetchItems<{
+    games_id?: number | { id?: number } | null;
+  }>("game_sections", {
+    fields: ["games_id"],
+    filter: { games_id: { _in: inProgressGameIds } },
+    limit: -1,
+  });
+  for (const row of sectionRows ?? []) {
+    const id = typeof row.games_id === "number" ? row.games_id : row.games_id?.id;
+    if (typeof id === "number") gameIdsWithSections.add(id);
+  }
+}
+const missingSectionsCount = inProgressGameIds.filter((id) => !gameIdsWithSections.has(id)).length;
 const coverArtGames = await directusFetchItems("games", {
   fields: ["id", "cover_image.width", "cover_image.height"],
   filter: { cover_image: { _nnull: true } },
@@ -679,6 +698,7 @@ const miscFilterEntries = [
   { label: "Developer Links + Website", href: "/filters/misc/developer-links/website/index.html", count: devLinkKindCounts.website },
   { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
+  { label: "In Progress + Missing Sections", href: "/filters/misc/games-missing-sections/index.html", count: missingSectionsCount },
   ...walkthroughFilterEntries.map((entry) => ({
     label: `Walkthrough URL + ${entry.label}`,
     href: `/filters/misc/walkthrough/${entry.kind}/index.html`,

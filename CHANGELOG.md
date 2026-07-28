@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.153] - 2026-07-28
+- Filters: link the "In Progress + Missing Sections" misc filter page from the Misc panel on `/filters`; it shipped in 1.0.151 but was never added to the panel's link list, so it was only reachable by typing its exact URL.
+
 ## [1.0.152] - 2026-07-27
 - Games: show a chapter/act/episode/mission progress bar on game cards wherever a current section is set (played statuses, filters, tier lists).
 
