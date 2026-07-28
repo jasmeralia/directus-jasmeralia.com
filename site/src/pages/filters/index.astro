@@ -39,6 +39,7 @@ const games = await directusFetchItems("games", {
     "links.url",
     "links.kind",
     "links.sort",
+    "sections.id",
   ],
   limit: -1,
 });
@@ -74,6 +75,7 @@ const developerPlayedValues = new Map();
 const genrePlayedCounts = new Map();
 const genrePlayedTotalCounts = new Map();
 const genrePlayedValues = new Map();
+const sectionDataPlayedCounts = new Map();
 
 for (const game of games ?? []) {
   const engineSlugs =
@@ -162,6 +164,9 @@ for (const game of games ?? []) {
       const key = `${genre}::${game.player_status}`;
       genrePlayedTotalCounts.set(key, (genrePlayedTotalCounts.get(key) || 0) + 1);
     }
+    const sectionState = (game.sections ?? []).length > 0 ? "present" : "missing";
+    const sectionKey = `${sectionState}::${game.player_status}`;
+    sectionDataPlayedCounts.set(sectionKey, (sectionDataPlayedCounts.get(sectionKey) || 0) + 1);
   }
 }
 
@@ -300,6 +305,21 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
   .sort((a, b) =>
     unknownLast(a, b, "genreLabel") ||
     compareLabels(a.genreLabel, b.genreLabel) ||
+    compareLabels(a.statusLabel, b.statusLabel));
+
+const sectionDataPlayedEntries = Array.from(sectionDataPlayedCounts.entries())
+  .map(([key, count]) => {
+    const [state, status] = key.split("::");
+    return {
+      state,
+      status,
+      count,
+      stateLabel: state === "present" ? "Present" : "Missing",
+      statusLabel: labelize(status),
+    };
+  })
+  .sort((a, b) =>
+    compareLabels(a.stateLabel, b.stateLabel) ||
     compareLabels(a.statusLabel, b.statusLabel));
 
 const INCOMPLETE_STATUSES = new Set(["not_started", "in_progress", "on_hold", "waiting_for_update"]);
@@ -576,25 +596,6 @@ const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; co
     .map((k) => ({ kind: k, label: WALKTHROUGH_KIND_LABEL[k], count: walkthroughCounts[k] }))
     .filter((entry) => entry.count > 0);
 const familySharingDisabledCount = (games ?? []).filter((game) => isFamilySharingDisabled(game)).length;
-const inProgressGameIds = (games ?? [])
-  .filter((game) => game.player_status === "in_progress")
-  .map((game) => game.id)
-  .filter((id) => typeof id === "number");
-const gameIdsWithSections = new Set<number>();
-if (inProgressGameIds.length) {
-  const sectionRows = await directusFetchItems<{
-    games_id?: number | { id?: number } | null;
-  }>("game_sections", {
-    fields: ["games_id"],
-    filter: { games_id: { _in: inProgressGameIds } },
-    limit: -1,
-  });
-  for (const row of sectionRows ?? []) {
-    const id = typeof row.games_id === "number" ? row.games_id : row.games_id?.id;
-    if (typeof id === "number") gameIdsWithSections.add(id);
-  }
-}
-const missingSectionsCount = inProgressGameIds.filter((id) => !gameIdsWithSections.has(id)).length;
 const coverArtGames = await directusFetchItems("games", {
   fields: ["id", "cover_image.width", "cover_image.height"],
   filter: { cover_image: { _nnull: true } },
@@ -698,7 +699,6 @@ const miscFilterEntries = [
   { label: "Developer Links + Website", href: "/filters/misc/developer-links/website/index.html", count: devLinkKindCounts.website },
   { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
-  { label: "In Progress + Missing Sections", href: "/filters/misc/games-missing-sections/index.html", count: missingSectionsCount },
   ...walkthroughFilterEntries.map((entry) => ({
     label: `Walkthrough URL + ${entry.label}`,
     href: `/filters/misc/walkthrough/${entry.kind}/index.html`,
@@ -749,6 +749,7 @@ const miscCount = miscFilterEntries.length;
         <li><a href="#engine-played-status">Engine + Played Status ({enginePlayedEntries.length})</a></li>
         <li><a href="#genre-game-status">Genre + Game Status ({genreStatusEntries.length})</a></li>
         <li><a href="#genre-played-status">Genre + Played Status ({genrePlayedEntries.length})</a></li>
+        <li><a href="#section-data-played-status">Section Data + Played Status ({sectionDataPlayedEntries.length})</a></li>
         <li><a href="#misc">Misc ({miscCount})</a></li>
       </ul>
     </div>
@@ -877,6 +878,23 @@ const miscCount = miscFilterEntries.length;
               ) : (
                 <span style="opacity:.7;"> ({entry.count})</span>
               )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
+    </div>
+    <div class="panel" id="section-data-played-status">
+      <h2>Section Data + Played Status ({sectionDataPlayedEntries.length} combinations)</h2>
+      <p style="opacity:.7;margin-top:-8px;">Whether a game has any chapter/act/episode/mission data recorded, crossed with played status.</p>
+      {sectionDataPlayedEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {sectionDataPlayedEntries.map((entry) => (
+            <li>
+              <a href={`/filters/section-data/${entry.state}/played_status/${entry.status}/index.html`}>Section Data {entry.stateLabel} + {entry.statusLabel}</a>
+              <span style="opacity:.7;"> ({entry.count})</span>
             </li>
           ))}
         </ul>
