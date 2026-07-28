@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.155] - 2026-07-28
+- Filters: add a "Jump to top" link at the bottom of each section on `/filters` so long lists (e.g. Misc, Download Platform) don't require manual scrolling back up.
+
 ## [1.0.154] - 2026-07-28
 - Games: add a History tab to game detail pages showing revision/activity history (edits, reviews, tier list entries, download/walkthrough links).
 
