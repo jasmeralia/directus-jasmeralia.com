@@ -726,6 +726,7 @@ const miscCount = miscFilterEntries.length;
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .jump-top{margin:12px 0 0;font-size:.85rem;opacity:.8;}
       .pie-wrap{display:flex;justify-content:center;padding-top:45px;padding-bottom:45px;}
       .pie-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:16px;}
       .pie-panel{background:#151515;border:1px solid #252525;border-radius:10px;padding:12px 48px;}
@@ -733,7 +734,7 @@ const miscCount = miscFilterEntries.length;
       .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;overflow:visible;}
     </style>
   </div>
-  <main>
+  <main id="top">
     <div class="panel">
       <h1>Filters</h1>
       <p>Composite filter pages generated at build time.</p>
@@ -766,6 +767,7 @@ const miscCount = miscFilterEntries.length;
           ))}
         </ul>
       )}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="developer-played-status">
       <h2>Developer + Played Status ({developerPlayedEntries.length} combinations)</h2>
@@ -782,6 +784,7 @@ const miscCount = miscFilterEntries.length;
           ))}
         </ul>
       )}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="engine-game-status">
       <h2>Engine + Game Status ({engineStatusEntries.length} combinations)</h2>
@@ -798,6 +801,7 @@ const miscCount = miscFilterEntries.length;
           ))}
         </ul>
       )}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="engine-genre">
       <h2>Engine + Genre ({engineGenreEntries.length} combinations)</h2>
@@ -818,6 +822,7 @@ const miscCount = miscFilterEntries.length;
           ))}
         </ul>
       )}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="engine-played-status">
       <h2>Engine + Played Status ({enginePlayedEntries.length} combinations)</h2>
@@ -834,6 +839,7 @@ const miscCount = miscFilterEntries.length;
           ))}
         </ul>
       )}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="genre-game-status">
       <h2>Genre + Game Status ({genreStatusEntries.length} combinations)</h2>
@@ -854,6 +860,7 @@ const miscCount = miscFilterEntries.length;
           ))}
         </ul>
       )}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="genre-played-status">
       <h2>Genre + Played Status ({genrePlayedEntries.length} combinations)</h2>
@@ -874,6 +881,7 @@ const miscCount = miscFilterEntries.length;
           ))}
         </ul>
       )}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="misc">
       <h2>Misc ({miscCount} combinations)</h2>
@@ -1000,6 +1008,7 @@ const miscCount = miscFilterEntries.length;
           ) : null}
         </div>
       ) : null}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
   </main>
 </BaseLayout>
