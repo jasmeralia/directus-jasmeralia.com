@@ -52,30 +52,26 @@ Before creating any PR, fetch the latest `master` and rebase the feature branch 
 
 ### publish.sh — full deploy in one command
 
-`mcp/scripts/publish.sh` automates the full post-commit deploy sequence: push branch → create PR → squash merge → update local master → TrueNAS pull → rebuild trigger.
+`mcp/scripts/publish.sh` automates the full post-commit deploy sequence: push branch -> create PR -> squash merge -> update local master -> rebuild trigger. It still performs a legacy TrueNAS pre-pull, but the builder now pulls the latest `master` itself, so that step is harmless and redundant.
 
 ```bash
 mcp/scripts/publish.sh --title "fix: something" [--body "PR body"] [--no-build]
 ```
 
 - `--title` is required; `--body` defaults to empty.
-- `--no-build` skips the TrueNAS pull and rebuild trigger — use this for changes that don't affect the built site (e.g. script-only changes in `mcp/scripts/`).
+- `--no-build` skips the legacy TrueNAS pre-pull and rebuild trigger - use this for changes that don't affect the built site (e.g. script-only changes in `mcp/scripts/`).
 - Reads `DIRECTUS_TOKEN` from `.mcp.json` for the rebuild trigger.
-- Automatically retries the TrueNAS pull after cleaning `.serena/` if the first pull fails due to untracked files.
+- Retains a legacy retry that cleans `.serena/` if its redundant TrueNAS pre-pull encounters untracked files.
 - Must be run from a feature branch; exits with an error if already on `master`.
 
 ## Updating site source on TrueNAS
 
-**After merging any PR to master, always pull on TrueNAS immediately** — before triggering a build. Data-only changes (Directus field updates) don't require this, but any code change will silently build stale without it.
-
-```bash
-ssh morgan@truenas.windsofstorm.net "git -C /mnt/myzmirror/directus-jasmeralia pull"
-```
-
-If the pull fails due to untracked files (e.g. `.serena/`), clean them first:
-```bash
-ssh morgan@truenas.windsofstorm.net "git -C /mnt/myzmirror/directus-jasmeralia clean -f .serena/ && git -C /mnt/myzmirror/directus-jasmeralia pull"
-```
+Manual TrueNAS pulls are no longer required. At the beginning of every build,
+the builder script pulls the latest `master` into
+`/mnt/myzmirror/directus-jasmeralia` before staging and building the Astro
+site. After merging a site change, trigger the build normally and monitor it
+through OpenSearch. Only investigate or repair the TrueNAS checkout if the
+automatic pull reports a failure in that build's logs.
 
 ## Checking build logs
 
