@@ -1,4 +1,6 @@
 import { getUrlPlatform, primaryDownloadLink, type GameLink } from "./download-link";
+import type { GameBundleMember } from "./game-bundles";
+import type { GameSection } from "./game-sections";
 
 export type DirectusFile = {
   id: string;
@@ -15,6 +17,8 @@ export type Game = {
   links?: GameLink[] | null;
   player_status?: string | null;
   family_sharing?: boolean | null;
+  sections?: GameSection[] | null;
+  bundle_members?: GameBundleMember[] | null;
 };
 
 export function isFamilySharingDisabled(game: { family_sharing?: boolean | null; links?: GameLink[] | null }): boolean {

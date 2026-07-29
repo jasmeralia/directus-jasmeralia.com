@@ -2,6 +2,7 @@ export type GameSection = {
   id?: number;
   number: number;
   title: string;
+  bundle_member_id?: number | { id?: number } | null;
 };
 
 export const sectionNoun = (raw: string | null | undefined): string =>
@@ -14,3 +15,10 @@ export const orderedSections = (
   sections: GameSection[] | null | undefined,
 ): GameSection[] =>
   (sections ?? []).slice().sort((a, b) => a.number - b.number);
+
+export const directGameSections = (
+  sections: GameSection[] | null | undefined,
+): GameSection[] =>
+  orderedSections(
+    (sections ?? []).filter((section) => section.bundle_member_id == null),
+  );

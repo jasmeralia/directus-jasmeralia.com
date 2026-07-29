@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.157] - 2026-07-28
+- Games: add explicit omnibus bundle support with independently tracked included games, member-local section progress, standalone-game backlinks, and natural detail/card presentation.
+- Filters: add discoverable omnibus listings with a dedicated CSV export, and make Section Data filters bundle-aware with Partial and Not Applicable states.
+- Activity: include meaningful included-game changes in game History, recent updates, and RSS using collision-resistant member event identifiers and consistent human-readable titles.
+- Tooling: add curated bundle population and member-scoped section workflows with invariant checks, deletion ordering, backups, and parent rebuild triggering.
+
 ## [1.0.156] - 2026-07-28
 - Filters: replace the single "In Progress + Missing Sections" misc filter with a general "Section Data + Played Status" combinatorial section, crossing whether a game has any chapter/act/episode/mission data recorded (Missing/Present) with every played status, matching the pattern used for Developer/Engine/Genre combinations.
 - Filters: right-align the "Jump to top" link at the bottom of each section on `/filters`.

@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
 import { getUrlPlatform, downloadLinks, primaryDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
+import { sectionDataState } from "../../lib/game-bundles";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown, compareLabels } from "../../lib/list-format";
 import {
@@ -40,6 +41,8 @@ const games = await directusFetchItems("games", {
     "links.kind",
     "links.sort",
     "sections.id",
+    "bundle_members.id",
+    "bundle_members.section_data_status",
   ],
   limit: -1,
 });
@@ -164,7 +167,7 @@ for (const game of games ?? []) {
       const key = `${genre}::${game.player_status}`;
       genrePlayedTotalCounts.set(key, (genrePlayedTotalCounts.get(key) || 0) + 1);
     }
-    const sectionState = (game.sections ?? []).length > 0 ? "present" : "missing";
+    const sectionState = sectionDataState(game);
     const sectionKey = `${sectionState}::${game.player_status}`;
     sectionDataPlayedCounts.set(sectionKey, (sectionDataPlayedCounts.get(sectionKey) || 0) + 1);
   }
@@ -314,7 +317,7 @@ const sectionDataPlayedEntries = Array.from(sectionDataPlayedCounts.entries())
       state,
       status,
       count,
-      stateLabel: state === "present" ? "Present" : "Missing",
+      stateLabel: labelize(state),
       statusLabel: labelize(status),
     };
   })
@@ -596,6 +599,9 @@ const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; co
     .map((k) => ({ kind: k, label: WALKTHROUGH_KIND_LABEL[k], count: walkthroughCounts[k] }))
     .filter((entry) => entry.count > 0);
 const familySharingDisabledCount = (games ?? []).filter((game) => isFamilySharingDisabled(game)).length;
+const omnibusGamesCount = (games ?? []).filter(
+  (game) => (game.bundle_members ?? []).length > 0,
+).length;
 const coverArtGames = await directusFetchItems("games", {
   fields: ["id", "cover_image.width", "cover_image.height"],
   filter: { cover_image: { _nnull: true } },
@@ -698,6 +704,7 @@ const miscFilterEntries = [
   { label: "Developer Links + SubscribeStar", href: "/filters/misc/developer-links/subscribestar/index.html", count: devLinkKindCounts.subscribestar },
   { label: "Developer Links + Website", href: "/filters/misc/developer-links/website/index.html", count: devLinkKindCounts.website },
   { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
+  { label: "Omnibus Games", href: "/filters/misc/omnibus-games/index.html", count: omnibusGamesCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
   ...walkthroughFilterEntries.map((entry) => ({
     label: `Walkthrough URL + ${entry.label}`,

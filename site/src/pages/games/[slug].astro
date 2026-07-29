@@ -4,7 +4,8 @@ import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/
 import { formatDate } from "../../lib/date";
 import { downloadLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
-import { orderedSections, pluralizeNoun, sectionNoun } from "../../lib/game-sections";
+import { orderedBundleMembers } from "../../lib/game-bundles";
+import { directGameSections, orderedSections, pluralizeNoun, sectionNoun } from "../../lib/game-sections";
 
 export async function getStaticPaths() {
   const games = await directusFetchItems('games', {
@@ -53,6 +54,31 @@ const games = await directusFetchItems('games', {
     'sections.id',
     'sections.number',
     'sections.title',
+    'sections.bundle_member_id',
+    'bundle_members.id',
+    'bundle_members.sort',
+    'bundle_members.slug',
+    'bundle_members.title',
+    'bundle_members.release_year',
+    'bundle_members.cover_image.id',
+    'bundle_members.cover_image.filename_disk',
+    'bundle_members.player_status',
+    'bundle_members.section_data_status',
+    'bundle_members.section_noun',
+    'bundle_members.current_section',
+    'bundle_members.sections.id',
+    'bundle_members.sections.number',
+    'bundle_members.sections.title',
+    'bundle_members.source_game_id.id',
+    'bundle_members.source_game_id.title',
+    'bundle_members.source_game_id.slug',
+    'bundle_members.source_game_id.release_year',
+    'bundle_members.source_game_id.cover_image.id',
+    'bundle_members.source_game_id.cover_image.filename_disk',
+    'included_in_bundles.id',
+    'included_in_bundles.games_id.id',
+    'included_in_bundles.games_id.title',
+    'included_in_bundles.games_id.slug',
   ],
   filter: { slug: { _eq: slug } },
   limit: 1,
@@ -64,8 +90,13 @@ if (!game) {
 }
 
 const noun = sectionNoun(game.section_noun);
-const sections = orderedSections(game.sections);
+const sections = directGameSections(game.sections);
 const current = game.current_section ?? null;
+const bundleMembers = orderedBundleMembers(game.bundle_members);
+const includedIn = (game.included_in_bundles ?? [])
+  .map((membership) => membership?.games_id)
+  .filter((parent) => parent?.slug && parent?.title)
+  .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 const cover = fileUrl(game.cover_image);
 const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 const tierLabel = (value) => value === "U" ? "Too Early" : (value ?? "");
@@ -126,6 +157,7 @@ const history = await buildGameHistory({
   reviews: historyReviews,
   tierEntries,
   links: game.links ?? [],
+  bundleMembers,
 });
 const tierListsMap = new Map();
 for (const entry of (tierEntries ?? [])) {
@@ -233,6 +265,15 @@ const coverStackStyle = [
       .sections-list{margin-bottom:0;}
       .sections-list li{padding:.2rem .5rem;border-left:2px solid transparent;}
       .sections-list .current-section{color:#8c58ff;border-left-color:#8c58ff;font-weight:700;}
+      .bundle-list{display:flex;flex-direction:column;gap:.75rem;margin-top:.75rem;}
+      .bundle-member{background:#0b0b0b;border:1px solid #222;border-radius:10px;padding:.75rem;}
+      .bundle-member-header{display:flex;gap:.75rem;align-items:center;}
+      .bundle-member-cover{width:54px;height:81px;object-fit:contain;background:#000;border-radius:5px;flex-shrink:0;}
+      .bundle-member-info{display:flex;flex-direction:column;gap:.15rem;}
+      .bundle-member-title{font-weight:700;}
+      .bundle-member-meta{font-size:.85rem;opacity:.72;}
+      .bundle-member details{margin-top:.65rem;}
+      .bundle-member summary{cursor:pointer;color:#9aa6ff;}
       .tabs{display:flex;gap:.5rem;margin-top:1.5rem;border-bottom:1px solid #222;}
       .tab-btn{background:none;border:none;color:#9aa6ff;padding:.6rem 1rem;font-size:1rem;cursor:pointer;border-bottom:2px solid transparent;}
       .tab-btn.active{color:#fff;border-bottom-color:#8c58ff;}
@@ -357,6 +398,16 @@ const coverStackStyle = [
               ))}
             </li>
           ) : null}
+          {includedIn.length ? (
+            <li>
+              <strong>Included in:</strong> {includedIn.map((parent, index) => (
+                <span>
+                  <a href={`/games/${parent.slug}/index.html`}>{parent.title}</a>
+                  {index < includedIn.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </li>
+          ) : null}
           {tierLists.length ? (
             <li>
               <strong>Tier lists:</strong> {tierLists.map((tier, index) => (
@@ -392,6 +443,80 @@ const coverStackStyle = [
           ) : null}
         </ul>
       </div>
+
+      {bundleMembers.length > 0 ? (
+        <div class="section panel">
+          <div class="label">Included Games</div>
+          <div class="bundle-list">
+            {bundleMembers.map((member) => {
+              const source = typeof member.source_game_id === "object"
+                ? member.source_game_id
+                : null;
+              const memberCover = fileUrl(member.cover_image ?? source?.cover_image);
+              const memberReleaseYear = member.release_year ?? source?.release_year ?? null;
+              const memberSections = orderedSections(member.sections);
+              const memberNoun = sectionNoun(member.section_noun);
+              const memberCurrent = member.current_section ?? null;
+              const sectionStatus = member.section_data_status ?? "unknown";
+              return (
+                <article class="bundle-member">
+                  <div class="bundle-member-header">
+                    {memberCover ? (
+                      <img
+                        class="bundle-member-cover"
+                        src={memberCover}
+                        alt={member.title}
+                        loading="lazy"
+                      />
+                    ) : null}
+                    <div class="bundle-member-info">
+                      <div class="bundle-member-title">
+                        {source?.slug
+                          ? <a href={`/games/${source.slug}/index.html`}>{member.title}</a>
+                          : member.title}
+                      </div>
+                      {memberReleaseYear ? (
+                        <div class="bundle-member-meta">Released {memberReleaseYear}</div>
+                      ) : null}
+                      <div class="bundle-member-meta">
+                        Player status: {labelize(member.player_status)}
+                      </div>
+                      {sectionStatus === "tracked" ? (
+                        <div class="bundle-member-meta">
+                          {member.player_status === "in_progress" && memberCurrent === null
+                            ? `In Progress - Current ${memberNoun.toLowerCase()} unknown`
+                            : memberCurrent !== null
+                            ? `Currently on ${memberNoun} ${memberCurrent} of ${memberSections.length}`
+                            : `${memberSections.length} ${pluralizeNoun(memberNoun)}`}
+                        </div>
+                      ) : sectionStatus === "not_applicable" ? (
+                        <div class="bundle-member-meta">No chapter or mission tracking</div>
+                      ) : (
+                        <div class="bundle-member-meta">Section data not researched</div>
+                      )}
+                    </div>
+                  </div>
+                  {sectionStatus === "tracked" && memberSections.length > 0 ? (
+                    <details>
+                      <summary>Show {memberSections.length} {pluralizeNoun(memberNoun)}</summary>
+                      <ol class="sections-list">
+                        {memberSections.map((section) => (
+                          <li
+                            class:list={{ "current-section": section.number === memberCurrent }}
+                            aria-current={section.number === memberCurrent ? "step" : undefined}
+                          >
+                            {section.title}
+                          </li>
+                        ))}
+                      </ol>
+                    </details>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {sections.length > 0 ? (
         <div class="section panel">

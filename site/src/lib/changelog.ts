@@ -16,6 +16,9 @@ export const FIELD_LABEL: Record<string, string> = {
   player_status: "Play Status",
   game_status: "Release Status",
   family_sharing: "Family Sharing",
+  current_section: "Current Section",
+  section_data_status: "Section Data",
+  section_noun: "Section Noun",
   cover_image: "Cover Image",
   status: "Status",
   description: "Description",
@@ -35,6 +38,9 @@ export const ENUM_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
   draft: "Draft",
   published: "Published",
+  unknown: "Unknown",
+  not_applicable: "Not Applicable",
+  tracked: "Tracked",
 };
 
 // ─── value formatting ─────────────────────────────────────────────────────────
@@ -100,7 +106,7 @@ export type Revision = {
   collection: string;
   data: Record<string, unknown> | null;
   delta: Record<string, unknown> | null;
-  activity: { action: string; timestamp: string } | null;
+  activity: { id?: number; action: string; timestamp: string } | null;
 };
 
 export type Activity = {
@@ -117,7 +123,7 @@ export async function fetchRevisions(collection: string, limit: number): Promise
     "filter[collection][_eq]": collection,
     "sort": "-id",
     "limit": String(limit),
-    "fields": "id,item,collection,delta,data,activity.action,activity.timestamp",
+    "fields": "id,item,collection,delta,data,activity.id,activity.action,activity.timestamp",
   });
   const res = await directusFetchRaw<{ data: Revision[] }>(`/revisions?${qs.toString()}`);
   return res.data ?? [];

@@ -149,12 +149,14 @@ def parse_playnite_release_year(date_str: str | None) -> int | None:
 
 
 GAME_JUNCTIONS: tuple[tuple[str, str], ...] = (
+    ("game_sections", "games_id"),
     ("tier_list_games", "game_id"),
     ("games_genres", "games_id"),
     ("games_developers", "games_id"),
     ("games_links", "games_id"),
-    ("game_sections", "games_id"),
 )
+
+REBUILD_FLOW_PATH = "/flows/trigger/e3aa03ad-3352-4ade-8156-22d53f107907"
 
 
 def delete_game_junctions(client: DirectusClient, game_id: int) -> None:
@@ -165,12 +167,36 @@ def delete_game_junctions(client: DirectusClient, game_id: int) -> None:
     expands the relation. Call this immediately before
     DELETE /items/games/{game_id}.
     """
+    source_members = client.fetch_all(
+        f"/items/game_bundle_members?fields=id&filter[source_game_id][_eq]={game_id}"
+    )
+    for member in source_members:
+        client.patch(
+            f"/items/game_bundle_members/{member['id']}",
+            {"source_game_id": None},
+        )
+
     for collection, fk in GAME_JUNCTIONS:
         rows = client.fetch_all(
             f"/items/{collection}?fields=id&filter[{fk}][_eq]={game_id}"
         )
         for row in rows:
             client.delete(f"/items/{collection}/{row['id']}")
+        if collection == "game_sections":
+            bundle_members = client.fetch_all(
+                f"/items/game_bundle_members?fields=id&filter[games_id][_eq]={game_id}"
+            )
+            for member in bundle_members:
+                client.delete(f"/items/game_bundle_members/{member['id']}")
+
+
+def trigger_site_rebuild(client: DirectusClient, game_ids: list[int]) -> None:
+    """Trigger one site rebuild for a deduplicated list of parent game IDs."""
+    keys = [str(game_id) for game_id in sorted(set(game_ids))]
+    if not keys:
+        return
+    client.post(REBUILD_FLOW_PATH, {"collection": "games", "keys": keys})
+    print(f"Triggered site rebuild for game ids: {', '.join(keys)}", file=sys.stderr)
 
 
 def take_pg_dump_backup(label: str) -> str:

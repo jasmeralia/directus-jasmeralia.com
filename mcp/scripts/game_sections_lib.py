@@ -84,6 +84,38 @@ def resolve_game(client: DirectusClient, slug: str) -> dict[str, Any]:
     return game
 
 
+def resolve_bundle_member(
+    client: DirectusClient,
+    game_id: int,
+    member_slug: str,
+) -> dict[str, Any]:
+    """Resolve one bundle member belonging to a parent game."""
+    response = client.get(
+        _query_path(
+            "game_bundle_members",
+            fields="id,games_id,slug,title",
+            filter_obj={
+                "games_id": {"_eq": game_id},
+                "slug": {"_eq": member_slug},
+            },
+            limit=1,
+        )
+    )
+    members = response.get("data", [])
+    if not members:
+        print(
+            f"ERROR: bundle member slug '{member_slug}' not found for game id={game_id}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    member = members[0]
+    print(
+        f"  Included game: {member['title']} (id={member['id']})",
+        file=sys.stderr,
+    )
+    return member
+
+
 def _tier_list_game_ids(client: DirectusClient, tier_list_slug: str) -> list[int]:
     response = client.get(
         _query_path(
@@ -195,7 +227,7 @@ def _normalized_sections(
     return normalized
 
 
-# pylint: disable-next=too-many-arguments
+# pylint: disable-next=too-many-arguments,too-many-locals
 def upsert_game_sections(
     client: DirectusClient,
     game_id: int,
@@ -203,31 +235,68 @@ def upsert_game_sections(
     noun: str,
     sections: list[dict[str, Any]],
     current: int | None = None,
+    bundle_member_id: int | None = None,
     replace: bool = False,
     dry_run: bool = False,
-) -> dict[str, int]:
+) -> dict[str, int | None]:
     """Set game section metadata and idempotently create or update its rows."""
     normalized_noun = normalize_noun(noun)
     normalized_sections = _normalized_sections(normalized_noun, sections)
-    game_update: dict[str, Any] = {"section_noun": normalized_noun}
+    if bundle_member_id is not None and not normalized_sections:
+        raise ValueError("A tracked bundle member must have at least one section")
+    section_numbers = {section["number"] for section in normalized_sections}
     if current is not None:
         if current < 1:
             raise ValueError("Current section must be a positive integer")
-        game_update["current_section"] = current
+        if current not in section_numbers:
+            raise ValueError("Current section must match a supplied section number")
 
-    if dry_run:
-        print(
-            f"[DRY RUN] PATCH /items/games/{game_id}: {game_update}",
-            file=sys.stderr,
+    if bundle_member_id is None:
+        bundle_members = client.fetch_all(
+            _query_path(
+                "game_bundle_members",
+                fields="id",
+                filter_obj={"games_id": {"_eq": game_id}},
+            )
         )
+        if bundle_members:
+            raise ValueError(
+                "Direct parent sections are not allowed when bundle members exist"
+            )
+        metadata_path = f"/items/games/{game_id}"
+        metadata_update: dict[str, Any] = {"section_noun": normalized_noun}
+        section_filter = {
+            "games_id": {"_eq": game_id},
+            "bundle_member_id": {"_null": True},
+        }
     else:
-        client.patch(f"/items/games/{game_id}", game_update)
+        member = client.get(f"/items/game_bundle_members/{bundle_member_id}").get(
+            "data", {}
+        )
+        member_game_id = member.get("games_id")
+        if isinstance(member_game_id, dict):
+            member_game_id = member_game_id.get("id")
+        if member_game_id != game_id:
+            raise ValueError(
+                f"Bundle member id={bundle_member_id} does not belong to game id={game_id}"
+            )
+        metadata_path = f"/items/game_bundle_members/{bundle_member_id}"
+        metadata_update = {
+            "section_noun": normalized_noun,
+            "section_data_status": "tracked",
+        }
+        section_filter = {
+            "games_id": {"_eq": game_id},
+            "bundle_member_id": {"_eq": bundle_member_id},
+        }
+    if current is not None:
+        metadata_update["current_section"] = current
 
     existing = client.fetch_all(
         _query_path(
             "game_sections",
-            fields="id,games_id,sort,number,title",
-            filter_obj={"games_id": {"_eq": game_id}},
+            fields="id,games_id,bundle_member_id,sort,number,title",
+            filter_obj=section_filter,
         )
     )
 
@@ -256,6 +325,7 @@ def upsert_game_sections(
     for section in normalized_sections:
         payload = {
             "games_id": game_id,
+            "bundle_member_id": bundle_member_id,
             "number": section["number"],
             "title": section["title"],
             "sort": section["number"],
@@ -288,8 +358,17 @@ def upsert_game_sections(
                 )
             created += 1
 
+    if dry_run:
+        print(
+            f"[DRY RUN] PATCH {metadata_path}: {metadata_update}",
+            file=sys.stderr,
+        )
+    else:
+        client.patch(metadata_path, metadata_update)
+
     return {
         "game_id": game_id,
+        "bundle_member_id": bundle_member_id,
         "created": created,
         "updated": updated,
         "deleted": deleted,

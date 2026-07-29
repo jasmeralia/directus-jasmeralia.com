@@ -277,3 +277,22 @@ Ordered so each layer is validated before the next is wired up.
 - /home/morgan/git/directus-jasmeralia.com/site/src/pages/games/[slug].astro
 - /home/morgan/git/directus-jasmeralia.com/site/src/pages/filters/misc/avn-missing-walkthrough.astro
 - /home/morgan/git/directus-jasmeralia.com/site/src/lib/download-link.ts
+
+---
+
+## Omnibus bundle extension
+
+The original design above describes ordinary games. Omnibus library entries
+use the extension in `mcp/plans/omnibus_bundles.md`:
+
+- `game_bundle_members` stores each included game or campaign independently.
+- `game_sections.bundle_member_id` scopes rows to one included game while
+  `games_id` continues to identify the owning parent.
+- `populate_game_sections.py --member <member-slug>` writes member-local
+  sections and rejects direct parent sections when members exist.
+- `populate_game_bundle.py` is the only supported bulk membership writer.
+- `section_data_status` distinguishes unknown, tracked, and not-applicable
+  member data without inventing a section count.
+- Any `--replace` operation takes a full database backup before deleting rows.
+
+The omnibus plan is authoritative wherever it extends this original design.

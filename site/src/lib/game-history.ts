@@ -33,6 +33,11 @@ type GameLink = {
   kind?: string;
 };
 
+type BundleMember = {
+  id: number;
+  title?: string;
+};
+
 function deltaLinesToHtml(markdown: string): string {
   if (!markdown.trim()) return "";
   const escape = (s: string) =>
@@ -110,10 +115,12 @@ export async function buildGameHistory(params: {
   reviews: Review[];
   tierEntries: TierEntry[];
   links: GameLink[];
+  bundleMembers: BundleMember[];
 }): Promise<HistoryEntry[]> {
   const reviewIds = params.reviews.map((review) => review.id);
   const tierEntryIds = params.tierEntries.map((entry) => entry.id);
   const linkIds = params.links.map((link) => link.id);
+  const bundleMemberIds = params.bundleMembers.map((member) => member.id);
 
   const [
     gameRevisions,
@@ -121,6 +128,7 @@ export async function buildGameHistory(params: {
     tierCreateActivities,
     tierRevisions,
     linkActivities,
+    bundleMemberRevisions,
     genres,
   ] = await Promise.all([
     fetchScopedRevisions("games", [params.gameId], "_eq"),
@@ -128,6 +136,7 @@ export async function buildGameHistory(params: {
     fetchScopedActivity("tier_list_games", tierEntryIds, ["create"]),
     fetchScopedRevisions("tier_list_games", tierEntryIds, "_in"),
     fetchScopedActivity("games_links", linkIds, ["create", "update"]),
+    fetchScopedRevisions("game_bundle_members", bundleMemberIds, "_in"),
     fetchGameGenres(params.gameId),
   ]);
 
@@ -186,6 +195,41 @@ export async function buildGameHistory(params: {
       entries.push({
         date,
         title: `Review Updated — ${title}`,
+        bodyHtml: deltaLinesToHtml(description),
+      });
+    }
+  }
+
+  const bundleMemberMap = new Map(
+    params.bundleMembers.map((member) => [member.id, member]),
+  );
+  const memberRevisionGroups = groupRevisionsByItem(bundleMemberRevisions);
+  for (const [itemId, revisions] of memberRevisionGroups) {
+    const currentMember = bundleMemberMap.get(Number(itemId));
+    for (const [index, revision] of revisions.entries()) {
+      const data = revision.data ?? {};
+      const title = recordTitle(currentMember?.title ?? data.title);
+      const date = requireHistoryDate(
+        revision.activity?.timestamp,
+        `bundle member revision ${revision.id}`,
+      );
+      const isCreate = revision.activity?.action === "create"
+        || (index === revisions.length - 1 && !revisions[index + 1]);
+      if (isCreate) {
+        entries.push({
+          date,
+          title: `Included Game Added - ${title}`,
+          bodyHtml: "",
+        });
+        continue;
+      }
+
+      const previousData = revisions[index + 1]?.data ?? null;
+      const description = fmtDelta(revision.delta ?? {}, previousData);
+      if (!description.trim()) continue;
+      entries.push({
+        date,
+        title: `Included Game Updated - ${title}`,
         bodyHtml: deltaLinesToHtml(description),
       });
     }

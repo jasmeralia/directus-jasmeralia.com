@@ -1,7 +1,8 @@
 ---
 import { fileUrl, isFamilySharingDisabled } from "../lib/directus";
 import { downloadLinks, walkthroughLinks, getLinkMeta } from "../lib/download-link";
-import { sectionNoun } from "../lib/game-sections";
+import { bundleProgressSummary } from "../lib/game-bundles";
+import { directGameSections, sectionNoun } from "../lib/game-sections";
 
 const { game, reviewed = false, sTier = false } = Astro.props;
 const labelize = (value) =>
@@ -52,13 +53,21 @@ const genres = (game?.genres ?? [])
 const engines = (game?.engines ?? [])
   .map((engine) => engine?.engines_id)
   .filter((engine) => engine?.title && engine?.slug);
-const totalSections = (game?.sections ?? []).length;
+const bundleProgress = bundleProgressSummary(game);
+const totalSections = directGameSections(game?.sections).length;
 const currentSection = typeof game?.current_section === "number" ? game.current_section : null;
-const showProgress = currentSection !== null && totalSections > 0;
-const progressPercent = showProgress
+const showDirectProgress = currentSection !== null && totalSections > 0;
+const directProgressPercent = showDirectProgress
   ? Math.min(100, Math.max(0, Math.round((currentSection / totalSections) * 100)))
   : 0;
 const progressNoun = sectionNoun(game?.section_noun);
+const progress = bundleProgress ?? (showDirectProgress
+  ? {
+      label: `${progressNoun} ${currentSection}/${totalSections} (${directProgressPercent}%)`,
+      title: `${progressNoun} ${currentSection} of ${totalSections}`,
+      percent: directProgressPercent,
+    }
+  : null);
 ---
 
 <div class="stack" style={stackStyle}>
@@ -79,10 +88,12 @@ const progressNoun = sectionNoun(game?.section_noun);
                     <a class="game-link" href={`/games/${game.slug}/index.html`}>{game.title}</a>
                   </div>
                   {game.release_year ? <div class="year">{game.release_year}</div> : null}
-                  {showProgress ? (
-                    <div class="progress" title={`${progressNoun} ${currentSection} of ${totalSections}`}>
-                      <div class="progress-bar"><div class="progress-fill" style={`width:${progressPercent}%`}></div></div>
-                      <div class="progress-label">{progressNoun} {currentSection}/{totalSections} ({progressPercent}%)</div>
+                  {progress ? (
+                    <div class="progress" title={progress.title}>
+                      {progress.percent !== null ? (
+                        <div class="progress-bar"><div class="progress-fill" style={`width:${progress.percent}%`}></div></div>
+                      ) : null}
+                      <div class="progress-label">{progress.label}</div>
                     </div>
                   ) : null}
                   {showPlatforms ? (
