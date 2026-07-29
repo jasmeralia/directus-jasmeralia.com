@@ -1,6 +1,15 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
+import {
+  bundleProgressSummary,
+  orderedBundleMembers,
+} from "../../lib/game-bundles";
+import {
+  directGameSections,
+  orderedSections,
+  sectionNoun,
+} from "../../lib/game-sections";
 
 export async function getStaticPaths() {
   const franchises = await directusFetchItems("franchises", {
@@ -26,10 +35,30 @@ if (!franchise) return Astro.redirect("/404");
 
 const members = await directusFetchItems("franchise_games", {
   fields: [
-    "id", "sort",
+    "id", "sort", "notes",
     "game_id.id", "game_id.title", "game_id.slug",
-    "game_id.release_year",
+    "game_id.release_year", "game_id.player_status",
     "game_id.cover_image.id", "game_id.cover_image.filename_disk",
+    "game_id.section_noun", "game_id.current_section",
+    "game_id.sections.id", "game_id.sections.number",
+    "game_id.sections.bundle_member_id",
+    "game_id.bundle_members.id", "game_id.bundle_members.sort",
+    "game_id.bundle_members.slug", "game_id.bundle_members.title",
+    "game_id.bundle_members.release_year",
+    "game_id.bundle_members.cover_image.id",
+    "game_id.bundle_members.cover_image.filename_disk",
+    "game_id.bundle_members.player_status",
+    "game_id.bundle_members.section_data_status",
+    "game_id.bundle_members.section_noun",
+    "game_id.bundle_members.current_section",
+    "game_id.bundle_members.sections.id",
+    "game_id.bundle_members.sections.number",
+    "game_id.bundle_members.source_game_id.id",
+    "game_id.bundle_members.source_game_id.title",
+    "game_id.bundle_members.source_game_id.slug",
+    "game_id.bundle_members.source_game_id.release_year",
+    "game_id.bundle_members.source_game_id.cover_image.id",
+    "game_id.bundle_members.source_game_id.cover_image.filename_disk",
   ],
   filter: { franchise_id: { _eq: franchise.id } },
   sort: ["sort"],
@@ -38,6 +67,49 @@ const members = await directusFetchItems("franchise_games", {
 const games = (members ?? [])
   .filter((m) => m?.game_id?.slug)
   .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+const explicitGameIds = new Set(games.map((member) => member.game_id.id));
+const explicitSlugs = new Set(games.map((member) => member.game_id.slug));
+const explicitTitles = new Set(
+  games.map((member) => member.game_id.title.trim().toLocaleLowerCase()),
+);
+const labelize = (value) =>
+  value ? value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "";
+const sourceGame = (member) =>
+  typeof member.source_game_id === "object" ? member.source_game_id : null;
+const hasExplicitMatch = (member) => {
+  const source = sourceGame(member);
+  return (
+    (typeof source?.id === "number" && explicitGameIds.has(source.id)) ||
+    Boolean(source?.slug && explicitSlugs.has(source.slug)) ||
+    explicitSlugs.has(member.slug) ||
+    explicitTitles.has((source?.title ?? member.title).trim().toLocaleLowerCase())
+  );
+};
+const includedMembers = (game) =>
+  orderedBundleMembers(game.bundle_members).filter(
+    (member) => !hasExplicitMatch(member),
+  );
+const sectionProgress = (entry, nested = false) => {
+  const sections = nested
+    ? orderedSections(entry.sections)
+    : directGameSections(entry.sections);
+  const current = typeof entry.current_section === "number"
+    ? entry.current_section
+    : null;
+  if (current === null || sections.length === 0) return null;
+  const noun = sectionNoun(entry.section_noun);
+  const percent = Math.min(
+    100,
+    Math.max(0, Math.round((current / sections.length) * 100)),
+  );
+  return {
+    label: `${noun} ${current}/${sections.length} (${percent}%)`,
+    title: `${noun} ${current} of ${sections.length}`,
+    percent,
+  };
+};
+const progressForGame = (game) =>
+  bundleProgressSummary(game) ?? sectionProgress(game);
 ---
 
 <BaseLayout title={`Franchises | ${franchise.title}`} description={franchise.description ?? franchise.title}>
@@ -47,14 +119,36 @@ const games = (members ?? [])
       h1{margin-bottom:.25rem;}
       .desc{opacity:.8;margin:.5rem 0 1.5rem;}
       .game-list{display:flex;flex-direction:column;gap:.75rem;}
-      .game-item{display:flex;align-items:center;gap:1rem;background:#111;border:1px solid #222;border-radius:10px;padding:.75rem 1rem;text-decoration:none;color:inherit;}
+      .game-group{display:flex;flex-direction:column;gap:.45rem;}
+      .game-item{display:flex;align-items:center;gap:1rem;background:#111;border:1px solid #222;border-radius:10px;padding:.75rem 1rem;color:inherit;}
       .game-item:hover{background:#191929;}
+      .game-item-included{margin-left:2.5rem;background:#0d0d14;border-left:3px solid #56508a;}
       .game-thumb{width:56px;height:56px;border-radius:6px;object-fit:cover;background:#1a1a2e;flex-shrink:0;}
       .game-thumb-placeholder{width:56px;height:56px;border-radius:6px;background:#1a1a2e;flex-shrink:0;}
-      .game-info{display:flex;flex-direction:column;gap:.2rem;}
+      .game-info{display:flex;flex-direction:column;gap:.28rem;min-width:0;flex:1;}
       .game-title{font-weight:600;color:#eaeaea;}
-      .game-meta{font-size:.8rem;opacity:.6;}
+      .game-title a{color:inherit;text-decoration:none;}
+      .game-title a:hover{text-decoration:underline;}
+      .game-meta{font-size:.8rem;opacity:.68;}
       .game-index{font-size:.85rem;opacity:.45;min-width:1.5rem;text-align:right;flex-shrink:0;}
+      .game-badges{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
+      .badge{font-size:.72rem;padding:.15rem .45rem;border-radius:999px;background:#1a1a1a;border:1px solid #333;}
+      .badge-omnibus{background:#211b38;border-color:#6551a1;color:#c8b8ff;}
+      .badge-included{background:#15202a;border-color:#35526d;color:#a9d5ff;}
+      .badge-completed{border-color:#777;color:#d4d4d4;}
+      .badge-in-progress{border-color:#315f8c;color:#70b7ff;}
+      .badge-on-hold{border-color:#7c571b;color:#e8a020;}
+      .badge-waiting-for-update{border-color:#315f38;color:#71bd7d;}
+      .badge-did-not-finish{border-color:#743333;color:#e47777;}
+      .game-note{font-size:.86rem;color:#c7c7c7;line-height:1.4;}
+      .progress{max-width:360px;}
+      .progress-bar{height:5px;border-radius:3px;background:#252525;overflow:hidden;}
+      .progress-fill{height:100%;background:#70b7ff;}
+      .progress-label{margin-top:.18rem;font-size:.75rem;opacity:.72;}
+      @media(max-width:600px){
+        .game-item{gap:.65rem;padding:.65rem;}
+        .game-item-included{margin-left:1rem;}
+      }
     </style>
   </div>
   <main>
@@ -64,19 +158,93 @@ const games = (members ?? [])
       {games.map((member, i) => {
         const game = member.game_id;
         const img = fileUrl(game.cover_image);
+        const bundleMembers = orderedBundleMembers(game.bundle_members);
+        const unmatchedMembers = includedMembers(game);
+        const progress = progressForGame(game);
         return (
-          <a class="game-item" href={`/games/${game.slug}/index.html`}>
-            <span class="game-index">{i + 1}.</span>
-            {img
-              ? <img class="game-thumb" src={img} alt={game.title} loading="lazy" />
-              : <div class="game-thumb-placeholder" />}
-            <div class="game-info">
-              <span class="game-title">{game.title}</span>
-              <span class="game-meta">
-                {game.release_year ? `${game.release_year} · ` : ""}{game.slug}
-              </span>
-            </div>
-          </a>
+          <div class="game-group">
+            <article class="game-item">
+              <span class="game-index">{i + 1}.</span>
+              <a href={`/games/${game.slug}/index.html`}>
+                {img
+                  ? <img class="game-thumb" src={img} alt={game.title} loading="lazy" />
+                  : <div class="game-thumb-placeholder" />}
+              </a>
+              <div class="game-info">
+                <span class="game-title">
+                  <a href={`/games/${game.slug}/index.html`}>{game.title}</a>
+                </span>
+                <div class="game-badges">
+                  {game.release_year ? <span class="game-meta">{game.release_year}</span> : null}
+                  {bundleMembers.length > 0 ? (
+                    <span class="badge badge-omnibus">Omnibus</span>
+                  ) : null}
+                  {game.player_status ? (
+                    <span class={`badge badge-${game.player_status.replace(/_/g, "-")}`}>
+                      {labelize(game.player_status)}
+                    </span>
+                  ) : null}
+                </div>
+                {progress ? (
+                  <div class="progress" title={progress.title}>
+                    {progress.percent !== null ? (
+                      <div class="progress-bar">
+                        <div class="progress-fill" style={`width:${progress.percent}%`}></div>
+                      </div>
+                    ) : null}
+                    <div class="progress-label">{progress.label}</div>
+                  </div>
+                ) : null}
+                {member.notes ? <div class="game-note">{member.notes}</div> : null}
+              </div>
+            </article>
+            {unmatchedMembers.map((included) => {
+              const source = sourceGame(included);
+              const includedImg = fileUrl(included.cover_image ?? source?.cover_image);
+              const includedYear = included.release_year ?? source?.release_year ?? null;
+              const includedProgress = sectionProgress(included, true);
+              return (
+                <article class="game-item game-item-included">
+                  <span class="game-index"></span>
+                  {source?.slug ? (
+                    <a href={`/games/${source.slug}/index.html`}>
+                      {includedImg
+                        ? <img class="game-thumb" src={includedImg} alt={included.title} loading="lazy" />
+                        : <div class="game-thumb-placeholder" />}
+                    </a>
+                  ) : includedImg ? (
+                    <img class="game-thumb" src={includedImg} alt={included.title} loading="lazy" />
+                  ) : (
+                    <div class="game-thumb-placeholder" />
+                  )}
+                  <div class="game-info">
+                    <span class="game-title">
+                      {source?.slug
+                        ? <a href={`/games/${source.slug}/index.html`}>{included.title}</a>
+                        : included.title}
+                    </span>
+                    <div class="game-badges">
+                      {includedYear ? <span class="game-meta">{includedYear}</span> : null}
+                      <span class="badge badge-included">Included Game</span>
+                      {included.player_status ? (
+                        <span class={`badge badge-${included.player_status.replace(/_/g, "-")}`}>
+                          {labelize(included.player_status)}
+                        </span>
+                      ) : null}
+                    </div>
+                    {includedProgress ? (
+                      <div class="progress" title={includedProgress.title}>
+                        <div class="progress-bar">
+                          <div class="progress-fill" style={`width:${includedProgress.percent}%`}></div>
+                        </div>
+                        <div class="progress-label">{includedProgress.label}</div>
+                      </div>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         );
       })}
     </div>
