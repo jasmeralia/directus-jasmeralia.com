@@ -1260,6 +1260,7 @@ Script and workflow changes:
 - `mcp/scripts/game_sections_lib.py`
 - `mcp/scripts/scriptlib.py`
 - `mcp/plans/game_sections.md`
+- `mcp/plans/omnibus_bundles_implementation.md`
 - `.claude/skills/game-sections-lookup/SKILL.md`
 
 Astro changes:
