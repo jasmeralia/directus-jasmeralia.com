@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.158] - 2026-07-28
+- Franchises: show omnibus indicators, played status, and section or included-game progress without exposing internal slugs.
+- Franchises: list omnibus members that do not already have a corresponding standalone franchise entry.
+- Franchises: support per-entry notes for contextual details such as reboots and retcons.
+
 ## [1.0.157] - 2026-07-28
 - Games: add explicit omnibus bundle support with independently tracked included games, member-local section progress, standalone-game backlinks, and natural detail/card presentation.
 - Filters: add discoverable omnibus listings with a dedicated CSV export, and make Section Data filters bundle-aware with Partial and Not Applicable states.
