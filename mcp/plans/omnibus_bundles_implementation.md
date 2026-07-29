@@ -62,6 +62,24 @@
   - All four relations and three aliases resolved.
   - The new permission matched the authorized policy and field scope.
 
+### Alias Metadata Correction
+
+- Applied: 2026-07-28 PDT
+- Required pre-change backup:
+  `directus_20260729_010251_omnibus_alias_metadata_fix.sql.gz`
+- The relation API created the three reverse alias records, but their initial
+  field metadata omitted Directus' required `special: ["o2m"]`,
+  `interface: "list-o2m"`, and `display: "related-values"` values.
+- Patched aliases:
+  - `games.bundle_members`
+  - `games.included_in_bundles`
+  - `game_bundle_members.sections`
+- Readback result: passed.
+  - All three aliases report type `alias`, special `o2m`, interface
+    `list-o2m`, and display `related-values`.
+  - Nested parent members, member sections, and standalone backlinks expand
+    through the items API.
+
 ## Automatic Rebuild Flow
 
 - Applied: 2026-07-28 PDT
@@ -105,7 +123,7 @@
 The separate manual rebuild Flow
 `e3aa03ad-3352-4ade-8156-22d53f107907` was not modified.
 
-## Initial Fixture Dry Run
+## Initial Fixtures
 
 - Run: 2026-07-28 PDT
 - Payload:
@@ -127,5 +145,29 @@ The separate manual rebuild Flow
   - Final Fantasy X-2 is `not_started`.
 - All member section-data states remain `unknown` until independently
   researched.
-- Content apply status: pending separate user confirmation.
+- Apply authorized by the user on 2026-07-28 with the message `apply`.
+- Apply started: `2026-07-29T01:01:30Z`
+- Applied member IDs:
+  - Halo MCC: 1-6
+  - Mass Effect Legendary Edition: 7-9
+  - Devil May Cry HD Collection: 10-12
+  - Final Fantasy X/X-2 HD Remaster: 13-14
+- Content readback result: passed.
+  - All 14 members matched the reviewed order, status, current-section, and
+    source-game values.
+  - Every `section_data_status` remained `unknown`.
+  - No member section rows were created.
+  - Parent `bundle_members`, member `sections`, and standalone
+    `included_in_bundles` expansions succeeded.
+  - Mass Effect: Andromeda and Devil May Cry 4 remained excluded.
+- Content apply status: complete.
 
+### Fixture Build Validation
+
+- The 14 automatic create webhooks were received and debounced.
+- The population script's final manual webhook bypassed the debounce.
+- Build start: `2026-07-29T01:01:37.703Z`
+- Production source version during this validation: `1.0.156`
+- Terminal result:
+  `2026-07-29T01:05:04.658Z Build/publish completed successfully.`
+- The terminal result is strictly newer than the apply timestamp.
