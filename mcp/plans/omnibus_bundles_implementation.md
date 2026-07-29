@@ -171,3 +171,32 @@ The separate manual rebuild Flow
 - Terminal result:
   `2026-07-29T01:05:04.658Z Build/publish completed successfully.`
 - The terminal result is strictly newer than the apply timestamp.
+
+## Production Deployment Validation
+
+- Pull request: `#152`
+- Squash commit: `f44646b`
+- Site version: `1.0.157`
+- The merged source was available to the TrueNAS builder before the
+  deployment trigger.
+- Deployment trigger: `2026-07-29T01:07:12Z`
+- Build start: `2026-07-29T01:07:16.894Z`
+- Version confirmation:
+  `2026-07-29T01:07:27.253Z astro-jasmeralia@1.0.157 build`
+- Terminal result:
+  `2026-07-29T01:11:03.726Z Build/publish completed successfully.`
+- The terminal result is strictly newer than the deployment trigger.
+- Live page assertions:
+  - Halo MCC rendered six ordered members.
+  - Mass Effect Legendary Edition rendered exactly three members without
+    Andromeda.
+  - Devil May Cry HD Collection rendered exactly three members without
+    Devil May Cry 4.
+  - Final Fantasy X/X-2 rendered Final Fantasy X as On Hold and X-2 as Not
+    Started.
+  - The Omnibus Games filter rendered all four initial parents.
+- Live RSS assertions:
+  - 14 items used the `Included Game Added - <title>` wording.
+  - Every included-game creation GUID used a `member_created_` event token.
+  - All 200 published feed GUIDs were unique.
+- Production validation result: passed.
