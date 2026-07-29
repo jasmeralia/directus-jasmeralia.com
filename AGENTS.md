@@ -24,7 +24,8 @@ Copy `.mcp.json.example` to `.mcp.json` at the repo root and fill in all `<VALUE
 | `developers` | id + name + slug |
 | `games_genres` | Junction: `games_id`, `genres_id`. Unique constraint on `(games_id, genres_id)` applied. |
 | `games_developers` | Junction: `games_id`, `developers_id` |
-| `game_sections` | Child of `games` (o2m `sections`, FK `games_id`). One row per chapter/act/episode/mission: `number` (int, required), `title` (string, required — defaults to `"{section_noun} {number}"` when no real name is known). Populate via `mcp/scripts/populate_game_sections.py <slug> <count> [noun]` (never write this collection directly) or the `game-sections-lookup` Claude Code skill (`.claude/skills/game-sections-lookup/`). See `mcp/plans/game_sections.md` for the full design and `mcp/cache/game_sections_needs_manual.json` (gitignored) for the current list of games still lacking credible section data. |
+| `game_sections` | Child of `games` (o2m `sections`, FK `games_id`). One row per chapter/act/episode/mission: `number` (int, required), `title` (string, required - defaults to `"{section_noun} {number}"` when no real name is known), and optional `bundle_member_id` for an included game. Populate via `mcp/scripts/populate_game_sections.py <slug> <count> [noun]` for ordinary games or add `--member <member-slug>` for omnibus members (never write this collection directly). The `game-sections-lookup` Claude Code skill (`.claude/skills/game-sections-lookup/`) handles research. See `mcp/plans/game_sections.md` and `mcp/plans/omnibus_bundles.md`. |
+| `game_bundle_members` | Curated child records for independently tracked games or campaigns contained in an omnibus library entry. FK `games_id` identifies the parent; optional `source_game_id` links a standalone `games` record without sharing progress. Member-local fields include `sort`, `slug`, `title`, `player_status`, `section_data_status`, `section_noun`, and `current_section`. Populate through `mcp/scripts/populate_game_bundle.py`; never flatten members into franchises or direct parent sections. |
 | `engines` | id + title + slug. Common AVN engines: **Ren'py** (slug `ren-py`, id 1), **Daz 3D** (slug `daz-3d`, id 4), **Honey Select** (slug `honey-select`, id 3). These are engines, not genres — never tag them as genres. Set via nested update on the game record: `{"engines": [{"engines_id": N}]}`. |
 
 ## Key cache files
@@ -39,6 +40,8 @@ Cache lives in `mcp/cache/` (gitignored).
 | `mcp/cache/steam_not_in_directus.json` | Steam games not yet in Directus |
 | `mcp/cache/proposed_import.json` | Filtered import candidates with full metadata |
 | `mcp/cache/import_progress.json` | Per-appid import status (done/error_game) |
+| `mcp/cache/game_bundle_lookup.json` | Resumable research findings for omnibus members |
+| `mcp/cache/game_bundle_members_needs_manual.json` | Included games whose section structures need manual review |
 | `mcp/cache/backup_YYYYMMDD_HHMMSS/` | Full Directus backup taken before bulk import |
 
 ## Git workflow

@@ -52,6 +52,18 @@ Run one of these commands from the repository root:
 
 The `--filter` value is a Directus-style filter object. Parse the JSON array printed to stdout. Skip a game when `existing_section_count > 0` unless the user explicitly requested a refresh.
 
+Before researching a target, run:
+
+```bash
+mcp/scripts/populate_game_bundle.py <slug> --list
+```
+
+If the result contains bundle members, do not flatten their sections onto the
+parent. Research each `section_data_status=unknown` member independently. Use
+the cache key `<parent-slug>|<member-slug>` and include both `slug` and `member`
+in every section payload. Skip members already marked `tracked` or
+`not_applicable` unless the user explicitly requested a refresh.
+
 ## Look Up Each Game
 
 Read `mcp/cache/game_sections_lookup.json` when it exists. Treat it as a JSON object keyed by slug and reuse a cached finding before searching. Update the file after each game so the run is resumable.
@@ -82,7 +94,10 @@ If WebSearch cannot establish a credible total count, do not invent one, do not 
 }
 ```
 
-Keep `game_sections_needs_manual.json` as a JSON array with at most one entry per slug.
+Keep `game_sections_needs_manual.json` as a JSON array with at most one entry
+per ordinary-game slug or per `<parent-slug>|<member-slug>` pair. Bundle entries
+must include a `member` field so two unresolved campaigns under one parent do
+not overwrite one another.
 
 The `"{Noun} {N}"` default is allowed only for an individual section title after a credible total count is already known. It is never evidence for, or a substitute for, the total count. A missing credible total always means skip and record for manual follow-up.
 
@@ -94,6 +109,7 @@ Build a JSON array in this shape:
 [
   {
     "slug": "final-fantasy-vii-remake",
+    "member": null,
     "noun": "Chapter",
     "current": null,
     "sections": [
@@ -106,6 +122,20 @@ Build a JSON array in this shape:
 
 Use the real per-section title when credible evidence provides it. Otherwise omit `title` or set it to `null`; the population CLI will supply `"{Noun} {N}"`. Always pass `"current": null`, which leaves `current_section` untouched.
 
+For a bundle member, set `member` to its stable member slug:
+
+```json
+{
+  "slug": "halo-the-master-chief-collection",
+  "member": "halo-combat-evolved-anniversary",
+  "noun": "Mission",
+  "current": null,
+  "sections": [
+    {"number": 1, "title": "The Pillar of Autumn"}
+  ]
+}
+```
+
 For more than two games, run and show the dry-run output before applying:
 
 ```bash
@@ -115,28 +145,16 @@ mcp/scripts/populate_game_sections.py --from-json - < payload.json
 
 For an explicitly requested refresh, add `--replace` to both commands. Otherwise rely on the script's idempotent upsert by section number. Record the affected game ids from target enumeration for the rebuild.
 
+The population CLI triggers one rebuild for the affected parent game IDs after
+an applied batch. Save the timestamp printed immediately before invoking the
+apply command, then monitor that triggered build.
+
 ## Rebuild and Monitor
 
-After successful writes, trigger the flow with the affected game ids as strings. Load all credentials through `DirectusClient.from_config()`:
-
-```bash
-PYTHONPATH=mcp/scripts python3 - <<'PY'
-from datetime import datetime, timezone
-import json
-import os
-
-from scriptlib import DirectusClient
-
-game_ids = json.loads(os.environ["AFFECTED_GAME_IDS_JSON"])
-triggered_at = datetime.now(timezone.utc).isoformat()
-DirectusClient.from_config().post(
-    "/flows/trigger/e3aa03ad-3352-4ade-8156-22d53f107907",
-    {"collection": "games", "keys": [str(game_id) for game_id in game_ids]},
-)
-print(triggered_at)
-PY
-```
-
-Set `AFFECTED_GAME_IDS_JSON` to a JSON array before running the command. Save the printed trigger timestamp. Poll the OpenSearch `container-logs` index for container `directus-site-builder` until either `Build/publish completed successfully.` or `Build/publish FAILED with exit code N.` appears with a timestamp strictly after the saved trigger timestamp. Never accept a completion line from an older build.
+Poll the OpenSearch `container-logs` index for container
+`directus-site-builder` until either `Build/publish completed successfully.` or
+`Build/publish FAILED with exit code N.` appears with a timestamp strictly
+after the saved pre-apply timestamp. Never accept a completion line from an
+older build.
 
 Report the build result, the games written, the games skipped, and the complete contents of `mcp/cache/game_sections_needs_manual.json`.

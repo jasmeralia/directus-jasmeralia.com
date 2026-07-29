@@ -53,14 +53,30 @@ type TierListGameRow = {
   tier_list_id: { title: string; slug: string } | null;
 };
 
+type BundleMemberRow = {
+  id: number;
+  title: string;
+  games_id: { title: string; slug: string } | null;
+};
+
 export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
-  const [gameRevs, reviewRevs, tierActivities, tierListRevs] = await Promise.all([
+  const [
+    gameRevs,
+    reviewRevs,
+    bundleMemberRevs,
+    tierActivities,
+    tierListRevs,
+  ] = await Promise.all([
     get<{ data: RevisionRow[] }>(
       `/revisions?filter[collection][_eq]=games&sort=-id&limit=100` +
       `&fields=id,item,delta,data,activity.action,activity.timestamp`,
     ),
     get<{ data: RevisionRow[] }>(
       `/revisions?filter[collection][_eq]=reviews&sort=-id&limit=20` +
+      `&fields=id,item,delta,data,activity.action,activity.timestamp`,
+    ),
+    get<{ data: RevisionRow[] }>(
+      `/revisions?filter[collection][_eq]=game_bundle_members&sort=-id&limit=50` +
       `&fields=id,item,delta,data,activity.action,activity.timestamp`,
     ),
     get<{ data: ActivityRow[] }>(
@@ -101,6 +117,36 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
       link: `${siteBase}/games/${slug}/index.html`,
       timestamp: date,
     });
+  }
+
+  // Included-game revisions
+  const bundleMemberIds = (bundleMemberRevs.data ?? [])
+    .map((revision) => Number(revision.item))
+    .filter(Boolean);
+  if (bundleMemberIds.length) {
+    const members = await get<{ data: BundleMemberRow[] }>(
+      `/items/game_bundle_members?filter[id][_in]=${bundleMemberIds.join(",")}` +
+      `&fields=id,title,games_id.title,games_id.slug&limit=${bundleMemberIds.length + 5}`,
+    );
+    const memberMap = new Map(
+      (members.data ?? []).map((member) => [member.id, member]),
+    );
+    for (const revision of bundleMemberRevs.data ?? []) {
+      const timestamp = revision.activity?.timestamp;
+      const member = memberMap.get(Number(revision.item));
+      const parent = member?.games_id;
+      if (!timestamp || !member?.title || !parent?.slug || !parent?.title) continue;
+      const date = new Date(timestamp);
+      if (Number.isNaN(date.getTime())) continue;
+      const isCreate = revision.activity?.action === "create";
+      if (!isCreate && !hasMeaningfulDelta(revision.delta)) continue;
+      entries.push({
+        tag: isCreate ? "added" : "updated",
+        subject: `${parent.title}: ${member.title}`,
+        link: `${siteBase}/games/${parent.slug}/index.html`,
+        timestamp: date,
+      });
+    }
   }
 
   // ── Review revisions ──────────────────────────────────────────────────────

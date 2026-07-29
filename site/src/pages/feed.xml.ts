@@ -25,6 +25,7 @@ const LIMIT_REVIEWS     = 50;
 const LIMIT_TIER_LISTS  = 50;
 const LIMIT_JUNCTIONS   = 300; // tier_list_games activities
 const LIMIT_LINKS       = 400; // games_links activities (create + update)
+const LIMIT_BUNDLE_MEMBERS = 200;
 
 // ─── XML helpers ─────────────────────────────────────────────────────────────
 
@@ -341,14 +342,99 @@ function buildGameLinkEntry(
   };
 }
 
+const relationId = (value: unknown): number | null => {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value) return Number(value);
+  if (typeof value === "object" && value !== null && "id" in value) {
+    return Number((value as { id: unknown }).id);
+  }
+  return null;
+};
+
+const bundleDelta = (record: Record<string, unknown> | null): Record<string, unknown> => {
+  if (!record) return {};
+  const fields = [
+    "title",
+    "release_year",
+    "cover_image",
+    "player_status",
+    "section_data_status",
+    "section_noun",
+    "current_section",
+  ];
+  return Object.fromEntries(
+    fields
+      .filter((field) => Object.prototype.hasOwnProperty.call(record, field))
+      .map((field) => [field, record[field]]),
+  );
+};
+
+function buildBundleMemberEntry(
+  rev: Revision,
+  previousData: Record<string, unknown> | null,
+  memberItem: DirectusRecord | null,
+  gameItem: DirectusRecord | null,
+): Entry | null {
+  if (!gameItem) return null;
+  const data = memberItem ?? rev.data ?? {};
+  const memberId = Number(rev.item);
+  const title = String(data.title ?? rev.data?.title ?? "Untitled");
+  const date = requireDate(
+    rev.activity?.timestamp,
+    `game_bundle_members revision ${rev.id}`,
+  );
+  const gameSlug = requireGuidPart(
+    gameItem.slug,
+    `game_bundle_members revision ${rev.id} parent slug`,
+  );
+  const action = rev.activity?.action;
+  const isCreate = action === "create";
+  const isDelete = action === "delete";
+  const activityId = rev.activity?.id ?? rev.id;
+  const event = isCreate
+    ? `member_created_${memberId}_${rev.id}`
+    : isDelete
+      ? `member_removed_${memberId}_${activityId}`
+      : `member_updated_${memberId}_${rev.id}`;
+  const actionLabel = isCreate ? "Added" : isDelete ? "Removed" : "Updated";
+  const description = isDelete
+    ? "Included game removed."
+    : isCreate
+    ? fmtDelta(bundleDelta(data), null)
+    : fmtDelta(bundleDelta(rev.delta), bundleDelta(previousData));
+  if (!isCreate && !isDelete && !description.trim()) return null;
+  return {
+    title: `Included Game ${actionLabel} - ${title}`,
+    link: `${siteBase}/games/${gameSlug}/index.html`,
+    description,
+    pubDate: date,
+    imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
+    guid: rssGuid(
+      "game",
+      gameSlug,
+      event,
+      date,
+      `game_bundle_members revision ${rev.id}`,
+    ),
+  };
+}
+
 // ─── main handler ─────────────────────────────────────────────────────────────
 
 export const GET: APIRoute = async () => {
   // 1. Fetch all revision/activity streams + move log in parallel
-  const [gameRevs, reviewRevs, tierListRevs, tlgActs, glinkActs] = await Promise.all([
+  const [
+    gameRevs,
+    reviewRevs,
+    tierListRevs,
+    bundleMemberRevs,
+    tlgActs,
+    glinkActs,
+  ] = await Promise.all([
     fetchRevisions("games",       LIMIT_GAMES),
     fetchRevisions("reviews",     LIMIT_REVIEWS),
     fetchRevisions("tier_lists",  LIMIT_TIER_LISTS),
+    fetchRevisions("game_bundle_members", LIMIT_BUNDLE_MEMBERS),
     fetchCreateActivity("tier_list_games", LIMIT_JUNCTIONS),
     fetchActivity("games_links", ["create", "update"], LIMIT_LINKS),
   ]);
@@ -360,12 +446,18 @@ export const GET: APIRoute = async () => {
   const glinkItemIds = glinkActs.map((a) => Number(a.item));
   const reviewItemIds = reviewRevs.map((r) => Number(r.item));
   const gameRevisionIds = gameRevs.map((r) => Number(r.item));
+  const bundleMemberItemIds = bundleMemberRevs.map((r) => Number(r.item));
 
-  const [tlgItemMap, glinkItemMap, reviewItemMap] = await Promise.all([
+  const [tlgItemMap, glinkItemMap, reviewItemMap, bundleMemberItemMap] = await Promise.all([
     fetchItemMap("tier_list_games", tlgItemIds, "id,game_id,tier_list_id,rating"),
     fetchItemMap("games_links",     glinkItemIds, "id,games_id,url,kind"),
     fetchItemMap("reviews", reviewItemIds,
       "id,title,slug,status,rating,published_at,game.id,game.title,game.cover_image.id,game.cover_image.filename_disk"),
+    fetchItemMap(
+      "game_bundle_members",
+      bundleMemberItemIds,
+      "id,games_id,title,player_status,section_data_status,section_noun,current_section",
+    ),
   ]);
 
   // Collect game IDs and tier_list IDs from tier additions
@@ -381,9 +473,20 @@ export const GET: APIRoute = async () => {
   for (const glink of Object.values(glinkItemMap)) {
     if (glink.games_id) gameIdsForLinks.add(Number(glink.games_id));
   }
+  const gameIdsForBundleMembers = new Set<number>();
+  for (const rev of bundleMemberRevs) {
+    const liveItem = bundleMemberItemMap[Number(rev.item)];
+    const gameId = relationId(liveItem?.games_id ?? rev.data?.games_id);
+    if (gameId) gameIdsForBundleMembers.add(gameId);
+  }
 
   // 3. Batch-fetch support data
-  const allGameIds = new Set([...gameIdsForTiers, ...gameIdsForLinks, ...gameRevisionIds]);
+  const allGameIds = new Set([
+    ...gameIdsForTiers,
+    ...gameIdsForLinks,
+    ...gameIdsForBundleMembers,
+    ...gameRevisionIds,
+  ]);
   const [tierListMap, gameMap] = await Promise.all([
     fetchItemMap("tier_lists", Array.from(tierListIdsForAdd), "id,title,slug"),
     fetchItemMap("games", Array.from(allGameIds),
@@ -393,10 +496,18 @@ export const GET: APIRoute = async () => {
   // 4. Process game revisions: fetch prev revisions and genres for new games in parallel
   const createGameRevs = gameRevs.filter((r) => r.activity?.action === "create");
   const updateGameRevs = gameRevs.filter((r) => r.activity?.action === "update");
+  const updateBundleMemberRevs = bundleMemberRevs.filter(
+    (revision) => revision.activity?.action === "update",
+  );
   const newGameIds     = createGameRevs.map((r) => Number(r.item));
 
-  const [prevResults, genreResults] = await Promise.all([
+  const [prevResults, memberPrevResults, genreResults] = await Promise.all([
     Promise.all(updateGameRevs.map((r) => fetchPrevRevision("games", r.item, r.id))),
+    Promise.all(
+      updateBundleMemberRevs.map((revision) =>
+        fetchPrevRevision("game_bundle_members", revision.item, revision.id)
+      ),
+    ),
     Promise.all(newGameIds.map((id) => fetchGameGenres(id))),
   ]);
 
@@ -406,6 +517,13 @@ export const GET: APIRoute = async () => {
   const newGameGenreMap: Record<number, string[]> = Object.fromEntries(
     newGameIds.map((id, i) => [id, genreResults[i] ?? []])
   );
+  const bundleMemberPrevMap: Record<number, Record<string, unknown> | null> =
+    Object.fromEntries(
+      updateBundleMemberRevs.map((revision, index) => [
+        revision.id,
+        memberPrevResults[index]?.data ?? null,
+      ]),
+    );
 
   // 5. Build all feed entries
   const entries: Entry[] = [];
@@ -416,6 +534,20 @@ export const GET: APIRoute = async () => {
     const genres   = newGameGenreMap[Number(rev.item)] ?? [];
     const liveItem = gameMap[Number(rev.item)] ?? null;
     const entry    = buildGameEntry(rev, prevData, genres, liveItem);
+    if (entry) entries.push(entry);
+  }
+
+  // Included games
+  for (const rev of bundleMemberRevs) {
+    const liveItem = bundleMemberItemMap[Number(rev.item)] ?? null;
+    const gameId = relationId(liveItem?.games_id ?? rev.data?.games_id);
+    const gameItem = gameId ? gameMap[gameId] ?? null : null;
+    const entry = buildBundleMemberEntry(
+      rev,
+      bundleMemberPrevMap[rev.id] ?? null,
+      liveItem,
+      gameItem,
+    );
     if (entry) entries.push(entry);
   }
 

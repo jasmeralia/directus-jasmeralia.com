@@ -28,6 +28,18 @@ export const GAME_THUMB_FIELDS = [
   "section_noun",
   "current_section",
   "sections.id",
+  "sections.number",
+  "sections.bundle_member_id",
+  "bundle_members.id",
+  "bundle_members.sort",
+  "bundle_members.slug",
+  "bundle_members.title",
+  "bundle_members.player_status",
+  "bundle_members.section_data_status",
+  "bundle_members.section_noun",
+  "bundle_members.current_section",
+  "bundle_members.sections.id",
+  "bundle_members.sections.number",
 ];
 
 export const DEVELOPER_LINK_FIELDS = [

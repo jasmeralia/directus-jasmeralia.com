@@ -15,8 +15,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from game_sections_lib import resolve_game, resolve_targets, upsert_game_sections
-from scriptlib import DirectusClient
+from game_sections_lib import (
+    resolve_bundle_member,
+    resolve_game,
+    resolve_targets,
+    upsert_game_sections,
+)
+from scriptlib import DirectusClient, take_pg_dump_backup, trigger_site_rebuild
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -33,6 +38,10 @@ def _parser() -> argparse.ArgumentParser:
         "--current",
         type=int,
         help="Set games.current_section",
+    )
+    parser.add_argument(
+        "--member",
+        help="Scope sections to an included-game slug under the parent game",
     )
     parser.add_argument(
         "--replace",
@@ -93,10 +102,12 @@ def _parse_filter(
     return parsed
 
 
-def _print_summary(result: dict[str, int], *, dry_run: bool) -> None:
+def _print_summary(result: dict[str, int | None], *, dry_run: bool) -> None:
     prefix = "[DRY RUN] Would write" if dry_run else "Wrote"
+    member_id = result["bundle_member_id"]
+    member_text = f" member id={member_id}" if member_id else ""
     print(
-        f"{prefix} game id={result['game_id']}: "
+        f"{prefix} game id={result['game_id']}{member_text}: "
         f"{result['created']} created, {result['updated']} updated, "
         f"{result['deleted']} deleted",
         file=sys.stderr,
@@ -126,11 +137,16 @@ def _run_from_json(
     args: argparse.Namespace,
 ) -> None:
     payload = _load_payload(parser, args.from_json)
+    if args.replace and not args.dry_run:
+        backup = take_pg_dump_backup("game_sections_replace")
+        print(f"Deletion backup: {backup}", file=sys.stderr)
+    affected_game_ids: list[int] = []
     for entry in payload:
         slug = entry.get("slug")
         noun = entry.get("noun")
         sections = entry.get("sections")
         current = entry.get("current")
+        member_slug = entry.get("member")
         if not isinstance(slug, str) or not slug:
             parser.error("Every --from-json entry requires a non-empty slug")
         if noun is not None and not isinstance(noun, str):
@@ -143,18 +159,31 @@ def _run_from_json(
             not isinstance(current, int) or isinstance(current, bool)
         ):
             parser.error(f"Entry '{slug}' current must be an integer or null")
+        if member_slug is not None and (
+            not isinstance(member_slug, str) or not member_slug
+        ):
+            parser.error(f"Entry '{slug}' member must be a non-empty string or null")
 
         game = resolve_game(client, slug)
+        member = (
+            resolve_bundle_member(client, game["id"], member_slug)
+            if member_slug
+            else None
+        )
         result = upsert_game_sections(
             client,
             game["id"],
             noun=noun or "Chapter",
             sections=sections,
             current=current,
+            bundle_member_id=member["id"] if member else None,
             replace=args.replace,
             dry_run=args.dry_run,
         )
         _print_summary(result, dry_run=args.dry_run)
+        affected_game_ids.append(game["id"])
+    if affected_game_ids and not args.dry_run:
+        trigger_site_rebuild(client, affected_game_ids)
 
 
 def _run_list_targets(
@@ -187,7 +216,12 @@ def main() -> None:
     client = DirectusClient.from_config()
 
     if args.list_targets:
-        if args.from_json or args.game_slug is not None or args.count is not None:
+        if (
+            args.from_json
+            or args.game_slug is not None
+            or args.count is not None
+            or args.member
+        ):
             parser.error(
                 "--list-targets cannot be combined with positional or --from-json input"
             )
@@ -195,7 +229,7 @@ def main() -> None:
         return
 
     if args.from_json:
-        if args.game_slug is not None or args.count is not None:
+        if args.game_slug is not None or args.count is not None or args.member:
             parser.error("--from-json cannot be combined with positional input")
         if any(
             (args.raw_filter, args.target_slug, args.status, args.genre, args.tier_list)
@@ -214,19 +248,28 @@ def main() -> None:
         parser.error("count must be a positive integer")
 
     game = resolve_game(client, args.game_slug)
+    member = (
+        resolve_bundle_member(client, game["id"], args.member) if args.member else None
+    )
     sections = [
         {"number": number, "title": None} for number in range(1, args.count + 1)
     ]
+    if args.replace and not args.dry_run:
+        backup = take_pg_dump_backup("game_sections_replace")
+        print(f"Deletion backup: {backup}", file=sys.stderr)
     result = upsert_game_sections(
         client,
         game["id"],
         noun=args.noun,
         sections=sections,
         current=args.current,
+        bundle_member_id=member["id"] if member else None,
         replace=args.replace,
         dry_run=args.dry_run,
     )
     _print_summary(result, dry_run=args.dry_run)
+    if not args.dry_run:
+        trigger_site_rebuild(client, [game["id"]])
 
 
 if __name__ == "__main__":
