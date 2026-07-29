@@ -30,6 +30,9 @@ jobs:
       - name: Validate builder Dockerfile exists
         run: test -f builder/Dockerfile
 
+      - name: Test content-manifest deployment planning
+        run: node --test builder/sync-dist.test.mjs
+
   prepare-tag:
     needs: validate
     if: github.event_name == 'push'

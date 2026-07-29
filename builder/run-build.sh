@@ -7,6 +7,7 @@ AWS_S3_BUCKET="${AWS_S3_BUCKET:-}"
 AWS_REGION="${AWS_REGION:-}"
 INVALIDATE_ON_PUBLISH="${INVALIDATE_ON_PUBLISH:-true}"
 CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-}"
+DEPLOY_MANIFEST_PATH="${DEPLOY_MANIFEST_PATH:-${ASTRO_DIR%/*}/.site-deploy-manifest.json}"
 BUILD_ROOT="$(mktemp -d /tmp/astro-build.XXXXXX)"
 BUILD_DIR="$BUILD_ROOT/site"
 
@@ -79,27 +80,13 @@ fi
 
 echo "==> Publishing dist/ to s3://$AWS_S3_BUCKET/"
 
-# Sync all site content except media/ (preserved) and pagefind/ (handled separately below).
-# --size-only skips timestamp comparison — every build produces fresh mtimes in a temp dir,
-# which would otherwise cause aws s3 sync to re-upload the entire site on every run.
-aws s3 sync "$BUILD_DIR/dist/" "s3://${AWS_S3_BUCKET}/" \
-  --size-only --delete \
-  --exclude "media/*" \
-  --exclude "pagefind/*" \
-  --region "$AWS_REGION"
-
-# Pagefind shards use content-addressed filenames (e.g. en_d549c8a.pf_fragment).
-# --size-only is safe here: aws s3 sync compares by key name first, so a shard that
-# doesn't exist in S3 is uploaded regardless of size; a shard with the same hash-based
-# name has identical content and can be skipped. pagefind-entry.json is NOT content-
-# addressed — it lists current shard names and changes every build — so force-upload it
-# after the sync to avoid a stale index if the byte count happens to stay the same.
-aws s3 sync "$BUILD_DIR/dist/pagefind/" "s3://${AWS_S3_BUCKET}/pagefind/" \
-  --size-only --delete \
-  --region "$AWS_REGION"
-
-aws s3 cp "$BUILD_DIR/dist/pagefind/pagefind-entry.json" "s3://${AWS_S3_BUCKET}/pagefind/pagefind-entry.json" \
-  --region "$AWS_REGION"
+# Compare SHA-256 content manifests so only byte-changed files are uploaded.
+# This catches same-size edits without re-uploading unchanged generated pages.
+node /srv/sync-dist.mjs \
+  "$BUILD_DIR/dist" \
+  "$DEPLOY_MANIFEST_PATH" \
+  "$AWS_S3_BUCKET" \
+  "$AWS_REGION"
 
 if [[ "$INVALIDATE_ON_PUBLISH" == "true" ]]; then
   if [[ -z "$CLOUDFRONT_DISTRIBUTION_ID" ]]; then

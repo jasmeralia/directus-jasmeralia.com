@@ -6,3 +6,4 @@ mcp/cache/
 __pycache__/
 mcp/scripts/ignored/
 .claude/*.lock
+.site-deploy-manifest.json
