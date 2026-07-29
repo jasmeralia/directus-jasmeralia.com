@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.159] - 2026-07-28
+- Builder: use a persistent SHA-256 content manifest so only byte-changed output files are uploaded while still detecting same-size changes before CloudFront invalidation.
+
 ## [1.0.158] - 2026-07-28
 - Franchises: show omnibus indicators, played status, and section or included-game progress without exposing internal slugs.
 - Franchises: list omnibus members that do not already have a corresponding standalone franchise entry.
