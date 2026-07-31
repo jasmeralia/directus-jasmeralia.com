@@ -163,7 +163,7 @@ Both files must be updated in the same commit as the site changes. Never batch m
 
 **Never make schema changes (field creation/deletion, relation changes, collection modifications) without explicit user confirmation — even if the user has discussed or approved the plan.** Discussion is not authorization. Wait for a clear "go ahead" directed at the specific schema change before touching `/fields`, `/relations`, or `/collections` endpoints.
 
-**Always take a full `pg_dump` before any delete or schema change — no exceptions, no minimum size threshold.** This includes single-record deletes, game merges, link cleanup, junction sweeps, field creation/deletion, and collection modifications. Use `pg_dump` via the `cms-db` container on TrueNAS; it produces a complete, binary-compatible dump that restores in seconds.
+**Always take a full-database `pg_dump` before any delete or schema change — no exceptions, no minimum size threshold, and never scoped to just the table(s) you think are affected.** This includes single-record deletes, game merges, link cleanup, junction sweeps, field creation/deletion, and collection modifications. Schema changes routinely touch Directus system tables you wouldn't think to check (`directus_fields`, `directus_relations`, `directus_permissions`, `directus_presets`, `directus_flows`/`directus_operations`, `directus_revisions`, `directus_activity`, etc.) — a `pg_dump -t <table>` scoped to only the "obviously affected" tables is not an acceptable substitute and can leave a restore inconsistent. Always dump the whole `directus` database. Use `pg_dump` via the `cms-db` container on TrueNAS; it produces a complete, binary-compatible dump that restores in seconds.
 
 ```bash
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
