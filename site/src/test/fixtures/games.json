@@ -1,0 +1,40 @@
+[
+  {
+    "id": 101,
+    "title": "Alpha, The Beginning",
+    "slug": "alpha-the-beginning",
+    "release_year": 2024,
+    "game_status": "released",
+    "player_status": "completed",
+    "family_sharing": false,
+    "cover_image": {
+      "id": "cover-alpha",
+      "filename_disk": "alpha.webp"
+    },
+    "links": [
+      {
+        "id": 1,
+        "url": "https://store.steampowered.com/app/101/",
+        "kind": "download",
+        "sort": 1
+      }
+    ],
+    "engines": [{ "engines_id": { "title": "Ren'py" } }],
+    "genres": [{ "genres_id": { "name": "Visual Novel" } }],
+    "developers": [{ "developers_id": { "name": "Example Studio" } }]
+  },
+  {
+    "id": 102,
+    "title": "dev_hell",
+    "slug": "dev-hell",
+    "release_year": null,
+    "game_status": "unreleased",
+    "player_status": "not_started",
+    "family_sharing": true,
+    "cover_image": null,
+    "links": [],
+    "engines": [],
+    "genres": [],
+    "developers": []
+  }
+]

@@ -1,0 +1,33 @@
+[
+  {
+    "id": 301,
+    "rating": "A",
+    "game_id": {
+      "id": 101,
+      "title": "Alpha",
+      "slug": "alpha",
+      "release_year": 2024,
+      "player_status": "completed"
+    }
+  },
+  {
+    "id": 302,
+    "rating": "S",
+    "game_id": {
+      "id": 102,
+      "title": "Zebra",
+      "slug": "zebra",
+      "release_year": 2023,
+      "player_status": "in_progress"
+    }
+  },
+  {
+    "id": 303,
+    "game_id": {
+      "id": 103,
+      "title": "Unrated",
+      "slug": "unrated",
+      "player_status": "not_started"
+    }
+  }
+]

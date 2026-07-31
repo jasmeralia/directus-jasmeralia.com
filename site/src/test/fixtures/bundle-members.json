@@ -1,0 +1,31 @@
+[
+  {
+    "id": 202,
+    "sort": 2,
+    "slug": "second-story",
+    "title": "Second Story",
+    "player_status": "completed",
+    "section_data_status": "tracked",
+    "section_noun": "Act",
+    "current_section": 3,
+    "sections": [
+      { "id": 3, "number": 1, "title": "Act 1" },
+      { "id": 4, "number": 2, "title": "Act 2" },
+      { "id": 5, "number": 3, "title": "Act 3" }
+    ]
+  },
+  {
+    "id": 201,
+    "sort": 1,
+    "slug": "first-story",
+    "title": "First Story",
+    "player_status": "in_progress",
+    "section_data_status": "tracked",
+    "section_noun": "Mission",
+    "current_section": 2,
+    "sections": [
+      { "id": 1, "number": 1, "title": "Arrival" },
+      { "id": 2, "number": 2, "title": "Departure" }
+    ]
+  }
+]

@@ -124,6 +124,7 @@ The whole repo lints through one root `Makefile`, patterned after `~/git/wishlis
 | `make lint` | Everything below, read-only |
 | `make lintfix` | Auto-fixable subset (eslint --fix, ruff check --fix, ruff format) |
 | `make lint-site` | `site/` — eslint (flat config, `eslint-plugin-astro` + `typescript-eslint`) |
+| `make test-site` | `site/` - Vitest unit tests for `site/src/lib/` pure logic; runs without live Directus credentials or network access, with fixtures in `site/src/test/fixtures/` |
 | `make lint-python` | `mcp/scripts/` — ruff, ruff format, pylint, mypy |
 | `make lint-docker` | `builder/Dockerfile` — hadolint |
 | `make lint-shell` | `builder/run-build.sh`, `mcp/scripts/publish.sh` — shellcheck |
@@ -135,7 +136,7 @@ Python lint config lives in the root `pyproject.toml`:
 - `[tool.pylint.format]`/`[tool.pylint.design]` calibrate line-length and complexity thresholds (max-branches/locals/statements/etc.) to fit this codebase's linear fetch-transform-write script style, rather than forcing artificial function splits to satisfy pylint's defaults.
 - `mcp/scripts/ignored/` (gitignored, excluded from ruff/mypy/pylint via config) holds scripts that talk to the GameStoryLog API, and/or that only make sense on this specific machine (e.g. scanning local RenPy save-file locations for AVN progress), and must never enter git history — see the credentials note under "Setup: credentials" in spirit; if you add a new script that embeds GSL (or any similarly sensitive third-party) credentials, or that is otherwise local-machine-specific, put it here rather than directly in `mcp/scripts/`. The `game-sections-lookup` skill (`.claude/skills/game-sections-lookup/`) auto-discovers any script here tagged with a `# game-sections-lookup:` header comment — see that skill file for the discovery/usage convention rather than assuming a specific script name, since these files are not committed and may not exist in every checkout.
 
-CI (`astro-builder-ghcr.yml`) runs `lint-site`, `lint-python`, `lint-docker`, and `lint-shell` as separate jobs on every push and PR, and the builder Docker image build (`build-publish`) is gated on all four passing. CI never runs `npm run build` for the Astro site itself — the real build needs live Directus DB access that GHA runners don't have (see "Rules for Astro site changes" below).
+CI (`astro-builder-ghcr.yml`) runs `lint-site`, `test-site`, `lint-python`, `lint-docker`, and `lint-shell` as separate jobs on every push and PR, and the builder Docker image build (`build-publish-docker-image`) is gated on all five passing. CI never runs `npm run build` for the Astro site itself — the real build needs live Directus DB access that GHA runners don't have (see "Rules for Astro site changes" below).
 
 ## Rules for Astro site changes
 
