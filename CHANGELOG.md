@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.160] - 2026-07-31
+- Testing: add a Vitest suite for `site/src/lib/` pure logic with fixture-based Directus mocking.
+- CI: add `make test-site` and a `test-site` job that gates the builder Docker image build.
+- CI: rename the ambiguous `build-publish` job to `build-publish-docker-image`.
+
 ## [1.0.159] - 2026-07-28
 - Builder: use a persistent SHA-256 content manifest so only byte-changed output files are uploaded while still detecting same-size changes before CloudFront invalidation.
 
