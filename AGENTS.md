@@ -78,13 +78,13 @@ automatic pull reports a failure in that build's logs.
 OpenSearch is running on TrueNAS and indexes all container logs. Query it directly — no auth required from LAN:
 
 ```bash
-curl -s "http://truenas.windsofstorm.net:9200/container-logs/_search" \
+curl -s "http://truenas.windsofstorm.net:9200/container-logs-write/_search" \
   -H "Content-Type: application/json" \
   -d '{"size":30,"query":{"term":{"container_name.keyword":"directus-site-builder"}},"sort":[{"@timestamp":{"order":"desc"}}],"_source":["@timestamp","log"]}' \
   | python3 -c "import json,sys; [print(h['_source']['@timestamp'][:19], h['_source']['log'].rstrip()) for h in reversed(json.load(sys.stdin)['hits']['hits'])]"
 ```
 
-The `container-logs` index holds logs for all TrueNAS containers. Look for the final `Build/publish completed successfully.` or `Build/publish FAILED` line. The OpenSearch Dashboards UI is at https://opensearch.jasmer.tools/ (LAN only).
+`container-logs-write` is an ISM rollover alias (backing indices `container-logs-000001`, `container-logs-000002`, ...) and holds logs for all TrueNAS containers — this is what Fluent Bit's output config (`/mnt/myzmirror/opensearch/docker-fluent-bit.conf`) actually writes to. **Do not query the plain `container-logs` index** — it's an orphaned, non-rollover index with a handful of stale docs unrelated to the live pipeline; querying it silently returns near-empty results instead of erroring, which looks like broken log shipping but isn't. Look for the final `Build/publish completed successfully.` or `Build/publish FAILED` line. The OpenSearch Dashboards UI is at https://opensearch.jasmer.tools/ (LAN only).
 
 As a fallback, SSH and tail docker directly:
 ```bash
