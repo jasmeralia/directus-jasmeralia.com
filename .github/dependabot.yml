@@ -12,6 +12,12 @@ updates:
     interval: weekly
   reviewers:
   - jasmeralia
+- package-ecosystem: docker-compose
+  directory: /
+  schedule:
+    interval: weekly
+  reviewers:
+  - jasmeralia
 - package-ecosystem: pip
   directory: /mcp
   schedule:
