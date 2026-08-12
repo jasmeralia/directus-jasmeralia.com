@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.161] - 2026-08-12
+- Security: upgrade the transitive nanoid dependency to 3.3.18 to resolve CVE-2026-67213.
+
 ## [1.0.160] - 2026-07-31
 - Testing: add a Vitest suite for `site/src/lib/` pure logic with fixture-based Directus mocking.
 - CI: add `make test-site` and a `test-site` job that gates the builder Docker image build.
