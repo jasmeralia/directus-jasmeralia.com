@@ -16,6 +16,10 @@ describe("renderMarkdown", () => {
     const relative = renderMarkdown("[Local](/games/example)");
     expect(relative).toContain('<a href="/games/example">Local</a>');
     expect(relative).not.toContain('target="_blank"');
+    expect(renderMarkdown('[Titled](/games/example "Game page")')).toContain(
+      '<a href="/games/example" title="Game page">Titled</a>',
+    );
+    expect(renderMarkdown("[No target]()")).toContain("<p>No target</p>");
   });
 
   it("renders basic bold text and lists", () => {

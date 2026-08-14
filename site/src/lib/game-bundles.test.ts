@@ -38,6 +38,18 @@ describe("bundle member helpers", () => {
     expect(orderedBundleMembers(null)).toEqual([]);
   });
 
+  it("uses title order when member sort positions are equal", () => {
+    const equalSort = [
+      member(1, { title: "zulu", sort: 4 }),
+      member(2, { title: "Alpha", sort: 4 }),
+    ];
+
+    expect(orderedBundleMembers(equalSort).map(({ title }) => title)).toEqual([
+      "Alpha",
+      "zulu",
+    ]);
+  });
+
   it("detects whether a game has bundle members", () => {
     expect(hasBundleMembers({ bundle_members: bundleMembers })).toBe(true);
     expect(hasBundleMembers({ bundle_members: [] })).toBe(false);

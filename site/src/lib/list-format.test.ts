@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { compareLabels, sortByName, sortByTitle } from "./list-format";
+import { compareLabels, formatUnknown, sortByName, sortByTitle } from "./list-format";
 
 describe("list formatting and sorting", () => {
+  it("labels unknown values while preserving known values", () => {
+    expect(formatUnknown("unknown", "engine")).toBe("<Unknown engine>");
+    expect(formatUnknown("Ren'py", "engine")).toBe("Ren'py");
+  });
+
   it("sorts titles case-insensitively without mutating the input", () => {
     const input = [
       { title: "Zebra" },
