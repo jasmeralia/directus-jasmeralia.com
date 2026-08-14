@@ -82,6 +82,18 @@ describe("CSV exports", () => {
     expect(tierListGamesFixture.map(({ id }) => id)).toEqual([301, 302, 303]);
   });
 
+  it("sorts games alphabetically within the same tier", () => {
+    const csv = tierListToCsv([
+      { rating: "A", game_id: { title: "zulu", slug: "zulu" } },
+      { rating: "A", game_id: { title: "Alpha", slug: "alpha" } },
+    ]);
+
+    expect(csv.split("\n").slice(1).map((row) => row.split(",")[1])).toEqual([
+      "Alpha",
+      "zulu",
+    ]);
+  });
+
   it("encodes CSV as a data URI", () => {
     expect(csvDataUri("title\nA & B")).toBe(
       "data:text/csv;charset=utf-8,title%0AA%20%26%20B",

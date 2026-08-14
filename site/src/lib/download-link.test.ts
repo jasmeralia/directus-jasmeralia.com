@@ -8,6 +8,7 @@ import {
   getUrlPlatform,
   primaryDownloadLink,
   walkthroughLinks,
+  walkthroughTextNotes,
   type DeveloperLink,
   type GameLink,
   type UrlPlatform,
@@ -43,6 +44,20 @@ describe("game link selection", () => {
     ]);
     expect(downloadLinks(null)).toEqual([]);
     expect(walkthroughLinks([])).toEqual([]);
+  });
+
+  it("filters and sorts text notes independently from walkthroughs", () => {
+    const values: GameLink[] = [
+      { url: "https://example.test/note-later", kind: "text-note", sort: null },
+      { url: "https://example.test/walkthrough", kind: "walkthrough", sort: 1 },
+      { url: "https://example.test/note-first", kind: "text-note", sort: 2 },
+    ];
+
+    expect(walkthroughTextNotes(values).map(({ url }) => url)).toEqual([
+      "https://example.test/note-first",
+      "https://example.test/note-later",
+    ]);
+    expect(walkthroughTextNotes(undefined)).toEqual([]);
   });
 });
 
@@ -93,6 +108,32 @@ describe("URL platform and metadata", () => {
       icon: "/icons/simple/steam.svg",
       label: "Store page",
     });
+    expect(getLinkMeta({
+      url: "https://creator.itch.io/game",
+      kind: "download",
+      label: null,
+    })).toEqual({
+      icon: "/icons/simple/itchdotio.svg",
+      label: "itch.io",
+      host: "creator.itch.io",
+    });
+  });
+
+  it.each([
+    ["https://creator.itch.io/game", "/icons/simple/itchdotio.svg", "itch.io", "creator.itch.io"],
+    ["https://store.epicgames.com/p/example", "/icons/simple/epicgames.svg", "Epic Games", "store.epicgames.com"],
+    ["https://www.patreon.com/creator", "/icons/simple/patreon.svg", "Patreon", "patreon.com"],
+    ["https://store.playstation.com/product/example", "/icons/simple/playstation.svg", "PlayStation", "store.playstation.com"],
+    ["https://www.xbox.com/games/example", "/icons/simple/xbox.svg", "Xbox", "xbox.com"],
+    ["https://www.ign.com/wikis/example", "/icons/simple/ign.svg", "IGN", "ign.com"],
+    ["https://www.scribd.com/document/1", "/icons/simple/scribd.svg", "Scribd", "scribd.com"],
+    ["https://f95zone.to/threads/example", "/icons/f95zone.png", "F95Zone", "f95zone.to"],
+    ["https://gamerant.com/example", "/icons/gamerant.png", "Game Rant", "gamerant.com"],
+    ["https://www.neoseeker.com/example", "/icons/neoseeker.ico", "Neoseeker", "neoseeker.com"],
+    ["https://www.trueachievements.com/game/example", "/icons/trueachievements.png", "TrueAchievements", "trueachievements.com"],
+    ["https://www.stealthoptional.com/guides/example", "/icons/stealthoptional.png", "Stealth Optional", "stealthoptional.com"],
+  ])("returns metadata for %s", (url, icon, label, host) => {
+    expect(getUrlLinkMeta(url)).toEqual({ icon, label, host });
   });
 
   it("resolves developer kind metadata, URL variants, and label overrides", () => {
@@ -116,5 +157,34 @@ describe("URL platform and metadata", () => {
       icon: null,
       label: "Website",
     });
+    expect(getDeveloperLinkMeta({
+      url: "https://subscribestar.adult/creator",
+      kind: "subscribestar",
+    })).toEqual({
+      icon: "/icons/simple/subscribestar.svg",
+      label: "SubscribeStar",
+    });
+    expect(getDeveloperLinkMeta({ url: "https://discord.gg/example", kind: "discord" })).toEqual({
+      icon: "/icons/simple/discord.svg",
+      label: "Discord",
+    });
+    expect(getDeveloperLinkMeta({ url: "https://creator.itch.io", kind: "itch" })).toEqual({
+      icon: "/icons/simple/itchdotio.svg",
+      label: "itch.io",
+    });
+  });
+
+  it.each([
+    ["patreon", "/icons/simple/patreon.svg"],
+    ["subscribestar", "/icons/simple/subscribestar.svg"],
+    ["discord", "/icons/simple/discord.svg"],
+    ["itch", "/icons/simple/itchdotio.svg"],
+    ["other", null],
+  ] as const)("keeps a custom %s developer label with its kind icon", (kind, icon) => {
+    expect(getDeveloperLinkMeta({
+      url: "https://example.com/profile",
+      kind,
+      label: "Creator profile",
+    })).toEqual({ icon, label: "Creator profile" });
   });
 });

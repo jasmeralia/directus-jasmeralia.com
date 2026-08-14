@@ -9,7 +9,10 @@ import {
   directusFetchRaw,
   directusToken,
   fileUrl,
+  getPublishedTierListBySlug,
+  getSTierGameIds,
   isFamilySharingDisabled,
+  listPublishedTierListSlugs,
 } from "./directus";
 
 describe("Directus configuration helpers", () => {
@@ -170,5 +173,76 @@ describe("Directus fetch helpers", () => {
     await expect(directusFetchItems("games")).rejects.toThrow(
       "No Directus mock route matched: http://directus.test/items/games",
     );
+  });
+});
+
+describe("published tier-list helpers", () => {
+  it("lists only non-empty published tier-list slugs", async () => {
+    const fetchMock = mockDirectusFetch([{
+      match: "/items/tier_lists?",
+      data: [{ slug: "favorites" }, { slug: "" }, { slug: "completed" }],
+    }]);
+
+    await expect(listPublishedTierListSlugs()).resolves.toEqual(["favorites", "completed"]);
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("filter[status][_eq]")).toBe("published");
+    expect(url.searchParams.get("limit")).toBe("-1");
+  });
+
+  it("returns null when no published tier list matches", async () => {
+    mockDirectusFetch([{ match: "/items/tier_lists?", data: [] }]);
+    await expect(getPublishedTierListBySlug("missing")).resolves.toBeNull();
+  });
+
+  it("attaches a matching tier list's game rows", async () => {
+    const tierList = {
+      id: 12,
+      title: "Favorites",
+      slug: "favorites",
+      description: "Top games",
+      status: "published",
+    };
+    const games = [{
+      id: 30,
+      rating: "S",
+      game_id: { id: 7, title: "Example", slug: "example" },
+    }];
+    const fetchMock = mockDirectusFetch([
+      { match: "/items/tier_lists?", data: [tierList] },
+      { match: "/items/tier_list_games?", data: games },
+    ]);
+
+    await expect(getPublishedTierListBySlug("favorites")).resolves.toEqual({
+      ...tierList,
+      tier_list_games: games,
+    });
+    const listUrl = new URL(String(fetchMock.mock.calls[0][0]));
+    const gamesUrl = new URL(String(fetchMock.mock.calls[1][0]));
+    expect(listUrl.searchParams.get("filter[slug][_eq]")).toBe("favorites");
+    expect(gamesUrl.searchParams.get("filter[tier_list_id][_eq]")).toBe("12");
+    expect(gamesUrl.searchParams.get("fields")).toContain("game_id.links.url");
+  });
+
+  it("returns no S-tier IDs without numeric input and filters malformed result rows", async () => {
+    const emptyFetch = mockDirectusFetch([]);
+    await expect(getSTierGameIds([])).resolves.toEqual(new Set());
+    expect(emptyFetch).not.toHaveBeenCalled();
+
+    const fetchMock = mockDirectusFetch([{
+      match: "/items/tier_list_games?",
+      data: [
+        { game_id: { id: 1 } },
+        { game_id: { id: "2" } },
+        { game_id: null },
+        { game_id: { id: 3 } },
+      ],
+    }]);
+    await expect(getSTierGameIds([1, "2" as unknown as number, 3])).resolves.toEqual(
+      new Set([1, 3]),
+    );
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("filter[game_id][_in]")).toBe("1,3");
+    expect(url.searchParams.get("filter[rating][_eq]")).toBe("S");
+    expect(url.searchParams.get("filter[tier_list_id][status][_eq]")).toBe("published");
   });
 });

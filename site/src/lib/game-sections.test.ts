@@ -51,5 +51,6 @@ describe("game section helpers", () => {
       "Direct 3",
     ]);
     expect(sections).toHaveLength(4);
+    expect(directGameSections(undefined)).toEqual([]);
   });
 });

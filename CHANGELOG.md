@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.163] - 2026-08-14
+- Testing: raise Vitest line coverage across `site/src/lib/` above 80% with behavioral coverage for history, recent updates, Directus helpers, and remaining edge cases.
+- CI: make Codecov project and patch checks enforce their existing 80% targets instead of reporting informationally.
+
 ## [1.0.162] - 2026-08-14
 - Testing: measure Vitest coverage across production TypeScript in `site/src/lib/`.
 - CI: upload coverage to Codecov in informational mode while current coverage is below 80%.
