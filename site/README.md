@@ -21,7 +21,7 @@ npm run dev -- --host
 
 ## Testing
 
-Run the unit test suite from `site/`:
+Run the unit test suite with coverage from `site/`:
 
 ```
 npm test
@@ -31,7 +31,8 @@ Use `npm run test:watch` for watch mode. From the repository root, the same
 one-shot suite is available through `make test-site`.
 
 Tests use fixtures in `src/test/fixtures/` and fetch-level Directus mocks, so
-they do not need live Directus credentials or network access.
+they do not need live Directus credentials or network access. Coverage includes
+production TypeScript under `src/lib/` and is written to `coverage/` for CI.
 
 ## Notes
 

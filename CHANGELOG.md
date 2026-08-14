@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.162] - 2026-08-14
+- Testing: measure Vitest coverage across production TypeScript in `site/src/lib/`.
+- CI: upload coverage to Codecov in informational mode while current coverage is below 80%.
+
 ## [1.0.161] - 2026-08-12
 - Security: upgrade the transitive nanoid dependency to 3.3.18 to resolve CVE-2026-67213.
 
