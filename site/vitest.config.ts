@@ -5,6 +5,12 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     setupFiles: ["src/test/setup.ts"],
+    coverage: {
+      provider: "v8",
+      include: ["src/lib/**/*.ts"],
+      exclude: ["src/**/*.test.ts", "src/test/**"],
+      reporter: ["text", "cobertura"],
+    },
     env: {
       DIRECTUS_URL: "http://directus.test",
       DIRECTUS_TOKEN: "test-token",
