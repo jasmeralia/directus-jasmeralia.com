@@ -66,12 +66,28 @@ mcp/scripts/publish.sh --title "fix: something" [--body "PR body"] [--no-build]
 
 ## Updating site source on TrueNAS
 
-Manual TrueNAS pulls are no longer required. At the beginning of every build,
-the builder script pulls the latest `master` into
-`/mnt/myzmirror/directus-jasmeralia` before staging and building the Astro
-site. After merging a site change, trigger the build normally and monitor it
-through OpenSearch. Only investigate or repair the TrueNAS checkout if the
-automatic pull reports a failure in that build's logs.
+**Do not SSH to TrueNAS to `git pull` the Astro site after a PR merges.** The checkout at `/mnt/myzmirror/directus-jasmeralia` is updated automatically at the start of every build: `builder/run-build.sh` runs `git pull --ff-only` against that path when `GIT_AUTO_PULL=true` (the production default). After merging a site change, trigger a rebuild (or wait for the CMS flow) and monitor it through OpenSearch — that is enough.
+
+Manual pulls on the TrueNAS host are only for repairing a failed automatic pull (conflicts, dirty checkout, missing `.git`) visible in build logs. Do not pre-pull "just to be safe"; it is redundant and can race with the builder's own pull.
+
+`mcp/scripts/publish.sh` still includes a legacy TrueNAS pre-pull step from before `GIT_AUTO_PULL` was reliable; that step is harmless but unnecessary for normal deploys.
+
+## Managing the builder on TrueNAS
+
+The production builder runs as the **`directus-jasmeralia`** TrueNAS Compose YAML app (service `builder`, container `directus-site-builder`). TrueNAS tracks app state in middleware — **never manage this container with raw `docker run`, `docker start`, `docker restart`, `docker stop`, `docker rm`, or ad-hoc `docker compose`**. Bypassing middleware leaves TrueNAS's app state inconsistent with what is actually running.
+
+Use the **`truenas-app`** wrapper on the host (`~/bin/truenas-app`; source in `~/git/truenas/bin/truenas-app`). Full stack rules and fallbacks are in `~/git/truenas/AGENTS.md`.
+
+| Task | Command (on TrueNAS via SSH) |
+|---|---|
+| Verify app type | `truenas-app classify directus-jasmeralia` |
+| Deploy new `:latest` builder image after GHCR publish | `truenas-app pull-latest directus-jasmeralia builder` |
+| Restart all app services (e.g. after compose env change on disk) | `truenas-app restart directus-jasmeralia` |
+| Stop / start the whole stack | `truenas-app stop directus-jasmeralia` / `truenas-app start directus-jasmeralia` |
+
+`pull-latest` pulls the configured image tag, compares digests, and redeploys via `midclt` only when the image actually changed. `docker restart` does **not** pick up a newly published GHCR image — the container must be recreated through `pull-latest` (or `update-image` for pinned tags).
+
+Read-only diagnostics (`docker logs directus-site-builder`, OpenSearch queries) are fine. Lifecycle changes go through `truenas-app` or, when the wrapper does not cover the edit (e.g. changing env vars in compose config), `midclt call app.update` as documented in `~/git/truenas/AGENTS.md`.
 
 ## Checking build logs
 
