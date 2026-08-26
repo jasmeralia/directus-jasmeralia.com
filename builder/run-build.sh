@@ -122,8 +122,14 @@ timing_end
 # Provide DIRECTUS_URL to the build if your Astro code reads it.
 # Example in Astro: import.meta.env.DIRECTUS_URL (via env prefix rules) or process.env.DIRECTUS_URL.
 # You may want to map this to PUBLIC_ variables depending on your Astro config.
+ASTRO_BUILD_LOG="${BUILD_ROOT}/astro-build.log"
 timing_start astro_build
-npm run build
+npx astro build 2>&1 | tee "$ASTRO_BUILD_LOG"
+node /srv/parse-astro-build-log.mjs "$ASTRO_BUILD_LOG"
+timing_end
+
+timing_start pagefind_index
+npx pagefind --site dist
 timing_end
 
 # Astro default output is dist/

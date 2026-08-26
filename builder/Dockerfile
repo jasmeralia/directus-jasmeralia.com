@@ -28,6 +28,7 @@ WORKDIR /srv
 COPY server.js /srv/server.js
 COPY run-build.sh /srv/run-build.sh
 COPY sync-dist.mjs /srv/sync-dist.mjs
+COPY parse-astro-build-log.mjs /srv/parse-astro-build-log.mjs
 RUN chmod +x /srv/run-build.sh
 
 ENV PORT=8099
