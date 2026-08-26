@@ -703,12 +703,14 @@ Keep parent `player_status` as the status border source.
 
 Bundle progress text:
 
-1. If exactly one member is `in_progress`:
+1. If exactly one member is `in_progress` or `on_hold`:
    - With known current section:
-     `<title>: <noun> <current> of <total>`
+     `<title>: <noun> <current>/<total>` with a progress bar using the shared
+     half-credit formula from `sectionProgressPercent` (current section counts
+     at 50% for these statuses)
    - Without known current section:
      `<title>: In Progress`
-2. If multiple members are `in_progress`:
+2. If multiple members are `in_progress` or `on_hold`:
    `<count> included games in progress`
 3. Otherwise:
    `<completed count> of <member count> included games completed`

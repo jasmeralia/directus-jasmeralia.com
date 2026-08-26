@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.164] - 2026-08-25
+- Games: section progress bars now give in-progress and on-hold games half credit on the current section (e.g. section 2 of 10 shows 15% instead of 20%) and always show 100% for completed games even without section data.
+
 ## [1.0.163] - 2026-08-14
 - Testing: raise Vitest line coverage across `site/src/lib/` above 80% with behavioral coverage for history, recent updates, Directus helpers, and remaining edge cases.
 - CI: make Codecov project and patch checks enforce their existing 80% targets instead of reporting informationally.
