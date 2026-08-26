@@ -20,6 +20,18 @@ import { pathToFileURL } from "node:url";
 const MANIFEST_VERSION = 1;
 const DELETE_BATCH_SIZE = 1000;
 
+const timingStart = (name) => {
+  console.log(`[timing] stage_start name=${name}`);
+  return Date.now();
+};
+
+const timingEnd = (name, startMs, extra = "") => {
+  const durationMs = Date.now() - startMs;
+  const suffix = extra ? ` ${extra}` : "";
+  console.log(`[timing] stage_end name=${name} duration_ms=${durationMs}${suffix}`);
+  return durationMs;
+};
+
 const compareNames = (left, right) =>
   left.localeCompare(right, undefined, { sensitivity: "base" })
   || (left < right ? -1 : left > right ? 1 : 0);
@@ -163,11 +175,17 @@ const deleteRemovedFiles = async (bucket, region, removed, temporaryRoot) => {
 };
 
 const publish = async (distPath, manifestPath, bucket, region) => {
+  const manifestStart = timingStart("s3_manifest_build");
   const current = await buildManifest(distPath);
+  timingEnd("s3_manifest_build", manifestStart, `files=${Object.keys(current.files).length}`);
+
+  const loadStart = timingStart("s3_manifest_load");
   const previous = await loadManifest(manifestPath);
+  timingEnd("s3_manifest_load", loadStart, `found=${previous ? "true" : "false"}`);
 
   if (previous === null) {
     console.log("No deploy manifest found; performing one full bootstrap sync.");
+    const bootstrapStart = timingStart("s3_bootstrap_sync");
     await run("aws", [
       "s3",
       "sync",
@@ -179,12 +197,21 @@ const publish = async (distPath, manifestPath, bucket, region) => {
       "--region",
       region,
     ]);
+    timingEnd("s3_bootstrap_sync", bootstrapStart);
+    const saveStart = timingStart("s3_manifest_save");
     await saveManifest(manifestPath, current);
+    timingEnd("s3_manifest_save", saveStart);
     console.log(`Bootstrap manifest saved for ${Object.keys(current.files).length} files.`);
     return;
   }
 
+  const diffStart = timingStart("s3_manifest_diff");
   const plan = diffManifests(previous, current);
+  timingEnd(
+    "s3_manifest_diff",
+    diffStart,
+    `changed=${plan.changed.length} removed=${plan.removed.length} unchanged=${plan.unchanged}`,
+  );
   console.log(
     `Content plan: ${plan.changed.length} changed, `
     + `${plan.removed.length} removed, ${plan.unchanged} unchanged.`,
@@ -196,6 +223,7 @@ const publish = async (distPath, manifestPath, bucket, region) => {
   const temporaryRoot = await mkdtemp(path.join(tmpdir(), "site-publish."));
   try {
     if (plan.changed.length > 0) {
+      const uploadStart = timingStart("s3_upload_changed");
       const stagingPath = path.join(temporaryRoot, "changed");
       await mkdir(stagingPath);
       await stageChangedFiles(distPath, plan.changed, stagingPath);
@@ -208,11 +236,16 @@ const publish = async (distPath, manifestPath, bucket, region) => {
         "--region",
         region,
       ]);
+      timingEnd("s3_upload_changed", uploadStart, `files=${plan.changed.length}`);
     }
     if (plan.removed.length > 0) {
+      const deleteStart = timingStart("s3_delete_removed");
       await deleteRemovedFiles(bucket, region, plan.removed, temporaryRoot);
+      timingEnd("s3_delete_removed", deleteStart, `files=${plan.removed.length}`);
     }
+    const saveStart = timingStart("s3_manifest_save");
     await saveManifest(manifestPath, current);
+    timingEnd("s3_manifest_save", saveStart);
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }

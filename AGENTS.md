@@ -86,6 +86,8 @@ curl -s "http://truenas.windsofstorm.net:9200/container-logs-write/_search" \
 
 `container-logs-write` is an ISM rollover alias (backing indices `container-logs-000001`, `container-logs-000002`, ...) and holds logs for all TrueNAS containers — this is what Fluent Bit's output config (`/mnt/myzmirror/opensearch/docker-fluent-bit.conf`) actually writes to. **Do not query the plain `container-logs` index** — it's an orphaned, non-rollover index with a handful of stale docs unrelated to the live pipeline; querying it silently returns near-empty results instead of erroring, which looks like broken log shipping but isn't. Look for the final `Build/publish completed successfully.` or `Build/publish FAILED` line. The OpenSearch Dashboards UI is at https://opensearch.jasmer.tools/ (LAN only).
 
+Each production publish also emits structured `[timing]` lines from `builder/run-build.sh` and `builder/sync-dist.mjs`. Filter for `log:*timing*` to collect per-stage durations. The final `[timing] summary total_ms=...` line lists top-level stage totals (`git_pull`, `staging_copy`, `npm_audit_fix`, `npm_ci`, `npm_audit`, `astro_build`, `s3_publish`, `cloudfront_invalidation`). Nested S3 sub-stages (`s3_manifest_build`, `s3_manifest_diff`, `s3_upload_changed`, etc.) appear as separate `stage_end` lines inside `s3_publish`.
+
 As a fallback, SSH and tail docker directly:
 ```bash
 ssh morgan@truenas.windsofstorm.net "docker logs directus-site-builder --tail 100 2>&1"
