@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.166] - 2026-08-26
+- Builder: split `astro_build` and `pagefind_index` timing stages and summarize slowest generated routes from Astro build output.
+- Site: add build-time Directus fetch metrics (`directus_summary` / `directus_endpoint` timing lines) via a build-metrics Astro integration.
+
 ## [1.0.165] - 2026-08-25
 - Builder: add structured `[timing]` instrumentation to `run-build.sh` and `sync-dist.mjs` for per-stage production publish profiling.
 
