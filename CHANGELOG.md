@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.165] - 2026-08-25
+- Builder: add structured `[timing]` instrumentation to `run-build.sh` and `sync-dist.mjs` for per-stage production publish profiling.
+
 ## [1.0.164] - 2026-08-25
 - Games: section progress bars now give in-progress and on-hold games half credit on the current section (e.g. section 2 of 10 shows 15% instead of 20%) and always show 100% for completed games even without section data.
 
