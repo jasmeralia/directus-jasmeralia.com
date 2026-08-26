@@ -6,9 +6,7 @@ import {
   orderedBundleMembers,
 } from "../../lib/game-bundles";
 import {
-  directGameSections,
-  orderedSections,
-  sectionNoun,
+  sectionProgressSummary,
 } from "../../lib/game-sections";
 
 export async function getStaticPaths() {
@@ -89,27 +87,8 @@ const includedMembers = (game) =>
   orderedBundleMembers(game.bundle_members).filter(
     (member) => !hasExplicitMatch(member),
   );
-const sectionProgress = (entry, nested = false) => {
-  const sections = nested
-    ? orderedSections(entry.sections)
-    : directGameSections(entry.sections);
-  const current = typeof entry.current_section === "number"
-    ? entry.current_section
-    : null;
-  if (current === null || sections.length === 0) return null;
-  const noun = sectionNoun(entry.section_noun);
-  const percent = Math.min(
-    100,
-    Math.max(0, Math.round((current / sections.length) * 100)),
-  );
-  return {
-    label: `${noun} ${current}/${sections.length} (${percent}%)`,
-    title: `${noun} ${current} of ${sections.length}`,
-    percent,
-  };
-};
 const progressForGame = (game) =>
-  bundleProgressSummary(game) ?? sectionProgress(game);
+  bundleProgressSummary(game) ?? sectionProgressSummary(game);
 ---
 
 <BaseLayout title={`Franchises | ${franchise.title}`} description={franchise.description ?? franchise.title}>
@@ -202,7 +181,7 @@ const progressForGame = (game) =>
               const source = sourceGame(included);
               const includedImg = fileUrl(included.cover_image ?? source?.cover_image);
               const includedYear = included.release_year ?? source?.release_year ?? null;
-              const includedProgress = sectionProgress(included, true);
+              const includedProgress = sectionProgressSummary(included, { nested: true });
               return (
                 <article class="game-item game-item-included">
                   <span class="game-index"></span>

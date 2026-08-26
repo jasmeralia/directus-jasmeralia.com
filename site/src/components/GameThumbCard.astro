@@ -2,7 +2,7 @@
 import { fileUrl, isFamilySharingDisabled } from "../lib/directus";
 import { downloadLinks, walkthroughLinks, getLinkMeta } from "../lib/download-link";
 import { bundleProgressSummary } from "../lib/game-bundles";
-import { directGameSections, sectionNoun } from "../lib/game-sections";
+import { sectionProgressSummary } from "../lib/game-sections";
 
 const { game, reviewed = false, sTier = false } = Astro.props;
 const labelize = (value) =>
@@ -54,18 +54,12 @@ const engines = (game?.engines ?? [])
   .map((engine) => engine?.engines_id)
   .filter((engine) => engine?.title && engine?.slug);
 const bundleProgress = bundleProgressSummary(game);
-const totalSections = directGameSections(game?.sections).length;
-const currentSection = typeof game?.current_section === "number" ? game.current_section : null;
-const showDirectProgress = currentSection !== null && totalSections > 0;
-const directProgressPercent = showDirectProgress
-  ? Math.min(100, Math.max(0, Math.round((currentSection / totalSections) * 100)))
-  : 0;
-const progressNoun = sectionNoun(game?.section_noun);
-const progress = bundleProgress ?? (showDirectProgress
+const directProgress = sectionProgressSummary(game);
+const progress = bundleProgress ?? (directProgress
   ? {
-      label: `${progressNoun} ${currentSection}/${totalSections} (${directProgressPercent}%)`,
-      title: `${progressNoun} ${currentSection} of ${totalSections}`,
-      percent: directProgressPercent,
+      label: directProgress.label,
+      title: directProgress.title,
+      percent: directProgress.percent,
     }
   : null);
 ---

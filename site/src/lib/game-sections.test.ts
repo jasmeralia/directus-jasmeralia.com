@@ -5,6 +5,8 @@ import {
   orderedSections,
   pluralizeNoun,
   sectionNoun,
+  sectionProgressPercent,
+  sectionProgressSummary,
   type GameSection,
 } from "./game-sections";
 
@@ -52,5 +54,66 @@ describe("game section helpers", () => {
     ]);
     expect(sections).toHaveLength(4);
     expect(directGameSections(undefined)).toEqual([]);
+  });
+});
+
+describe("sectionProgressPercent", () => {
+  it("uses half credit for in-progress and on-hold games", () => {
+    expect(sectionProgressPercent(2, 10, "in_progress")).toBe(15);
+    expect(sectionProgressPercent(2, 10, "on_hold")).toBe(15);
+  });
+
+  it("uses the upper boundary for other active statuses", () => {
+    expect(sectionProgressPercent(2, 10, "waiting_for_update")).toBe(20);
+    expect(sectionProgressPercent(2, 10, null)).toBe(20);
+  });
+
+  it("always returns 100 for completed games", () => {
+    expect(sectionProgressPercent(2, 10, "completed")).toBe(100);
+    expect(sectionProgressPercent(0, 0, "completed")).toBe(100);
+  });
+
+  it("clamps invalid section positions to zero", () => {
+    expect(sectionProgressPercent(-1, 10, "in_progress")).toBe(0);
+    expect(sectionProgressPercent(0, 10, "in_progress")).toBe(0);
+    expect(sectionProgressPercent(5, 2, "in_progress")).toBe(100);
+  });
+});
+
+describe("sectionProgressSummary", () => {
+  it("returns completed progress even without section rows", () => {
+    expect(sectionProgressSummary({
+      player_status: "completed",
+      current_section: null,
+      sections: [],
+    })).toEqual({
+      label: "Completed (100%)",
+      title: "Completed",
+      percent: 100,
+    });
+  });
+
+  it("labels in-progress games with half-credit percentages", () => {
+    expect(sectionProgressSummary({
+      player_status: "in_progress",
+      section_noun: "Mission",
+      current_section: 2,
+      sections: [
+        { number: 1, title: "One" },
+        { number: 2, title: "Two" },
+      ],
+    })).toEqual({
+      label: "Mission 2/2 (75%)",
+      title: "Mission 2 of 2",
+      percent: 75,
+    });
+  });
+
+  it("returns null when section data is missing for non-completed games", () => {
+    expect(sectionProgressSummary({
+      player_status: "in_progress",
+      current_section: null,
+      sections: [{ number: 1, title: "One" }],
+    })).toBeNull();
   });
 });

@@ -96,7 +96,7 @@ describe("bundleProgressSummary", () => {
     expect(bundleProgressSummary({ bundle_members: bundleMembers })).toEqual({
       label: "First Story: Mission 2/2",
       title: "First Story: Mission 2 of 2",
-      percent: 100,
+      percent: 75,
     });
   });
 
@@ -115,6 +115,24 @@ describe("bundleProgressSummary", () => {
       current_section: -1,
       sections,
     })] })?.percent).toBe(0);
+  });
+
+  it("treats on-hold members as active for section progress", () => {
+    expect(bundleProgressSummary({ bundle_members: [member(1, {
+      player_status: "on_hold",
+      section_noun: "Act",
+      current_section: 2,
+      sections: [
+        { number: 1, title: "Act 1" },
+        { number: 2, title: "Act 2" },
+        { number: 3, title: "Act 3" },
+        { number: 4, title: "Act 4" },
+      ],
+    })] })).toEqual({
+      label: "Member 1: Act 2/4",
+      title: "Member 1: Act 2 of 4",
+      percent: 38,
+    });
   });
 
   it("handles one active member without trackable progress", () => {

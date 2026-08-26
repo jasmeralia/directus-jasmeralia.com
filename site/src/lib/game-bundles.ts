@@ -1,5 +1,6 @@
 import type { DirectusFile } from "./directus";
 import type { GameSection } from "./game-sections";
+import { sectionProgressPercent } from "./game-sections";
 import { compareLabels } from "./list-format";
 
 export type BundleSectionDataStatus = "unknown" | "not_applicable" | "tracked";
@@ -73,7 +74,10 @@ export const bundleProgressSummary = (
   const members = orderedBundleMembers(game?.bundle_members);
   if (!members.length) return null;
 
-  const active = members.filter((member) => member.player_status === "in_progress");
+  const active = members.filter(
+    (member) => member.player_status === "in_progress"
+      || member.player_status === "on_hold",
+  );
   if (active.length === 1) {
     const member = active[0];
     const total = member.sections?.length ?? 0;
@@ -82,10 +86,11 @@ export const bundleProgressSummary = (
       : null;
     if (current !== null && total > 0) {
       const noun = member.section_noun || "Chapter";
+      const percent = sectionProgressPercent(current, total, member.player_status);
       return {
         label: `${member.title}: ${noun} ${current}/${total}`,
         title: `${member.title}: ${noun} ${current} of ${total}`,
-        percent: Math.min(100, Math.max(0, Math.round((current / total) * 100))),
+        percent,
       };
     }
     return {
