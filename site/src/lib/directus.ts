@@ -1,4 +1,5 @@
 import { getUrlPlatform, primaryDownloadLink, type GameLink } from "./download-link";
+import { recordDirectusFetch } from "./build-metrics";
 import type { GameBundleMember } from "./game-bundles";
 import type { GameSection } from "./game-sections";
 
@@ -115,12 +116,17 @@ async function directusFetch<T>(path: string): Promise<T> {
   const headers: Record<string, string> = { "Accept": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const resp = await fetch(url, { headers });
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    throw new Error(`Directus request failed (${resp.status}) ${url}: ${text}`);
+  const started = Date.now();
+  try {
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => "");
+      throw new Error(`Directus request failed (${resp.status}) ${url}: ${text}`);
+    }
+    return await resp.json() as T;
+  } finally {
+    recordDirectusFetch(path, Date.now() - started);
   }
-  return await resp.json() as T;
 }
 
 function appendParams(target: URLSearchParams, prefix: string, value: unknown) {
