@@ -8,3 +8,4 @@ mcp/scripts/ignored/
 .claude/*.lock
 .site-deploy-manifest.json
 site/coverage/
+.kanna
