@@ -76,7 +76,7 @@ Manual pulls on the TrueNAS host are only for repairing a failed automatic pull 
 
 The production builder runs as the **`directus-jasmeralia`** TrueNAS Compose YAML app (service `builder`, container `directus-site-builder`). TrueNAS tracks app state in middleware — **never manage this container with raw `docker run`, `docker start`, `docker restart`, `docker stop`, `docker rm`, or ad-hoc `docker compose`**. Bypassing middleware leaves TrueNAS's app state inconsistent with what is actually running.
 
-Use the **`truenas-app`** wrapper on the host (`~/bin/truenas-app`; source in `~/git/truenas/bin/truenas-app`). Full stack rules and fallbacks are in `~/git/truenas/AGENTS.md`.
+Use the **`truenas-app`** wrapper on the host (`~/bin/truenas-app`; source in `~/git/truenas-typhoon/bin/truenas-app`). Full stack rules and fallbacks are in `~/git/truenas-typhoon/AGENTS.md`.
 
 | Task | Command (on TrueNAS via SSH) |
 |---|---|
@@ -87,7 +87,7 @@ Use the **`truenas-app`** wrapper on the host (`~/bin/truenas-app`; source in `~
 
 `pull-latest` pulls the configured image tag, compares digests, and redeploys via `midclt` only when the image actually changed. `docker restart` does **not** pick up a newly published GHCR image — the container must be recreated through `pull-latest` (or `update-image` for pinned tags).
 
-Read-only diagnostics (`docker logs directus-site-builder`, OpenSearch queries) are fine. Lifecycle changes go through `truenas-app` or, when the wrapper does not cover the edit (e.g. changing env vars in compose config), `midclt call app.update` as documented in `~/git/truenas/AGENTS.md`.
+Read-only diagnostics (`docker logs directus-site-builder`, OpenSearch queries) are fine. Lifecycle changes go through `truenas-app` or, when the wrapper does not cover the edit (e.g. changing env vars in compose config), `midclt call app.update` as documented in `~/git/truenas-typhoon/AGENTS.md`.
 
 ## Checking build logs
 
