@@ -158,6 +158,7 @@ const history = await buildGameHistory({
   tierEntries,
   links: game.links ?? [],
   bundleMembers,
+  sections,
 });
 const tierListsMap = new Map();
 for (const entry of (tierEntries ?? [])) {

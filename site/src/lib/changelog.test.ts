@@ -4,6 +4,8 @@ import { mockDirectusFetch } from "../test/directus-mock";
 import {
   fetchActivity,
   fetchGameGenres,
+  fetchGameSectionsByBundleMemberIds,
+  fetchGameSectionsByGameIds,
   fetchItemMap,
   fetchPrevRevision,
   fetchRevisions,
@@ -61,6 +63,33 @@ describe("changelog value formatting", () => {
     expect(fmtDelta({ current_section: 3 }, null, null)).toBe(
       "**Current Progress**: Chapter 3",
     );
+  });
+
+  it("prefers a matching section's own title over the noun and number", () => {
+    const sections = [
+      { number: 1, title: "The Arrival" },
+      { number: 2, title: "The Storm" },
+    ];
+    expect(
+      fmtDelta(
+        { current_section: 2 },
+        { current_section: 1, section_noun: "Episode" },
+        { section_noun: "Episode" },
+        sections,
+      ),
+    ).toBe("**Current Progress**: The Arrival → The Storm");
+  });
+
+  it("falls back to noun + number for a section with no matching title row", () => {
+    const sections = [{ number: 1, title: "The Arrival" }];
+    expect(
+      fmtDelta(
+        { current_section: 2 },
+        { current_section: 1, section_noun: "Episode" },
+        { section_noun: "Episode" },
+        sections,
+      ),
+    ).toBe("**Current Progress**: The Arrival → Episode 2");
   });
 
   it("shows an em dash when current_section becomes undefined", () => {
@@ -186,5 +215,60 @@ describe("changelog Directus helpers", () => {
     await expect(fetchGameGenres(42)).resolves.toEqual(["Adventure"]);
     const url = new URL(String(fetchMock.mock.calls[0][0]));
     expect(url.searchParams.get("filter[games_id][_eq]")).toBe("42");
+  });
+
+  it("avoids a request for an empty id set and groups sections by game id", async () => {
+    const emptyFetch = mockDirectusFetch([]);
+    await expect(fetchGameSectionsByGameIds([])).resolves.toEqual({});
+    expect(emptyFetch).not.toHaveBeenCalled();
+
+    const fetchMock = mockDirectusFetch([{
+      match: "/items/game_sections?",
+      data: [
+        { id: 1, number: 1, title: "The Arrival", games_id: 7 },
+        { id: 2, number: 2, title: "The Storm", games_id: 7 },
+        { id: 3, number: 1, title: "Chapter 1", games_id: 8 },
+      ],
+    }]);
+
+    await expect(fetchGameSectionsByGameIds([7, 8])).resolves.toEqual({
+      7: [
+        { id: 1, number: 1, title: "The Arrival" },
+        { id: 2, number: 2, title: "The Storm" },
+      ],
+      8: [{ id: 3, number: 1, title: "Chapter 1" }],
+    });
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("filter[games_id][_in]")).toBe("7,8");
+    expect(url.searchParams.get("fields")).toBe("id,number,title,games_id");
+  });
+
+  it("groups sections by bundle member id", async () => {
+    const fetchMock = mockDirectusFetch([{
+      match: "/items/game_sections?",
+      data: [{ id: 9, number: 1, title: "Episode 1", bundle_member_id: 41 }],
+    }]);
+
+    await expect(fetchGameSectionsByBundleMemberIds([41])).resolves.toEqual({
+      41: [{ id: 9, number: 1, title: "Episode 1" }],
+    });
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("filter[bundle_member_id][_in]")).toBe("41");
+  });
+
+  it("skips rows with a missing foreign key and tolerates an absent data array", async () => {
+    mockDirectusFetch([{
+      match: "/items/game_sections?",
+      data: [
+        { id: 1, number: 1, title: "Orphan", games_id: null },
+        { id: 2, number: 1, title: "Valid", games_id: 7 },
+      ],
+    }]);
+    await expect(fetchGameSectionsByGameIds([7])).resolves.toEqual({
+      7: [{ id: 2, number: 1, title: "Valid" }],
+    });
+
+    mockDirectusFetch([{ match: "/items/game_sections?", data: undefined }]);
+    await expect(fetchGameSectionsByGameIds([7])).resolves.toEqual({});
   });
 });
