@@ -21,22 +21,49 @@ export type RouteTimingSummary = {
   slowest: RouteTiming[];
 };
 
-const metricsState = {
-  enabled: false,
-  endpoints: new Map<string, DirectusEndpointStat>(),
-  totalCalls: 0,
-  totalMs: 0,
+type MetricsState = {
+  enabled: boolean;
+  endpoints: Map<string, DirectusEndpointStat>;
+  totalCalls: number;
+  totalMs: number;
+};
+
+// Astro loads astro.config.mjs (and this module, via the build-metrics
+// integration) through a separate config-bundling step from the Vite SSR
+// pipeline that later compiles/runs directus.ts and the page files. That
+// produces two distinct instances of this module in the same process, so a
+// plain module-scoped object would silently fork state between the
+// integration (which flips `enabled`) and directusFetch (which records
+// calls). Stash state on globalThis, which is shared across both.
+const GLOBAL_METRICS_KEY = Symbol.for("jasmeralia.buildMetricsState");
+
+type GlobalWithMetrics = typeof globalThis & {
+  [GLOBAL_METRICS_KEY]?: MetricsState;
+};
+
+const getMetricsState = (): MetricsState => {
+  const g = globalThis as GlobalWithMetrics;
+  if (!g[GLOBAL_METRICS_KEY]) {
+    g[GLOBAL_METRICS_KEY] = {
+      enabled: false,
+      endpoints: new Map<string, DirectusEndpointStat>(),
+      totalCalls: 0,
+      totalMs: 0,
+    };
+  }
+  return g[GLOBAL_METRICS_KEY];
 };
 
 export const setBuildMetricsEnabled = (enabled: boolean): void => {
-  metricsState.enabled = enabled;
+  getMetricsState().enabled = enabled;
 };
 
 export const resetBuildMetrics = (): void => {
-  metricsState.endpoints.clear();
-  metricsState.totalCalls = 0;
-  metricsState.totalMs = 0;
-  metricsState.enabled = false;
+  const state = getMetricsState();
+  state.endpoints.clear();
+  state.totalCalls = 0;
+  state.totalMs = 0;
+  state.enabled = false;
 };
 
 export const normalizeDirectusPath = (path: string): string => {
@@ -49,10 +76,11 @@ export const normalizeDirectusPath = (path: string): string => {
 };
 
 export const recordDirectusFetch = (path: string, durationMs: number): void => {
-  if (!metricsState.enabled) return;
+  const state = getMetricsState();
+  if (!state.enabled) return;
 
   const key = normalizeDirectusPath(path);
-  const existing = metricsState.endpoints.get(key) ?? {
+  const existing = state.endpoints.get(key) ?? {
     count: 0,
     totalMs: 0,
     maxMs: 0,
@@ -60,13 +88,14 @@ export const recordDirectusFetch = (path: string, durationMs: number): void => {
   existing.count += 1;
   existing.totalMs += durationMs;
   existing.maxMs = Math.max(existing.maxMs, durationMs);
-  metricsState.endpoints.set(key, existing);
-  metricsState.totalCalls += 1;
-  metricsState.totalMs += durationMs;
+  state.endpoints.set(key, existing);
+  state.totalCalls += 1;
+  state.totalMs += durationMs;
 };
 
 export const summarizeDirectusFetches = (topN = 10): DirectusFetchSummary => {
-  const endpoints = [...metricsState.endpoints.entries()]
+  const state = getMetricsState();
+  const endpoints = [...state.endpoints.entries()]
     .map(([path, stat]) => ({ path, stat }))
     .sort(
       (left, right) => right.stat.totalMs - left.stat.totalMs
@@ -75,8 +104,8 @@ export const summarizeDirectusFetches = (topN = 10): DirectusFetchSummary => {
     .slice(0, topN);
 
   return {
-    totalCalls: metricsState.totalCalls,
-    totalMs: metricsState.totalMs,
+    totalCalls: state.totalCalls,
+    totalMs: state.totalMs,
     endpoints,
   };
 };

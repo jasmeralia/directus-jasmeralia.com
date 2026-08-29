@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.168] - 2026-08-28
+- Builder: fix Directus build-time fetch metrics (`directus_summary`/`directus_endpoint`) always reporting zero. Astro loads `astro.config.mjs`'s build-metrics integration through a separate config-bundling step from the Vite SSR pipeline that runs `directus.ts`, producing two distinct module instances of the metrics state in the same process; state now lives on `globalThis` so both share it.
+
 ## [1.0.167] - 2026-08-28
 - Feed/History: rename the "Current Section" changelog field to "Current Progress" and format it using the game's own section noun (e.g. "Episode 1 → Episode 2" instead of a bare "1 → 2"), on both the RSS/Discord feed and the on-site game History tab.
 
