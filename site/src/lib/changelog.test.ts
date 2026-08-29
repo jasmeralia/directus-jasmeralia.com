@@ -37,6 +37,41 @@ describe("changelog value formatting", () => {
     expect(result).toContain("**Year**: 2024");
   });
 
+  it("formats current_section changes with the game's section noun", () => {
+    expect(
+      fmtDelta(
+        { current_section: 2 },
+        { current_section: 1, section_noun: "Episode" },
+        { section_noun: "Episode" },
+      ),
+    ).toBe("**Current Progress**: Episode 1 → Episode 2");
+  });
+
+  it("falls back to the previous revision's section noun when current data lacks it", () => {
+    expect(
+      fmtDelta(
+        { current_section: 2 },
+        { current_section: 1, section_noun: "Act" },
+        null,
+      ),
+    ).toBe("**Current Progress**: Act 1 → Act 2");
+  });
+
+  it("defaults current_section formatting to Chapter when no noun is set", () => {
+    expect(fmtDelta({ current_section: 3 }, null, null)).toBe(
+      "**Current Progress**: Chapter 3",
+    );
+  });
+
+  it("shows an em dash when current_section becomes undefined", () => {
+    expect(
+      fmtDelta(
+        { current_section: undefined },
+        { current_section: 1, section_noun: "Chapter" },
+      ),
+    ).toBe("**Current Progress**: Chapter 1 → —");
+  });
+
   it("excludes skip keys and describes cover-image changes", () => {
     expect(SKIP_DELTA.has("slug")).toBe(true);
     expect(fmtDelta({ slug: "new", updated_at: "today" }, null)).toBe("");

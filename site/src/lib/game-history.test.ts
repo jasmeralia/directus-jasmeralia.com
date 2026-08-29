@@ -226,6 +226,78 @@ describe("buildGameHistory", () => {
     expect(entries.at(-1)?.bodyHtml).toContain("<strong>Genres</strong>: Adventure");
   });
 
+  it("formats a game update whose revision data snapshot is null", async () => {
+    const routes = emptyHistoryRoutes();
+    routes[0] = {
+      match: endpoint.gameRevisions,
+      data: [
+        {
+          id: 201,
+          item: "7",
+          collection: "games",
+          data: null,
+          delta: null,
+          activity: { action: "update", timestamp: "2026-07-11T12:00:00Z" },
+        },
+        {
+          id: 200,
+          item: "7",
+          collection: "games",
+          data: { title: "Baseline" },
+          delta: { title: "Baseline" },
+          activity: { action: "create", timestamp: "2026-07-01T12:00:00Z" },
+        },
+      ],
+    };
+    mockDirectusFetch(routes);
+
+    const entries = await buildGameHistory({
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [],
+    });
+
+    expect(entries.map(({ title }) => title)).toEqual(["Game Added"]);
+  });
+
+  it("formats an included-game update whose delta is null", async () => {
+    const routes = emptyHistoryRoutes();
+    routes[5] = {
+      match: endpoint.bundleRevisions,
+      data: [
+        {
+          id: 502,
+          item: "42",
+          collection: "game_bundle_members",
+          data: { title: "Member Two", current_section: 2 },
+          delta: null,
+          activity: { action: "update", timestamp: "2026-07-12T12:00:00Z" },
+        },
+        {
+          id: 501,
+          item: "42",
+          collection: "game_bundle_members",
+          data: { title: "Member Two", current_section: 1 },
+          delta: { title: "Member Two" },
+          activity: { action: "update", timestamp: "2026-07-11T12:00:00Z" },
+        },
+      ],
+    };
+    mockDirectusFetch(routes);
+
+    const entries = await buildGameHistory({
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [{ id: 42, title: "Member Two" }],
+    });
+
+    expect(entries.map(({ title }) => title)).toEqual(["Included Game Added - Member Two"]);
+  });
+
   it("rejects a revision without a valid required timestamp", async () => {
     const routes = emptyHistoryRoutes();
     routes[0] = {
