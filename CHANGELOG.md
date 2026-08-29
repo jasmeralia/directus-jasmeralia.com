@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.171] - 2026-08-29
+- Builder: fix `GAME_FIELDS is not defined` build failure introduced in 1.0.170. Astro's compiler hoists `getStaticPaths()` out of its enclosing frontmatter scope, so top-level `const`/function declarations sitting alongside it (as opposed to imports) are undefined at runtime inside it. Moved `GAME_FIELDS` and the local `groupBy` helper inside `getStaticPaths()` itself.
+
 ## [1.0.170] - 2026-08-29
 - Builder: eliminate the N+1 Directus fetch pattern in `games/[slug].astro`. Every one of the ~1,986 game detail pages used to independently fetch its own game record, reviews, franchise memberships, tier-list entries, and (inside `buildGameHistory`) revisions/activity/genres — roughly 14,000 of the ~25,000 Directus calls in a production build. `getStaticPaths` now batch-fetches each collection once, groups results in memory by game id, and passes each page its own pre-sliced data via Astro props; `buildGameHistory` is now a pure synchronous function instead of doing its own I/O.
 

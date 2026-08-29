@@ -9,84 +9,90 @@ import { directGameSections, orderedSections, pluralizeNoun, sectionNoun } from 
 import { fetchActivity, fetchAllGameGenres, fetchRevisions } from "../../lib/changelog";
 import { compareLabels } from "../../lib/list-format";
 
-const GAME_FIELDS = [
-  'id',
-  'title',
-  'slug',
-  'release_year',
-  'family_sharing',
-  'player_status',
-  'game_status',
-  'cover_image.id',
-  'cover_image.filename_disk',
-  'genres.id',
-  'genres.genres_id.id',
-  'genres.genres_id.name',
-  'genres.genres_id.slug',
-  'engines.id',
-  'engines.engines_id.id',
-  'engines.engines_id.title',
-  'engines.engines_id.slug',
-  'developers.id',
-  'developers.developers_id.id',
-  'developers.developers_id.name',
-  'developers.developers_id.slug',
-  'links.id',
-  'links.url',
-  'links.label',
-  'links.kind',
-  'links.sort',
-  'section_noun',
-  'current_section',
-  'sections.id',
-  'sections.number',
-  'sections.title',
-  'sections.bundle_member_id',
-  'bundle_members.id',
-  'bundle_members.sort',
-  'bundle_members.slug',
-  'bundle_members.title',
-  'bundle_members.release_year',
-  'bundle_members.cover_image.id',
-  'bundle_members.cover_image.filename_disk',
-  'bundle_members.player_status',
-  'bundle_members.section_data_status',
-  'bundle_members.section_noun',
-  'bundle_members.current_section',
-  'bundle_members.sections.id',
-  'bundle_members.sections.number',
-  'bundle_members.sections.title',
-  'bundle_members.source_game_id.id',
-  'bundle_members.source_game_id.title',
-  'bundle_members.source_game_id.slug',
-  'bundle_members.source_game_id.release_year',
-  'bundle_members.source_game_id.cover_image.id',
-  'bundle_members.source_game_id.cover_image.filename_disk',
-  'included_in_bundles.id',
-  'included_in_bundles.games_id.id',
-  'included_in_bundles.games_id.title',
-  'included_in_bundles.games_id.slug',
-];
-
-// Group an array of rows by a key, dropping rows with a null/undefined key.
-function groupBy(rows, keyFn) {
-  const map = new Map();
-  for (const row of rows) {
-    const key = keyFn(row);
-    if (key === null || key === undefined) continue;
-    const list = map.get(key) ?? [];
-    list.push(row);
-    map.set(key, list);
-  }
-  return map;
-}
-
 export async function getStaticPaths() {
   // Every game page used to independently re-fetch its own game record,
   // reviews, franchises, tier entries, and (inside buildGameHistory)
   // revisions/activity/genres -- ~1,986 games x ~7 Directus round trips each.
   // Batch every collection once here and hand each page its own pre-sliced
   // props instead.
+  //
+  // GAME_FIELDS and groupBy must live inside this function, not alongside it
+  // in the frontmatter: Astro's compiler hoists getStaticPaths out of the
+  // enclosing module scope, so top-level consts/functions defined next to it
+  // are undefined at runtime even though imports resolve fine.
+  // https://github.com/withastro/roadmap/discussions/592
+  const GAME_FIELDS = [
+    'id',
+    'title',
+    'slug',
+    'release_year',
+    'family_sharing',
+    'player_status',
+    'game_status',
+    'cover_image.id',
+    'cover_image.filename_disk',
+    'genres.id',
+    'genres.genres_id.id',
+    'genres.genres_id.name',
+    'genres.genres_id.slug',
+    'engines.id',
+    'engines.engines_id.id',
+    'engines.engines_id.title',
+    'engines.engines_id.slug',
+    'developers.id',
+    'developers.developers_id.id',
+    'developers.developers_id.name',
+    'developers.developers_id.slug',
+    'links.id',
+    'links.url',
+    'links.label',
+    'links.kind',
+    'links.sort',
+    'section_noun',
+    'current_section',
+    'sections.id',
+    'sections.number',
+    'sections.title',
+    'sections.bundle_member_id',
+    'bundle_members.id',
+    'bundle_members.sort',
+    'bundle_members.slug',
+    'bundle_members.title',
+    'bundle_members.release_year',
+    'bundle_members.cover_image.id',
+    'bundle_members.cover_image.filename_disk',
+    'bundle_members.player_status',
+    'bundle_members.section_data_status',
+    'bundle_members.section_noun',
+    'bundle_members.current_section',
+    'bundle_members.sections.id',
+    'bundle_members.sections.number',
+    'bundle_members.sections.title',
+    'bundle_members.source_game_id.id',
+    'bundle_members.source_game_id.title',
+    'bundle_members.source_game_id.slug',
+    'bundle_members.source_game_id.release_year',
+    'bundle_members.source_game_id.cover_image.id',
+    'bundle_members.source_game_id.cover_image.filename_disk',
+    'included_in_bundles.id',
+    'included_in_bundles.games_id.id',
+    'included_in_bundles.games_id.title',
+    'included_in_bundles.games_id.slug',
+  ];
+
+  // Group an array of rows by a key, dropping rows with a null/undefined key.
+  function groupBy(rows, keyFn) {
+    const map = new Map();
+    for (const row of rows) {
+      const key = keyFn(row);
+      if (key === null || key === undefined) continue;
+      const list = map.get(key) ?? [];
+      list.push(row);
+      map.set(key, list);
+    }
+    return map;
+  }
+
   const [
     games,
     allReviews,
