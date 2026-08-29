@@ -160,7 +160,7 @@ export async function buildGameHistory(params: {
       continue;
     }
 
-    const description = fmtDelta(revision.delta ?? {}, prevData);
+    const description = fmtDelta(revision.delta ?? {}, prevData, revision.data ?? null);
     if (!description.trim()) continue;
     entries.push({
       date,
@@ -225,7 +225,7 @@ export async function buildGameHistory(params: {
       }
 
       const previousData = revisions[index + 1]?.data ?? null;
-      const description = fmtDelta(revision.delta ?? {}, previousData);
+      const description = fmtDelta(revision.delta ?? {}, previousData, data);
       if (!description.trim()) continue;
       entries.push({
         date,

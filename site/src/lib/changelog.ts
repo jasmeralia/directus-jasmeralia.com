@@ -1,4 +1,5 @@
 import { directusFetchRaw } from "./directus";
+import { sectionNoun } from "./game-sections";
 
 type DirectusRecord = Record<string, unknown>;
 
@@ -10,13 +11,14 @@ export const SKIP_DELTA = new Set([
   "engines",
 ]);
 
+// current_section is formatted specially (see fmtDelta) using the game's
+// section_noun, so it has no plain FIELD_LABEL entry.
 export const FIELD_LABEL: Record<string, string> = {
   title: "Title",
   release_year: "Year",
   player_status: "Play Status",
   game_status: "Release Status",
   family_sharing: "Family Sharing",
-  current_section: "Current Section",
   section_data_status: "Section Data",
   section_noun: "Section Noun",
   cover_image: "Cover Image",
@@ -55,9 +57,12 @@ export function humanVal(field: string, val: unknown): string {
 
 // Build a Discord-markdown description from a revision delta.
 // prevData is the full data snapshot from the previous revision (for "from" values).
+// currentData is the full snapshot as of this revision, used to look up
+// section_noun for formatting current_section changes.
 export function fmtDelta(
   delta: Record<string, unknown>,
   prev: Record<string, unknown> | null,
+  currentData?: Record<string, unknown> | null,
 ): string {
   const lines: string[] = [];
   for (const [f, newVal] of Object.entries(delta)) {
@@ -68,6 +73,23 @@ export function fmtDelta(
       if (!oldVal && newVal)       lines.push(`**Cover Image**: Added`);
       else if (oldVal && !newVal)  lines.push(`**Cover Image**: Removed`);
       else if (oldVal && newVal)   lines.push(`**Cover Image**: Updated`);
+      continue;
+    }
+    // Special-case current_section: prefix with the game's own section noun
+    // (e.g. "Episode 1" instead of a bare "1").
+    if (f === "current_section") {
+      const noun = sectionNoun(
+        (currentData?.section_noun as string | null | undefined)
+          ?? (prev?.section_noun as string | null | undefined),
+      );
+      const fmtProgress = (v: unknown) =>
+        v === null || v === undefined ? humanVal(f, v) : `${noun} ${humanVal(f, v)}`;
+      const oldVal = prev?.[f] ?? null;
+      if (oldVal !== null && oldVal !== undefined) {
+        lines.push(`**Current Progress**: ${fmtProgress(oldVal)} → ${fmtProgress(newVal)}`);
+      } else {
+        lines.push(`**Current Progress**: ${fmtProgress(newVal)}`);
+      }
       continue;
     }
     const label  = FIELD_LABEL[f] ?? f;

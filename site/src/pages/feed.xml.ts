@@ -176,7 +176,7 @@ function buildGameEntry(
     };
   }
 
-  const desc = fmtDelta(rev.delta ?? {}, prevData);
+  const desc = fmtDelta(rev.delta ?? {}, prevData, data);
   if (!desc.trim()) return null; // only skipped fields changed (e.g. just date_updated)
 
   return {
@@ -400,8 +400,8 @@ function buildBundleMemberEntry(
   const description = isDelete
     ? "Included game removed."
     : isCreate
-    ? fmtDelta(bundleDelta(data), null)
-    : fmtDelta(bundleDelta(rev.delta), bundleDelta(previousData));
+    ? fmtDelta(bundleDelta(data), null, data)
+    : fmtDelta(bundleDelta(rev.delta), bundleDelta(previousData), data);
   if (!isCreate && !isDelete && !description.trim()) return null;
   return {
     title: `Included Game ${actionLabel} - ${title}`,
