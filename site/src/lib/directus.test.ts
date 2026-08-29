@@ -10,6 +10,7 @@ import {
   directusToken,
   fileUrl,
   getPublishedTierListBySlug,
+  getReviewedGameIds,
   getSTierGameIds,
   isFamilySharingDisabled,
   listPublishedTierListSlugs,
@@ -241,8 +242,32 @@ describe("published tier-list helpers", () => {
       new Set([1, 3]),
     );
     const url = new URL(String(fetchMock.mock.calls[0][0]));
-    expect(url.searchParams.get("filter[game_id][_in]")).toBe("1,3");
+    expect(url.searchParams.has("filter[game_id][_in]")).toBe(false);
     expect(url.searchParams.get("filter[rating][_eq]")).toBe("S");
     expect(url.searchParams.get("filter[tier_list_id][status][_eq]")).toBe("published");
+    expect(url.searchParams.get("limit")).toBe("-1");
+  });
+
+  it("finds reviewed games without serializing the input IDs into the URL", async () => {
+    const emptyFetch = mockDirectusFetch([]);
+    await expect(getReviewedGameIds([])).resolves.toEqual(new Set());
+    expect(emptyFetch).not.toHaveBeenCalled();
+
+    const fetchMock = mockDirectusFetch([{
+      match: "/items/reviews?",
+      data: [
+        { game: { id: 1 } },
+        { game: { id: 2 } },
+        { game: { id: "3" } },
+        { game: null },
+      ],
+    }]);
+    await expect(getReviewedGameIds([1, 3, 4])).resolves.toEqual(new Set([1]));
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.has("filter[game][_in]")).toBe(false);
+    expect(url.searchParams.get("filter[status][_eq]")).toBe("published");
+    expect(url.searchParams.get("fields")).toBe("game.id");
+    expect(url.searchParams.get("limit")).toBe("-1");
   });
 });
