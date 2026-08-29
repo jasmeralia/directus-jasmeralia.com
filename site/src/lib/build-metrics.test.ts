@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import {
   logDirectusFetchSummary,
@@ -46,6 +46,26 @@ describe("build metrics helpers", () => {
   it("ignores fetch recordings when metrics are disabled", () => {
     recordDirectusFetch("/items/games", 100);
     expect(summarizeDirectusFetches().totalCalls).toBe(0);
+  });
+
+  it("shares metrics state across separate module instances", async () => {
+    // Astro loads astro.config.mjs (and this module, via the build-metrics
+    // integration) through a separate config-bundling step from the Vite SSR
+    // pipeline that later runs directus.ts and the page files, producing two
+    // distinct instances of this module within the same process. Simulate
+    // that with vi.resetModules() + a fresh dynamic import, and confirm state
+    // set through one "instance" is visible through the other.
+    setBuildMetricsEnabled(true);
+
+    vi.resetModules();
+    const reimported = await import("./build-metrics");
+    reimported.recordDirectusFetch("/items/games", 75);
+
+    expect(summarizeDirectusFetches()).toEqual({
+      totalCalls: 1,
+      totalMs: 75,
+      endpoints: [{ path: "/items/games", stat: { count: 1, totalMs: 75, maxMs: 75 } }],
+    });
   });
 
   it("logs a Directus summary with endpoint lines", () => {
