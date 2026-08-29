@@ -158,18 +158,33 @@ export async function fetchRevisions(collection: string, limit: number): Promise
   return res.data ?? [];
 }
 
-// Fetch the revision immediately before a given revision id for an item.
-export async function fetchPrevRevision(collection: string, item: string, beforeId: number): Promise<Revision | null> {
-  const qs = new URLSearchParams({
-    "filter[collection][_eq]": collection,
-    "filter[item][_eq]": item,
-    "filter[id][_lt]": String(beforeId),
-    "sort": "-id",
-    "limit": "1",
-    "fields": "id,data",
-  });
-  const res = await directusFetchRaw<{ data: Revision[] }>(`/revisions?${qs.toString()}`);
-  return res.data?.[0] ?? null;
+// Resolve each target revision's immediately preceding same-item snapshot from
+// a collection-wide revision list, preserving the old API-query semantics
+// without issuing one Directus request per feed entry.
+export function previousRevisionDataMap(
+  revisions: Revision[],
+  targets: Revision[],
+): Record<number, Record<string, unknown> | null> {
+  const targetIds = new Set(targets.map((revision) => revision.id));
+  const revisionsByItem = new Map<string, Revision[]>();
+
+  for (const revision of revisions) {
+    const itemRevisions = revisionsByItem.get(String(revision.item)) ?? [];
+    itemRevisions.push(revision);
+    revisionsByItem.set(String(revision.item), itemRevisions);
+  }
+
+  const result: Record<number, Record<string, unknown> | null> = Object.fromEntries(
+    targets.map((revision) => [revision.id, null]),
+  );
+  for (const itemRevisions of revisionsByItem.values()) {
+    itemRevisions.sort((left, right) => right.id - left.id);
+    for (const [index, revision] of itemRevisions.entries()) {
+      if (!targetIds.has(revision.id)) continue;
+      result[revision.id] = itemRevisions[index + 1]?.data ?? null;
+    }
+  }
+  return result;
 }
 
 // Fetch recent activities for a junction collection by one or more actions.

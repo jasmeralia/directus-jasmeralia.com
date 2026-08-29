@@ -4,14 +4,14 @@ import { directGameSections, type GameSection } from "../lib/game-sections";
 import {
   SKIP_DELTA,
   fetchActivity,
-  fetchGameGenres,
+  fetchAllGameGenres,
   fetchGameSectionsByBundleMemberIds,
   fetchGameSectionsByGameIds,
   fetchItemMap,
-  fetchPrevRevision,
   fetchRevisions,
   fmtDelta,
   fmtNewGame,
+  previousRevisionDataMap,
   type Activity,
   type Revision,
 } from "../lib/changelog";
@@ -429,20 +429,22 @@ function buildBundleMemberEntry(
 export const GET: APIRoute = async () => {
   // 1. Fetch all revision/activity streams + move log in parallel
   const [
-    gameRevs,
+    allGameRevs,
     reviewRevs,
     tierListRevs,
-    bundleMemberRevs,
+    allBundleMemberRevs,
     tlgActs,
     glinkActs,
   ] = await Promise.all([
-    fetchRevisions("games",       LIMIT_GAMES),
+    fetchRevisions("games",       -1),
     fetchRevisions("reviews",     LIMIT_REVIEWS),
     fetchRevisions("tier_lists",  LIMIT_TIER_LISTS),
-    fetchRevisions("game_bundle_members", LIMIT_BUNDLE_MEMBERS),
+    fetchRevisions("game_bundle_members", -1),
     fetchCreateActivity("tier_list_games", LIMIT_JUNCTIONS),
     fetchActivity("games_links", ["create", "update"], LIMIT_LINKS),
   ]);
+  const gameRevs = allGameRevs.slice(0, LIMIT_GAMES);
+  const bundleMemberRevs = allBundleMemberRevs.slice(0, LIMIT_BUNDLE_MEMBERS);
 
   // 2. Resolve IDs needed for batch lookups
 
@@ -492,45 +494,37 @@ export const GET: APIRoute = async () => {
     ...gameIdsForBundleMembers,
     ...gameRevisionIds,
   ]);
-  const [tierListMap, gameMap, gameSectionsMap, bundleMemberSectionsMap] = await Promise.all([
+  const [
+    tierListMap,
+    gameMap,
+    gameSectionsMap,
+    bundleMemberSectionsMap,
+    allGameGenreMap,
+  ] = await Promise.all([
     fetchItemMap("tier_lists", Array.from(tierListIdsForAdd), "id,title,slug"),
     fetchItemMap("games", Array.from(allGameIds),
       "id,title,slug,cover_image.id,cover_image.filename_disk"),
     fetchGameSectionsByGameIds(Array.from(new Set(gameRevisionIds))),
     fetchGameSectionsByBundleMemberIds(Array.from(new Set(bundleMemberItemIds))),
+    fetchAllGameGenres(),
   ]);
 
-  // 4. Process game revisions: fetch prev revisions and genres for new games in parallel
+  // 4. Process game revisions. Previous snapshots come from the collection-wide
+  // revision lists above instead of one Directus request per update.
   const createGameRevs = gameRevs.filter((r) => r.activity?.action === "create");
   const updateGameRevs = gameRevs.filter((r) => r.activity?.action === "update");
   const updateBundleMemberRevs = bundleMemberRevs.filter(
     (revision) => revision.activity?.action === "update",
   );
   const newGameIds     = createGameRevs.map((r) => Number(r.item));
-
-  const [prevResults, memberPrevResults, genreResults] = await Promise.all([
-    Promise.all(updateGameRevs.map((r) => fetchPrevRevision("games", r.item, r.id))),
-    Promise.all(
-      updateBundleMemberRevs.map((revision) =>
-        fetchPrevRevision("game_bundle_members", revision.item, revision.id)
-      ),
-    ),
-    Promise.all(newGameIds.map((id) => fetchGameGenres(id))),
-  ]);
-
-  const gamePrevMap: Record<number, Record<string, unknown> | null> = Object.fromEntries(
-    updateGameRevs.map((r, i) => [r.id, prevResults[i]?.data ?? null])
-  );
+  const gamePrevMap = previousRevisionDataMap(allGameRevs, updateGameRevs);
   const newGameGenreMap: Record<number, string[]> = Object.fromEntries(
-    newGameIds.map((id, i) => [id, genreResults[i] ?? []])
+    newGameIds.map((id) => [id, allGameGenreMap[id] ?? []]),
   );
-  const bundleMemberPrevMap: Record<number, Record<string, unknown> | null> =
-    Object.fromEntries(
-      updateBundleMemberRevs.map((revision, index) => [
-        revision.id,
-        memberPrevResults[index]?.data ?? null,
-      ]),
-    );
+  const bundleMemberPrevMap = previousRevisionDataMap(
+    allBundleMemberRevs,
+    updateBundleMemberRevs,
+  );
 
   // 5. Build all feed entries
   const entries: Entry[] = [];

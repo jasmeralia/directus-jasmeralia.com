@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.172] - 2026-08-29
+- Builder: eliminate the RSS feed's remaining Directus revision N+1. The feed now fetches complete game and bundle-member revision streams once, slices the same recent windows for output, and resolves each update's previous snapshot in memory instead of issuing one `/revisions` request per update. New-game genre names now reuse the collection-wide grouped lookup as well.
+
 ## [1.0.171] - 2026-08-29
 - Builder: fix `GAME_FIELDS is not defined` build failure introduced in 1.0.170. Astro's compiler hoists `getStaticPaths()` out of its enclosing frontmatter scope, so top-level `const`/function declarations sitting alongside it (as opposed to imports) are undefined at runtime inside it. Moved `GAME_FIELDS` and the local `groupBy` helper inside `getStaticPaths()` itself.
 

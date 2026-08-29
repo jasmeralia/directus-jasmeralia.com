@@ -8,11 +8,11 @@ import {
   fetchGameSectionsByBundleMemberIds,
   fetchGameSectionsByGameIds,
   fetchItemMap,
-  fetchPrevRevision,
   fetchRevisions,
   fmtDelta,
   fmtNewGame,
   humanVal,
+  previousRevisionDataMap,
   SKIP_DELTA,
 } from "./changelog";
 
@@ -149,27 +149,39 @@ describe("changelog Directus helpers", () => {
     expect(url.searchParams.get("fields")).toContain("activity.timestamp");
   });
 
-  it("returns the previous revision or null when no previous snapshot exists", async () => {
-    const previous = {
-      id: 4,
-      item: "9",
+  it("maps targets to the immediately previous same-item revision data", () => {
+    const revisions = [
+      { id: 12, item: "9", collection: "games", data: { title: "Newest" }, delta: null, activity: null },
+      { id: 11, item: "8", collection: "games", data: { title: "Other" }, delta: null, activity: null },
+      { id: 10, item: "9", collection: "games", data: { title: "Middle" }, delta: null, activity: null },
+      { id: 7, item: "9", collection: "games", data: { title: "Oldest" }, delta: null, activity: null },
+    ];
+
+    expect(previousRevisionDataMap(revisions, [revisions[0], revisions[2], revisions[1]])).toEqual({
+      12: { title: "Middle" },
+      10: { title: "Oldest" },
+      11: null,
+    });
+  });
+
+  it("handles unsorted revisions, null snapshots, and absent targets", () => {
+    const revisions = [
+      { id: 2, item: "4", collection: "games", data: null, delta: null, activity: null },
+      { id: 5, item: "4", collection: "games", data: { title: "Current" }, delta: null, activity: null },
+    ];
+    const absentTarget = {
+      id: 99,
+      item: "missing",
       collection: "games",
-      data: { title: "Earlier" },
+      data: null,
       delta: null,
       activity: null,
     };
-    const fetchMock = mockDirectusFetch([{ match: "/revisions?", data: [previous] }]);
 
-    await expect(fetchPrevRevision("games", "9", 5)).resolves.toEqual(previous);
-    const url = new URL(String(fetchMock.mock.calls[0][0]));
-    expect(url.searchParams.get("filter[item][_eq]")).toBe("9");
-    expect(url.searchParams.get("filter[id][_lt]")).toBe("5");
-
-    mockDirectusFetch([{ match: "/revisions?", data: [] }]);
-    await expect(fetchPrevRevision("games", "9", 5)).resolves.toBeNull();
-
-    mockDirectusFetch([{ match: "/revisions?", data: undefined }]);
-    await expect(fetchPrevRevision("games", "9", 5)).resolves.toBeNull();
+    expect(previousRevisionDataMap(revisions, [revisions[1], absentTarget])).toEqual({
+      5: null,
+      99: null,
+    });
   });
 
   it("accepts one or several activity actions", async () => {
@@ -181,6 +193,7 @@ describe("changelog Directus helpers", () => {
     const first = new URL(String(fetchMock.mock.calls[0][0]));
     const second = new URL(String(fetchMock.mock.calls[1][0]));
     expect(first.searchParams.get("filter[action][_in]")).toBe("create");
+    expect(first.searchParams.get("limit")).toBe("3");
     expect(second.searchParams.get("filter[action][_in]")).toBe("create,update");
     expect(second.searchParams.get("limit")).toBe("4");
   });
