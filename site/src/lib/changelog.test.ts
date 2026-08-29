@@ -63,6 +63,15 @@ describe("changelog value formatting", () => {
     );
   });
 
+  it("shows an em dash when current_section becomes undefined", () => {
+    expect(
+      fmtDelta(
+        { current_section: undefined },
+        { current_section: 1, section_noun: "Chapter" },
+      ),
+    ).toBe("**Current Progress**: Chapter 1 → —");
+  });
+
   it("excludes skip keys and describes cover-image changes", () => {
     expect(SKIP_DELTA.has("slug")).toBe(true);
     expect(fmtDelta({ slug: "new", updated_at: "today" }, null)).toBe("");
