@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mockDirectusFetch } from "../test/directus-mock";
 import {
   fetchActivity,
+  fetchAllGameGenres,
   fetchGameGenres,
   fetchGameSectionsByBundleMemberIds,
   fetchGameSectionsByGameIds,
@@ -215,6 +216,28 @@ describe("changelog Directus helpers", () => {
     await expect(fetchGameGenres(42)).resolves.toEqual(["Adventure"]);
     const url = new URL(String(fetchMock.mock.calls[0][0]));
     expect(url.searchParams.get("filter[games_id][_eq]")).toBe("42");
+  });
+
+  it("groups genre names by games_id, dropping rows with no game or genre name", async () => {
+    const fetchMock = mockDirectusFetch([{
+      match: "/items/games_genres?",
+      data: [
+        { games_id: 7, genres_id: { name: "Adventure" } },
+        { games_id: 7, genres_id: { name: "RPG" } },
+        { games_id: 8, genres_id: { name: "Adventure" } },
+        { games_id: null, genres_id: { name: "Orphan" } },
+        { games_id: 9, genres_id: { name: "" } },
+        { games_id: 9, genres_id: null },
+      ],
+    }]);
+
+    await expect(fetchAllGameGenres()).resolves.toEqual({
+      7: ["Adventure", "RPG"],
+      8: ["Adventure"],
+    });
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("fields")).toBe("games_id,genres_id.name");
+    expect(url.searchParams.get("limit")).toBe("-1");
   });
 
   it("avoids a request for an empty id set and groups sections by game id", async () => {

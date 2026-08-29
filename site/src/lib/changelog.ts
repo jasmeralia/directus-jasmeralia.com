@@ -245,3 +245,23 @@ export async function fetchGameGenres(gameId: number): Promise<string[]> {
     .map((r) => r.genres_id?.name)
     .filter((name): name is string => Boolean(name));
 }
+
+// Batch variant of fetchGameGenres: fetch every games_genres row once and
+// group genre names by games_id, for callers building per-game data for
+// many games at once (e.g. games/[slug].astro's getStaticPaths) instead of
+// issuing one filtered request per game.
+export async function fetchAllGameGenres(): Promise<Record<number, string[]>> {
+  const qs = new URLSearchParams({
+    "fields": "games_id,genres_id.name",
+    "limit": "-1",
+  });
+  const res = await directusFetchRaw<{ data: (GenreJoinRow & { games_id?: number })[] }>(`/items/games_genres?${qs.toString()}`);
+  const map: Record<number, string[]> = {};
+  for (const row of res.data ?? []) {
+    const gameId = Number(row.games_id);
+    const name = row.genres_id?.name;
+    if (!gameId || !name) continue;
+    (map[gameId] ??= []).push(name);
+  }
+  return map;
+}

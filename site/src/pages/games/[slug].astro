@@ -6,93 +6,179 @@ import { downloadLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } fr
 import { buildGameHistory } from "../../lib/game-history";
 import { orderedBundleMembers } from "../../lib/game-bundles";
 import { directGameSections, orderedSections, pluralizeNoun, sectionNoun } from "../../lib/game-sections";
+import { fetchActivity, fetchAllGameGenres, fetchRevisions } from "../../lib/changelog";
+import { compareLabels } from "../../lib/list-format";
+
+const GAME_FIELDS = [
+  'id',
+  'title',
+  'slug',
+  'release_year',
+  'family_sharing',
+  'player_status',
+  'game_status',
+  'cover_image.id',
+  'cover_image.filename_disk',
+  'genres.id',
+  'genres.genres_id.id',
+  'genres.genres_id.name',
+  'genres.genres_id.slug',
+  'engines.id',
+  'engines.engines_id.id',
+  'engines.engines_id.title',
+  'engines.engines_id.slug',
+  'developers.id',
+  'developers.developers_id.id',
+  'developers.developers_id.name',
+  'developers.developers_id.slug',
+  'links.id',
+  'links.url',
+  'links.label',
+  'links.kind',
+  'links.sort',
+  'section_noun',
+  'current_section',
+  'sections.id',
+  'sections.number',
+  'sections.title',
+  'sections.bundle_member_id',
+  'bundle_members.id',
+  'bundle_members.sort',
+  'bundle_members.slug',
+  'bundle_members.title',
+  'bundle_members.release_year',
+  'bundle_members.cover_image.id',
+  'bundle_members.cover_image.filename_disk',
+  'bundle_members.player_status',
+  'bundle_members.section_data_status',
+  'bundle_members.section_noun',
+  'bundle_members.current_section',
+  'bundle_members.sections.id',
+  'bundle_members.sections.number',
+  'bundle_members.sections.title',
+  'bundle_members.source_game_id.id',
+  'bundle_members.source_game_id.title',
+  'bundle_members.source_game_id.slug',
+  'bundle_members.source_game_id.release_year',
+  'bundle_members.source_game_id.cover_image.id',
+  'bundle_members.source_game_id.cover_image.filename_disk',
+  'included_in_bundles.id',
+  'included_in_bundles.games_id.id',
+  'included_in_bundles.games_id.title',
+  'included_in_bundles.games_id.slug',
+];
+
+// Group an array of rows by a key, dropping rows with a null/undefined key.
+function groupBy(rows, keyFn) {
+  const map = new Map();
+  for (const row of rows) {
+    const key = keyFn(row);
+    if (key === null || key === undefined) continue;
+    const list = map.get(key) ?? [];
+    list.push(row);
+    map.set(key, list);
+  }
+  return map;
+}
 
 export async function getStaticPaths() {
-  const games = await directusFetchItems('games', {
-    fields: ['slug'],
-    limit: -1,
-    sort: ['sort', 'title'],
-  });
+  // Every game page used to independently re-fetch its own game record,
+  // reviews, franchises, tier entries, and (inside buildGameHistory)
+  // revisions/activity/genres -- ~1,986 games x ~7 Directus round trips each.
+  // Batch every collection once here and hand each page its own pre-sliced
+  // props instead.
+  const [
+    games,
+    allReviews,
+    allFranchiseEntries,
+    allTierEntries,
+    allGameRevisions,
+    allReviewRevisions,
+    allTierRevisions,
+    allBundleMemberRevisions,
+    allTierCreateActivities,
+    allLinkActivities,
+    genresByGame,
+  ] = await Promise.all([
+    directusFetchItems('games', {
+      fields: GAME_FIELDS,
+      limit: -1,
+      sort: ['sort', 'title'],
+    }),
+    directusFetchItems('reviews', {
+      fields: ['id', 'title', 'slug', 'status', 'rating', 'published_at', 'game'],
+      limit: -1,
+    }),
+    directusFetchItems('franchise_games', {
+      fields: ['game_id', 'franchise_id.id', 'franchise_id.title', 'franchise_id.slug'],
+      filter: { franchise_id: { status: { _eq: "published" } } },
+      limit: -1,
+    }),
+    directusFetchItems('tier_list_games', {
+      fields: ['game_id', 'id', 'rating', 'tier_list_id.id', 'tier_list_id.title', 'tier_list_id.slug'],
+      filter: { tier_list_id: { status: { _eq: "published" } } },
+      limit: -1,
+    }),
+    fetchRevisions('games', -1),
+    fetchRevisions('reviews', -1),
+    fetchRevisions('tier_list_games', -1),
+    fetchRevisions('game_bundle_members', -1),
+    fetchActivity('tier_list_games', 'create', -1),
+    fetchActivity('games_links', ['create', 'update'], -1),
+    fetchAllGameGenres(),
+  ]);
+
+  const reviewsByGame = groupBy(allReviews, (r) => r.game);
+  const franchisesByGame = groupBy(allFranchiseEntries, (f) => f.game_id);
+  const tierEntriesByGame = groupBy(allTierEntries, (t) => t.game_id);
 
   return games
     .filter((g) => !!g.slug)
-    .map((g) => ({ params: { slug: g.slug } }));
+    .map((game) => {
+      const reviewsForGame = reviewsByGame.get(game.id) ?? [];
+      const publishedReviews = reviewsForGame
+        .filter((r) => r.status === "published")
+        .sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))
+        .slice(0, 100)
+        .map((r) => ({ id: r.id, title: r.title, slug: r.slug, published_at: r.published_at }));
+      const historyReviews = reviewsForGame.map((r) => ({
+        id: r.id, title: r.title, status: r.status, rating: r.rating, published_at: r.published_at,
+      }));
+      const franchiseEntries = (franchisesByGame.get(game.id) ?? []).slice(0, 50);
+      const tierEntries = (tierEntriesByGame.get(game.id) ?? [])
+        .slice(0, 200)
+        .sort((a, b) => compareLabels(a.tier_list_id?.title ?? "", b.tier_list_id?.title ?? ""));
+      const bundleMembers = orderedBundleMembers(game.bundle_members);
+      const sections = directGameSections(game.sections);
+      const genres = genresByGame[game.id] ?? [];
+
+      const history = buildGameHistory({
+        gameId: game.id,
+        reviews: historyReviews,
+        tierEntries,
+        links: game.links ?? [],
+        bundleMembers,
+        sections,
+        genres,
+        allGameRevisions,
+        allReviewRevisions,
+        allTierCreateActivities,
+        allTierRevisions,
+        allLinkActivities,
+        allBundleMemberRevisions,
+      });
+
+      return {
+        params: { slug: game.slug },
+        props: { game, reviews: publishedReviews, franchiseEntries, tierEntries, bundleMembers, sections, history },
+      };
+    });
 }
 
-const { slug } = Astro.params;
-
-const games = await directusFetchItems('games', {
-  fields: [
-    'id',
-    'title',
-    'slug',
-    'release_year',
-    'family_sharing',
-    'player_status',
-    'game_status',
-    'cover_image.id',
-    'cover_image.filename_disk',
-    'genres.id',
-    'genres.genres_id.id',
-    'genres.genres_id.name',
-    'genres.genres_id.slug',
-    'engines.id',
-    'engines.engines_id.id',
-    'engines.engines_id.title',
-    'engines.engines_id.slug',
-    'developers.id',
-    'developers.developers_id.id',
-    'developers.developers_id.name',
-    'developers.developers_id.slug',
-    'links.id',
-    'links.url',
-    'links.label',
-    'links.kind',
-    'links.sort',
-    'section_noun',
-    'current_section',
-    'sections.id',
-    'sections.number',
-    'sections.title',
-    'sections.bundle_member_id',
-    'bundle_members.id',
-    'bundle_members.sort',
-    'bundle_members.slug',
-    'bundle_members.title',
-    'bundle_members.release_year',
-    'bundle_members.cover_image.id',
-    'bundle_members.cover_image.filename_disk',
-    'bundle_members.player_status',
-    'bundle_members.section_data_status',
-    'bundle_members.section_noun',
-    'bundle_members.current_section',
-    'bundle_members.sections.id',
-    'bundle_members.sections.number',
-    'bundle_members.sections.title',
-    'bundle_members.source_game_id.id',
-    'bundle_members.source_game_id.title',
-    'bundle_members.source_game_id.slug',
-    'bundle_members.source_game_id.release_year',
-    'bundle_members.source_game_id.cover_image.id',
-    'bundle_members.source_game_id.cover_image.filename_disk',
-    'included_in_bundles.id',
-    'included_in_bundles.games_id.id',
-    'included_in_bundles.games_id.title',
-    'included_in_bundles.games_id.slug',
-  ],
-  filter: { slug: { _eq: slug } },
-  limit: 1,
-});
-
-const game = games?.[0];
-if (!game) {
-  throw new Error(`Game not found for slug: ${slug}`);
-}
+const { game, reviews, franchiseEntries, tierEntries, bundleMembers, sections, history } = Astro.props;
 
 const noun = sectionNoun(game.section_noun);
-const sections = directGameSections(game.sections);
 const current = game.current_section ?? null;
-const bundleMembers = orderedBundleMembers(game.bundle_members);
 const includedIn = (game.included_in_bundles ?? [])
   .map((membership) => membership?.games_id)
   .filter((parent) => parent?.slug && parent?.title)
@@ -110,56 +196,10 @@ const developers = (game.developers ?? [])
   .map((developer) => developer?.developers_id)
   .filter((value) => value && (value.name || value.title) && value.slug)
   .sort((a, b) => (a.name ?? a.title ?? "").localeCompare(b.name ?? b.title ?? "", undefined, { sensitivity: "base" }));
-const reviews = await directusFetchItems('reviews', {
-  fields: ['id', 'title', 'slug', 'published_at'],
-  filter: { status: { _eq: "published" }, game: { _eq: game.id } },
-  sort: ['-published_at'],
-  limit: 100,
-});
-const historyReviews = await directusFetchItems<{
-  id: number;
-  title?: string;
-  status?: string;
-  rating?: number;
-  published_at?: string;
-}>('reviews', {
-  fields: ['id', 'title', 'status', 'rating', 'published_at'],
-  filter: { game: { _eq: game.id } },
-  limit: -1,
-});
-const franchiseEntries = await directusFetchItems('franchise_games', {
-  fields: ['franchise_id.id', 'franchise_id.title', 'franchise_id.slug'],
-  filter: { game_id: { _eq: game.id }, franchise_id: { status: { _eq: "published" } } },
-  limit: 50,
-});
 const franchises = (franchiseEntries ?? [])
   .map((e) => e?.franchise_id)
   .filter((f) => f?.slug && f?.title)
   .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
-const tierEntries = await directusFetchItems<{
-  id: number;
-  rating?: string;
-  tier_list_id?: { id?: number; title?: string; slug?: string } | null;
-}>('tier_list_games', {
-  fields: [
-    'id',
-    'rating',
-    'tier_list_id.id',
-    'tier_list_id.title',
-    'tier_list_id.slug',
-  ],
-  filter: { game_id: { _eq: game.id }, tier_list_id: { status: { _eq: "published" } } },
-  sort: ['tier_list_id.title'],
-  limit: 200,
-});
-const history = await buildGameHistory({
-  gameId: game.id,
-  reviews: historyReviews,
-  tierEntries,
-  links: game.links ?? [],
-  bundleMembers,
-  sections,
-});
 const tierListsMap = new Map();
 for (const entry of (tierEntries ?? [])) {
   const list = entry?.tier_list_id;

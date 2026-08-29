@@ -1,6 +1,4 @@
-import { directusFetchRaw } from "./directus";
 import {
-  fetchGameGenres,
   fmtDelta,
   fmtNewGame,
   type Activity,
@@ -58,41 +56,21 @@ function requireHistoryDate(value: string | undefined, context: string): Date {
   return date;
 }
 
-async function fetchScopedRevisions(
-  collection: string,
-  itemIds: number[],
-  filterOperator: "_eq" | "_in",
-): Promise<Revision[]> {
+// Filter an already-fetched, collection-wide revisions/activity array down
+// to just the given item ids, in memory. buildGameHistory used to issue a
+// filtered Directus request per game for each of these; callers now fetch
+// each collection once (e.g. games/[slug].astro's getStaticPaths, for all
+// ~2000 games at once) and reuse the same arrays across every game.
+function scopedRevisions(all: Revision[], itemIds: (number | string)[]): Revision[] {
   if (!itemIds.length) return [];
-  const qs = new URLSearchParams({
-    "filter[collection][_eq]": collection,
-    [`filter[item][${filterOperator}]`]: filterOperator === "_eq"
-      ? String(itemIds[0])
-      : itemIds.join(","),
-    "sort": "-id",
-    "limit": "-1",
-    "fields": "id,item,collection,delta,data,activity.action,activity.timestamp",
-  });
-  const res = await directusFetchRaw<{ data: Revision[] }>(`/revisions?${qs.toString()}`);
-  return res.data ?? [];
+  const idSet = new Set(itemIds.map(String));
+  return all.filter((revision) => idSet.has(String(revision.item)));
 }
 
-async function fetchScopedActivity(
-  collection: string,
-  itemIds: number[],
-  actions: string[],
-): Promise<Activity[]> {
+function scopedActivity(all: Activity[], itemIds: (number | string)[]): Activity[] {
   if (!itemIds.length) return [];
-  const qs = new URLSearchParams({
-    "filter[collection][_eq]": collection,
-    "filter[item][_in]": itemIds.join(","),
-    "filter[action][_in]": actions.join(","),
-    "sort": "-timestamp",
-    "limit": "-1",
-    "fields": "id,action,collection,item,timestamp",
-  });
-  const res = await directusFetchRaw<{ data: Activity[] }>(`/activity?${qs.toString()}`);
-  return res.data ?? [];
+  const idSet = new Set(itemIds.map(String));
+  return all.filter((activity) => idSet.has(String(activity.item)));
 }
 
 function groupRevisionsByItem(revisions: Revision[]): Map<string, Revision[]> {
@@ -112,36 +90,35 @@ function recordTitle(value: unknown): string {
   return typeof value === "string" && value.trim() ? value : "Untitled";
 }
 
-export async function buildGameHistory(params: {
+export function buildGameHistory(params: {
   gameId: number;
   reviews: Review[];
   tierEntries: TierEntry[];
   links: GameLink[];
   bundleMembers: BundleMember[];
   sections?: GameSection[] | null;
-}): Promise<HistoryEntry[]> {
+  genres: string[];
+  // Collection-wide revisions/activity, fetched once by the caller and
+  // reused across every game (see scopedRevisions/scopedActivity above).
+  allGameRevisions: Revision[];
+  allReviewRevisions: Revision[];
+  allTierCreateActivities: Activity[];
+  allTierRevisions: Revision[];
+  allLinkActivities: Activity[];
+  allBundleMemberRevisions: Revision[];
+}): HistoryEntry[] {
   const reviewIds = params.reviews.map((review) => review.id);
   const tierEntryIds = params.tierEntries.map((entry) => entry.id);
   const linkIds = params.links.map((link) => link.id);
   const bundleMemberIds = params.bundleMembers.map((member) => member.id);
 
-  const [
-    gameRevisions,
-    reviewRevisions,
-    tierCreateActivities,
-    tierRevisions,
-    linkActivities,
-    bundleMemberRevisions,
-    genres,
-  ] = await Promise.all([
-    fetchScopedRevisions("games", [params.gameId], "_eq"),
-    fetchScopedRevisions("reviews", reviewIds, "_in"),
-    fetchScopedActivity("tier_list_games", tierEntryIds, ["create"]),
-    fetchScopedRevisions("tier_list_games", tierEntryIds, "_in"),
-    fetchScopedActivity("games_links", linkIds, ["create", "update"]),
-    fetchScopedRevisions("game_bundle_members", bundleMemberIds, "_in"),
-    fetchGameGenres(params.gameId),
-  ]);
+  const gameRevisions = scopedRevisions(params.allGameRevisions, [params.gameId]);
+  const reviewRevisions = scopedRevisions(params.allReviewRevisions, reviewIds);
+  const tierCreateActivities = scopedActivity(params.allTierCreateActivities, tierEntryIds);
+  const tierRevisions = scopedRevisions(params.allTierRevisions, tierEntryIds);
+  const linkActivities = scopedActivity(params.allLinkActivities, linkIds);
+  const bundleMemberRevisions = scopedRevisions(params.allBundleMemberRevisions, bundleMemberIds);
+  const genres = params.genres;
 
   const entries: HistoryEntry[] = [];
 
