@@ -4,76 +4,33 @@ import CsvHeader from "../../components/CsvHeader.astro";
 import ThumbnailBorderLegend from "../../components/ThumbnailBorderLegend.astro";
 import GameThumbCard from "../../components/GameThumbCard.astro";
 import { renderMarkdown } from "../../lib/markdown";
-import { directusFetchItems, fileUrl, getSTierGameIds } from "../../lib/directus";
+import { fileUrl } from "../../lib/directus";
 import { csvDataUri, gamesToCsv } from "../../lib/csv";
 import { formatDate } from "../../lib/date";
-import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
-import { sortByTitle } from "../../lib/list-format";
 import { getDeveloperLinkMeta } from "../../lib/download-link";
+import {
+  buildDeveloperDetailPaths,
+  fetchDeveloperRouteSource,
+} from "../../lib/developer-routes";
 
 export async function getStaticPaths() {
-  const developers = await directusFetchItems("developers", {
-    fields: ["slug"],
-    limit: -1,
-  });
-
-  return developers
-    .filter((developer) => !!developer.slug)
-    .map((developer) => ({ params: { slug: developer.slug } }))
-    .concat([{ params: { slug: "unknown" } }]);
+  return buildDeveloperDetailPaths(await fetchDeveloperRouteSource());
 }
 
 const { slug } = Astro.params;
 const isUnknown = slug === "unknown";
-
-let title = "Unknown";
-let developer = null;
-let games;
-let reviews = [];
-
-if (isUnknown) {
-  const allGames = await directusFetchItems("games", {
-    fields: [...GAME_THUMB_FIELDS, "developers.id"],
-    limit: -1,
-  });
-  games = allGames.filter((game) => (game.developers ?? []).length === 0);
-} else {
-  const developers = await directusFetchItems("developers", {
-    fields: ["*", "logo.id", "logo.filename_disk", "links.id", "links.url", "links.label", "links.kind"],
-    filter: { slug: { _eq: slug } },
-    limit: 1,
-  });
-
-  developer = developers?.[0];
-  if (!developer) {
-    throw new Error(`Developer not found for slug: ${slug}`);
-  }
-  title = developer.name ?? developer.title ?? title;
-
-  games = await directusFetchItems("games", {
-    fields: GAME_THUMB_FIELDS,
-    filter: { developers: { developers_id: { slug: { _eq: slug } } } },
-    limit: -1,
-  });
-}
+const {
+  developer,
+  title,
+  games,
+  reviews,
+  reviewedGameIdValues,
+  sTierGameIdValues,
+} = Astro.props;
 
 const logo = developer?.logo ? fileUrl(developer.logo) : null;
-games = sortByTitle(games);
-const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
-if (gameIds.length) {
-  reviews = await directusFetchItems("reviews", {
-    fields: ["id", "title", "slug", "published_at", "rating", "game.id"],
-    filter: { status: { _eq: "published" }, game: { _in: gameIds } },
-    sort: ["-published_at", "title"],
-    limit: -1,
-  });
-}
-const sTierGameIds = await getSTierGameIds(gameIds);
-const reviewedGameIds = new Set(
-  (reviews ?? [])
-    .map((review) => review?.game?.id)
-    .filter((id) => typeof id === "number"),
-);
+const reviewedGameIds = new Set(reviewedGameIdValues);
+const sTierGameIds = new Set(sTierGameIdValues);
 const excludedFields = new Set([
   "id",
   "slug",

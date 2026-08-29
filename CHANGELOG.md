@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.173] - 2026-08-29
+- Builder: batch the 1,025 developer detail pages and 257 developer/status filter pages from collection-wide developer, game, review, and S-tier data in `getStaticPaths`, replacing roughly 1,282 per-page requests to each supporting collection with three batch route builds.
+- Developers: replace en dashes in the developer-count chart's numeric ranges with ASCII hyphens.
+
 ## [1.0.172] - 2026-08-29
 - Builder: eliminate the RSS feed's remaining Directus revision N+1. The feed now fetches complete game and bundle-member revision streams once, slices the same recent windows for output, and resolves each update's previous snapshot in memory instead of issuing one `/revisions` request per update. New-game genre names now reuse the collection-wide grouped lookup as well.
 
