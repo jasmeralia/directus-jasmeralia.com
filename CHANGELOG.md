@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.169] - 2026-08-29
+- Feed/History: the "Current Progress" changelog line now prefers a game's real per-section title (e.g. "The Arrival") over the generic noun + number, falling back to noun + number (e.g. "Episode 2") only when no matching `game_sections` row exists for that number.
+
 ## [1.0.168] - 2026-08-28
 - Builder: fix Directus build-time fetch metrics (`directus_summary`/`directus_endpoint`) always reporting zero. Astro loads `astro.config.mjs`'s build-metrics integration through a separate config-bundling step from the Vite SSR pipeline that runs `directus.ts`, producing two distinct module instances of the metrics state in the same process; state now lives on `globalThis` so both share it.
 

@@ -1,9 +1,12 @@
 import type { APIRoute } from "astro";
 import { assetsBaseUrl, type DirectusFile } from "../lib/directus";
+import { directGameSections, type GameSection } from "../lib/game-sections";
 import {
   SKIP_DELTA,
   fetchActivity,
   fetchGameGenres,
+  fetchGameSectionsByBundleMemberIds,
+  fetchGameSectionsByGameIds,
   fetchItemMap,
   fetchPrevRevision,
   fetchRevisions,
@@ -155,6 +158,7 @@ function buildGameEntry(
   prevData: Record<string, unknown> | null,
   genres: string[],
   gameItem: DirectusRecord | null,
+  sections: GameSection[] | null,
 ): Entry | null {
   const data = rev.data;
   const date = requireDate(rev.activity?.timestamp, `game revision ${rev.id}`);
@@ -176,7 +180,7 @@ function buildGameEntry(
     };
   }
 
-  const desc = fmtDelta(rev.delta ?? {}, prevData, data);
+  const desc = fmtDelta(rev.delta ?? {}, prevData, data, sections);
   if (!desc.trim()) return null; // only skipped fields changed (e.g. just date_updated)
 
   return {
@@ -374,6 +378,7 @@ function buildBundleMemberEntry(
   previousData: Record<string, unknown> | null,
   memberItem: DirectusRecord | null,
   gameItem: DirectusRecord | null,
+  sections: GameSection[] | null,
 ): Entry | null {
   if (!gameItem) return null;
   const data = memberItem ?? rev.data ?? {};
@@ -400,8 +405,8 @@ function buildBundleMemberEntry(
   const description = isDelete
     ? "Included game removed."
     : isCreate
-    ? fmtDelta(bundleDelta(data), null, data)
-    : fmtDelta(bundleDelta(rev.delta), bundleDelta(previousData), data);
+    ? fmtDelta(bundleDelta(data), null, data, sections)
+    : fmtDelta(bundleDelta(rev.delta), bundleDelta(previousData), data, sections);
   if (!isCreate && !isDelete && !description.trim()) return null;
   return {
     title: `Included Game ${actionLabel} - ${title}`,
@@ -487,10 +492,12 @@ export const GET: APIRoute = async () => {
     ...gameIdsForBundleMembers,
     ...gameRevisionIds,
   ]);
-  const [tierListMap, gameMap] = await Promise.all([
+  const [tierListMap, gameMap, gameSectionsMap, bundleMemberSectionsMap] = await Promise.all([
     fetchItemMap("tier_lists", Array.from(tierListIdsForAdd), "id,title,slug"),
     fetchItemMap("games", Array.from(allGameIds),
       "id,title,slug,cover_image.id,cover_image.filename_disk"),
+    fetchGameSectionsByGameIds(Array.from(new Set(gameRevisionIds))),
+    fetchGameSectionsByBundleMemberIds(Array.from(new Set(bundleMemberItemIds))),
   ]);
 
   // 4. Process game revisions: fetch prev revisions and genres for new games in parallel
@@ -533,7 +540,8 @@ export const GET: APIRoute = async () => {
     const prevData = gamePrevMap[rev.id] ?? null;
     const genres   = newGameGenreMap[Number(rev.item)] ?? [];
     const liveItem = gameMap[Number(rev.item)] ?? null;
-    const entry    = buildGameEntry(rev, prevData, genres, liveItem);
+    const sections = directGameSections(gameSectionsMap[Number(rev.item)]);
+    const entry    = buildGameEntry(rev, prevData, genres, liveItem, sections);
     if (entry) entries.push(entry);
   }
 
@@ -542,11 +550,13 @@ export const GET: APIRoute = async () => {
     const liveItem = bundleMemberItemMap[Number(rev.item)] ?? null;
     const gameId = relationId(liveItem?.games_id ?? rev.data?.games_id);
     const gameItem = gameId ? gameMap[gameId] ?? null : null;
+    const sections = bundleMemberSectionsMap[Number(rev.item)] ?? null;
     const entry = buildBundleMemberEntry(
       rev,
       bundleMemberPrevMap[rev.id] ?? null,
       liveItem,
       gameItem,
+      sections,
     );
     if (entry) entries.push(entry);
   }

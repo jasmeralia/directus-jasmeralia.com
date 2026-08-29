@@ -6,6 +6,7 @@ import {
   type Activity,
   type Revision,
 } from "./changelog";
+import type { GameSection } from "./game-sections";
 
 export type HistoryEntry = {
   date: Date;
@@ -36,6 +37,7 @@ type GameLink = {
 type BundleMember = {
   id: number;
   title?: string;
+  sections?: GameSection[] | null;
 };
 
 function deltaLinesToHtml(markdown: string): string {
@@ -116,6 +118,7 @@ export async function buildGameHistory(params: {
   tierEntries: TierEntry[];
   links: GameLink[];
   bundleMembers: BundleMember[];
+  sections?: GameSection[] | null;
 }): Promise<HistoryEntry[]> {
   const reviewIds = params.reviews.map((review) => review.id);
   const tierEntryIds = params.tierEntries.map((entry) => entry.id);
@@ -160,7 +163,7 @@ export async function buildGameHistory(params: {
       continue;
     }
 
-    const description = fmtDelta(revision.delta ?? {}, prevData, revision.data ?? null);
+    const description = fmtDelta(revision.delta ?? {}, prevData, revision.data ?? null, params.sections);
     if (!description.trim()) continue;
     entries.push({
       date,
@@ -225,7 +228,7 @@ export async function buildGameHistory(params: {
       }
 
       const previousData = revisions[index + 1]?.data ?? null;
-      const description = fmtDelta(revision.delta ?? {}, previousData, data);
+      const description = fmtDelta(revision.delta ?? {}, previousData, data, currentMember?.sections);
       if (!description.trim()) continue;
       entries.push({
         date,

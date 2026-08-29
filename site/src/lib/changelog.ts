@@ -1,5 +1,5 @@
 import { directusFetchRaw } from "./directus";
-import { sectionNoun } from "./game-sections";
+import { sectionNoun, type GameSection } from "./game-sections";
 
 type DirectusRecord = Record<string, unknown>;
 
@@ -59,10 +59,13 @@ export function humanVal(field: string, val: unknown): string {
 // prevData is the full data snapshot from the previous revision (for "from" values).
 // currentData is the full snapshot as of this revision, used to look up
 // section_noun for formatting current_section changes.
+// sections is the game's (or bundle member's) own ordered section list, used to
+// prefer a real section title over a generic "noun + number" label.
 export function fmtDelta(
   delta: Record<string, unknown>,
   prev: Record<string, unknown> | null,
   currentData?: Record<string, unknown> | null,
+  sections?: GameSection[] | null,
 ): string {
   const lines: string[] = [];
   for (const [f, newVal] of Object.entries(delta)) {
@@ -75,15 +78,19 @@ export function fmtDelta(
       else if (oldVal && newVal)   lines.push(`**Cover Image**: Updated`);
       continue;
     }
-    // Special-case current_section: prefix with the game's own section noun
-    // (e.g. "Episode 1" instead of a bare "1").
+    // Special-case current_section: prefer the section's own title (e.g.
+    // "The Arrival"); fall back to the game's section noun + number
+    // (e.g. "Episode 1") when no matching section row exists.
     if (f === "current_section") {
       const noun = sectionNoun(
         (currentData?.section_noun as string | null | undefined)
           ?? (prev?.section_noun as string | null | undefined),
       );
-      const fmtProgress = (v: unknown) =>
-        v === null || v === undefined ? humanVal(f, v) : `${noun} ${humanVal(f, v)}`;
+      const fmtProgress = (v: unknown) => {
+        if (v === null || v === undefined) return humanVal(f, v);
+        return sections?.find((section) => section.number === v)?.title
+          ?? `${noun} ${humanVal(f, v)}`;
+      };
       const oldVal = prev?.[f] ?? null;
       if (oldVal !== null && oldVal !== undefined) {
         lines.push(`**Current Progress**: ${fmtProgress(oldVal)} → ${fmtProgress(newVal)}`);
@@ -189,6 +196,40 @@ export async function fetchItemMap(collection: string, ids: number[], fields: st
   const res = await directusFetchRaw<{ data: DirectusRecord[] }>(`/items/${collection}?${qs.toString()}`);
   return Object.fromEntries((res.data ?? []).map((x): [number, DirectusRecord] => [Number(x.id), x]));
 }
+
+// Batch-fetch game_sections rows grouped by one of their foreign keys, for
+// resolving current_section titles in fmtDelta.
+async function fetchSectionsGroupedBy(
+  fkField: "games_id" | "bundle_member_id",
+  ids: number[],
+): Promise<Record<number, GameSection[]>> {
+  if (!ids.length) return {};
+  const qs = new URLSearchParams({
+    [`filter[${fkField}][_in]`]: ids.join(","),
+    "fields": `id,number,title,${fkField}`,
+    "limit": String(ids.length * 50 + 10),
+  });
+  const res = await directusFetchRaw<{ data: Record<string, unknown>[] }>(`/items/game_sections?${qs.toString()}`);
+  const map: Record<number, GameSection[]> = {};
+  for (const row of res.data ?? []) {
+    const key = Number(row[fkField]);
+    if (!key) continue;
+    (map[key] ??= []).push({
+      id: row.id as number,
+      number: row.number as number,
+      title: row.title as string,
+    });
+  }
+  return map;
+}
+
+// Fetch each game's own (non-bundle-member) sections, keyed by game id.
+export const fetchGameSectionsByGameIds = (gameIds: number[]): Promise<Record<number, GameSection[]>> =>
+  fetchSectionsGroupedBy("games_id", gameIds);
+
+// Fetch each included game's sections, keyed by game_bundle_members id.
+export const fetchGameSectionsByBundleMemberIds = (memberIds: number[]): Promise<Record<number, GameSection[]>> =>
+  fetchSectionsGroupedBy("bundle_member_id", memberIds);
 
 type GenreJoinRow = { genres_id?: { name?: string } | null };
 
