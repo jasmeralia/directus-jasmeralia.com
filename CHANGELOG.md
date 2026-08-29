@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.170] - 2026-08-29
+- Builder: eliminate the N+1 Directus fetch pattern in `games/[slug].astro`. Every one of the ~1,986 game detail pages used to independently fetch its own game record, reviews, franchise memberships, tier-list entries, and (inside `buildGameHistory`) revisions/activity/genres — roughly 14,000 of the ~25,000 Directus calls in a production build. `getStaticPaths` now batch-fetches each collection once, groups results in memory by game id, and passes each page its own pre-sliced data via Astro props; `buildGameHistory` is now a pure synchronous function instead of doing its own I/O.
+
 ## [1.0.169] - 2026-08-29
 - Feed/History: the "Current Progress" changelog line now prefers a game's real per-section title (e.g. "The Arrival") over the generic noun + number, falling back to noun + number (e.g. "Episode 2") only when no matching `game_sections` row exists for that number.
 
