@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.174] - 2026-08-29
+- Builder: prevent HTTP 414 failures in filter and detail pages by fetching the small published-review and S-tier collections without serializing each page's full game-ID set into the query string, then intersecting IDs in memory. All 27 affected review lookups now use the shared safe helper, and pages request their review and tier markers concurrently.
+
 ## [1.0.173] - 2026-08-29
 - Builder: batch the 1,025 developer detail pages and 257 developer/status filter pages from collection-wide developer, game, review, and S-tier data in `getStaticPaths`, replacing roughly 1,282 per-page requests to each supporting collection with three batch route builds.
 - Developers: replace en dashes in the developer-count chart's numeric ranges with ASCII hyphens.

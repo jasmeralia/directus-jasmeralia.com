@@ -205,13 +205,12 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
 }
 
 export async function getSTierGameIds(gameIds: number[]): Promise<Set<number>> {
-  const ids = gameIds.filter((id) => typeof id === "number");
-  if (!ids.length) return new Set();
+  const ids = new Set(gameIds.filter((id) => typeof id === "number"));
+  if (!ids.size) return new Set();
 
   const entries = await directusFetchItems<{ game_id?: { id?: number } }>("tier_list_games", {
     fields: ["game_id.id"],
     filter: {
-      game_id: { _in: ids },
       rating: { _eq: "S" },
       tier_list_id: { status: { _eq: "published" } },
     },
@@ -221,7 +220,29 @@ export async function getSTierGameIds(gameIds: number[]): Promise<Set<number>> {
   const result = new Set<number>();
   for (const entry of entries ?? []) {
     const id = entry?.game_id?.id;
-    if (typeof id === "number") result.add(id);
+    if (typeof id === "number" && ids.has(id)) result.add(id);
+  }
+  return result;
+}
+
+export async function getReviewedGameIds(gameIds: number[]): Promise<Set<number>> {
+  const ids = new Set(gameIds.filter((id) => typeof id === "number"));
+  if (!ids.size) return new Set();
+
+  // Reviews are a small collection, while some generated filter pages contain
+  // thousands of games. Fetching the published review IDs once avoids putting
+  // the entire page's game-id set into a GET query string, which can exceed the
+  // request-line limit and fail with HTTP 414.
+  const reviews = await directusFetchItems<{ game?: { id?: number } | null }>("reviews", {
+    fields: ["game.id"],
+    filter: { status: { _eq: "published" } },
+    limit: -1,
+  });
+
+  const result = new Set<number>();
+  for (const review of reviews ?? []) {
+    const id = review?.game?.id;
+    if (typeof id === "number" && ids.has(id)) result.add(id);
   }
   return result;
 }
