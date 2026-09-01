@@ -183,6 +183,30 @@ export async function getStaticPaths() {
 
 const { game, reviews, franchiseEntries, tierEntries, bundleMembers, sections, history } = Astro.props;
 
+const PLAYER_STATUS_PHRASE: Record<string, string> = {
+  not_started: "Jasmeralia hasn't started it yet.",
+  in_progress: "Jasmeralia is currently playing it.",
+  completed: "Jasmeralia has completed it.",
+  did_not_finish: "Jasmeralia did not finish it.",
+  waiting_for_update: "Jasmeralia is waiting for the next update.",
+};
+
+function gameSynopsis(title: string, gameStatus: string | null | undefined, playerStatus: string | null | undefined): string {
+  if (gameStatus === "unreleased" || gameStatus === "in_development") {
+    return `${title} — Jasmeralia is waiting for the release.`;
+  }
+  if (gameStatus === "abandoned") {
+    return `${title} — Development abandoned.`;
+  }
+  const playerPhrase = playerStatus ? PLAYER_STATUS_PHRASE[playerStatus] : null;
+  if (gameStatus === "released") {
+    return playerPhrase ? `${title} — Released. ${playerPhrase}` : `${title} — Released.`;
+  }
+  return playerPhrase ? `${title} — ${playerPhrase}` : `${title} — Tracked by Jasmeralia.`;
+}
+
+const synopsis = gameSynopsis(game.title, game.game_status, game.player_status);
+
 const noun = sectionNoun(game.section_noun);
 const current = game.current_section ?? null;
 const includedIn = (game.included_in_bundles ?? [])
@@ -277,7 +301,7 @@ const coverStackStyle = [
 ].join(";");
 ---
 
-<BaseLayout title={`Games | ${game.title}`}>
+<BaseLayout title={`Games | ${game.title}`} description={synopsis} image={cover}>
   <div slot="head">
     <style>
       .container { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }

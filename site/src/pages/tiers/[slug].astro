@@ -47,6 +47,18 @@ const tierGroups = Object.entries(TIER_RATING_CONFIG)
     ),
   }));
 
+function tierRatingSummary(title: string, groups: { displayLabel: string; games: unknown[] }[]): string {
+  if (!groups.length) return `${title} — no games rated yet.`;
+  const clauses = groups.map((group, index) =>
+    index === 0
+      ? `${group.games.length} game${group.games.length === 1 ? "" : "s"} rated ${group.displayLabel}`
+      : `${group.games.length} rated ${group.displayLabel}`
+  );
+  return `${title} - ${clauses.join(", ")}.`;
+}
+
+const description = tierRatingSummary(tierList.title, tierGroups);
+
 const RAINBOW_GRAD = "linear-gradient(135deg,#ff5f6d,#ffc371,#fff45f,#6dff9a,#5fe2ff,#8c7bff,#ff6ddf)";
 const RAINBOW_SHADOW = "0 0 0 1px rgba(255,255,255,.06),0 0 14px rgba(255,180,80,.22)";
 
@@ -95,7 +107,7 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
 };
 ---
 
-<BaseLayout title={`Tier Lists | ${tierList.title}`} description={tierList.description ?? tierList.title}>
+<BaseLayout title={`Tier Lists | ${tierList.title}`} description={description}>
 <main class="tier-page">
       <div class="tier-heading">
         <h1 class="tier-title">{tierList.title}</h1>

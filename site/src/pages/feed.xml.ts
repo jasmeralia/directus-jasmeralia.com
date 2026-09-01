@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { assetsBaseUrl, type DirectusFile } from "../lib/directus";
+import { siteBaseUrl, type DirectusFile } from "../lib/directus";
 import { directGameSections, type GameSection } from "../lib/game-sections";
 import {
   SKIP_DELTA,
@@ -20,7 +20,7 @@ type DirectusRecord = Record<string, unknown>;
 
 // ─── config ──────────────────────────────────────────────────────────────────
 
-const siteBase = (assetsBaseUrl() || "https://jasmeralia.com").replace(/\/$/, "");
+const siteBase = siteBaseUrl();
 
 // How many recent revisions/activities to pull per collection
 const LIMIT_GAMES       = 100;

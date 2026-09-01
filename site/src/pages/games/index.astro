@@ -23,9 +23,10 @@ const [reviewedGameIds, sTierGameIds] = await Promise.all([
 const csvName = "games.csv";
 const csvHref = csvDataUri(gamesToCsv(games));
 
+const description = `Browse all ${games.length} tracked games by Jasmeralia.`;
 ---
 
-<BaseLayout title="Games">
+<BaseLayout title="Games" description={description}>
   <div slot="head">
     <style>
       main{padding:2rem;}

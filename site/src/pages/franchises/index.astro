@@ -99,9 +99,11 @@ const franchiseSegments = [...franchises]
 const franchiseTotal = franchiseSegments.reduce((s, seg) => s + seg.value, 0);
 const franchiseArcs = buildArcSegments(franchiseSegments, franchiseTotal);
 const franchiseLabeledArcs = buildLabeledArcs(franchiseArcs, franchiseTotal);
+
+const description = `Browse all ${franchises.length} tracked franchises by Jasmeralia.`;
 ---
 
-<BaseLayout title="Franchises">
+<BaseLayout title="Franchises" description={description}>
   <div slot="head">
     <style>
       main{max-width:980px;margin:0 auto;padding:24px;}

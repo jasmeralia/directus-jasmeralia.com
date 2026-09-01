@@ -113,9 +113,10 @@ const labeledArcs = arcSegments
     const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
     return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
   });
+const description = "Jasmeralia's list of games by genre.";
 ---
 
-<BaseLayout title="Genres">
+<BaseLayout title="Genres" description={description}>
   <div slot="head">
     <style>
       main{max-width:980px;margin:0 auto;padding:24px;}

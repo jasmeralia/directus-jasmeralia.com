@@ -91,6 +91,12 @@ export function assetsBaseUrl(): string {
     "").toString().replace(/\/$/, "");
 }
 
+// The site's own public origin. In practice this is the same CloudFront
+// distribution that serves /media/*, so it shares a value with assetsBaseUrl().
+export function siteBaseUrl(): string {
+  return (assetsBaseUrl() || "https://jasmeralia.com").replace(/\/$/, "");
+}
+
 export function fileUrl(file: unknown): string | null {
   if (!file) return null;
   const base = assetsBaseUrl();

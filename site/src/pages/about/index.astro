@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { renderMarkdown } from "../../lib/markdown";
+import { renderMarkdown, plainTextExcerpt } from "../../lib/markdown";
 import { directusFetchItems } from "../../lib/directus";
 
 const aboutItems = await directusFetchItems<{ id: number; body?: string | null }>("about", {
@@ -10,9 +10,10 @@ const aboutItems = await directusFetchItems<{ id: number; body?: string | null }
 });
 
 const about = Array.isArray(aboutItems) ? aboutItems[0] : aboutItems;
+const description = plainTextExcerpt(about?.body) || undefined;
 ---
 
-<BaseLayout title="About">
+<BaseLayout title="About" description={description}>
   <div slot="head">
     <style>
       main{max-width:960px;margin:0 auto;padding:24px;}

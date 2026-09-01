@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
+import { plainTextExcerpt } from "../../lib/markdown";
 import {
   bundleProgressSummary,
   orderedBundleMembers,
@@ -89,9 +90,13 @@ const includedMembers = (game) =>
   );
 const progressForGame = (game) =>
   bundleProgressSummary(game) ?? sectionProgressSummary(game);
+
+const franchiseImage = games[0] ? fileUrl(games[0].game_id.cover_image) : null;
+const description = plainTextExcerpt(franchise.description)
+  || `Games in the ${franchise.title} franchise — ${games.length} tracked by Jasmeralia.`;
 ---
 
-<BaseLayout title={`Franchises | ${franchise.title}`} description={franchise.description ?? franchise.title}>
+<BaseLayout title={`Franchises | ${franchise.title}`} description={description} image={franchiseImage}>
   <div slot="head">
     <style>
       main{max-width:900px;margin:0 auto;padding:1.5rem 1rem;}
