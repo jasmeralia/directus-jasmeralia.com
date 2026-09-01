@@ -90,6 +90,16 @@ TITLE_EXCLUSIONS: dict[str, set[str]] = {
     "Dark Sector": {"horror"},
     "Prototype 2": {"horror"},
     "Peripeteia": {"horror"},
+    # Interactive Drama / FMV, not VN — genre manually removed
+    "Batman - The Telltale Series": {"visual-novel"},
+    "Batman: The Enemy Within - The Telltale Series": {"visual-novel"},
+    "Marvel’s Guardians of the Galaxy: The Telltale Series": {"visual-novel"},
+    "The Wolf Among Us": {"visual-novel"},
+    "Dispatch": {"visual-novel"},
+    "Tales from the Borderlands": {"visual-novel"},
+    "I Saw Black Clouds": {"visual-novel"},
+    "Night Book": {"visual-novel"},
+    "The Walking Dead: The Telltale Definitive Series": {"visual-novel"},
 }
 
 
