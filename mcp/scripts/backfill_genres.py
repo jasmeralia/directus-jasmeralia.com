@@ -104,6 +104,19 @@ TITLE_EXCLUSIONS: dict[str, set[str]] = {
     "I Saw Black Clouds": {"visual-novel"},
     "Night Book": {"visual-novel"},
     "The Walking Dead: The Telltale Definitive Series": {"visual-novel"},
+    "Ken Follett's The Pillars of the Earth": {"visual-novel"},
+    "Neo Cab": {"visual-novel"},
+    "Stray Gods: The Roleplaying Musical": {"visual-novel"},
+    "Suzerain": {"visual-novel"},
+    "2064: Read Only Memories": {"visual-novel"},
+    # Not VNs — core gameplay is combat/sim/exploration, not text-driven
+    "The Thaumaturge": {"visual-novel"},
+    "Summer in Mara": {"visual-novel"},
+    "The Bookwalker": {"visual-novel"},
+    "Ancient Enemy": {"visual-novel"},
+    "Shadowhand: RPG Card Game": {"visual-novel"},
+    "I Was a Teenage Exocolonist": {"visual-novel"},
+    "Wintermoor Tactics Club": {"visual-novel"},
 }
 
 
