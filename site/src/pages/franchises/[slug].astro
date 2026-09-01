@@ -93,7 +93,7 @@ const progressForGame = (game) =>
 
 const franchiseImage = games[0] ? fileUrl(games[0].game_id.cover_image) : null;
 const description = plainTextExcerpt(franchise.description)
-  || `Games in the ${franchise.title} franchise — ${games.length} tracked by Jasmeralia.`;
+  || `Games in the ${franchise.title} franchise - ${games.length} tracked by Jasmeralia.`;
 ---
 
 <BaseLayout title={`Franchises | ${franchise.title}`} description={description} image={franchiseImage}>

@@ -55,5 +55,5 @@ export const plainTextExcerpt = (value: string | null | undefined, maxLen = 200)
   if (text.length <= maxLen) return text;
   const cut = text.slice(0, maxLen);
   const lastSpace = cut.lastIndexOf(" ");
-  return `${cut.slice(0, lastSpace > 0 ? lastSpace : maxLen)}…`;
+  return `${cut.slice(0, lastSpace > 0 ? lastSpace : maxLen)}...`;
 };

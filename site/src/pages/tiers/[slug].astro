@@ -48,7 +48,7 @@ const tierGroups = Object.entries(TIER_RATING_CONFIG)
   }));
 
 function tierRatingSummary(title: string, groups: { displayLabel: string; games: unknown[] }[]): string {
-  if (!groups.length) return `${title} — no games rated yet.`;
+  if (!groups.length) return `${title} - no games rated yet.`;
   const clauses = groups.map((group, index) =>
     index === 0
       ? `${group.games.length} game${group.games.length === 1 ? "" : "s"} rated ${group.displayLabel}`

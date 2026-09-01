@@ -193,16 +193,16 @@ const PLAYER_STATUS_PHRASE: Record<string, string> = {
 
 function gameSynopsis(title: string, gameStatus: string | null | undefined, playerStatus: string | null | undefined): string {
   if (gameStatus === "unreleased" || gameStatus === "in_development") {
-    return `${title} — Jasmeralia is waiting for the release.`;
+    return `${title} - Jasmeralia is waiting for the release.`;
   }
   if (gameStatus === "abandoned") {
-    return `${title} — Development abandoned.`;
+    return `${title} - Development abandoned.`;
   }
   const playerPhrase = playerStatus ? PLAYER_STATUS_PHRASE[playerStatus] : null;
   if (gameStatus === "released") {
-    return playerPhrase ? `${title} — Released. ${playerPhrase}` : `${title} — Released.`;
+    return playerPhrase ? `${title} - Released. ${playerPhrase}` : `${title} - Released.`;
   }
-  return playerPhrase ? `${title} — ${playerPhrase}` : `${title} — Tracked by Jasmeralia.`;
+  return playerPhrase ? `${title} - ${playerPhrase}` : `${title} - Tracked by Jasmeralia.`;
 }
 
 const synopsis = gameSynopsis(game.title, game.game_status, game.player_status);

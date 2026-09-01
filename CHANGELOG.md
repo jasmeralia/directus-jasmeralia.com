@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.175] - 2026-09-01
+- Site: add Open Graph and Twitter Card link previews. Every page now emits `og:*`/`twitter:*` meta tags, a canonical link, and a sitewide-default description/image, so sharing a jasmeralia.com URL in Discord/Slack/etc. renders a rich card. Game pages get a status-aware synopsis and cover art; review pages get a spoiler-safe markdown excerpt; other collection pages get a generated description (with a per-tier rating breakdown for tier lists).
+
 ## [1.0.174] - 2026-08-29
 - Builder: prevent HTTP 414 failures in filter and detail pages by fetching the small published-review and S-tier collections without serializing each page's full game-ID set into the query string, then intersecting IDs in memory. All 27 affected review lookups now use the shared safe helper, and pages request their review and tier markers concurrently.
 

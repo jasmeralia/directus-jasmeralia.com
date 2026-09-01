@@ -72,8 +72,8 @@ const csvName = `release-${slug}.csv`;
 const csvHref = csvDataUri(gamesToCsv(games));
 
 const description = slug === "unknown"
-  ? `Games with an unknown release year — ${games.length} tracked by Jasmeralia.`
-  : `Games released in ${title} — ${games.length} tracked by Jasmeralia.`;
+  ? `Games with an unknown release year - ${games.length} tracked by Jasmeralia.`
+  : `Games released in ${title} - ${games.length} tracked by Jasmeralia.`;
 ---
 
 <BaseLayout title={`Release Years | ${title}`} description={description}>

@@ -70,8 +70,8 @@ const csvName = `developer-${slug}.csv`;
 const csvHref = csvDataUri(gamesToCsv(games));
 
 const description = isUnknown
-  ? `Games with no developer set — ${games.length} tracked by Jasmeralia.`
-  : plainTextExcerpt(markdownContent) || `Games developed by ${title} — ${games.length} tracked by Jasmeralia.`;
+  ? `Games with no developer set - ${games.length} tracked by Jasmeralia.`
+  : plainTextExcerpt(markdownContent) || `Games developed by ${title} - ${games.length} tracked by Jasmeralia.`;
 ---
 
 <BaseLayout title={`Developers | ${title}`} description={description} image={logo}>
