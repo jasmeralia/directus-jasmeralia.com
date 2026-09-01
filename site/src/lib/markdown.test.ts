@@ -59,6 +59,11 @@ describe("plainTextExcerpt", () => {
     expect(plainTextExcerpt("A short review.", 200)).toBe("A short review.");
   });
 
+  it("truncates at the exact cutoff when there is no earlier word boundary", () => {
+    const result = plainTextExcerpt("supercalifragilisticexpialidocious", 10);
+    expect(result).toBe("supercalif...");
+  });
+
   it("decodes HTML entities produced by markdown rendering", () => {
     expect(plainTextExcerpt("Rock & Roll -- \"quoted\"")).toBe('Rock & Roll -- "quoted"');
   });
