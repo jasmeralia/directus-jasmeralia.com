@@ -1,0 +1,66 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import CsvHeader from "../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../components/ThumbnailBorderLegend.astro";
+import GameThumbCard from "../../../components/GameThumbCard.astro";
+import { directusFetchItems, getReviewedGameIds, getSTierGameIds } from "../../../lib/directus";
+import { csvDataUri, gamesToCsv } from "../../../lib/csv";
+import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
+import { sortByTitle } from "../../../lib/list-format";
+
+// A rendering/art engine (e.g. Daz 3D) doesn't preclude a game engine like
+// Ren'py or RPGM underneath it, so any one of these three counts as "has
+// engine data" for VN purposes.
+const VN_ENGINE_SLUGS = new Set(["ren-py", "rpgm", "unity"]);
+
+const games = sortByTitle(await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  filter: { genres: { genres_id: { slug: { _eq: "visual-novel" } } } },
+  limit: -1,
+}));
+
+const filteredGames = (games ?? []).filter(
+  (game) => !(game?.engines ?? []).some((entry) => VN_ENGINE_SLUGS.has(entry?.engines_id?.slug)),
+);
+
+const gameIds = filteredGames
+  .map((game) => game.id)
+  .filter((id) => typeof id === "number");
+const [reviewedGameIds, sTierGameIds] = await Promise.all([
+  getReviewedGameIds(gameIds),
+  getSTierGameIds(gameIds),
+]);
+
+const csvName = "vn-missing-engine.csv";
+const csvHref = csvDataUri(gamesToCsv(filteredGames));
+---
+
+<BaseLayout title="Filters | VN + Missing Engine">
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <CsvHeader title="VN + Missing Engine" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <p>Games tagged as Visual Novel that aren't tagged with Ren'py, RPGM, or Unity as an engine.</p>
+    </div>
+    <ThumbnailBorderLegend />
+    {filteredGames.length === 0 ? (
+      <p>All VN games have Ren'py, RPGM, or Unity tagged as an engine.</p>
+    ) : (
+      <div class="grid">
+        {filteredGames.map((game) => {
+          const reviewed = reviewedGameIds.has(game.id);
+          const sTier = sTierGameIds.has(game.id);
+          return <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} />;
+        })}
+      </div>
+    )}
+  </main>
+</BaseLayout>

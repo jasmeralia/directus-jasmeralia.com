@@ -357,6 +357,17 @@ const avnHaremCount = (games ?? []).filter(
 const avnNotHaremCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && !hasHaremGenre(game),
 ).length;
+const hasVnGenre = (game) =>
+  (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "visual-novel");
+// A rendering/art engine (e.g. Daz 3D) doesn't preclude a game engine like
+// Ren'py or RPGM underneath it, so any one of these three counts as "has
+// engine data" for VN purposes.
+const VN_ENGINE_SLUGS = new Set(["ren-py", "rpgm", "unity"]);
+const hasVnEngine = (game) =>
+  (game?.engines ?? []).some((entry) => VN_ENGINE_SLUGS.has(entry?.engines_id?.slug));
+const vnMissingEngineCount = (games ?? []).filter(
+  (game) => hasVnGenre(game) && !hasVnEngine(game),
+).length;
 const avnSteamCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && downloadLinks(game?.links).some((l) => getUrlPlatform(l.url) === "steam"),
 ).length;
@@ -686,6 +697,7 @@ const miscFilterEntries = [
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
   { label: "AVN + Not Harem", href: "/filters/misc/avn-not-harem/index.html", count: avnNotHaremCount },
   { label: "AVN + Download Platform Steam", href: "/filters/misc/avn-steam/index.html", count: avnSteamCount },
+  { label: "VN + Missing Engine", href: "/filters/misc/vn-missing-engine/index.html", count: vnMissingEngineCount },
   { label: "Download Platform + Epic Games",    href: "/filters/misc/platform/epic/index.html",         count: platformCounts.epic,         exclusiveCount: platformCounts.epicExclusive },
   { label: "Download Platform + GOG",          href: "/filters/misc/platform/gog/index.html",          count: platformCounts.gog,          exclusiveCount: platformCounts.gogExclusive },
   { label: "Download Platform + itch.io",      href: "/filters/misc/platform/itch/index.html",         count: platformCounts.itch,         exclusiveCount: platformCounts.itchExclusive },
