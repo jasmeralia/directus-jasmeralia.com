@@ -12,7 +12,7 @@ import {
 } from "../../lib/walkthrough-link";
 
 const engines = await directusFetchItems("engines", {
-  fields: ["slug", "title"],
+  fields: ["slug", "title", "engine_type"],
   limit: -1,
 });
 const genres = await directusFetchItems("genres", {
@@ -360,13 +360,15 @@ const avnNotHaremCount = (games ?? []).filter(
 const hasVnGenre = (game) =>
   (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "visual-novel");
 // A rendering/art engine (e.g. Daz 3D) doesn't preclude a game engine like
-// Ren'py or RPGM underneath it, so any one of these three counts as "has
-// engine data" for VN purposes.
-const VN_ENGINE_SLUGS = new Set(["ren-py", "rpgm", "unity"]);
+// Ren'py or RPGM underneath it, so only "gaming" engines (as opposed to
+// "rendering" engines) count as "has engine data" for VN purposes.
+const GAMING_ENGINE_SLUGS = new Set(
+  (engines ?? []).filter((e) => e?.engine_type === "gaming").map((e) => e.slug),
+);
 const hasVnEngine = (game) =>
-  (game?.engines ?? []).some((entry) => VN_ENGINE_SLUGS.has(entry?.engines_id?.slug));
+  (game?.engines ?? []).some((entry) => GAMING_ENGINE_SLUGS.has(entry?.engines_id?.slug));
 const vnMissingEngineCount = (games ?? []).filter(
-  (game) => hasVnGenre(game) && !hasVnEngine(game),
+  (game) => hasVnGenre(game) && game?.game_status !== "unreleased" && !hasVnEngine(game),
 ).length;
 const avnSteamCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && downloadLinks(game?.links).some((l) => getUrlPlatform(l.url) === "steam"),

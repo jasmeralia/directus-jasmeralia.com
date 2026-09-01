@@ -31,6 +31,10 @@ TITLE_EXCLUSIONS: dict[str, set[str]] = {
         "avn",
         "visual-novel",
     },  # VN tags present but it's a CRPG; keep crpg
+    "Zero Parades: For Dead Spies": {
+        "avn",
+        "visual-novel",
+    },  # VN tags present but it's a CRPG; keep crpg
     "Gamedec": {"visual-novel"},  # VN tags present but it's a CRPG; keep crpg
     "Shadows: Awakening": {"crpg"},
     "Eon Altar": {"crpg"},
