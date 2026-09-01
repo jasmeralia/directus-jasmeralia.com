@@ -50,13 +50,18 @@ describe("plainTextExcerpt", () => {
   it("truncates long text at a word boundary and appends an ellipsis", () => {
     const long = "word ".repeat(60).trim();
     const result = plainTextExcerpt(long, 20);
-    expect(result.length).toBeLessThanOrEqual(21);
-    expect(result.endsWith("…")).toBe(true);
+    expect(result.length).toBeLessThanOrEqual(23);
+    expect(result.endsWith("...")).toBe(true);
     expect(result).not.toContain("  ");
   });
 
   it("leaves short text untouched aside from whitespace collapsing", () => {
     expect(plainTextExcerpt("A short review.", 200)).toBe("A short review.");
+  });
+
+  it("truncates at the exact cutoff when there is no earlier word boundary", () => {
+    const result = plainTextExcerpt("supercalifragilisticexpialidocious", 10);
+    expect(result).toBe("supercalif...");
   });
 
   it("decodes HTML entities produced by markdown rendering", () => {
