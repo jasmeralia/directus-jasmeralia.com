@@ -117,6 +117,15 @@ TITLE_EXCLUSIONS: dict[str, set[str]] = {
     "Shadowhand: RPG Card Game": {"visual-novel"},
     "I Was a Teenage Exocolonist": {"visual-novel"},
     "Wintermoor Tactics Club": {"visual-novel"},
+    "Scheming Through The Zombie Apocalypse: The Beginning": {
+        "visual-novel"
+    },  # point-and-click puzzle game, not a VN
+    # RPG tag manually removed — pure dialogue-tree VNs, no stats/leveling/combat
+    "Between Two Worlds": {"rpg"},
+    "Slay the Princess - The Pristine Cut": {"rpg"},
+    "Vampire: The Masquerade - Coteries of New York": {"rpg"},
+    "Vampire: The Masquerade - Reckoning of New York": {"rpg"},
+    "Werewolf: The Apocalypse - Heart of the Forest": {"rpg"},
 }
 
 

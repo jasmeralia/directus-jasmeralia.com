@@ -357,6 +357,11 @@ const avnHaremCount = (games ?? []).filter(
 const avnNotHaremCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && !hasHaremGenre(game),
 ).length;
+const hasSandboxGenre = (game) =>
+  (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "sandbox");
+const avnSandboxCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && hasSandboxGenre(game),
+).length;
 const hasVnGenre = (game) =>
   (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "visual-novel");
 // A rendering/art engine (e.g. Daz 3D) doesn't preclude a game engine like
@@ -369,6 +374,11 @@ const hasVnEngine = (game) =>
   (game?.engines ?? []).some((entry) => GAMING_ENGINE_SLUGS.has(entry?.engines_id?.slug));
 const vnMissingEngineCount = (games ?? []).filter(
   (game) => hasVnGenre(game) && game?.game_status !== "unreleased" && !hasVnEngine(game),
+).length;
+const hasRpgGenre = (game) =>
+  (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "rpg");
+const vnRpgCount = (games ?? []).filter(
+  (game) => hasVnGenre(game) && hasRpgGenre(game),
 ).length;
 const avnSteamCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && downloadLinks(game?.links).some((l) => getUrlPlatform(l.url) === "steam"),
@@ -695,11 +705,13 @@ const walkthroughLabeledArcs = walkthroughPieArcs
 const miscFilterEntries = [
   { label: "AVN + Has GameStoryLog URL", href: "/filters/misc/avn-with-gamestorylog/index.html", count: avnWithGamestorylogCount },
   { label: "AVN + Harem", href: "/filters/misc/avn-harem/index.html", count: avnHaremCount },
+  { label: "AVN + Sandbox", href: "/filters/misc/avn-sandbox/index.html", count: avnSandboxCount },
   { label: "AVN + Missing GameStoryLog URL", href: "/filters/misc/avn-missing-gamestorylog/index.html", count: avnMissingGamestorylogCount },
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
   { label: "AVN + Not Harem", href: "/filters/misc/avn-not-harem/index.html", count: avnNotHaremCount },
   { label: "AVN + Download Platform Steam", href: "/filters/misc/avn-steam/index.html", count: avnSteamCount },
   { label: "VN + Missing Engine", href: "/filters/misc/vn-missing-engine/index.html", count: vnMissingEngineCount },
+  { label: "VN + RPG", href: "/filters/misc/vn-rpg/index.html", count: vnRpgCount },
   { label: "Download Platform + Epic Games",    href: "/filters/misc/platform/epic/index.html",         count: platformCounts.epic,         exclusiveCount: platformCounts.epicExclusive },
   { label: "Download Platform + GOG",          href: "/filters/misc/platform/gog/index.html",          count: platformCounts.gog,          exclusiveCount: platformCounts.gogExclusive },
   { label: "Download Platform + itch.io",      href: "/filters/misc/platform/itch/index.html",         count: platformCounts.itch,         exclusiveCount: platformCounts.itchExclusive },
