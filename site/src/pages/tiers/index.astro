@@ -21,9 +21,11 @@ for (const entry of allTierGames ?? []) {
   if (typeof id === "number") countsByTierList.set(id, (countsByTierList.get(id) ?? 0) + 1);
 }
 const countTierEntries = (tier) => countsByTierList.get(tier?.id) ?? 0;
+
+const description = `Browse all ${tiers.length} published tier lists by Jasmeralia.`;
 ---
 
-<BaseLayout title="Tier Lists">
+<BaseLayout title="Tier Lists" description={description}>
   <div slot="head">
     <style>
       main{padding:24px;}

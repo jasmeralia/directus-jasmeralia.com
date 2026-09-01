@@ -22,9 +22,10 @@ const games = gameIdsWithWalkthrough.length
     }))
   : [];
 
+const description = `Games with walkthroughs available — ${games.length} tracked by Jasmeralia.`;
 ---
 
-<BaseLayout title="Walkthroughs">
+<BaseLayout title="Walkthroughs" description={description}>
   <div slot="head">
     <style>
       main{max-width:980px;margin:0 auto;padding:24px;}

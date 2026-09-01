@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { renderMarkdown } from "../../lib/markdown";
+import { renderMarkdown, plainTextExcerpt } from "../../lib/markdown";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
 import { formatDate } from "../../lib/date";
 
@@ -50,6 +50,7 @@ const developers = (review.game?.developers ?? [])
   .filter((value) => value && value.name && value.slug)
   .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 const cover = fileUrl(review.game?.cover_image);
+const excerpt = plainTextExcerpt(review.body) || review.title;
 const published = review.published_at;
 const screenshots = await directusFetchItems("review_screenshots", {
   fields: ["id", "sort", "caption", "nsfw", "file.id", "file.filename_disk"],
@@ -59,7 +60,7 @@ const screenshots = await directusFetchItems("review_screenshots", {
 });
 ---
 
-<BaseLayout title={`Reviews | ${review.title}`}>
+<BaseLayout title={`Reviews | ${review.title}`} description={excerpt} image={cover}>
   <div slot="head">
     <style>
       .container { max-width: 980px; margin: 0 auto; padding: 24px; }

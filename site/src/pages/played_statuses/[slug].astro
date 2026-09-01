@@ -40,9 +40,11 @@ const [reviewedGameIds, sTierGameIds] = await Promise.all([
 
 const csvName = `played-status-${slug}.csv`;
 const csvHref = csvDataUri(gamesToCsv(games));
+
+const description = `Games with played status ${labelize(slug)} — ${games.length} tracked by Jasmeralia.`;
 ---
 
-<BaseLayout title={`Played Statuses | ${labelize(slug)}`}>
+<BaseLayout title={`Played Statuses | ${labelize(slug)}`} description={description}>
   <div slot="head">
     <style>
       main{padding:2rem;}

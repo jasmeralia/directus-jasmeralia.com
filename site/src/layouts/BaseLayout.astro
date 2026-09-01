@@ -1,7 +1,18 @@
 ---
 import Nav from "../components/Nav.astro";
-const { title = "Jasmeralia", description = "" } = Astro.props;
+import { fileUrl, siteBaseUrl } from "../lib/directus";
+
+const DEFAULT_DESCRIPTION = "Jasmeralia's game backlog, reviews, and tier lists.";
+const DEFAULT_IMAGE = fileUrl({ id: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c", filename_disk: "1ddf76e1-bbf2-42f4-9250-bd17bc3bb92c.png" });
+
+const {
+  title = "Jasmeralia",
+  description = DEFAULT_DESCRIPTION,
+  image = DEFAULT_IMAGE,
+  type = "website",
+} = Astro.props;
 const year = new Date().getFullYear();
+const canonicalUrl = `${siteBaseUrl()}${Astro.url.pathname}`;
 ---
 
 <!doctype html>
@@ -10,9 +21,20 @@ const year = new Date().getFullYear();
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
-    {description ? <meta name="description" content={description} /> : null}
+    <meta name="description" content={description} />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="alternate" type="application/rss+xml" title="Jasmeralia Feed" href="/feed.xml" />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:type" content={type} />
+    <meta property="og:site_name" content="Jasmeralia" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    {image ? <meta property="og:image" content={image} /> : null}
+    <meta name="twitter:card" content={image ? "summary_large_image" : "summary"} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    {image ? <meta name="twitter:image" content={image} /> : null}
     <style>
       body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
       a{color:#9aa6ff;}

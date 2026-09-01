@@ -35,3 +35,25 @@ renderer.link = ({ href, title, text }: Tokens.Link) => {
 
 export const renderMarkdown = (value: string): string =>
   marked.parse(value ?? "", { renderer }) as string;
+
+const HTML_ENTITIES: Record<string, string> = {
+  "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'",
+};
+
+// Plain-text excerpt for use in meta descriptions (og:description, etc).
+// Spoiler-tagged text (||...||) is dropped entirely, not just unmasked --
+// a public link preview must never leak spoiler content.
+export const plainTextExcerpt = (value: string | null | undefined, maxLen = 200): string => {
+  if (!value) return "";
+  const withoutSpoilers = value.replace(/\|\|[^|]+?\|\|/g, "");
+  const html = renderMarkdown(withoutSpoilers);
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, (m) => HTML_ENTITIES[m])
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text.length <= maxLen) return text;
+  const cut = text.slice(0, maxLen);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${cut.slice(0, lastSpace > 0 ? lastSpace : maxLen)}…`;
+};

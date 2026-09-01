@@ -9,9 +9,11 @@ const reviews = await directusFetchItems('reviews', {
   sort: ['-published_at', 'title'],
   limit: -1,
 });
+
+const description = `Browse all ${reviews.length} published reviews by Jasmeralia.`;
 ---
 
-<BaseLayout title="Reviews">
+<BaseLayout title="Reviews" description={description}>
   <div slot="head">
     <style>
       main{max-width:1100px;margin:0 auto;padding:24px;}

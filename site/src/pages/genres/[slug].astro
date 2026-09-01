@@ -62,9 +62,13 @@ const [reviewedGameIds, sTierGameIds] = await Promise.all([
 
 const csvName = `genre-${slug}.csv`;
 const csvHref = csvDataUri(gamesToCsv(games));
+
+const description = isUnknown
+  ? `Games with no genre set — ${games.length} tracked by Jasmeralia.`
+  : `Games in the ${title} genre — ${games.length} tracked by Jasmeralia.`;
 ---
 
-<BaseLayout title={`Genres | ${title}`}>
+<BaseLayout title={`Genres | ${title}`} description={description}>
   <div slot="head">
     <style>
       main{padding:2rem;}
