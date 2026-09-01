@@ -14,6 +14,7 @@ import {
   getSTierGameIds,
   isFamilySharingDisabled,
   listPublishedTierListSlugs,
+  siteBaseUrl,
 } from "./directus";
 
 describe("Directus configuration helpers", () => {
@@ -47,6 +48,15 @@ describe("Directus configuration helpers", () => {
 
     vi.stubEnv("ASSETS_URL", undefined);
     expect(assetsBaseUrl()).toBe("");
+  });
+
+  it("uses the asset base URL for the site origin, falling back to jasmeralia.com", () => {
+    vi.stubEnv("ASSETS_BASE_URL", "https://cdn.example/");
+    expect(siteBaseUrl()).toBe("https://cdn.example");
+
+    vi.stubEnv("ASSETS_BASE_URL", undefined);
+    vi.stubEnv("ASSETS_URL", undefined);
+    expect(siteBaseUrl()).toBe("https://jasmeralia.com");
   });
 
   it("builds public file URLs from file objects and IDs", () => {

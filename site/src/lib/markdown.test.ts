@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { renderMarkdown } from "./markdown";
+import { plainTextExcerpt, renderMarkdown } from "./markdown";
 
 describe("renderMarkdown", () => {
   it("renders spoiler syntax", () => {
@@ -32,5 +32,40 @@ describe("renderMarkdown", () => {
   it("handles nullish input safely", () => {
     expect(renderMarkdown(null as unknown as string)).toBe("");
     expect(renderMarkdown(undefined as unknown as string)).toBe("");
+  });
+});
+
+describe("plainTextExcerpt", () => {
+  it("strips markdown formatting down to plain text", () => {
+    expect(plainTextExcerpt("**Bold** and _italic_ with a [link](https://example.com)"))
+      .toBe("Bold and italic with a link");
+  });
+
+  it("drops spoiler-tagged text entirely, not just its markers", () => {
+    const result = plainTextExcerpt("The hero survives, but ||the mentor dies|| in the end.");
+    expect(result).not.toContain("mentor dies");
+    expect(result).toBe("The hero survives, but in the end.");
+  });
+
+  it("truncates long text at a word boundary and appends an ellipsis", () => {
+    const long = "word ".repeat(60).trim();
+    const result = plainTextExcerpt(long, 20);
+    expect(result.length).toBeLessThanOrEqual(21);
+    expect(result.endsWith("…")).toBe(true);
+    expect(result).not.toContain("  ");
+  });
+
+  it("leaves short text untouched aside from whitespace collapsing", () => {
+    expect(plainTextExcerpt("A short review.", 200)).toBe("A short review.");
+  });
+
+  it("decodes HTML entities produced by markdown rendering", () => {
+    expect(plainTextExcerpt("Rock & Roll -- \"quoted\"")).toBe('Rock & Roll -- "quoted"');
+  });
+
+  it("handles nullish and empty input safely", () => {
+    expect(plainTextExcerpt(null)).toBe("");
+    expect(plainTextExcerpt(undefined)).toBe("");
+    expect(plainTextExcerpt("")).toBe("");
   });
 });
