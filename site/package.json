@@ -12,7 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "astro": "^7.2.4",
+    "astro": "^7.2.9",
     "marked": "^18.0.10"
   },
   "devDependencies": {
