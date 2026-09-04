@@ -421,7 +421,7 @@ const platformPieSegments = [
 ].filter((segment) => segment.value > 0);
 const platformPieTotal = platformPieSegments.reduce((sum, segment) => sum + segment.value, 0);
 const nsfwPieSegments = [
-  { label: "SFW", value: sfwCount, color: "#4aa3ff" },
+  { label: "SFW", value: sfwCount, color: "#2f9e44" },
   { label: "NSFW", value: nsfwCount, color: "#e36b6b" },
 ].filter((segment) => segment.value > 0);
 const nsfwPieTotal = nsfwPieSegments.reduce((sum, segment) => sum + segment.value, 0);
@@ -781,6 +781,13 @@ const miscFilterEntries = [
   })),
 ].sort((a, b) => compareLabels(a.label, b.label));
 const miscCount = miscFilterEntries.length;
+const chartCount = [
+  platformPieSegments,
+  platformExclusivePieSegments,
+  downloadPlatformCountPieSegments,
+  walkthroughPieSegments,
+  nsfwPieSegments,
+].filter((segments) => segments.length > 0).length;
 ---
 
 <BaseLayout title="Filters">
@@ -816,6 +823,7 @@ const miscCount = miscFilterEntries.length;
         <li><a href="#genre-played-status">Genre + Played Status ({genrePlayedEntries.length})</a></li>
         <li><a href="#section-data-played-status">Section Data + Played Status ({sectionDataPlayedEntries.length})</a></li>
         <li><a href="#misc">Misc ({miscCount})</a></li>
+        <li><a href="#charts">Charts ({chartCount})</a></li>
       </ul>
     </div>
     <div class="panel" id="developer-game-status">
@@ -979,34 +987,10 @@ const miscCount = miscFilterEntries.length;
           </li>
         ))}
       </ul>
-      {nsfwPieSegments.length ? (
-        <div class="pie-grid">
-          <div class="pie-panel">
-            <h3>SFW / NSFW</h3>
-            <div class="pie-wrap">
-              <svg class="pie" viewBox={`0 0 ${pieSize} ${pieSize}`} overflow="visible" role="img" aria-label="SFW and NSFW game distribution">
-                {nsfwPieArcs.length === 1 ? (
-                  <circle cx={pieCenter} cy={pieCenter} r={pieRadius} fill={nsfwPieArcs[0].color}>
-                    <title>{nsfwPieArcs[0].label} ({nsfwPieArcs[0].value})</title>
-                  </circle>
-                ) : (
-                  nsfwPieArcs.map((segment) => (
-                    <path d={describeArc(pieCenter, pieCenter, pieRadius, segment.start, segment.end)} fill={segment.color}>
-                      <title>{segment.label} ({segment.value})</title>
-                    </path>
-                  ))
-                )}
-                {nsfwLabeledArcs.map((segment) => (
-                  <g>
-                    <text x={segment.lx} y={segment.ly - 7} text-anchor={segment.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{segment.label}</text>
-                    <text x={segment.lx} y={segment.ly + 7} text-anchor={segment.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{segment.value} · {segment.pct}%</text>
-                  </g>
-                ))}
-              </svg>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
+    </div>
+    <div class="panel" id="charts">
+      <h2>Charts ({chartCount})</h2>
       {platformPieSegments.length || platformExclusivePieSegments.length ? (
         <div class="pie-grid">
           {platformPieSegments.length ? (
@@ -1117,6 +1101,34 @@ const miscCount = miscFilterEntries.length;
             </div>
           </div>
           ) : null}
+        </div>
+      ) : null}
+      {nsfwPieSegments.length ? (
+        <div class="pie-grid">
+          <div class="pie-panel">
+            <h3>SFW / NSFW</h3>
+            <div class="pie-wrap">
+              <svg class="pie" viewBox={`0 0 ${pieSize} ${pieSize}`} overflow="visible" role="img" aria-label="SFW and NSFW game distribution">
+                {nsfwPieArcs.length === 1 ? (
+                  <circle cx={pieCenter} cy={pieCenter} r={pieRadius} fill={nsfwPieArcs[0].color}>
+                    <title>{nsfwPieArcs[0].label} ({nsfwPieArcs[0].value})</title>
+                  </circle>
+                ) : (
+                  nsfwPieArcs.map((segment) => (
+                    <path d={describeArc(pieCenter, pieCenter, pieRadius, segment.start, segment.end)} fill={segment.color}>
+                      <title>{segment.label} ({segment.value})</title>
+                    </path>
+                  ))
+                )}
+                {nsfwLabeledArcs.map((segment) => (
+                  <g>
+                    <text x={segment.lx} y={segment.ly - 7} text-anchor={segment.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{segment.label}</text>
+                    <text x={segment.lx} y={segment.ly + 7} text-anchor={segment.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{segment.value} · {segment.pct}%</text>
+                  </g>
+                ))}
+              </svg>
+            </div>
+          </div>
         </div>
       ) : null}
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>

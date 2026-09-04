@@ -27,20 +27,22 @@ const links = [
       </>
     ))}
   </nav>
-  <button id="nsfw-mode-toggle" class="nsfw-mode-toggle" type="button" aria-pressed="false">Show NSFW</button>
-  <div class="site-nav__search" id="search-container">
-    <input
-      type="search"
-      id="search-input"
-      class="search-input"
-      placeholder="Search games…"
-      autocomplete="off"
-      aria-label="Search games"
-      aria-haspopup="listbox"
-      aria-expanded="false"
-      spellcheck="false"
-    />
-    <div id="search-results" class="search-results" role="listbox" aria-label="Search results" hidden></div>
+  <div class="site-nav__controls">
+    <div class="site-nav__search" id="search-container">
+      <input
+        type="search"
+        id="search-input"
+        class="search-input"
+        placeholder="Search games..."
+        autocomplete="off"
+        aria-label="Search games"
+        aria-haspopup="listbox"
+        aria-expanded="false"
+        spellcheck="false"
+      />
+      <div id="search-results" class="search-results" role="listbox" aria-label="Search results" hidden></div>
+    </div>
+    <button id="nsfw-mode-toggle" class="nsfw-mode-toggle" type="button" aria-pressed="false">Show NSFW</button>
   </div>
 </header>
 
@@ -176,9 +178,15 @@ const links = [
     margin: 0 8px;
   }
 
-  /* Search -- pinned right, never wraps with the nav links */
+  /* Search controls -- pinned right, never wrap with the nav links */
+  .site-nav__controls {
+    display: flex;
+    flex: 0 0 180px;
+    flex-direction: column;
+    gap: 6px;
+  }
+
   .site-nav__search {
-    flex-shrink: 0;
     position: relative;
     padding-top: 3px;
   }
@@ -189,10 +197,10 @@ const links = [
     border-radius:6px;
     color:#eaeaea;
     cursor:pointer;
-    flex-shrink:0;
     font-size:.8rem;
-    margin-top:3px;
+    margin:0;
     padding:5px 9px;
+    width:100%;
   }
 
   .nsfw-mode-toggle[aria-pressed="true"]{border-color:#9aa6ff;color:#cfd4ff;}
@@ -206,13 +214,13 @@ const links = [
     font-size: 0.85rem;
     outline: none;
     padding: 5px 10px;
-    width: 180px;
-    transition: border-color 0.15s, width 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
   }
 
   .search-input:focus {
     border-color: #9aa6ff;
-    width: 220px;
   }
 
   .search-input::placeholder {
