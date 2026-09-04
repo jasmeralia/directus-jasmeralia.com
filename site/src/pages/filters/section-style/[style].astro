@@ -1,0 +1,78 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import CsvHeader from "../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../components/ThumbnailBorderLegend.astro";
+import GameThumbCard from "../../../components/GameThumbCard.astro";
+import { directusFetchItems, getReviewedGameIds, getSTierGameIds } from "../../../lib/directus";
+import { csvDataUri, gamesToCsv } from "../../../lib/csv";
+import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
+import { sortByTitle } from "../../../lib/list-format";
+
+const styleMeta = {
+  linear: {
+    label: "Linear",
+    description: "Games tracked with an ordered chapter/act/episode model.",
+  },
+  nonlinear: {
+    label: "Nonlinear",
+    description: "Games tracked with a quest/mission pool.",
+  },
+};
+
+export async function getStaticPaths() {
+  return ["linear", "nonlinear"].map((style) => ({ params: { style } }));
+}
+
+const { style } = Astro.params;
+if (!style || !(style in styleMeta)) {
+  throw new Error(`Unsupported section style filter: ${style}`);
+}
+const meta = styleMeta[style as keyof typeof styleMeta];
+
+const games = sortByTitle(await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  filter: { section_style: { _eq: style } },
+  limit: -1,
+}));
+
+const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
+const [reviewedGameIds, sTierGameIds] = await Promise.all([
+  getReviewedGameIds(gameIds),
+  getSTierGameIds(gameIds),
+]);
+
+const csvName = `section-style-${style}.csv`;
+const csvHref = csvDataUri(gamesToCsv(games));
+---
+
+<BaseLayout title={`Filters | Section Style + ${meta.label}`}>
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <CsvHeader title={`Section Style + ${meta.label}`} count={games.length} csvHref={csvHref} csvName={csvName} />
+      <p>{meta.description}</p>
+    </div>
+    <ThumbnailBorderLegend />
+    {games.length === 0 ? (
+      <p>No {meta.label} games found.</p>
+    ) : (
+      <div class="grid">
+        {games.map((game) => (
+          <GameThumbCard
+            game={game}
+            reviewed={reviewedGameIds.has(game.id)}
+            sTier={sTierGameIds.has(game.id)}
+          />
+        ))}
+      </div>
+    )}
+  </main>
+</BaseLayout>

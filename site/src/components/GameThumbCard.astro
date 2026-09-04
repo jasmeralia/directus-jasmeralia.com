@@ -119,7 +119,7 @@ const progress = bundleProgress ?? (directProgress
                       <a class={`tag${game.game_status === "abandoned" ? " tag-abandoned" : game.game_status === "unreleased" ? " tag-unreleased" : ""}`} href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
                     ) : null}
                     {game.section_style ? (
-                      <a class="tag" href={`/section_styles/${game.section_style}/index.html`}>{labelize(game.section_style)}</a>
+                      <a class="tag" href={`/filters/section-style/${game.section_style}/index.html`}>{labelize(game.section_style)}</a>
                     ) : null}
                     {genres.map((genre) => (
                       <a class="tag" href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.184] - 2026-09-04
+- Games: show a game's SFW/NSFW content rating and (when set) its linear/nonlinear section style on its detail page, each linking to the matching filter page.
+- Filters: move the section-style filter pages from the orphaned `/section_styles/*` route to `/filters/section-style/*`, discoverable from a new Section Style panel on the filters index, matching the existing Content Rating pattern.
+- Games: linear chapter/act/episode lists now strike through sections already passed (or all sections, once the game is completed), matching the existing nonlinear quest strikethrough behavior. Applies to both a game's own section list and each included bundle member's.
+- Games/Filters: `section_style` now defaults to `linear` in Directus for every new game, but tags, the detail page, and filter counts/pages only surface a game's declared style once real section data actually backs it up -- otherwise every untracked game would show up as "Linear".
+
 ## [1.0.183] - 2026-09-04
 - Feeds: add `/feed-completed.xml`, a changelog feed filtered to games (and included bundle members) whose play status transitions to completed.
 
