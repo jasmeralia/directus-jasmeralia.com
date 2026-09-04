@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.183] - 2026-09-04
+- Feeds: add `/feed-completed.xml`, a changelog feed filtered to games (and included bundle members) whose play status transitions to completed.
+
 ## [1.0.182] - 2026-09-04
 - Game cards: link the green SFW and red NSFW classification tags to comprehensive content-rating filter pages.
 - Filters: add discoverable SFW and NSFW game filters, including counts, CSV exports, and a Content Rating section on the filters index.
