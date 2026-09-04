@@ -67,12 +67,12 @@ export const sectionProgressPercent = (
   current: number,
   total: number,
   playerStatus?: string | null,
+  currentSectionCompleted?: boolean,
 ): number => {
   if (playerStatus === "completed") return 100;
   if (total <= 0 || current <= 0) return 0;
-  const ratio = HALF_CREDIT_STATUSES.has(playerStatus ?? "")
-    ? (current - 0.5) / total
-    : current / total;
+  const halfCredit = HALF_CREDIT_STATUSES.has(playerStatus ?? "") && !currentSectionCompleted;
+  const ratio = halfCredit ? (current - 0.5) / total : current / total;
   return Math.min(100, Math.max(0, Math.round(ratio * 100)));
 };
 
@@ -149,7 +149,13 @@ export const sectionProgressSummary = (
   if (current === null || sections.length === 0) return null;
 
   const noun = sectionNoun(entry.section_noun);
-  const percent = sectionProgressPercent(current, sections.length, entry.player_status);
+  const currentSection = sections.find((section) => section.number === current);
+  const percent = sectionProgressPercent(
+    current,
+    sections.length,
+    entry.player_status,
+    currentSection?.completed ?? false,
+  );
   return {
     label: `${noun} ${current}/${sections.length} (${percent}%)`,
     title: `${noun} ${current} of ${sections.length}`,

@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.185] - 2026-09-04
+- Games: give full section-progress credit (not half-credit) for a linear game's current section when that section is itself marked completed, for both a game's own progress and each included bundle member's.
+
 ## [1.0.184] - 2026-09-04
 - Games: show a game's SFW/NSFW content rating and (when set) its linear/nonlinear section style on its detail page, each linking to the matching filter page.
 - Filters: move the section-style filter pages from the orphaned `/section_styles/*` route to `/filters/section-style/*`, discoverable from a new Section Style panel on the filters index, matching the existing Content Rating pattern.

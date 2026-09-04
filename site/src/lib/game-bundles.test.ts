@@ -155,6 +155,24 @@ describe("bundleProgressSummary", () => {
     });
   });
 
+  it("gives full credit when a member's current section is itself marked completed", () => {
+    expect(bundleProgressSummary({ bundle_members: [member(1, {
+      player_status: "on_hold",
+      section_noun: "Act",
+      current_section: 2,
+      sections: [
+        { number: 1, title: "Act 1", completed: true },
+        { number: 2, title: "Act 2", completed: true },
+        { number: 3, title: "Act 3" },
+        { number: 4, title: "Act 4" },
+      ],
+    })] })).toEqual({
+      label: "Member 1: Act 2/4",
+      title: "Member 1: Act 2 of 4",
+      percent: 50,
+    });
+  });
+
   it("handles one active member without trackable progress", () => {
     expect(bundleProgressSummary({ bundle_members: [member(1, {
       title: "Active",

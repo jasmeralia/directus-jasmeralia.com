@@ -101,7 +101,8 @@ export const bundleProgressSummary = (
       : null;
     if (current !== null && total > 0) {
       const noun = member.section_noun || "Chapter";
-      const percent = sectionProgressPercent(current, total, member.player_status);
+      const currentSection = (member.sections ?? []).find((section) => section.number === current);
+      const percent = sectionProgressPercent(current, total, member.player_status, currentSection?.completed ?? false);
       return {
         label: `${member.title}: ${noun} ${current}/${total}`,
         title: `${member.title}: ${noun} ${current} of ${total}`,
