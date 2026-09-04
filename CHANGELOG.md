@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.181] - 2026-09-04
+- Game cards: show every game's effective content classification as the first card tag, with SFW in green and NSFW in red across all grids that use the shared card component.
+- Games: remove the redundant Directus-side title sort from the main index; the existing JavaScript case-insensitive sort remains the display-order source of truth.
+
 ## [1.0.180] - 2026-09-04
 - Reviews: label every review's game as SFW or NSFW, with green SFW badges and red NSFW badges.
 - Tier lists: keep NSFW tier-list titles visible, clearly label them in red, and collapse only their potentially sensitive descriptions until NSFW mode is enabled.
