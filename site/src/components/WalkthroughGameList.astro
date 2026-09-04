@@ -84,15 +84,21 @@ const walkthroughEntries = (game: WalkthroughGame): WalkthroughEntry[] => {
       const img = game?.cover_image ? fileUrl(game.cover_image) : null;
       const gameHref = primaryUrl ?? `/games/${game.slug}/index.html`;
       const linkAttrs = primaryUrl ? { target: "_blank", rel: "noopener noreferrer" } : {};
+      const nsfw = isGameNsfw(game);
       return (
         <article class="game-item">
           <a class="game-main" href={gameHref} {...linkAttrs}>
             <span class="game-index">{index + 1}.</span>
             {img
-              ? <span class={isGameNsfw(game) ? "nsfw-cover game-thumb-wrap" : "game-thumb-wrap"}><img class="game-thumb" src={img} alt={game.title} loading="lazy" /></span>
+              ? <span class={nsfw ? "nsfw-cover game-thumb-wrap" : "game-thumb-wrap"}><img class="game-thumb" src={img} alt={game.title} loading="lazy" /></span>
               : <div class="game-thumb-placeholder" />}
             <div class="game-info">
-              <span class="game-title">{game.title}</span>
+              <span class="game-title-row">
+                <span class="game-title">{game.title}</span>
+                <span class={`content-rating-badge ${nsfw ? "is-nsfw" : "is-sfw"}`}>
+                  {nsfw ? "NSFW" : "SFW"}
+                </span>
+              </span>
               <span class="game-meta">
                 {primaryUrl ? "Opens walkthrough" : "Opens game page"}
                 {game.release_year ? ` · ${game.release_year}` : ""}
@@ -135,7 +141,11 @@ const walkthroughEntries = (game: WalkthroughGame): WalkthroughEntry[] => {
   .game-thumb-wrap.nsfw-cover::after{font-size:.55rem;padding:.15rem;}
   .game-thumb-placeholder{width:56px;height:56px;border-radius:6px;background:#1a1a2e;flex-shrink:0;}
   .game-info{display:flex;flex-direction:column;gap:.2rem;min-width:0;}
+  .game-title-row{align-items:center;display:flex;flex-wrap:wrap;gap:.4rem;}
   .game-title{font-weight:600;color:#eaeaea;}
+  .content-rating-badge{border:1px solid;border-radius:3px;font-size:.65rem;font-weight:700;padding:1px 4px;}
+  .content-rating-badge.is-sfw{background:#173d24;border-color:#2f7d46;color:#9ae6ad;}
+  .content-rating-badge.is-nsfw{background:#5c2020;border-color:#8c3535;color:#ffb4b4;}
   .game-meta{font-size:.8rem;opacity:.6;}
   .game-index{font-size:.85rem;opacity:.45;min-width:1.5rem;text-align:right;flex-shrink:0;}
   .walkthrough-links{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;padding-left:calc(1.5rem + 1rem + 56px);font-size:.92rem;}

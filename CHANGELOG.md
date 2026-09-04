@@ -2,6 +2,7 @@
 
 ## [1.0.181] - 2026-09-04
 - Game cards: show every game's effective content classification as the first card tag, with SFW in green and NSFW in red across all grids that use the shared card component.
+- Guides: label every game entry as green SFW or red NSFW while retaining the existing NSFW thumbnail blur.
 - Games: remove the redundant Directus-side title sort from the main index; the existing JavaScript case-insensitive sort remains the display-order source of truth.
 
 ## [1.0.180] - 2026-09-04
