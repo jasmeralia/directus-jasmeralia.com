@@ -102,13 +102,16 @@ const progress = bundleProgress ?? (directProgress
                   ) : null}
                   <div class="tags">
                     {isFamilySharingDisabled(game) ? (
-                      <span class="tag tag-fs-disabled">Family Sharing Disabled</span>
+                      <a class="tag tag-fs-disabled" href="/filters/misc/steam-family-sharing-disabled/index.html">Family Sharing Disabled</a>
                     ) : null}
                     {game.player_status ? (
                       <a class="tag" href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
                     ) : null}
                     {game.game_status ? (
                       <a class={`tag${game.game_status === "abandoned" ? " tag-abandoned" : game.game_status === "unreleased" ? " tag-unreleased" : ""}`} href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
+                    ) : null}
+                    {game.section_style ? (
+                      <a class="tag" href={`/section_styles/${game.section_style}/index.html`}>{labelize(game.section_style)}</a>
                     ) : null}
                     {genres.map((genre) => (
                       <a class="tag" href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>

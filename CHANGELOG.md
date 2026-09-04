@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.176] - 2026-09-03
+- Site: add nonlinear (quest/mission) section tracking alongside the existing linear chapter/act/episode model. Games with `section_style=nonlinear` show a category-grouped quest list on their detail page (progress reported as completed/total instead of "currently on chapter N"), and a `Linear`/`Nonlinear` tag now appears on game cards everywhere, linking to new `/section_styles/linear/` and `/section_styles/nonlinear/` filter pages. Also fixed the `Family Sharing Disabled` card tag, which was inert text unlike every other tag in that row - it now links to its existing filter page like an engine or genre tag does.
+- Backend: add `mcp/scripts/populate_game_quests.py` for deterministic quest-journal-text population (`--from-txt`, matching the ALL-CAPS-category-header convention used by AVN in-game journal exports) and a `game-quests-lookup` Claude Code skill for WebSearch-sourced quest lists on games with no local journal to parse. Both share a write path (`game_sections_lib.upsert_quest_sections`) that always requires `--replace` for existing rows, since a quest list has no stable per-row identity to upsert against.
+
 ## [1.0.175] - 2026-09-01
 - Site: add Open Graph and Twitter Card link previews. Every page now emits `og:*`/`twitter:*` meta tags, a canonical link, and a sitewide-default description/image, so sharing a jasmeralia.com URL in Discord/Slack/etc. renders a rich card. Game pages get a status-aware synopsis and cover art; review pages get a spoiler-safe markdown excerpt; other collection pages get a generated description (with a per-tier rating breakdown for tier lists).
 

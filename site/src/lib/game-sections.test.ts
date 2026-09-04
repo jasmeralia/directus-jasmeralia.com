@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   directGameSections,
+  directGameSectionsByPosition,
+  groupSectionsByCategory,
   orderedSections,
   pluralizeNoun,
+  questProgressPercent,
   sectionNoun,
   sectionProgressPercent,
   sectionProgressSummary,
@@ -38,6 +41,24 @@ describe("game section helpers", () => {
     expect(orderedSections(sections).map(({ number }) => number)).toEqual([1, 2, 10]);
     expect(sections.map(({ number }) => number)).toEqual([10, 2, 1]);
     expect(orderedSections(null)).toEqual([]);
+  });
+
+  it("orders by sort (falling back to number) instead of number, and excludes bundle members", () => {
+    const sections: GameSection[] = [
+      { number: 2, sort: 5, title: "Rae 2", category: "Rae" },
+      { number: 1, sort: 1, title: "Main 1", category: "Main" },
+      { number: 1, sort: 4, title: "Rae 1", category: "Rae" },
+      { number: 3, sort: null, title: "No sort, falls back to number" },
+      { number: 1, sort: 2, title: "Bundled", bundle_member_id: 9, category: "Main" },
+    ];
+
+    expect(directGameSectionsByPosition(sections).map(({ title }) => title)).toEqual([
+      "Main 1",
+      "No sort, falls back to number",
+      "Rae 1",
+      "Rae 2",
+    ]);
+    expect(directGameSectionsByPosition(undefined)).toEqual([]);
   });
 
   it("returns only direct sections and excludes all bundle member references", () => {
@@ -115,5 +136,82 @@ describe("sectionProgressSummary", () => {
       current_section: null,
       sections: [{ number: 1, title: "One" }],
     })).toBeNull();
+  });
+
+  it("counts completed quests for nonlinear games instead of using current_section", () => {
+    expect(sectionProgressSummary({
+      player_status: "in_progress",
+      section_style: "nonlinear",
+      section_noun: "Quest",
+      current_section: null,
+      sections: [
+        { number: 1, title: "One", category: "Main", completed: true },
+        { number: 2, title: "Two", category: "Main", completed: false },
+        { number: 1, title: "Three", category: "Side", completed: true },
+      ],
+    })).toEqual({
+      label: "2/3 Quests (67%)",
+      title: "2 of 3 Quests completed",
+      percent: 67,
+    });
+  });
+
+  it("clamps nonlinear games to 100% when completed regardless of row-level completed flags", () => {
+    expect(sectionProgressSummary({
+      player_status: "completed",
+      section_style: "nonlinear",
+      section_noun: "Quest",
+      sections: [
+        { number: 1, title: "One", completed: false },
+      ],
+    })).toEqual({
+      label: "Quests completed (100%)",
+      title: "Quests completed",
+      percent: 100,
+    });
+  });
+
+  it("returns null for a nonlinear game with no section rows", () => {
+    expect(sectionProgressSummary({
+      player_status: "in_progress",
+      section_style: "nonlinear",
+      sections: [],
+    })).toBeNull();
+  });
+});
+
+describe("questProgressPercent", () => {
+  it("computes a direct ratio with no half-credit branch", () => {
+    expect(questProgressPercent(2, 4, "in_progress")).toBe(50);
+    expect(questProgressPercent(0, 4, "in_progress")).toBe(0);
+  });
+
+  it("always returns 100 for completed games", () => {
+    expect(questProgressPercent(0, 4, "completed")).toBe(100);
+  });
+
+  it("returns 0 for a zero total", () => {
+    expect(questProgressPercent(0, 0, "in_progress")).toBe(0);
+  });
+});
+
+describe("groupSectionsByCategory", () => {
+  it("groups consecutive same-category sections and preserves order", () => {
+    const sections: GameSection[] = [
+      { number: 1, title: "Main 1", category: "Main Story" },
+      { number: 2, title: "Main 2", category: "Main Story" },
+      { number: 1, title: "Rae 1", category: "Rae" },
+      { number: 1, title: "Flat", category: null },
+    ];
+
+    expect(groupSectionsByCategory(sections)).toEqual([
+      { category: "Main Story", sections: [sections[0], sections[1]] },
+      { category: "Rae", sections: [sections[2]] },
+      { category: null, sections: [sections[3]] },
+    ]);
+  });
+
+  it("returns an empty array for an empty input", () => {
+    expect(groupSectionsByCategory([])).toEqual([]);
   });
 });

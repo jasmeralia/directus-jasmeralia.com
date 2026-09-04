@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import argparse
+import json
 import sys
 import urllib.parse
 from typing import Any
@@ -179,7 +181,8 @@ def resolve_targets(
         _query_path(
             "games",
             fields=(
-                "id,slug,title,player_status,section_noun,current_section,sections.id"
+                "id,slug,title,player_status,section_style,section_noun,"
+                "current_section,sections.id"
             ),
             filter_obj=game_filter,
         )
@@ -191,6 +194,7 @@ def resolve_targets(
             "title": game["title"],
             "player_status": game.get("player_status"),
             "existing_section_count": len(game.get("sections") or []),
+            "section_style": game.get("section_style"),
             "section_noun": game.get("section_noun"),
             "current_section": game.get("current_section"),
         }
@@ -373,3 +377,267 @@ def upsert_game_sections(
         "updated": updated,
         "deleted": deleted,
     }
+
+
+_LOWERCASE_CATEGORY_WORDS = {
+    "a",
+    "an",
+    "and",
+    "as",
+    "at",
+    "but",
+    "by",
+    "for",
+    "in",
+    "nor",
+    "of",
+    "on",
+    "or",
+    "the",
+    "to",
+    "with",
+}
+
+
+def _is_category_header(line: str) -> bool:
+    return bool(line) and line == line.upper() and any(char.isalpha() for char in line)
+
+
+def _title_case_category(line: str) -> str:
+    words = line.split(" ")
+    result = []
+    for index, word in enumerate(words):
+        comma = "," if word.endswith(",") else ""
+        core = word[:-1] if comma else word
+        if not core:
+            result.append(word)
+            continue
+        lowered = core.lower()
+        if index != 0 and lowered in _LOWERCASE_CATEGORY_WORDS:
+            result.append(lowered + comma)
+        else:
+            result.append(lowered[:1].upper() + lowered[1:] + comma)
+    return " ".join(result)
+
+
+def parse_quest_journal_txt(text: str) -> list[dict[str, Any]]:
+    """Parse a quest-journal text export into category/title entries.
+
+    Convention (matches an in-game "things to do" journal export): the file
+    is a series of blank-line-separated blocks, each starting with an
+    ALL-CAPS category header line followed by one quest title per line. Any
+    freeform text before the first header (e.g. a game title/version line)
+    is skipped automatically rather than requiring a fixed line count to
+    strip. Returns `[{category, title}]` in source order - `number` (the
+    per-category ordinal) is assigned later by `upsert_quest_sections`, not
+    here, so there is exactly one place ordinal assignment happens
+    regardless of whether entries came from a text export or a
+    `--from-json` payload.
+    """
+    entries: list[dict[str, Any]] = []
+    current_category: str | None = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if _is_category_header(line):
+            current_category = _title_case_category(line)
+            continue
+        if current_category is None:
+            continue
+        entries.append({"category": current_category, "title": line})
+
+    if current_category is None:
+        raise ValueError(
+            "No category header (an ALL-CAPS line, e.g. 'MAIN STORY') found in the input"
+        )
+    if not entries:
+        raise ValueError("No quest titles found under any category")
+    return entries
+
+
+def _normalized_quest_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for entry in entries:
+        title = entry.get("title")
+        if not isinstance(title, str) or not title.strip():
+            raise ValueError("Every quest entry requires a non-empty title")
+        title = title.strip()
+        if not title.isascii():
+            raise ValueError(f"Quest title must be ASCII only: {title!r}")
+        category = entry.get("category")
+        if category is not None:
+            if not isinstance(category, str) or not category.strip():
+                raise ValueError("category must be a non-empty string or null")
+            category = category.strip()
+            if not category.isascii():
+                raise ValueError(f"Category must be ASCII only: {category!r}")
+        normalized.append({"category": category, "title": title})
+    return normalized
+
+
+def upsert_quest_sections(
+    client: DirectusClient,
+    game_id: int,
+    *,
+    noun: str,
+    entries: list[dict[str, Any]],
+    replace: bool = False,
+    dry_run: bool = False,
+) -> dict[str, int]:
+    """Set a game to the nonlinear quest model and write its section rows.
+
+    Unlike `upsert_game_sections`, this never merges in place: a quest list
+    has no stable per-row identity to upsert against (categories/titles can
+    be freely reordered between runs), so any pre-existing rows require
+    `--replace` rather than being patched by position. `number` is assigned
+    here as a 1-based ordinal within each entry's category, in entry order;
+    `sort` is assigned as the 1-based position across the whole list, which
+    is what drives category-grouped display order on the site.
+    """
+    normalized_noun = normalize_noun(noun)
+    if not entries:
+        raise ValueError("At least one quest entry is required")
+    normalized_entries = _normalized_quest_entries(entries)
+
+    bundle_members = client.fetch_all(
+        _query_path(
+            "game_bundle_members",
+            fields="id",
+            filter_obj={"games_id": {"_eq": game_id}},
+        )
+    )
+    if bundle_members:
+        raise ValueError(
+            "Nonlinear sections are not supported for games with bundle members"
+        )
+
+    existing = client.fetch_all(
+        _query_path(
+            "game_sections",
+            fields="id",
+            filter_obj={
+                "games_id": {"_eq": game_id},
+                "bundle_member_id": {"_null": True},
+            },
+        )
+    )
+    if existing and not replace:
+        raise ValueError(
+            f"Game id={game_id} already has {len(existing)} section row(s); "
+            "pass --replace to overwrite"
+        )
+
+    deleted = 0
+    for row in existing:
+        if dry_run:
+            print(f"[DRY RUN] DELETE /items/game_sections/{row['id']}", file=sys.stderr)
+        else:
+            client.delete(f"/items/game_sections/{row['id']}")
+            print(f"  Deleted section id={row['id']}", file=sys.stderr)
+        deleted += 1
+
+    category_counters: dict[str | None, int] = {}
+    created = 0
+    total = len(normalized_entries)
+    for position, entry in enumerate(normalized_entries, start=1):
+        category = entry["category"]
+        category_counters[category] = category_counters.get(category, 0) + 1
+        payload = {
+            "games_id": game_id,
+            "bundle_member_id": None,
+            "category": category,
+            "title": entry["title"],
+            "number": category_counters[category],
+            "sort": position,
+            "completed": False,
+            "is_ending": False,
+        }
+        label = f"{category}: {entry['title']}" if category else entry["title"]
+        if dry_run:
+            print(
+                f"[DRY RUN] POST /items/game_sections ({position}/{total}): {label}",
+                file=sys.stderr,
+            )
+        else:
+            client.post("/items/game_sections", payload)
+            print(f"  Created quest {position}/{total}: {label}", file=sys.stderr)
+        created += 1
+
+    metadata_update = {"section_style": "nonlinear", "section_noun": normalized_noun}
+    metadata_path = f"/items/games/{game_id}"
+    if dry_run:
+        print(f"[DRY RUN] PATCH {metadata_path}: {metadata_update}", file=sys.stderr)
+    else:
+        client.patch(metadata_path, metadata_update)
+
+    categories = sorted(
+        {entry["category"] for entry in normalized_entries if entry["category"]}
+    )
+    return {
+        "game_id": game_id,
+        "created": created,
+        "deleted": deleted,
+        "category_count": len(categories),
+    }
+
+
+def add_target_resolver_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add the --list-targets resolver flags shared by both population CLIs."""
+    parser.add_argument(
+        "--filter", dest="raw_filter", help="Raw Directus filter object as JSON"
+    )
+    parser.add_argument(
+        "--slug", dest="target_slug", help="Filter target games by slug"
+    )
+    parser.add_argument("--status", help="Filter target games by player_status")
+    parser.add_argument("--genre", help="Filter target games by genre slug")
+    parser.add_argument("--tier-list", help="Filter target games by tier list slug")
+
+
+def parse_target_filter(
+    parser: argparse.ArgumentParser, raw: str | None
+) -> dict[str, Any] | None:
+    """Parse a --filter JSON string into a Directus filter object."""
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as error:
+        parser.error(f"--filter is not valid JSON: {error}")
+    if not isinstance(parsed, dict):
+        parser.error("--filter must decode to a JSON object")
+    return parsed
+
+
+def has_target_resolver_flags(args: argparse.Namespace) -> bool:
+    """True if any of the shared target-resolver flags were passed."""
+    return bool(
+        args.raw_filter
+        or args.target_slug
+        or args.status
+        or args.genre
+        or args.tier_list
+    )
+
+
+def print_list_targets(
+    parser: argparse.ArgumentParser,
+    client: DirectusClient,
+    args: argparse.Namespace,
+) -> None:
+    """Resolve the shared --list-targets flags and print matches as JSON."""
+    if not has_target_resolver_flags(args):
+        parser.error(
+            "--list-targets requires --filter, --slug, --status, --genre, "
+            "or --tier-list"
+        )
+    targets = resolve_targets(
+        client,
+        filter_obj=parse_target_filter(parser, args.raw_filter),
+        slug=args.target_slug,
+        status=args.status,
+        genre=args.genre,
+        tier_list=args.tier_list,
+    )
+    print(json.dumps(targets, indent=2))
