@@ -5,7 +5,7 @@ import { formatDate } from "../../lib/date";
 import { downloadLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
 import { orderedBundleMembers } from "../../lib/game-bundles";
-import { directGameSections, orderedSections, pluralizeNoun, sectionNoun } from "../../lib/game-sections";
+import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, orderedSections, pluralizeNoun, sectionNoun } from "../../lib/game-sections";
 import { fetchActivity, fetchAllGameGenres, fetchRevisions } from "../../lib/changelog";
 import { compareLabels } from "../../lib/list-format";
 
@@ -48,11 +48,16 @@ export async function getStaticPaths() {
     'links.label',
     'links.kind',
     'links.sort',
+    'section_style',
     'section_noun',
     'current_section',
     'sections.id',
     'sections.number',
+    'sections.sort',
     'sections.title',
+    'sections.category',
+    'sections.completed',
+    'sections.is_ending',
     'sections.bundle_member_id',
     'bundle_members.id',
     'bundle_members.sort',
@@ -209,6 +214,12 @@ const synopsis = gameSynopsis(game.title, game.game_status, game.player_status);
 
 const noun = sectionNoun(game.section_noun);
 const current = game.current_section ?? null;
+const isNonlinear = game.section_style === "nonlinear";
+const displaySections = isNonlinear ? directGameSectionsByPosition(game.sections) : sections;
+const sectionGroups = isNonlinear ? groupSectionsByCategory(displaySections) : [];
+const completedQuestCount = isNonlinear
+  ? displaySections.filter((section) => section.completed).length
+  : 0;
 const includedIn = (game.included_in_bundles ?? [])
   .map((membership) => membership?.games_id)
   .filter((parent) => parent?.slug && parent?.title)
@@ -336,6 +347,13 @@ const coverStackStyle = [
       .sections-list{margin-bottom:0;}
       .sections-list li{padding:.2rem .5rem;border-left:2px solid transparent;}
       .sections-list .current-section{color:#8c58ff;border-left-color:#8c58ff;font-weight:700;}
+      .quest-category{margin-top:1rem;}
+      .quest-category:first-child{margin-top:.5rem;}
+      .quest-category-title{margin:0 0 .3rem;font-size:.85rem;opacity:.8;text-transform:uppercase;letter-spacing:.06em;}
+      .quest-list li{list-style:disc;margin-left:1.1rem;padding:.15rem .5rem;}
+      .quest-list .quest-completed{opacity:.6;text-decoration:line-through;}
+      .quest-list .is-ending{color:#8c58ff;font-weight:700;text-decoration:none;}
+      .quest-ending-badge{margin-left:.4rem;font-size:.75rem;opacity:.85;text-decoration:none;}
       .bundle-list{display:flex;flex-direction:column;gap:.75rem;margin-top:.75rem;}
       .bundle-member{background:#0b0b0b;border:1px solid #222;border-radius:10px;padding:.75rem;}
       .bundle-member-header{display:flex;gap:.75rem;align-items:center;}
@@ -589,7 +607,29 @@ const coverStackStyle = [
         </div>
       ) : null}
 
-      {sections.length > 0 ? (
+      {isNonlinear ? (
+        displaySections.length > 0 ? (
+          <div class="section panel">
+            <div class="label">{pluralizeNoun(noun)}</div>
+            <p class="sections-summary">
+              {`${completedQuestCount} of ${displaySections.length} ${pluralizeNoun(noun)} completed`}
+            </p>
+            {sectionGroups.map((group) => (
+              <div class="quest-category">
+                {group.category ? <h4 class="quest-category-title">{group.category}</h4> : null}
+                <ul class="sections-list quest-list">
+                  {group.sections.map((section) => (
+                    <li class:list={{ "quest-completed": section.completed, "is-ending": section.is_ending }}>
+                      {section.title}
+                      {section.is_ending ? <span class="quest-ending-badge">(Ending)</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ) : null
+      ) : sections.length > 0 ? (
         <div class="section panel">
           <div class="label">{pluralizeNoun(noun)}</div>
           <p class="sections-summary">

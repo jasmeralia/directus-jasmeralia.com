@@ -2,7 +2,7 @@
   "name": "astro-jasmeralia",
   "type": "module",
   "private": true,
-  "version": "1.0.175",
+  "version": "1.0.176",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build && pagefind --site dist",
