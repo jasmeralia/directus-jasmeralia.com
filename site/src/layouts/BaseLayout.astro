@@ -24,6 +24,8 @@ const canonicalUrl = `${siteBaseUrl()}${Astro.url.pathname}`;
     <meta name="description" content={description} />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="alternate" type="application/rss+xml" title="Jasmeralia Feed" href="/feed.xml" />
+    <link rel="alternate" type="application/rss+xml" title="Jasmeralia Feed (SFW)" href="/feed-sfw.xml" />
+    <link rel="alternate" type="application/rss+xml" title="Jasmeralia Feed (NSFW)" href="/feed-nsfw.xml" />
     <link rel="canonical" href={canonicalUrl} />
     <meta property="og:type" content={type} />
     <meta property="og:site_name" content="Jasmeralia" />
@@ -35,6 +37,11 @@ const canonicalUrl = `${siteBaseUrl()}${Astro.url.pathname}`;
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     {image ? <meta name="twitter:image" content={image} /> : null}
+    <script is:inline>
+      if(document.cookie.split('; ').some(function(cookie){return cookie === 'nsfw_mode=1';})){
+        document.documentElement.classList.add('nsfw-on');
+      }
+    </script>
     <style>
       body{background:#000010;color:#eaeaea;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;}
       a{color:#9aa6ff;}
@@ -42,9 +49,18 @@ const canonicalUrl = `${siteBaseUrl()}${Astro.url.pathname}`;
       .footer-links{align-items:center;display:inline-flex;gap:14px;margin-left:10px;}
       .footer-link{align-items:center;display:inline-flex;gap:6px;text-decoration:none;}
       .footer-link svg{height:16px;width:16px;}
+      .footer-rss-variants{margin-left:-8px;}
       .footer-meta{display:block;font-size:0.75rem;margin-top:8px;opacity:0.8;}
       .spoiler{background:#2a2a2a;color:transparent;border-radius:3px;padding:0 3px;cursor:pointer;user-select:none;transition:color .15s;}
       .spoiler.revealed{color:inherit;}
+      :global(.nsfw-cover){position:relative;overflow:hidden;}
+      :global(.nsfw-cover img){filter:blur(20px) brightness(.5);transition:filter .15s;}
+      :global(html.nsfw-on .nsfw-cover img),:global(.nsfw-cover.revealed img){filter:none;}
+      :global(.nsfw-cover::after){content:"NSFW - click to reveal";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-size:.75rem;padding:.5rem;box-sizing:border-box;background:rgba(0,0,0,.35);color:#eaeaea;cursor:pointer;}
+      :global(html.nsfw-on .nsfw-cover::after),:global(.nsfw-cover.revealed::after){display:none;}
+      :global(.nsfw-text){background:#2a2a2a;border-radius:3px;padding:0 3px;cursor:pointer;user-select:none;transition:color .15s;}
+      :global(.nsfw-text),:global(.nsfw-text *){color:transparent!important;}
+      :global(html.nsfw-on .nsfw-text),:global(html.nsfw-on .nsfw-text *),:global(.nsfw-text.revealed),:global(.nsfw-text.revealed *){color:inherit!important;}
     </style>
     <slot name="head" />
   </head>
@@ -72,6 +88,7 @@ const canonicalUrl = `${siteBaseUrl()}${Astro.url.pathname}`;
           </svg>
           RSS
         </a>
+        <span class="footer-rss-variants">(<a href="/feed-sfw.xml">SFW</a> / <a href="/feed-nsfw.xml">NSFW</a>)</span>
       </span>
       <span class="footer-meta" id="footer-build"></span>
     </footer>
@@ -83,6 +100,11 @@ const canonicalUrl = `${siteBaseUrl()}${Astro.url.pathname}`;
       document.addEventListener('click',function(e){
         const s=e.target.closest('.spoiler');
         if(s)s.classList.toggle('revealed');
+        const n=e.target.closest('.nsfw-cover,.nsfw-text');
+        if(n&&!document.documentElement.classList.contains('nsfw-on')&&!n.classList.contains('revealed')){
+          e.preventDefault();
+          n.classList.add('revealed');
+        }
       });
     </script>
   </body>

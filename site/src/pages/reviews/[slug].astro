@@ -3,6 +3,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { renderMarkdown, plainTextExcerpt } from "../../lib/markdown";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
 import { formatDate } from "../../lib/date";
+import { isGameNsfw } from "../../lib/nsfw";
 
 export async function getStaticPaths() {
   const reviews = await directusFetchItems("reviews", {
@@ -30,6 +31,8 @@ const reviews = await directusFetchItems("reviews", {
     "game.id",
     "game.title",
     "game.slug",
+    "game.nsfw",
+    "game.genres.genres_id.nsfw",
     "game.cover_image.id",
     "game.cover_image.filename_disk",
     "game.developers.id",
@@ -50,6 +53,7 @@ const developers = (review.game?.developers ?? [])
   .filter((value) => value && value.name && value.slug)
   .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 const cover = fileUrl(review.game?.cover_image);
+const gameNsfw = isGameNsfw(review.game ?? {});
 const excerpt = plainTextExcerpt(review.body) || review.title;
 const published = review.published_at;
 const screenshots = await directusFetchItems("review_screenshots", {
@@ -60,7 +64,7 @@ const screenshots = await directusFetchItems("review_screenshots", {
 });
 ---
 
-<BaseLayout title={`Reviews | ${review.title}`} description={excerpt} image={cover}>
+<BaseLayout title={`Reviews | ${review.title}`} description={excerpt} image={gameNsfw ? null : cover}>
   <div slot="head">
     <style>
       .container { max-width: 980px; margin: 0 auto; padding: 24px; }
@@ -117,7 +121,7 @@ const screenshots = await directusFetchItems("review_screenshots", {
           </div>
         ) : null}
         {cover ? (
-          <div class="cover" style="margin-top:1rem;">
+          <div class={`cover${gameNsfw ? " nsfw-cover" : ""}`} style="margin-top:1rem;">
             <img src={cover} alt={review.title} loading="lazy" />
           </div>
         ) : null}

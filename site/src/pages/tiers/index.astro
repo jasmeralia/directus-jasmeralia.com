@@ -5,7 +5,7 @@ import { sortByTitle } from "../../lib/list-format";
 
 const [tiersRaw, allTierGames] = await Promise.all([
   directusFetchItems("tier_lists", {
-    fields: ["id", "title", "slug", "description", "updated_at"],
+    fields: ["id", "title", "slug", "description", "updated_at", "nsfw"],
     filter: { status: { _eq: "published" } },
     limit: -1,
   }),
@@ -44,12 +44,12 @@ const description = `Browse all ${tiers.length} published tier lists by Jasmeral
         ) : (
           tiers.map((t) => (
             <div class="item">
-              <a href={`/tiers/${t.slug}/index.html`}>{t.title}</a>
+              <span class={t.nsfw ? "nsfw-text" : undefined}><a href={`/tiers/${t.slug}/index.html`}>{t.title}</a></span>
               <span style="opacity:.7;"> ({countTierEntries(t)})</span>
               {t.updated_at ? (
                 <div class="desc">Updated: {new Date(t.updated_at).toLocaleDateString()}</div>
               ) : null}
-              {t.description ? <div class="desc">{t.description}</div> : null}
+              {t.description ? <div class={`desc${t.nsfw ? " nsfw-text" : ""}`}>{t.description}</div> : null}
             </div>
           ))
         )}

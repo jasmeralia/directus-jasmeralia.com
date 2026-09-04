@@ -156,7 +156,7 @@ const TAG_LABEL: Record<UpdateTag, string> = {
             <li class="update-item">
               <div class="update-main">
                 <span class={`update-tag tag-${entry.tag}`}>{TAG_LABEL[entry.tag]}</span>
-                <span class="update-subject"><a href={entry.link}>{entry.subject}</a></span>
+                <span class={`update-subject${entry.nsfw ? " nsfw-text" : ""}`}><a href={entry.link}>{entry.subject}</a></span>
               </div>
               <div class="update-time">{formatUpdateTimestamp(entry.timestamp)}</div>
             </li>

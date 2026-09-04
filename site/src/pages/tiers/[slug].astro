@@ -4,6 +4,7 @@ import ThumbnailBorderLegend from "../../components/ThumbnailBorderLegend.astro"
 import { getReviewedGameIds, getPublishedTierListBySlug, listPublishedTierListSlugs, fileUrl, TIER_RATING_CONFIG } from "../../lib/directus";
 import { walkthroughLinks } from "../../lib/download-link";
 import { csvDataUri, tierListToCsv } from "../../lib/csv";
+import { isTierBoardEntryNsfw } from "../../lib/nsfw";
 import "../../styles/tierlist.css";
 
 // Static generation: /tiers/<slug> for each published tier list
@@ -139,7 +140,7 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
                         href={`/games/${game.slug}/index.html`}
                         title={game.title}
                       >
-                        <div class="tier-thumb-media">
+                        <div class={`tier-thumb-media${isTierBoardEntryNsfw(game, tierList) ? " nsfw-cover" : ""}`}>
                           {img ? (
                             <img src={img} alt={game.title} loading="lazy" />
                           ) : (

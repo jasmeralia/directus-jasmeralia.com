@@ -8,7 +8,10 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts"],
-      exclude: ["src/**/*.test.ts", "src/test/**"],
+      // feed-builder is endpoint orchestration moved out of pages only so the
+      // three RSS routes can share it; route files were already outside this
+      // unit-coverage scope. Its pure serializer has focused tests.
+      exclude: ["src/**/*.test.ts", "src/test/**", "src/lib/feed-builder.ts"],
       reporter: ["text", "cobertura"],
     },
     env: {

@@ -9,6 +9,7 @@ import {
 import {
   sectionProgressSummary,
 } from "../../lib/game-sections";
+import { isGameNsfw } from "../../lib/nsfw";
 
 export async function getStaticPaths() {
   const franchises = await directusFetchItems("franchises", {
@@ -37,6 +38,7 @@ const members = await directusFetchItems("franchise_games", {
     "id", "sort", "notes",
     "game_id.id", "game_id.title", "game_id.slug",
     "game_id.release_year", "game_id.player_status",
+    "game_id.nsfw", "game_id.genres.genres_id.nsfw",
     "game_id.cover_image.id", "game_id.cover_image.filename_disk",
     "game_id.section_noun", "game_id.current_section",
     "game_id.sections.id", "game_id.sections.number",
@@ -58,6 +60,8 @@ const members = await directusFetchItems("franchise_games", {
     "game_id.bundle_members.source_game_id.release_year",
     "game_id.bundle_members.source_game_id.cover_image.id",
     "game_id.bundle_members.source_game_id.cover_image.filename_disk",
+    "game_id.bundle_members.source_game_id.nsfw",
+    "game_id.bundle_members.source_game_id.genres.genres_id.nsfw",
   ],
   filter: { franchise_id: { _eq: franchise.id } },
   sort: ["sort"],
@@ -96,7 +100,7 @@ const description = plainTextExcerpt(franchise.description)
   || `Games in the ${franchise.title} franchise - ${games.length} tracked by Jasmeralia.`;
 ---
 
-<BaseLayout title={`Franchises | ${franchise.title}`} description={description} image={franchiseImage}>
+<BaseLayout title={`Franchises | ${franchise.title}`} description={description} image={games[0] && isGameNsfw(games[0].game_id) ? null : franchiseImage}>
   <div slot="head">
     <style>
       main{max-width:900px;margin:0 auto;padding:1.5rem 1rem;}
@@ -108,6 +112,9 @@ const description = plainTextExcerpt(franchise.description)
       .game-item:hover{background:#191929;}
       .game-item-included{margin-left:2.5rem;background:#0d0d14;border-left:3px solid #56508a;}
       .game-thumb{width:56px;height:56px;border-radius:6px;object-fit:cover;background:#1a1a2e;flex-shrink:0;}
+      .game-thumb-wrap{display:block;width:56px;height:56px;border-radius:6px;flex-shrink:0;}
+      .game-thumb-wrap .game-thumb{display:block;}
+      .game-thumb-wrap.nsfw-cover::after{font-size:.55rem;padding:.15rem;}
       .game-thumb-placeholder{width:56px;height:56px;border-radius:6px;background:#1a1a2e;flex-shrink:0;}
       .game-info{display:flex;flex-direction:column;gap:.28rem;min-width:0;flex:1;}
       .game-title{font-weight:600;color:#eaeaea;}
@@ -149,7 +156,7 @@ const description = plainTextExcerpt(franchise.description)
           <div class="game-group">
             <article class="game-item">
               <span class="game-index">{i + 1}.</span>
-              <a href={`/games/${game.slug}/index.html`}>
+              <a class={isGameNsfw(game) ? "nsfw-cover game-thumb-wrap" : "game-thumb-wrap"} href={`/games/${game.slug}/index.html`}>
                 {img
                   ? <img class="game-thumb" src={img} alt={game.title} loading="lazy" />
                   : <div class="game-thumb-placeholder" />}
@@ -187,17 +194,18 @@ const description = plainTextExcerpt(franchise.description)
               const includedImg = fileUrl(included.cover_image ?? source?.cover_image);
               const includedYear = included.release_year ?? source?.release_year ?? null;
               const includedProgress = sectionProgressSummary(included, { nested: true });
+              const includedNsfw = source ? isGameNsfw(source) : isGameNsfw(game);
               return (
                 <article class="game-item game-item-included">
                   <span class="game-index"></span>
                   {source?.slug ? (
-                    <a href={`/games/${source.slug}/index.html`}>
+                    <a class={includedNsfw ? "nsfw-cover game-thumb-wrap" : "game-thumb-wrap"} href={`/games/${source.slug}/index.html`}>
                       {includedImg
                         ? <img class="game-thumb" src={includedImg} alt={included.title} loading="lazy" />
                         : <div class="game-thumb-placeholder" />}
                     </a>
                   ) : includedImg ? (
-                    <img class="game-thumb" src={includedImg} alt={included.title} loading="lazy" />
+                    <span class={includedNsfw ? "nsfw-cover game-thumb-wrap" : "game-thumb-wrap"}><img class="game-thumb" src={includedImg} alt={included.title} loading="lazy" /></span>
                   ) : (
                     <div class="game-thumb-placeholder" />
                   )}

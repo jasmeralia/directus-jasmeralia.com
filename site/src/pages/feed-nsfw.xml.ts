@@ -3,9 +3,10 @@ import type { APIRoute } from "astro";
 import { buildFeedEntries, renderFeedXml } from "../lib/feed-builder";
 
 export const GET: APIRoute = async () => {
-  const xml = renderFeedXml(await buildFeedEntries(), {
-    title: "Jasmeralia Feed",
-    description: "Changelog feed: games, reviews, and tier list updates.",
+  const entries = (await buildFeedEntries()).filter((entry) => entry.nsfw);
+  const xml = renderFeedXml(entries, {
+    title: "Jasmeralia Feed (NSFW)",
+    description: "NSFW-only changelog feed: games, reviews, and tier list updates.",
   });
   return new Response(xml, {
     headers: {

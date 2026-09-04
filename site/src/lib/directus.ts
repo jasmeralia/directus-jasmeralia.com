@@ -18,9 +18,19 @@ export type Game = {
   links?: GameLink[] | null;
   player_status?: string | null;
   family_sharing?: boolean | null;
+  nsfw?: boolean | null;
+  genres?: { genres_id?: { nsfw?: boolean | null } | null }[] | null;
   sections?: GameSection[] | null;
   bundle_members?: GameBundleMember[] | null;
 };
+
+export function isGameNsfw(game: {
+  nsfw?: boolean | null;
+  genres?: { genres_id?: { nsfw?: boolean | null } | null }[] | null;
+}): boolean {
+  return game.nsfw === true ||
+    (game.genres ?? []).some((genre) => genre?.genres_id?.nsfw === true);
+}
 
 export function isFamilySharingDisabled(game: { family_sharing?: boolean | null; links?: GameLink[] | null }): boolean {
   const dl = primaryDownloadLink(game.links);
@@ -50,6 +60,8 @@ export type TierListGame = {
     release_year?: number | null;
     links?: GameLink[] | null;
     cover_image?: { id: string; filename_disk: string } | null;
+    nsfw?: boolean | null;
+    genres?: { genres_id?: { nsfw?: boolean | null } | null }[] | null;
   };
 };
 
@@ -59,6 +71,7 @@ export type TierList = {
   slug: string;
   description?: string | null;
   status: "draft" | "published";
+  nsfw?: boolean | null;
   tier_list_games: TierListGame[];
 };
 
@@ -219,7 +232,7 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
   const qs = new URLSearchParams({
     "filter[slug][_eq]": slug,
     "filter[status][_eq]": "published",
-    "fields": "id,title,slug,description,status",
+    "fields": "id,title,slug,description,status,nsfw",
     "limit": "1",
   });
 
@@ -231,6 +244,7 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
     fields: [
       "id", "rating",
       "game_id.id", "game_id.title", "game_id.slug", "game_id.player_status", "game_id.release_year",
+      "game_id.nsfw", "game_id.genres.genres_id.nsfw",
       "game_id.links.id", "game_id.links.url", "game_id.links.kind", "game_id.links.sort",
       "game_id.cover_image.id", "game_id.cover_image.filename_disk",
     ],

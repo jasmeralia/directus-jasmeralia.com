@@ -8,6 +8,7 @@ import { orderedBundleMembers } from "../../lib/game-bundles";
 import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, orderedSections, pluralizeNoun, sectionNoun } from "../../lib/game-sections";
 import { fetchActivity, fetchAllGameGenres, fetchRevisions } from "../../lib/changelog";
 import { compareLabels } from "../../lib/list-format";
+import { isGameNsfw } from "../../lib/nsfw";
 
 export async function getStaticPaths() {
   // Every game page used to independently re-fetch its own game record,
@@ -27,6 +28,7 @@ export async function getStaticPaths() {
     'slug',
     'release_year',
     'family_sharing',
+    'nsfw',
     'player_status',
     'game_status',
     'cover_image.id',
@@ -35,6 +37,7 @@ export async function getStaticPaths() {
     'genres.genres_id.id',
     'genres.genres_id.name',
     'genres.genres_id.slug',
+    'genres.genres_id.nsfw',
     'engines.id',
     'engines.engines_id.id',
     'engines.engines_id.title',
@@ -225,6 +228,7 @@ const includedIn = (game.included_in_bundles ?? [])
   .filter((parent) => parent?.slug && parent?.title)
   .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 const cover = fileUrl(game.cover_image);
+const gameNsfw = isGameNsfw(game);
 const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 const tierLabel = (value) => value === "U" ? "Too Early" : (value ?? "");
 const genres = (game.genres ?? [])
@@ -312,7 +316,7 @@ const coverStackStyle = [
 ].join(";");
 ---
 
-<BaseLayout title={`Games | ${game.title}`} description={synopsis} image={cover}>
+<BaseLayout title={`Games | ${game.title}`} description={synopsis} image={gameNsfw ? null : cover}>
   <div slot="head">
     <style>
       .container { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
@@ -358,6 +362,10 @@ const coverStackStyle = [
       .bundle-member{background:#0b0b0b;border:1px solid #222;border-radius:10px;padding:.75rem;}
       .bundle-member-header{display:flex;gap:.75rem;align-items:center;}
       .bundle-member-cover{width:54px;height:81px;object-fit:contain;background:#000;border-radius:5px;flex-shrink:0;}
+      .bundle-member-cover-wrap{display:block;width:54px;height:81px;border-radius:5px;flex-shrink:0;}
+      .bundle-member-cover-wrap .bundle-member-cover{display:block;}
+      .bundle-member-cover-wrap.nsfw-cover::after{font-size:.55rem;padding:.2rem;}
+      .nsfw-banner{border-color:#7a3030;color:#ffaaaa;margin-bottom:1rem;}
       .bundle-member-info{display:flex;flex-direction:column;gap:.15rem;}
       .bundle-member-title{font-weight:700;}
       .bundle-member-meta{font-size:.85rem;opacity:.72;}
@@ -375,6 +383,8 @@ const coverStackStyle = [
     </style>
   </div>
   <main class="container" data-pagefind-body data-pagefind-filter="type:game">
+      <span data-pagefind-meta="nsfw" style="display:none;">{String(gameNsfw)}</span>
+      {gameNsfw ? <div class="panel nsfw-banner">This game is marked NSFW.</div> : null}
       <section class="header">
         <div class="cover-stack" style={coverStackStyle}>
           <div class="cover-ring-rainbow">
@@ -383,7 +393,7 @@ const coverStackStyle = [
                 <div class="cover-gap-gold">
                   <div class="cover-ring-status">
                     <div class="cover-gap-status">
-                      <div class="cover-card">
+                      <div class={`cover-card${gameNsfw ? " nsfw-cover" : ""}`}>
                         {cover ? <img src={cover} alt={game.title} loading="lazy" data-pagefind-meta="image[src]" /> : null}
                       </div>
                     </div>
@@ -551,12 +561,14 @@ const coverStackStyle = [
                 <article class="bundle-member">
                   <div class="bundle-member-header">
                     {memberCover ? (
-                      <img
-                        class="bundle-member-cover"
-                        src={memberCover}
-                        alt={member.title}
-                        loading="lazy"
-                      />
+                      <span class={gameNsfw ? "nsfw-cover bundle-member-cover-wrap" : "bundle-member-cover-wrap"}>
+                        <img
+                          class="bundle-member-cover"
+                          src={memberCover}
+                          alt={member.title}
+                          loading="lazy"
+                        />
+                      </span>
                     ) : null}
                     <div class="bundle-member-info">
                       <div class="bundle-member-title">
