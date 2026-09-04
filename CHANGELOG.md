@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.180] - 2026-09-04
+- Reviews: label every review's game as SFW or NSFW, with green SFW badges and red NSFW badges.
+- Tier lists: keep NSFW tier-list titles visible, clearly label them in red, and collapse only their potentially sensitive descriptions until NSFW mode is enabled.
+- Navigation: move the NSFW toggle beneath the search bar and remove the search field's focus expansion so the navigation has more room on tablet-sized displays.
+- Filters: move all distribution charts into a dedicated linked section, place the SFW/NSFW chart last, and color its SFW segment green and NSFW segment red.
+- Content: classify the Harem genre as NSFW so its games inherit the NSFW treatment.
+
 ## [1.0.179] - 2026-09-04
 - Site: add a safe-by-default SFW/NSFW mode with a one-year opt-in cookie, navigation toggle, click-to-reveal cover blurring across game surfaces, collapsed NSFW Recent Updates text, and no NSFW cover art in social preview metadata.
 - Content: cascade NSFW classification from games and genres, plus tier lists on their boards. Directus now has `nsfw` flags on `games`, `genres`, and `tier_lists`; AVN, AVNs, Tamer: King of Dinosaurs, and Witch Potions - Craft of Lust are initially flagged.

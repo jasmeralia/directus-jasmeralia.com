@@ -34,6 +34,7 @@ const description = `Browse all ${tiers.length} published tier lists by Jasmeral
       .desc{opacity:.85;margin-top:.4rem;}
       .item a{color:#9aa6ff;}
       .item a:visited{color:#9aa6ff;}
+      .content-rating-badge{background:#5c2020;border:1px solid #8c3535;border-radius:3px;color:#ffb4b4;font-size:.65rem;font-weight:700;margin-left:.4rem;padding:1px 4px;vertical-align:middle;}
     </style>
   </div>
   <main>
@@ -44,7 +45,8 @@ const description = `Browse all ${tiers.length} published tier lists by Jasmeral
         ) : (
           tiers.map((t) => (
             <div class="item">
-              <span class={t.nsfw ? "nsfw-text" : undefined}><a href={`/tiers/${t.slug}/index.html`}>{t.title}</a></span>
+              <a href={`/tiers/${t.slug}/index.html`}>{t.title}</a>
+              {t.nsfw ? <span class="content-rating-badge">NSFW</span> : null}
               <span style="opacity:.7;"> ({countTierEntries(t)})</span>
               {t.updated_at ? (
                 <div class="desc">Updated: {new Date(t.updated_at).toLocaleDateString()}</div>

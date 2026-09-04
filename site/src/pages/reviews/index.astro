@@ -2,9 +2,18 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
+import { isGameNsfw } from "../../lib/nsfw";
 
 const reviews = await directusFetchItems('reviews', {
-  fields: ['id', 'title', 'slug', 'published_at', 'rating'],
+  fields: [
+    'id',
+    'title',
+    'slug',
+    'published_at',
+    'rating',
+    'game.nsfw',
+    'game.genres.genres_id.nsfw',
+  ],
   filter: { status: { _eq: "published" } },
   sort: ['-published_at', 'title'],
   limit: -1,
@@ -20,6 +29,9 @@ const description = `Browse all ${reviews.length} published reviews by Jasmerali
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .content-rating-badge{border:1px solid;border-radius:3px;font-size:.65rem;font-weight:700;margin-left:.4rem;padding:1px 4px;vertical-align:middle;}
+      .content-rating-badge.is-sfw{background:#173d24;border-color:#2f7d46;color:#9ae6ad;}
+      .content-rating-badge.is-nsfw{background:#5c2020;border-color:#8c3535;color:#ffb4b4;}
     </style>
   </div>
   <main>
@@ -29,13 +41,17 @@ const description = `Browse all ${reviews.length} published reviews by Jasmerali
           <p>No reviews yet.</p>
         ) : (
           <ul>
-            {reviews.map((r) => (
-              <li>
-                <a href={`/reviews/${r.slug}/index.html`}>{r.title}</a>
-                {typeof r.rating === "number" ? <span> (Rating: {r.rating}/10)</span> : null}
-                {r.published_at ? <span style="opacity:.6;margin-left:.5rem;">Published: {formatDate(r.published_at)}</span> : null}
+            {reviews.map((review) => {
+              const gameNsfw = isGameNsfw(review.game ?? {});
+              return <li>
+                <a href={`/reviews/${review.slug}/index.html`}>{review.title}</a>
+                <span class={`content-rating-badge ${gameNsfw ? "is-nsfw" : "is-sfw"}`}>
+                  {gameNsfw ? "NSFW" : "SFW"}
+                </span>
+                {typeof review.rating === "number" ? <span> (Rating: {review.rating}/10)</span> : null}
+                {review.published_at ? <span style="opacity:.6;margin-left:.5rem;">Published: {formatDate(review.published_at)}</span> : null}
               </li>
-            ))}
+            })}
           </ul>
         )}
       </div>
