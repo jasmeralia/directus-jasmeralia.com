@@ -26,6 +26,7 @@ const canonicalUrl = `${siteBaseUrl()}${Astro.url.pathname}`;
     <link rel="alternate" type="application/rss+xml" title="Jasmeralia Feed" href="/feed.xml" />
     <link rel="alternate" type="application/rss+xml" title="Jasmeralia Feed (SFW)" href="/feed-sfw.xml" />
     <link rel="alternate" type="application/rss+xml" title="Jasmeralia Feed (NSFW)" href="/feed-nsfw.xml" />
+    <link rel="alternate" type="application/rss+xml" title="Jasmeralia Feed (Completed Games)" href="/feed-completed.xml" />
     <link rel="canonical" href={canonicalUrl} />
     <meta property="og:type" content={type} />
     <meta property="og:site_name" content="Jasmeralia" />
@@ -88,7 +89,7 @@ const canonicalUrl = `${siteBaseUrl()}${Astro.url.pathname}`;
           </svg>
           RSS
         </a>
-        <span class="footer-rss-variants">(<a href="/feed-sfw.xml">SFW</a> / <a href="/feed-nsfw.xml">NSFW</a>)</span>
+        <span class="footer-rss-variants">(<a href="/feed-sfw.xml">SFW</a> / <a href="/feed-nsfw.xml">NSFW</a> / <a href="/feed-completed.xml">Completed</a>)</span>
       </span>
       <span class="footer-meta" id="footer-build"></span>
     </footer>

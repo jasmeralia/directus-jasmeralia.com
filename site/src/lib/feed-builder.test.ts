@@ -12,6 +12,7 @@ describe("renderFeedXml", () => {
       imageUrl: "https://jasmeralia.com/media/example.png",
       guid: "game:example:created:2026-09-04T12:00:00Z",
       nsfw: true,
+      completed: false,
     }];
 
     const xml = renderFeedXml(entries, {
@@ -24,5 +25,6 @@ describe("renderFeedXml", () => {
     expect(xml).toContain('type="image/png"');
     expect(xml).toContain("<guid isPermaLink=\"false\">game:example:created:2026-09-04T12:00:00Z</guid>");
     expect(xml).not.toContain("<nsfw>");
+    expect(xml).not.toContain("<completed>");
   });
 });
