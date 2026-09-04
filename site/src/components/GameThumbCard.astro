@@ -2,7 +2,7 @@
 import { fileUrl, isFamilySharingDisabled } from "../lib/directus";
 import { isGameNsfw } from "../lib/nsfw";
 import { downloadLinks, walkthroughLinks, getLinkMeta } from "../lib/download-link";
-import { bundleProgressSummary } from "../lib/game-bundles";
+import { bundleProgressSummary, effectiveSectionStyle } from "../lib/game-bundles";
 import { sectionProgressSummary } from "../lib/game-sections";
 
 const { game, reviewed = false, sTier = false } = Astro.props;
@@ -55,6 +55,7 @@ const genres = (game?.genres ?? [])
 const engines = (game?.engines ?? [])
   .map((engine) => engine?.engines_id)
   .filter((engine) => engine?.title && engine?.slug);
+const sectionStyle = effectiveSectionStyle(game);
 const bundleProgress = bundleProgressSummary(game);
 const directProgress = sectionProgressSummary(game);
 const progress = bundleProgress ?? (directProgress
@@ -118,8 +119,8 @@ const progress = bundleProgress ?? (directProgress
                     {game.game_status ? (
                       <a class={`tag${game.game_status === "abandoned" ? " tag-abandoned" : game.game_status === "unreleased" ? " tag-unreleased" : ""}`} href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
                     ) : null}
-                    {game.section_style ? (
-                      <a class="tag" href={`/filters/section-style/${game.section_style}/index.html`}>{labelize(game.section_style)}</a>
+                    {sectionStyle ? (
+                      <a class="tag" href={`/filters/section-style/${sectionStyle}/index.html`}>{labelize(sectionStyle)}</a>
                     ) : null}
                     {genres.map((genre) => (
                       <a class="tag" href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>

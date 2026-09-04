@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import bundleMembersFixture from "../test/fixtures/bundle-members.json";
 import {
   bundleProgressSummary,
+  effectiveSectionStyle,
   hasBundleMembers,
   orderedBundleMembers,
   sectionDataState,
@@ -83,6 +84,25 @@ describe("sectionDataState", () => {
       member(1, { section_data_status: "tracked" }),
       member(2, { section_data_status: "not_applicable" }),
     ] })).toBe("present");
+  });
+});
+
+describe("effectiveSectionStyle", () => {
+  it("hides a declared style until real section data backs it up", () => {
+    expect(effectiveSectionStyle({ section_style: "linear", sections: [] })).toBeNull();
+    expect(effectiveSectionStyle({ section_style: null, sections: [{ number: 1, title: "Chapter 1" }] })).toBeNull();
+    expect(effectiveSectionStyle(null)).toBeNull();
+  });
+
+  it("surfaces the declared style once section data is present", () => {
+    expect(effectiveSectionStyle({
+      section_style: "linear",
+      sections: [{ number: 1, title: "Chapter 1" }],
+    })).toBe("linear");
+    expect(effectiveSectionStyle({
+      section_style: "nonlinear",
+      bundle_members: [member(1, { section_data_status: "tracked" })],
+    })).toBe("nonlinear");
   });
 });
 

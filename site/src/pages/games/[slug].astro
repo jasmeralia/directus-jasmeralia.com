@@ -4,7 +4,7 @@ import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/
 import { formatDate } from "../../lib/date";
 import { downloadLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
-import { orderedBundleMembers } from "../../lib/game-bundles";
+import { effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
 import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, orderedSections, pluralizeNoun, sectionNoun } from "../../lib/game-sections";
 import { fetchActivity, fetchAllGameGenres, fetchRevisions } from "../../lib/changelog";
 import { compareLabels } from "../../lib/list-format";
@@ -217,6 +217,7 @@ const synopsis = gameSynopsis(game.title, game.game_status, game.player_status);
 
 const noun = sectionNoun(game.section_noun);
 const current = game.current_section ?? null;
+const sectionStyle = effectiveSectionStyle(game);
 const isNonlinear = game.section_style === "nonlinear";
 const displaySections = isNonlinear ? directGameSectionsByPosition(game.sections) : sections;
 const sectionGroups = isNonlinear ? groupSectionsByCategory(displaySections) : [];
@@ -483,9 +484,9 @@ const coverStackStyle = [
               <strong>Player status:</strong> <a href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
             </li>
           ) : null}
-          {game.section_style ? (
+          {sectionStyle ? (
             <li>
-              <strong>Section style:</strong> <a href={`/filters/section-style/${game.section_style}/index.html`}>{labelize(game.section_style)}</a>
+              <strong>Section style:</strong> <a href={`/filters/section-style/${sectionStyle}/index.html`}>{labelize(sectionStyle)}</a>
             </li>
           ) : null}
           {game.release_year ? (
