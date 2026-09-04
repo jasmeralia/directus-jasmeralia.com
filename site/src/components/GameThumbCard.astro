@@ -103,6 +103,9 @@ const progress = bundleProgress ?? (directProgress
                     </div>
                   ) : null}
                   <div class="tags">
+                    <span class={`tag tag-content-rating ${nsfw ? "tag-nsfw" : "tag-sfw"}`}>
+                      {nsfw ? "NSFW" : "SFW"}
+                    </span>
                     {isFamilySharingDisabled(game) ? (
                       <a class="tag tag-fs-disabled" href="/filters/misc/steam-family-sharing-disabled/index.html">Family Sharing Disabled</a>
                     ) : null}
@@ -163,6 +166,9 @@ const progress = bundleProgress ?? (directProgress
   .platform img{width:.9rem;height:.9rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
   .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:auto;padding-top:.5rem;}
   .tag{font-size:.75rem;padding:.2rem .5rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;opacity:.9;}
+  .tag-content-rating{font-weight:700;}
+  .tag-sfw{background:#173d24;border-color:#2f7d46;color:#9ae6ad;}
+  .tag-nsfw{background:#5c2020;border-color:#8c3535;color:#ffb4b4;}
   .tag-fs-disabled{background:#2a1515;border-color:#5a2020;color:#ff8080;}
   .tag-abandoned{background:#2a1515;border-color:#5a2020;color:#ff8080;}
   .tag-unreleased{background:#0f1f2e;border-color:#1a3d5c;color:#6aabff;}
