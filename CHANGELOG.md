@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.179] - 2026-09-04
+- Site: add a safe-by-default SFW/NSFW mode with a one-year opt-in cookie, navigation toggle, click-to-reveal cover blurring across game surfaces, collapsed NSFW Recent Updates text, and no NSFW cover art in social preview metadata.
+- Content: cascade NSFW classification from games and genres, plus tier lists on their boards. Directus now has `nsfw` flags on `games`, `genres`, and `tier_lists`; AVN, AVNs, Tamer: King of Dinosaurs, and Witch Potions - Craft of Lust are initially flagged.
+- Feeds/Filters: retain the combined `/feed.xml`, add `/feed-sfw.xml` and `/feed-nsfw.xml`, add an SFW/NSFW distribution chart, and add a discoverable "NSFW + Not AVN" game filter.
+- Search: carry NSFW metadata into Pagefind thumbnails so SFW mode blurs them, and HTML-escape dynamic Pagefind result values before inserting result markup.
+- Tooling: add `backfill_nsfw.py` for dry-run-first game, genre, and tier-list flag maintenance.
+
 ## [1.0.178] - 2026-09-04
 - RSS/History: display `section_style` changes as `Section Style` with human-readable `Linear` and `Nonlinear` values instead of exposing raw Directus field and enum names.
 

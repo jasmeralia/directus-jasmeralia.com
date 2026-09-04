@@ -53,19 +53,19 @@ describe("fetchRecentUpdates", () => {
         match: "/revisions?filter[collection][_eq]=reviews",
         data: [
           {
-            item: "published-review",
+            item: "40",
             data: { title: "Published Review", slug: "published-review", status: "published" },
             delta: {},
             activity: { action: "update", timestamp: "2026-08-08T12:00:00Z" },
           },
           {
-            item: "new-review",
+            item: "41",
             data: { title: "New Review", slug: "new-review", status: "draft" },
             delta: { status: "published" },
             activity: { action: "update", timestamp: "2026-08-07T12:00:00Z" },
           },
           {
-            item: "draft-review",
+            item: "42",
             data: { title: "Draft Review", slug: "draft-review", status: "draft" },
             delta: { title: "Draft Review" },
             activity: { action: "update", timestamp: "2026-08-06T12:00:00Z" },
@@ -134,12 +134,26 @@ describe("fetchRecentUpdates", () => {
       },
       {
         match: "/items/games?filter[id][_in]=1,2,3,4,5",
-        data: [{ id: 1, slug: "live-slug" }],
+        data: [
+          { id: 1, slug: "live-slug", genres: [{ genres_id: { nsfw: true } }] },
+          { id: 2, slug: "snapshot-slug", nsfw: false },
+        ],
+      },
+      {
+        match: "/items/reviews?filter[id][_in]=40,41,42",
+        data: [
+          { id: 40, game: { id: 1, nsfw: true } },
+          { id: 41, game: { id: 2, nsfw: false } },
+        ],
+      },
+      {
+        match: "/items/tier_lists?filter[id][_in]=30,31,32",
+        data: [{ id: 30, nsfw: true }],
       },
       {
         match: "/items/game_bundle_members?filter[id][_in]=10,11,12,13",
         data: [
-          { id: 10, title: "First Member", games_id: { title: "Collection", slug: "collection" } },
+          { id: 10, title: "First Member", games_id: { id: 50, title: "Collection", slug: "collection", nsfw: true } },
           { id: 11, title: "Second Member", games_id: { title: "Collection", slug: "collection" } },
           { id: 12, title: "Orphan Member", games_id: null },
           { id: 13, title: "Metadata Member", games_id: { title: "Collection", slug: "collection" } },
@@ -148,7 +162,7 @@ describe("fetchRecentUpdates", () => {
       {
         match: "/items/tier_list_games?filter[id][_in]=20,21,22",
         data: [
-          { id: 20, tier_list_id: { title: "Favorites", slug: "favorites" } },
+          { id: 20, tier_list_id: { title: "Favorites", slug: "favorites", nsfw: true } },
           { id: 21, tier_list_id: { title: "Incomplete", slug: "" } },
           { id: 22, tier_list_id: { title: "Bad Date", slug: "bad-date" } },
         ],
@@ -169,6 +183,14 @@ describe("fetchRecentUpdates", () => {
     ]);
     expect(entries[0].link).toBe("https://assets.test/games/live-slug/index.html");
     expect(entries[1].link).toBe("https://assets.test/games/snapshot-slug/index.html");
+    expect(Object.fromEntries(entries.map(({ subject, nsfw }) => [subject, nsfw]))).toMatchObject({
+      "Added Game": true,
+      "Updated Game": false,
+      "Published Review": true,
+      "New Review": false,
+      "Favorites": true,
+      "Fresh Tier List": true,
+    });
     expect(entries.map(({ subject }) => subject)).not.toContain("Metadata Only");
     expect(entries.map(({ timestamp }) => timestamp.getTime())).toEqual(
       entries.map(({ timestamp }) => timestamp.getTime()).toSorted((a, b) => b - a),

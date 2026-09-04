@@ -5,7 +5,7 @@ import { compareLabels, formatUnknown } from "../../lib/list-format";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 
 const genres = await directusFetchItems("genres", {
-  fields: ["id", "name", "slug"],
+  fields: ["id", "name", "slug", "nsfw"],
   limit: -1,
 });
 const sortedGenres = [...genres].sort((a, b) =>
@@ -127,6 +127,7 @@ const description = "Jasmeralia's list of games by genre.";
       .chart-outer{display:flex;justify-content:center;padding:45px 100px;margin-top:16px;}
       .pie{width:220px;height:220px;overflow:visible;border:1px solid #2b2b2b;border-radius:50%;background:#222;display:block;}
       .li-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px;}
+      .nsfw-badge{background:#5c2020;border:1px solid #8c3535;border-radius:3px;color:#ffb4b4;font-size:.65rem;font-weight:700;margin-left:.35rem;padding:1px 4px;vertical-align:middle;}
     </style>
   </div>
   <main>
@@ -144,6 +145,7 @@ const description = "Jasmeralia's list of games by genre.";
               <li>
                 <span class="li-swatch" style={`background:${genreColorMap.get(genre.slug) ?? '#555'};`}></span>
                 <a href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
+                {genre.nsfw ? <span class="nsfw-badge">NSFW</span> : null}
                 {isSuperset ? (
                   <span style="opacity:.7;"> ({distinctCount} distinct, {totalCount} total)</span>
                 ) : (

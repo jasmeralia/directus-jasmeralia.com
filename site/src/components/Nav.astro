@@ -27,6 +27,7 @@ const links = [
       </>
     ))}
   </nav>
+  <button id="nsfw-mode-toggle" class="nsfw-mode-toggle" type="button" aria-pressed="false">Show NSFW</button>
   <div class="site-nav__search" id="search-container">
     <input
       type="search"
@@ -52,12 +53,31 @@ const links = [
   let pagefind;
   let debounceTimer;
 
+  const nsfwToggle = document.getElementById('nsfw-mode-toggle');
+  if (nsfwToggle) {
+    let nsfwOn = document.documentElement.classList.contains('nsfw-on');
+    const renderNsfwToggle = () => {
+      nsfwToggle.textContent = nsfwOn ? 'Hide NSFW' : 'Show NSFW';
+      nsfwToggle.setAttribute('aria-pressed', String(nsfwOn));
+    };
+    renderNsfwToggle();
+    nsfwToggle.addEventListener('click', () => {
+      nsfwOn = !nsfwOn;
+      document.documentElement.classList.toggle('nsfw-on', nsfwOn);
+      const secure = location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = nsfwOn
+        ? 'nsfw_mode=1; Max-Age=31536000; Path=/; SameSite=Lax' + secure
+        : 'nsfw_mode=1; Max-Age=0; Path=/; SameSite=Lax' + secure;
+      renderNsfwToggle();
+    });
+  }
+
   async function loadPagefind() {
     if (pagefind) return;
     try {
       pagefind = await import('/pagefind/pagefind.js');
     } catch {
-      // Not available in dev mode — search is a build-time feature
+      // Not available in dev mode -- search is a build-time feature
     }
   }
 
@@ -71,6 +91,16 @@ const links = [
     results.innerHTML = html;
     results.hidden = false;
     input.setAttribute('aria-expanded', 'true');
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    })[character]);
   }
 
   async function runSearch() {
@@ -87,11 +117,11 @@ const links = [
     }
 
     const html = top.map((r) => `
-      <a href="${r.url}" class="search-result-item">
+      <a href="${escapeHtml(r.url)}" class="search-result-item">
         ${r.meta?.image
-          ? `<img src="${r.meta.image}" alt="" class="search-result-img" />`
+          ? `<span class="search-result-media${r.meta?.nsfw === 'true' ? ' nsfw-cover' : ''}"><img src="${escapeHtml(r.meta.image)}" alt="" class="search-result-img" /></span>`
           : `<div class="search-result-img search-result-img--placeholder"></div>`}
-        <span class="search-result-title">${r.meta?.title ?? ''}</span>
+        <span class="search-result-title">${escapeHtml(r.meta?.title)}</span>
       </a>
     `).join('');
     showResults(html);
@@ -114,7 +144,7 @@ const links = [
 </script>
 
 <style>
-  /* Nav shell — two-column: links wrap freely, search pinned right */
+  /* Nav shell -- two-column: links wrap freely, search pinned right */
   .site-nav {
     position: sticky;
     top: 0;
@@ -146,12 +176,26 @@ const links = [
     margin: 0 8px;
   }
 
-  /* Search — pinned right, never wraps with the nav links */
+  /* Search -- pinned right, never wraps with the nav links */
   .site-nav__search {
     flex-shrink: 0;
     position: relative;
     padding-top: 3px;
   }
+
+  .nsfw-mode-toggle {
+    background:#1a1a2e;
+    border:1px solid #2a2a3a;
+    border-radius:6px;
+    color:#eaeaea;
+    cursor:pointer;
+    flex-shrink:0;
+    font-size:.8rem;
+    margin-top:3px;
+    padding:5px 9px;
+  }
+
+  .nsfw-mode-toggle[aria-pressed="true"]{border-color:#9aa6ff;color:#cfd4ff;}
 
   .search-input {
     background: #1a1a2e;
@@ -215,6 +259,10 @@ const links = [
     object-fit: cover;
     width: 28px;
   }
+
+  :global(.search-result-media){border-radius:3px;display:block;flex-shrink:0;height:28px;width:28px;}
+  :global(.search-result-media .search-result-img){display:block;}
+  :global(.search-result-media.nsfw-cover::after){content:"NSFW";font-size:.5rem;padding:1px;}
 
   :global(.search-result-img--placeholder) {
     background: #2a2a3a;

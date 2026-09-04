@@ -8,6 +8,7 @@ import {
   type GameLink,
 } from "../lib/download-link";
 import type { WalkthroughKind } from "../lib/walkthrough-link";
+import { isGameNsfw } from "../lib/nsfw";
 
 type WalkthroughEntry = {
   isTextNote: boolean;
@@ -21,6 +22,8 @@ type WalkthroughGame = {
   title: string;
   release_year?: number | null;
   cover_image?: unknown;
+  nsfw?: boolean | null;
+  genres?: { genres_id?: { nsfw?: boolean | null } | null }[] | null;
   links?: GameLink[] | null;
 };
 
@@ -86,7 +89,7 @@ const walkthroughEntries = (game: WalkthroughGame): WalkthroughEntry[] => {
           <a class="game-main" href={gameHref} {...linkAttrs}>
             <span class="game-index">{index + 1}.</span>
             {img
-              ? <img class="game-thumb" src={img} alt={game.title} loading="lazy" />
+              ? <span class={isGameNsfw(game) ? "nsfw-cover game-thumb-wrap" : "game-thumb-wrap"}><img class="game-thumb" src={img} alt={game.title} loading="lazy" /></span>
               : <div class="game-thumb-placeholder" />}
             <div class="game-info">
               <span class="game-title">{game.title}</span>
@@ -127,6 +130,9 @@ const walkthroughEntries = (game: WalkthroughGame): WalkthroughEntry[] => {
   .game-main{display:flex;align-items:center;gap:1rem;text-decoration:none;color:inherit;}
   .game-main:hover .game-title{color:#cfd4ff;}
   .game-thumb{width:56px;height:56px;border-radius:6px;object-fit:cover;background:#1a1a2e;flex-shrink:0;}
+  .game-thumb-wrap{display:block;width:56px;height:56px;border-radius:6px;flex-shrink:0;}
+  .game-thumb-wrap .game-thumb{display:block;}
+  .game-thumb-wrap.nsfw-cover::after{font-size:.55rem;padding:.15rem;}
   .game-thumb-placeholder{width:56px;height:56px;border-radius:6px;background:#1a1a2e;flex-shrink:0;}
   .game-info{display:flex;flex-direction:column;gap:.2rem;min-width:0;}
   .game-title{font-weight:600;color:#eaeaea;}

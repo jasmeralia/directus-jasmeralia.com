@@ -5,6 +5,7 @@ import { getUrlPlatform, downloadLinks, primaryDownloadLink, walkthroughLinks, w
 import { sectionDataState } from "../../lib/game-bundles";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown, compareLabels } from "../../lib/list-format";
+import { hasGenreSlug, isGameNsfw } from "../../lib/nsfw";
 import {
   WALKTHROUGH_KIND_LABEL,
   WALKTHROUGH_KINDS,
@@ -16,7 +17,7 @@ const engines = await directusFetchItems("engines", {
   limit: -1,
 });
 const genres = await directusFetchItems("genres", {
-  fields: ["slug", "name"],
+  fields: ["slug", "name", "nsfw"],
   limit: -1,
 });
 const developers = await directusFetchItems("developers", {
@@ -33,8 +34,10 @@ const games = await directusFetchItems("games", {
     "game_status",
     "player_status",
     "family_sharing",
+    "nsfw",
     "engines.engines_id.slug",
     "genres.genres_id.slug",
+    "genres.genres_id.nsfw",
     "developers.developers_id.slug",
     "links.id",
     "links.url",
@@ -337,8 +340,12 @@ for (const game of games ?? []) {
   }
 }
 
-const hasAvnGenre = (game) =>
-  (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "avn");
+const hasAvnGenre = (game) => hasGenreSlug(game, "avn");
+const nsfwCount = (games ?? []).filter((game) => isGameNsfw(game)).length;
+const sfwCount = (games ?? []).length - nsfwCount;
+const nsfwNotAvnCount = (games ?? []).filter(
+  (game) => isGameNsfw(game) && !hasAvnGenre(game),
+).length;
 const hasGslLink = (game) => (game?.links ?? []).some((l) => l.kind === "gamestorylog");
 const avnMissingGamestorylogCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && !hasGslLink(game),
@@ -413,6 +420,11 @@ const platformPieSegments = [
   { label: formatUnknown("unknown", "Download Platform"), value: unknownPlatformCount, color: "#7fe29a" },
 ].filter((segment) => segment.value > 0);
 const platformPieTotal = platformPieSegments.reduce((sum, segment) => sum + segment.value, 0);
+const nsfwPieSegments = [
+  { label: "SFW", value: sfwCount, color: "#4aa3ff" },
+  { label: "NSFW", value: nsfwCount, color: "#e36b6b" },
+].filter((segment) => segment.value > 0);
+const nsfwPieTotal = nsfwPieSegments.reduce((sum, segment) => sum + segment.value, 0);
 const walkthroughCounts = Object.fromEntries(
   WALKTHROUGH_KINDS.map((k) => [k, 0]),
 ) as Record<WalkthroughKind, number>;
@@ -532,6 +544,16 @@ const walkthroughPieArcs = (() => {
   return walkthroughPieSegments.map((segment) => {
     const start = current;
     const sweep = (segment.value / walkthroughPieTotal) * 360;
+    current += sweep;
+    return { ...segment, start, end: current };
+  });
+})();
+const nsfwPieArcs = (() => {
+  if (!nsfwPieTotal) return [];
+  let current = 0;
+  return nsfwPieSegments.map((segment) => {
+    const start = current;
+    const sweep = (segment.value / nsfwPieTotal) * 360;
     current += sweep;
     return { ...segment, start, end: current };
   });
@@ -702,6 +724,15 @@ const walkthroughLabeledArcs = walkthroughPieArcs
     const pct = walkthroughPieTotal > 0 ? Math.round((seg.value / walkthroughPieTotal) * 100) : 0;
     return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
   });
+const nsfwLabeledArcs = nsfwPieArcs
+  .filter((segment) => segment.end - segment.start >= 8)
+  .map((segment) => {
+    const mid = (segment.start + segment.end) / 2;
+    const pos = polarToCartesian(pieCenter, pieCenter, labelRadius, mid);
+    const anchor = pos.x < pieCenter - 5 ? "end" : pos.x > pieCenter + 5 ? "start" : "middle";
+    const pct = nsfwPieTotal > 0 ? Math.round((segment.value / nsfwPieTotal) * 100) : 0;
+    return { ...segment, lx: pos.x, ly: pos.y, anchor, pct };
+  });
 const miscFilterEntries = [
   { label: "AVN + Has GameStoryLog URL", href: "/filters/misc/avn-with-gamestorylog/index.html", count: avnWithGamestorylogCount },
   { label: "AVN + Harem", href: "/filters/misc/avn-harem/index.html", count: avnHaremCount },
@@ -710,6 +741,7 @@ const miscFilterEntries = [
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
   { label: "AVN + Not Harem", href: "/filters/misc/avn-not-harem/index.html", count: avnNotHaremCount },
   { label: "AVN + Download Platform Steam", href: "/filters/misc/avn-steam/index.html", count: avnSteamCount },
+  { label: "NSFW + Not AVN", href: "/filters/misc/nsfw-not-avn/index.html", count: nsfwNotAvnCount },
   { label: "VN + Missing Engine", href: "/filters/misc/vn-missing-engine/index.html", count: vnMissingEngineCount },
   { label: "VN + RPG", href: "/filters/misc/vn-rpg/index.html", count: vnRpgCount },
   { label: "Download Platform + Epic Games",    href: "/filters/misc/platform/epic/index.html",         count: platformCounts.epic,         exclusiveCount: platformCounts.epicExclusive },
@@ -947,6 +979,34 @@ const miscCount = miscFilterEntries.length;
           </li>
         ))}
       </ul>
+      {nsfwPieSegments.length ? (
+        <div class="pie-grid">
+          <div class="pie-panel">
+            <h3>SFW / NSFW</h3>
+            <div class="pie-wrap">
+              <svg class="pie" viewBox={`0 0 ${pieSize} ${pieSize}`} overflow="visible" role="img" aria-label="SFW and NSFW game distribution">
+                {nsfwPieArcs.length === 1 ? (
+                  <circle cx={pieCenter} cy={pieCenter} r={pieRadius} fill={nsfwPieArcs[0].color}>
+                    <title>{nsfwPieArcs[0].label} ({nsfwPieArcs[0].value})</title>
+                  </circle>
+                ) : (
+                  nsfwPieArcs.map((segment) => (
+                    <path d={describeArc(pieCenter, pieCenter, pieRadius, segment.start, segment.end)} fill={segment.color}>
+                      <title>{segment.label} ({segment.value})</title>
+                    </path>
+                  ))
+                )}
+                {nsfwLabeledArcs.map((segment) => (
+                  <g>
+                    <text x={segment.lx} y={segment.ly - 7} text-anchor={segment.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{segment.label}</text>
+                    <text x={segment.lx} y={segment.ly + 7} text-anchor={segment.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{segment.value} · {segment.pct}%</text>
+                  </g>
+                ))}
+              </svg>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {platformPieSegments.length || platformExclusivePieSegments.length ? (
         <div class="pie-grid">
           {platformPieSegments.length ? (
