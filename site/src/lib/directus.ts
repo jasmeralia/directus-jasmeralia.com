@@ -158,13 +158,45 @@ type FetchItemsParams = {
   limit?: number;
 };
 
+// Directus caps a nested one-to-many relation at 100 rows unless a `deep`
+// `_limit` override is supplied for it. Every `games` query requesting
+// `sections.*` fields needs that override -- a quest-style game can easily
+// exceed 100 rows (e.g. 269 for a single AVN's quest journal), silently
+// truncating the fetched list otherwise. Centralized here instead of in
+// each of the ~40 call sites that request `sections.*` via
+// `GAME_THUMB_FIELDS`/`GAME_FIELDS`, so every one of them is covered
+// automatically rather than requiring each page to remember it.
+function gamesSectionsDeepDefaults(
+  fields: string[] | undefined,
+  explicitDeep: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const deep = { ...(explicitDeep ?? {}) };
+  if (!fields) return deep;
+  if (
+    !("sections" in deep) &&
+    fields.some((field) => field === "sections" || field.startsWith("sections."))
+  ) {
+    deep.sections = { _limit: -1 };
+  }
+  if (
+    !("bundle_members" in deep) &&
+    fields.some((field) => field.startsWith("bundle_members.sections."))
+  ) {
+    deep.bundle_members = { sections: { _limit: -1 } };
+  }
+  return deep;
+}
+
 export async function directusFetchItems<T = Record<string, unknown>>(collection: string, params: FetchItemsParams = {}): Promise<T[]> {
   const qs = new URLSearchParams();
   if (params.fields?.length) qs.set("fields", params.fields.join(","));
   if (params.sort?.length) qs.set("sort", params.sort.join(","));
   if (typeof params.limit === "number") qs.set("limit", String(params.limit));
   if (params.filter) appendParams(qs, "filter", params.filter);
-  if (params.deep) appendParams(qs, "deep", params.deep);
+  const deep = collection === "games"
+    ? gamesSectionsDeepDefaults(params.fields, params.deep)
+    : params.deep;
+  if (deep && Object.keys(deep).length) appendParams(qs, "deep", deep);
 
   const suffix = qs.toString();
   const path = suffix ? `/items/${collection}?${suffix}` : `/items/${collection}`;

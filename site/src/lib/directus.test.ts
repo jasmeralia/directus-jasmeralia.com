@@ -130,6 +130,41 @@ describe("Directus fetch helpers", () => {
     expect(url.searchParams.get("deep[links][_filter][kind][_eq]")).toBe("download");
   });
 
+  it("auto-lifts the default 100-row cap on games.sections", async () => {
+    const fetchMock = mockDirectusFetch([{ match: "/items/games?", data: [] }]);
+
+    await directusFetchItems("games", {
+      fields: ["id", "sections.id", "sections.title"],
+    });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("deep[sections][_limit]")).toBe("-1");
+  });
+
+  it("auto-lifts the default 100-row cap on bundle_members.sections", async () => {
+    const fetchMock = mockDirectusFetch([{ match: "/items/games?", data: [] }]);
+
+    await directusFetchItems("games", {
+      fields: ["id", "bundle_members.id", "bundle_members.sections.id"],
+    });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("deep[bundle_members][sections][_limit]")).toBe("-1");
+  });
+
+  it("does not add a sections deep default for non-games collections or explicit overrides", async () => {
+    const noSections = mockDirectusFetch([{ match: "/items/reviews?", data: [] }]);
+    await directusFetchItems("reviews", { fields: ["id", "sections.id"] });
+    expect(new URL(String(noSections.mock.calls[0][0])).searchParams.has("deep[sections][_limit]")).toBe(false);
+
+    const explicit = mockDirectusFetch([{ match: "/items/games?", data: [] }]);
+    await directusFetchItems("games", {
+      fields: ["id", "sections.id"],
+      deep: { sections: { _limit: 5 } },
+    });
+    expect(new URL(String(explicit.mock.calls[0][0])).searchParams.get("deep[sections][_limit]")).toBe("5");
+  });
+
   it("sends the configured authorization header", async () => {
     vi.stubEnv("DIRECTUS_TOKEN", "header-token");
     const fetchMock = mockDirectusFetch([{ match: "/items/games", data: [] }]);
