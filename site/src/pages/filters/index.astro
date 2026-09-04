@@ -343,6 +343,10 @@ for (const game of games ?? []) {
 const hasAvnGenre = (game) => hasGenreSlug(game, "avn");
 const nsfwCount = (games ?? []).filter((game) => isGameNsfw(game)).length;
 const sfwCount = (games ?? []).length - nsfwCount;
+const contentRatingEntries = [
+  { rating: "sfw", label: "SFW", count: sfwCount },
+  { rating: "nsfw", label: "NSFW", count: nsfwCount },
+];
 const nsfwNotAvnCount = (games ?? []).filter(
   (game) => isGameNsfw(game) && !hasAvnGenre(game),
 ).length;
@@ -814,6 +818,7 @@ const chartCount = [
     <div class="panel">
       <h2>Jump to Section</h2>
       <ul>
+        <li><a href="#content-rating">Content Rating ({contentRatingEntries.length})</a></li>
         <li><a href="#developer-game-status">Developer + Game Status ({developerStatusEntries.length})</a></li>
         <li><a href="#developer-played-status">Developer + Played Status ({developerPlayedEntries.length})</a></li>
         <li><a href="#engine-game-status">Engine + Game Status ({engineStatusEntries.length})</a></li>
@@ -825,6 +830,18 @@ const chartCount = [
         <li><a href="#misc">Misc ({miscCount})</a></li>
         <li><a href="#charts">Charts ({chartCount})</a></li>
       </ul>
+    </div>
+    <div class="panel" id="content-rating">
+      <h2>Content Rating ({contentRatingEntries.length} filters)</h2>
+      <ul>
+        {contentRatingEntries.map((entry) => (
+          <li>
+            <a href={`/filters/content-rating/${entry.rating}/index.html`}>{entry.label}</a>
+            <span style="opacity:.7;"> ({entry.count})</span>
+          </li>
+        ))}
+      </ul>
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="developer-game-status">
       <h2>Developer + Game Status ({developerStatusEntries.length} combinations)</h2>

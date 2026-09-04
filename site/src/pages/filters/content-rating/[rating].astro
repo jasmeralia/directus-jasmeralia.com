@@ -1,0 +1,80 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import CsvHeader from "../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../components/ThumbnailBorderLegend.astro";
+import GameThumbCard from "../../../components/GameThumbCard.astro";
+import { directusFetchItems, getReviewedGameIds, getSTierGameIds } from "../../../lib/directus";
+import { csvDataUri, gamesToCsv } from "../../../lib/csv";
+import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
+import { sortByTitle } from "../../../lib/list-format";
+import { isGameNsfw } from "../../../lib/nsfw";
+
+const ratingMeta = {
+  sfw: {
+    label: "SFW",
+    description: "Games not classified as NSFW by their game or genre flags.",
+  },
+  nsfw: {
+    label: "NSFW",
+    description: "Games classified as NSFW by their game or genre flags.",
+  },
+};
+
+export async function getStaticPaths() {
+  return ["sfw", "nsfw"].map((rating) => ({ params: { rating } }));
+}
+
+const { rating } = Astro.params;
+if (!rating || !(rating in ratingMeta)) {
+  throw new Error(`Unsupported content rating filter: ${rating}`);
+}
+const meta = ratingMeta[rating as keyof typeof ratingMeta];
+const wantNsfw = rating === "nsfw";
+
+const games = sortByTitle(await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  limit: -1,
+}));
+const filteredGames = games.filter((game) => isGameNsfw(game) === wantNsfw);
+const gameIds = filteredGames
+  .map((game) => game.id)
+  .filter((id) => typeof id === "number");
+const [reviewedGameIds, sTierGameIds] = await Promise.all([
+  getReviewedGameIds(gameIds),
+  getSTierGameIds(gameIds),
+]);
+const csvName = `content-rating-${rating}.csv`;
+const csvHref = csvDataUri(gamesToCsv(filteredGames));
+---
+
+<BaseLayout title={`Filters | Content Rating + ${meta.label}`}>
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <CsvHeader title={`Content Rating + ${meta.label}`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <p>{meta.description}</p>
+    </div>
+    <ThumbnailBorderLegend />
+    {filteredGames.length === 0 ? (
+      <p>No {meta.label} games found.</p>
+    ) : (
+      <div class="grid">
+        {filteredGames.map((game) => (
+          <GameThumbCard
+            game={game}
+            reviewed={reviewedGameIds.has(game.id)}
+            sTier={sTierGameIds.has(game.id)}
+          />
+        ))}
+      </div>
+    )}
+  </main>
+</BaseLayout>

@@ -103,9 +103,12 @@ const progress = bundleProgress ?? (directProgress
                     </div>
                   ) : null}
                   <div class="tags">
-                    <span class={`tag tag-content-rating ${nsfw ? "tag-nsfw" : "tag-sfw"}`}>
+                    <a
+                      class={`tag tag-content-rating ${nsfw ? "tag-nsfw" : "tag-sfw"}`}
+                      href={`/filters/content-rating/${nsfw ? "nsfw" : "sfw"}/index.html`}
+                    >
                       {nsfw ? "NSFW" : "SFW"}
-                    </span>
+                    </a>
                     {isFamilySharingDisabled(game) ? (
                       <a class="tag tag-fs-disabled" href="/filters/misc/steam-family-sharing-disabled/index.html">Family Sharing Disabled</a>
                     ) : null}
