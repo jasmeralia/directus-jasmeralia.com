@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.182] - 2026-09-04
+- Game cards: link the green SFW and red NSFW classification tags to comprehensive content-rating filter pages.
+- Filters: add discoverable SFW and NSFW game filters, including counts, CSV exports, and a Content Rating section on the filters index.
+
 ## [1.0.181] - 2026-09-04
 - Game cards: show every game's effective content classification as the first card tag, with SFW in green and NSFW in red across all grids that use the shared card component.
 - Guides: label every game entry as green SFW or red NSFW while retaining the existing NSFW thumbnail blur.
