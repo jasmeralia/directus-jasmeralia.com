@@ -268,7 +268,10 @@ def upsert_game_sections(
                 "Direct parent sections are not allowed when bundle members exist"
             )
         metadata_path = f"/items/games/{game_id}"
-        metadata_update: dict[str, Any] = {"section_noun": normalized_noun}
+        metadata_update: dict[str, Any] = {
+            "section_noun": normalized_noun,
+            "section_style": "linear",
+        }
         section_filter = {
             "games_id": {"_eq": game_id},
             "bundle_member_id": {"_null": True},
