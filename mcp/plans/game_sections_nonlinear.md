@@ -101,13 +101,14 @@ batch-edit feature.
      baseline, deterministic path. Covers any game where Morgan can get the
      in-game journal into a text file, by copy-paste or otherwise; this is
      how `things_to_do_quests.txt` itself was produced.
-  2. **Local Ren'Py source extraction** (Phase 2.3, investigative/best-effort)
-     — for locally installed, unencrypted Ren'Py AVNs, attempt to read the
-     journal text directly out of the game's own `.rpy`/`.rpyc` source so
-     Morgan doesn't have to hand-copy it. Not guaranteed to generalize
-     (journal implementations vary per dev), so it's a spike, not a
-     committed deliverable, and it always feeds the same `--from-txt`
-     convention rather than a separate write path.
+  2. **Local Ren'Py source extraction, LLM-driven** (Phase 2.3, deferred
+     future direction, not built) — investigated a deterministic parser and
+     rejected it: implementations vary too much per dev to regex reliably
+     (confirmed by extracting *A House in the Rift* with `unrpa`). If ever
+     built, this should be an LLM skill that reasons from a few example
+     strings to the source pattern, not a scripted parser, and it would
+     still always feed the same `--from-txt` convention rather than a
+     separate write path.
   3. **WebSearch-driven skill** (Phase 3, new) — for non-Ren'Py or
      non-extractable quest-based games (AAA/mainstream open-world and
      sandbox RPGs are the primary case), mirroring `game-sections-lookup`'s
@@ -295,48 +296,51 @@ grant is field-scoped rather than `*`.
 
 Run `make lint-python` before committing, matching the base plan.
 
-### 2.3 `mcp/scripts/extract_renpy_quest_journal.py` (investigative, best-effort)
+### 2.3 Ren'Py local extraction — decided against a deterministic script
 
-**Spike, not a committed deliverable.** Many hobbyist Ren'Py AVNs — including
-ones already in the library — ship unencrypted `.rpy` source (or `.rpyc`
-bytecode that existing local tooling can decompile; see
-`reference_gsl_and_local_save_scripts` for the precedent of reading local
-Ren'Py installs directly). Where that's true, the journal/quest-list text is
-usually a Python dict or list literal in the game's own script
-(`journal_entries`, `quests`, `things_to_do`, or similar), which means it can
-often be extracted automatically instead of Morgan hand-copying it out of
-the in-game menu.
+**Investigated, not built.** `unrpa` is installed locally and *A House in
+the Rift* ships plain unencrypted `.rpy` source inside `scripts.rpa` (no
+`unrpyc` decompile step needed) — confirmed by extracting it directly:
+each quest is a `class XQuest(Quest): __init__` with a clean, regexable
+`name = _("...")` title field, and `scripts/engine/quests/quest_id_list.rpy`
+groups quest IDs under `#region <category>` blocks that are close to (but
+not identical to — the ID list has 9 regions where the in-game journal
+shows 8, with two apparently folded into "Group, Seasonal, and
+Miscellaneous" by UI code that wasn't easily located) the journal's actual
+category display.
 
-- Input: a path to the game's install directory (e.g.
-  `/mnt/thor-hdd/GamesLinux/AVNs/<Game>/`).
-- If `game/*.rpy` is present unobfuscated, grep/parse for string literals
-  attached to a variable name matching `/journal|quest|todo|things_to_do/i`,
-  preserving whatever category grouping the source expresses (nested dict
-  keyed by category, or a list of `(category, title)` tuples).
-- If only `.rpyc` is present, decompile via `unrpyc` first, then the same
-  pass.
-- Output: reconstructs a `.txt` file in the exact convention Phase 2.1's
-  parser already expects (category headers, blank-line-separated blocks) —
-  **feeds the existing `--from-txt` path unchanged rather than becoming a
-  second write path.**
-- **Never auto-writes to Directus.** Because journal implementations vary
-  per developer and Ren'Py version, this script only ever prints what it
-  found for Morgan to sanity-check against the actual in-game journal before
-  manually running `populate_game_quests.py --from-txt` on the result. If
-  extraction finds nothing recognizable, the fallback is the fully manual
-  path from 2.2 — exactly how `things_to_do_quests.txt` was produced.
-- **Validate against *A House in the Rift*'s own `game/` source first**
-  during Phase 6 smoke test. Only invest further (generalizing the pattern
-  matching to more titles) if it works cleanly there; if it doesn't
-  generalize, the manual path alone is sufficient and this script can be
-  dropped without blocking anything else in this plan.
+**Decision: do not build a deterministic Python parser for this.** The
+exact convention (class-based quests, `name = _(...)`, region-delimited ID
+list, which categories get merged where) is specific to this one game/dev
+and would need re-discovering per title — a regex-based extractor tuned to
+one game's source layout is exactly the kind of fragile, unmaintainable
+one-off this repo's "no bespoke per-source parsing" instincts (see the
+`resolve_targets`/shared-CLI-helper consolidation elsewhere in this plan)
+argue against. LLM search-and-reason over `unrpa`-extracted source — given
+a few example quest title strings, find where they live, infer the
+surrounding pattern, and produce the same `--from-txt`-shaped output — is a
+much better fit for that variability than scripted parsing.
+
+**Future direction (not scoped or built now):** a Claude Code skill that,
+given a game's install path and a handful of example quest/journal strings
+Morgan already knows are in the game, extracts the relevant `.rpa`
+archive(s) with `unrpa`, greps/reads around those example strings to find
+the enclosing pattern, and reasons out the full category+title list from
+there — always producing the same `.txt` convention Phase 2.2's parser
+already expects, never writing to Directus directly. This is deliberately
+deferred: the fully manual path (Morgan copies the in-game journal text,
+`populate_game_quests.py --from-txt`) already covers every case with zero
+extra tooling, so this is a nice-to-have for when hand-copying becomes a
+real bottleneck, not a blocker for anything in this plan.
 
 ---
 
 ## Phase 3: WebSearch-driven skill for non-extractable games
 
 For quest-based games with no local, parseable source — the common case for
-AAA and mainstream titles, and any AVN where Phase 2.3 doesn't pan out.
+AAA and mainstream titles, and (until/unless a Phase 2.3 skill materializes)
+every AVN too, since the manual `--from-txt` path is the only shipped
+Ren'Py-specific option today.
 Sibling to `.claude/skills/game-sections-lookup/`, reusing its WebSearch-only
 sourcing constraint (`WebFetch` is confirmed blocked on IGN/Fandom/GameFAQs/
 StrategyWiki) and its "never fabricate" posture — but the bar being checked
@@ -541,12 +545,13 @@ lintfix && make lint` first.
    Seasonal, and Misc`) and total quest count matches a manual line count.
    Then apply for real (no `--dry-run`). Confirm `games.section_style =
    "nonlinear"` and `games.section_noun = "Quest"`.
-2. **Ren'Py extraction spike (Phase 2.3):** try `extract_renpy_quest_journal.py`
-   against *A House in the Rift*'s own `game/` source and compare its output
-   to the hand-copied `things_to_do_quests.txt` used in step 1. If it
-   reproduces the same categories/titles, it's validated for at least this
-   title; if the source doesn't match the expected pattern, drop it without
-   blocking anything else here — the manual path already covers this game.
+2. **Ren'Py extraction investigation (Phase 2.3):** confirmed `unrpa` can
+   extract *A House in the Rift*'s plain `.rpy` source with no decompile
+   step, and that per-quest titles/categories are recoverable from it — but
+   decided against building a deterministic parser for it (see Phase 2.3's
+   final writeup: too dev-specific to regex reliably, better suited to an
+   LLM-driven skill if ever built). No script shipped from this step; the
+   manual path from step 1 remains the only Ren'Py-specific option.
 3. **WebSearch skill (Phase 3):** run `game-quests-lookup` against 1-2
    AAA/mainstream quest-based games that have no local source to extract
    from. Confirm a deliberately obscure/optional-content case lands in
@@ -580,7 +585,6 @@ lintfix && make lint` first.
 | `games.section_style` + `game_sections.category`/`completed`/`is_ending` + 2 partial unique indexes | Directus schema (Phase 1, gated) | Discriminator, quest grouping, completion tracking, single-ending invariant |
 | `mcp/scripts/game_sections_lib.py` (edited) | Code | `parse_quest_journal_txt`, `upsert_quest_sections` |
 | `mcp/scripts/populate_game_quests.py` | New CLI | `--from-txt`/`--from-json`/`--list-targets` quest population |
-| `mcp/scripts/extract_renpy_quest_journal.py` | New CLI (investigative) | Best-effort local Ren'Py journal extraction, feeds `--from-txt` |
 | `.claude/skills/game-quests-lookup/SKILL.md` | New skill | WebSearch-driven quest list lookup for non-extractable games |
 | `mcp/cache/game_quests_needs_manual.json` | Cache (gitignored) | Games the skill couldn't find a credible named quest list for |
 | `site/src/lib/game-fields.ts` (edited) | Site | Add `section_style`/`sections.completed` to `GAME_THUMB_FIELDS` so all ~35 card-consuming pages pick up nonlinear progress and the tag automatically |
