@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.177] - 2026-09-03
+- Site: fix Directus's default 100-row cap silently truncating `games.sections` on any game with more than 100 chapters/quests, discovered live on *A House in the Rift*'s 269-quest journal (only the first 100 rendered). `directusFetchItems` now auto-adds a `deep[sections][_limit]=-1` override (and the `bundle_members.sections` equivalent) whenever a `games` query requests those fields, covering all ~40 existing call sites without editing each one.
+
 ## [1.0.176] - 2026-09-03
 - Site: add nonlinear (quest/mission) section tracking alongside the existing linear chapter/act/episode model. Games with `section_style=nonlinear` show a category-grouped quest list on their detail page (progress reported as completed/total instead of "currently on chapter N"), and a `Linear`/`Nonlinear` tag now appears on game cards everywhere, linking to new `/section_styles/linear/` and `/section_styles/nonlinear/` filter pages. Also fixed the `Family Sharing Disabled` card tag, which was inert text unlike every other tag in that row - it now links to its existing filter page like an engine or genre tag does.
 - Backend: add `mcp/scripts/populate_game_quests.py` for deterministic quest-journal-text population (`--from-txt`, matching the ALL-CAPS-category-header convention used by AVN in-game journal exports) and a `game-quests-lookup` Claude Code skill for WebSearch-sourced quest lists on games with no local journal to parse. Both share a write path (`game_sections_lib.upsert_quest_sections`) that always requires `--replace` for existing rows, since a quest list has no stable per-row identity to upsert against.
