@@ -11,7 +11,7 @@ marked.use({
         const match = /^\|\|([^|]+?)\|\|/.exec(src);
         if (match) return { type: "spoiler", raw: match[0], text: match[1] };
       },
-      renderer(token: { text: string }) {
+      renderer(token: Tokens.Generic) {
         return `<span class="spoiler">${token.text}</span>`;
       },
     },

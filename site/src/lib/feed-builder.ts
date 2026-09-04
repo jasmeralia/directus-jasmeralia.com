@@ -150,6 +150,7 @@ export type FeedEntry = {
   imageUrl?: string;
   guid: string;
   nsfw: boolean;
+  completed: boolean;
 };
 
 type Entry = FeedEntry;
@@ -181,6 +182,7 @@ function buildGameEntry(
       imageUrl: imgUrl,
       guid: rssGuid("game", slug, "created", date, `game revision ${rev.id}`),
       nsfw: isGameNsfw(gameItem ?? {}),
+      completed: data.player_status === "completed",
     };
   }
 
@@ -195,6 +197,7 @@ function buildGameEntry(
     imageUrl: imgUrl,
     guid: rssGuid("game", slug, gameGuidEvent(rev), date, `game revision ${rev.id}`),
     nsfw: isGameNsfw(gameItem ?? {}),
+    completed: rev.delta?.player_status === "completed",
   };
 }
 
@@ -230,6 +233,7 @@ function buildReviewEntry(
       imageUrl: imgUrl,
       guid: rssGuid("review", slug, "published", date, `review revision ${rev.id}`),
       nsfw: isGameNsfw(reviewGame ?? {}),
+      completed: false,
     };
   }
 
@@ -244,6 +248,7 @@ function buildReviewEntry(
     imageUrl: imgUrl,
     guid: rssGuid("review", slug, "updated", date, `review revision ${rev.id}`),
     nsfw: isGameNsfw(reviewGame ?? {}),
+    completed: false,
   };
 }
 
@@ -267,6 +272,7 @@ function buildTierListEntry(rev: Revision, tierListItem: DirectusRecord | null):
       pubDate: date,
       guid: rssGuid("tier-list", slug, "published", date, `tier list revision ${rev.id}`),
       nsfw: isTierListNsfw(tierListItem ?? data),
+      completed: false,
     };
   }
 
@@ -280,6 +286,7 @@ function buildTierListEntry(rev: Revision, tierListItem: DirectusRecord | null):
     pubDate: date,
     guid: rssGuid("tier-list", slug, "updated", date, `tier list revision ${rev.id}`),
     nsfw: isTierListNsfw(tierListItem ?? data),
+    completed: false,
   };
 }
 
@@ -318,6 +325,7 @@ function buildTierListGameEntries(
       pubDate: date,
       guid: rssGuid("tier-list", tierSlug, "game_added", date, `tier list game activity ${resolved[0].act.id}`),
       nsfw: isTierBoardEntryNsfw(game, tierList),
+      completed: false,
     }];
   }
 
@@ -330,6 +338,7 @@ function buildTierListGameEntries(
     pubDate: date,
     guid: rssGuid("tier-list", tierSlug, "games_added", date, `tier list game activity batch ${tierList.id}`),
     nsfw: isTierListNsfw(tierList) || resolved.some(({ game }) => isGameNsfw(game)),
+    completed: false,
   }];
 }
 
@@ -355,6 +364,7 @@ function buildGameLinkEntry(
     imageUrl: imgUrl,
     guid: rssGuid("game", slug, `link_${act.action}_${kind}_${act.id}`, date, `games_link activity ${act.id}`),
     nsfw: isGameNsfw(gameItem),
+    completed: false,
   };
 }
 
@@ -434,6 +444,11 @@ function buildBundleMemberEntry(
       `game_bundle_members revision ${rev.id}`,
     ),
     nsfw: isGameNsfw(gameItem),
+    completed: isDelete
+      ? false
+      : isCreate
+        ? data.player_status === "completed"
+        : rev.delta?.player_status === "completed",
   };
 }
 
