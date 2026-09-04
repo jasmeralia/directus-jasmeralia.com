@@ -28,6 +28,8 @@ describe("changelog value formatting", () => {
     expect(humanVal("release_year", 2024)).toBe("2024");
     expect(humanVal("release_year", null)).toBe(emptyValue);
     expect(humanVal("cover_image", "file-id")).toBe("[image]");
+    expect(humanVal("section_style", "linear")).toBe("Linear");
+    expect(humanVal("section_style", "nonlinear")).toBe("Nonlinear");
   });
 
   it("formats deltas with and without previous values", () => {
@@ -38,6 +40,15 @@ describe("changelog value formatting", () => {
 
     expect(result).toContain(`**Play Status**: In Progress ${deltaArrow} Completed`);
     expect(result).toContain("**Year**: 2024");
+  });
+
+  it("formats section style changes with human-readable labels", () => {
+    expect(
+      fmtDelta(
+        { section_style: "nonlinear" },
+        { section_style: "linear" },
+      ),
+    ).toBe(`**Section Style**: Linear ${deltaArrow} Nonlinear`);
   });
 
   it("formats current_section changes with the game's section noun", () => {

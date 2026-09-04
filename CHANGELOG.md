@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.178] - 2026-09-04
+- RSS/History: display `section_style` changes as `Section Style` with human-readable `Linear` and `Nonlinear` values instead of exposing raw Directus field and enum names.
+
 ## [1.0.177] - 2026-09-03
 - Site: fix Directus's default 100-row cap silently truncating `games.sections` on any game with more than 100 chapters/quests, discovered live on *A House in the Rift*'s 269-quest journal (only the first 100 rendered). `directusFetchItems` now auto-adds a `deep[sections][_limit]=-1` override (and the `bundle_members.sections` equivalent) whenever a `games` query requests those fields, covering all ~40 existing call sites without editing each one.
 

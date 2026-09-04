@@ -20,6 +20,7 @@ export const FIELD_LABEL: Record<string, string> = {
   game_status: "Release Status",
   family_sharing: "Family Sharing",
   section_data_status: "Section Data",
+  section_style: "Section Style",
   section_noun: "Section Noun",
   cover_image: "Cover Image",
   status: "Status",
@@ -43,6 +44,8 @@ export const ENUM_LABEL: Record<string, string> = {
   unknown: "Unknown",
   not_applicable: "Not Applicable",
   tracked: "Tracked",
+  linear: "Linear",
+  nonlinear: "Nonlinear",
 };
 
 // ─── value formatting ─────────────────────────────────────────────────────────
