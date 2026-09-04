@@ -3,6 +3,7 @@ name: game-quests-lookup
 description: Look up per-game quest/mission lists for nonlinear games via WebSearch and record them in Directus (game_sections, section_style=nonlinear), then trigger a site rebuild. Accepts a player_status, a single slug/title, a genre, a tier list, or a raw Directus filter. For AVNs with a local, parseable in-game journal export, prefer populate_game_quests.py --from-txt directly instead of this skill.
 allowed-tools:
   - WebSearch
+  - WebFetch
   - Bash
   - Read
 ---
@@ -28,7 +29,8 @@ Only fall back to this skill when that path is not available.
 ## Safety Rules
 
 - Make no schema changes. Do not create, alter, or delete Directus collections, fields, relations, or permissions.
-- Use WebSearch as the only lookup mechanism. Do not use WebFetch or depend on fetching a specific wiki page -- WebFetch is confirmed blocked on IGN, Fandom, GameFAQs, and StrategyWiki.
+- Use WebSearch to find a candidate source page, then WebFetch it to pull the actual named list -- unlike the linear `game-sections-lookup` skill (which only ever needs a single corroborated number, so WebSearch snippets suffice), this skill needs complete, accurately-ordered lists that can run into the hundreds of entries, which snippets alone cannot reliably provide. WebFetch is confirmed blocked on IGN, Fandom, GameFAQs, and StrategyWiki -- if a fetch on one of those (or any host) comes back looking like a login/paywall page rather than real content, treat WebSearch snippets as the fallback for that source and try a different one rather than trusting a blocked fetch. Fextralife wikis are confirmed working (verified on `cyberpunk2077.wiki.fextralife.com`) and are a good first choice when a game has one.
+- When WebFetch returns a list, sanity-check it before treating it as source-of-truth: watch for entries that look like two titles compressed into one by the summarizer (e.g. a comma joining two title-cased phrases where nothing else in the list has an internal comma) and re-fetch with a stricter "one title per line, verbatim, no merging or reformatting" prompt if the first pass looks suspect.
 - Never use `mcp__directus__*` for writes. Send all game and `game_sections` writes through `mcp/scripts/populate_game_quests.py`, which uses `scriptlib.DirectusClient`.
 - Never guess or fabricate a quest title, and never invent a category grouping the source doesn't actually have.
 - Never set `completed` or `is_ending`. Those are owner-knowledge, set by hand in the Directus admin -- this skill only ever populates structure.
@@ -59,14 +61,22 @@ Read `mcp/cache/game_quests_lookup.json` when it exists. Treat it as a JSON
 object keyed by slug and reuse a cached finding before searching. Update the
 file after each game so the run is resumable.
 
-Use 1-2 WebSearch queries per uncached game. Start with:
+Use 1-2 WebSearch queries per uncached game to find candidate source pages.
+Start with:
 
 - `"<title>" quest list`
 - `"<title>" side quests wiki`
 - `"<title>" missions`
 
-Detect the noun the game uses, such as Quest, Mission, Case, or Contract.
-Default the noun to `Quest` only when no better noun appears.
+Then WebFetch the most promising result(s) (the game's own in-game journal
+category structure, if known, is a good guide for which pages to fetch --
+e.g. a "Main Quests" page, a "Side Quests" page, a "Missions" page) to pull
+the actual named, ordered list per the Safety Rules above. Fetch each
+relevant category page separately rather than trying to get everything from
+one page.
+
+Detect the noun the game uses, such as Quest, Mission, Case, Job, or
+Contract. Default the noun to `Quest` only when no better noun appears.
 
 ## Mandatory Correctness Gate
 
