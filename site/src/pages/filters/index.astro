@@ -2,7 +2,9 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
 import { getUrlPlatform, downloadLinks, primaryDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
-import { effectiveSectionStyle, sectionDataState } from "../../lib/game-bundles";
+import { bundleProgressSummary, effectiveSectionStyle, sectionDataState } from "../../lib/game-bundles";
+import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
+import { sectionProgressSummary } from "../../lib/game-sections";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown, compareLabels } from "../../lib/list-format";
 import { hasGenreSlug, isGameNsfw } from "../../lib/nsfw";
@@ -659,6 +661,14 @@ const familySharingDisabledCount = (games ?? []).filter((game) => isFamilySharin
 const omnibusGamesCount = (games ?? []).filter(
   (game) => (game.bundle_members ?? []).length > 0,
 ).length;
+const progressGames = await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  limit: -1,
+});
+const partialProgressCount = (progressGames ?? []).filter((game) => {
+  const percent = (bundleProgressSummary(game) ?? sectionProgressSummary(game))?.percent;
+  return typeof percent === "number" && percent > 0 && percent < 100;
+}).length;
 const coverArtGames = await directusFetchItems("games", {
   fields: ["id", "cover_image.width", "cover_image.height"],
   filter: { cover_image: { _nnull: true } },
@@ -775,6 +785,7 @@ const miscFilterEntries = [
   { label: "Developer Links + Website", href: "/filters/misc/developer-links/website/index.html", count: devLinkKindCounts.website },
   { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Omnibus Games", href: "/filters/misc/omnibus-games/index.html", count: omnibusGamesCount },
+  { label: "Progress - Partial (By Percent)", href: "/filters/misc/partial-progress/index.html", count: partialProgressCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
   ...walkthroughFilterEntries.map((entry) => ({
     label: `Walkthrough URL + ${entry.label}`,

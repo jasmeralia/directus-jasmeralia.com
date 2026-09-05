@@ -1,0 +1,66 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import CsvHeader from "../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../components/ThumbnailBorderLegend.astro";
+import GameThumbCard from "../../../components/GameThumbCard.astro";
+import { directusFetchItems, getReviewedGameIds, getSTierGameIds } from "../../../lib/directus";
+import { csvDataUri, gamesToCsv } from "../../../lib/csv";
+import { bundleProgressSummary } from "../../../lib/game-bundles";
+import { sectionProgressSummary } from "../../../lib/game-sections";
+import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
+import { compareLabels } from "../../../lib/list-format";
+
+const allGames = await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  limit: -1,
+});
+
+const gamesWithPercent = (allGames ?? [])
+  .map((game) => {
+    const progress = bundleProgressSummary(game) ?? sectionProgressSummary(game);
+    return { game, percent: progress?.percent ?? null };
+  })
+  .filter((entry) => typeof entry.percent === "number" && entry.percent > 0 && entry.percent < 100)
+  .sort((a, b) => b.percent - a.percent || compareLabels(a.game.title, b.game.title));
+
+const filteredGames = gamesWithPercent.map((entry) => entry.game);
+
+const gameIds = filteredGames.map((game) => game.id).filter((id) => typeof id === "number");
+const [reviewedGameIds, sTierGameIds] = await Promise.all([
+  getReviewedGameIds(gameIds),
+  getSTierGameIds(gameIds),
+]);
+
+const csvName = "partial-progress.csv";
+const csvHref = csvDataUri(gamesToCsv(filteredGames));
+---
+
+<BaseLayout title="Filters | Progress - Partial (By Percent)">
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <CsvHeader title="Progress - Partial (By Percent)" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <p>Games with a tracked progress percentage above 0% and below 100%, sorted by percent complete (highest first).</p>
+    </div>
+    <ThumbnailBorderLegend />
+    {filteredGames.length === 0 ? (
+      <p>No games have partial progress tracked.</p>
+    ) : (
+      <div class="grid">
+        {filteredGames.map((game) => {
+          const reviewed = reviewedGameIds.has(game.id);
+          const sTier = sTierGameIds.has(game.id);
+          return <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} />;
+        })}
+      </div>
+    )}
+  </main>
+</BaseLayout>
