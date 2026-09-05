@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.186] - 2026-09-04
+- Filters: add a Progress - Partial (By Percent) filter page listing games with a tracked progress percentage above 0% and below 100%, sorted by percent complete descending.
+
 ## [1.0.185] - 2026-09-04
 - Games: give full section-progress credit (not half-credit) for a linear game's current section when that section is itself marked completed, for both a game's own progress and each included bundle member's.
 
