@@ -222,10 +222,18 @@ def _normalized_sections(
         seen_numbers.add(number)
         raw_title = section.get("title")
         title = raw_title.strip() if isinstance(raw_title, str) else ""
+        category = section.get("category")
+        if category is not None:
+            if not isinstance(category, str) or not category.strip():
+                raise ValueError("category must be a non-empty string or null")
+            category = category.strip()
+            if not category.isascii():
+                raise ValueError(f"Category must be ASCII only: {category!r}")
         normalized.append(
             {
                 "number": number,
                 "title": title or default_title(noun, number),
+                "category": category,
             }
         )
     return normalized
@@ -336,6 +344,7 @@ def upsert_game_sections(
             "number": section["number"],
             "title": section["title"],
             "sort": section["number"],
+            "category": section["category"],
         }
         existing_row = existing_by_number.get(section["number"])
         if existing_row:

@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.188] - 2026-09-05
+- Games: extend chapter/act category grouping to linear games (previously nonlinear-only), rendering act headers on the section list when a linear game's `game_sections.category` is populated; Mortal Kombat 1, Gears Tactics, and Gears of War Reloaded now group their chapters by act.
+
 ## [1.0.187] - 2026-09-05
 - Filters: exclude games with a Waiting for Update played status from the Progress - Partial (By Percent) filter page.
 
