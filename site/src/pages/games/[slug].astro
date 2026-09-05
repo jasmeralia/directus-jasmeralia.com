@@ -221,6 +221,8 @@ const sectionStyle = effectiveSectionStyle(game);
 const isNonlinear = game.section_style === "nonlinear";
 const displaySections = isNonlinear ? directGameSectionsByPosition(game.sections) : sections;
 const sectionGroups = isNonlinear ? groupSectionsByCategory(displaySections) : [];
+const linearHasCategories = !isNonlinear && sections.some((section) => section.category);
+const linearSectionGroups = linearHasCategories ? groupSectionsByCategory(sections) : [];
 const completedQuestCount = isNonlinear
   ? displaySections.filter((section) => section.completed).length
   : 0;
@@ -664,19 +666,40 @@ const coverStackStyle = [
               ? `Currently on ${noun} ${current} of ${sections.length}`
               : `${sections.length} ${pluralizeNoun(noun)}`}
           </p>
-          <ol class="sections-list">
-            {sections.map((section) => (
-              <li
-                class:list={{
-                  "current-section": section.number === current,
-                  "section-completed": completed || (current !== null && section.number < current),
-                }}
-                aria-current={section.number === current ? "step" : undefined}
-              >
-                {section.title}
-              </li>
-            ))}
-          </ol>
+          {linearHasCategories ? (
+            linearSectionGroups.map((group) => (
+              <div class="quest-category">
+                {group.category ? <h4 class="quest-category-title">{group.category}</h4> : null}
+                <ol class="sections-list">
+                  {group.sections.map((section) => (
+                    <li
+                      class:list={{
+                        "current-section": section.number === current,
+                        "section-completed": completed || (current !== null && section.number < current),
+                      }}
+                      aria-current={section.number === current ? "step" : undefined}
+                    >
+                      {section.title}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))
+          ) : (
+            <ol class="sections-list">
+              {sections.map((section) => (
+                <li
+                  class:list={{
+                    "current-section": section.number === current,
+                    "section-completed": completed || (current !== null && section.number < current),
+                  }}
+                  aria-current={section.number === current ? "step" : undefined}
+                >
+                  {section.title}
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       ) : null}
 
