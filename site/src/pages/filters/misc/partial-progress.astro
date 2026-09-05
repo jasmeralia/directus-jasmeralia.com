@@ -20,7 +20,9 @@ const gamesWithPercent = (allGames ?? [])
     const progress = bundleProgressSummary(game) ?? sectionProgressSummary(game);
     return { game, percent: progress?.percent ?? null };
   })
-  .filter((entry) => typeof entry.percent === "number" && entry.percent > 0 && entry.percent < 100)
+  .filter((entry) =>
+    entry.game.player_status !== "waiting_for_update"
+    && typeof entry.percent === "number" && entry.percent > 0 && entry.percent < 100)
   .sort((a, b) => b.percent - a.percent || compareLabels(a.game.title, b.game.title));
 
 const filteredGames = gamesWithPercent.map((entry) => entry.game);
@@ -48,7 +50,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   <main>
     <div class="panel">
       <CsvHeader title="Progress - Partial (By Percent)" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
-      <p>Games with a tracked progress percentage above 0% and below 100%, sorted by percent complete (highest first).</p>
+      <p>Games with a tracked progress percentage above 0% and below 100%, sorted by percent complete (highest first). Excludes games with a Waiting for Update played status.</p>
     </div>
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (
