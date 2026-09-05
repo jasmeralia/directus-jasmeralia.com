@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.187] - 2026-09-05
+- Filters: exclude games with a Waiting for Update played status from the Progress - Partial (By Percent) filter page.
+
 ## [1.0.186] - 2026-09-04
 - Filters: add a Progress - Partial (By Percent) filter page listing games with a tracked progress percentage above 0% and below 100%, sorted by percent complete descending.
 

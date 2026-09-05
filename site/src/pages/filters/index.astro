@@ -666,6 +666,7 @@ const progressGames = await directusFetchItems("games", {
   limit: -1,
 });
 const partialProgressCount = (progressGames ?? []).filter((game) => {
+  if (game.player_status === "waiting_for_update") return false;
   const percent = (bundleProgressSummary(game) ?? sectionProgressSummary(game))?.percent;
   return typeof percent === "number" && percent > 0 && percent < 100;
 }).length;
