@@ -99,6 +99,13 @@ describe("sectionProgressPercent", () => {
     expect(sectionProgressPercent(0, 10, "in_progress")).toBe(0);
     expect(sectionProgressPercent(5, 2, "in_progress")).toBe(100);
   });
+
+  it("gives full credit for the current section when it is itself marked completed", () => {
+    expect(sectionProgressPercent(2, 10, "in_progress", true)).toBe(20);
+    expect(sectionProgressPercent(2, 10, "on_hold", true)).toBe(20);
+    expect(sectionProgressPercent(2, 10, "in_progress", false)).toBe(15);
+    expect(sectionProgressPercent(2, 10, "waiting_for_update", true)).toBe(20);
+  });
 });
 
 describe("sectionProgressSummary", () => {
@@ -127,6 +134,24 @@ describe("sectionProgressSummary", () => {
       label: "Mission 2/2 (75%)",
       title: "Mission 2 of 2",
       percent: 75,
+    });
+  });
+
+  it("gives full credit when the current linear section is itself marked completed", () => {
+    expect(sectionProgressSummary({
+      player_status: "in_progress",
+      section_noun: "Mission",
+      current_section: 2,
+      sections: [
+        { number: 1, title: "One", completed: true },
+        { number: 2, title: "Two", completed: true },
+        { number: 3, title: "Three" },
+        { number: 4, title: "Four" },
+      ],
+    })).toEqual({
+      label: "Mission 2/4 (50%)",
+      title: "Mission 2 of 4",
+      percent: 50,
     });
   });
 

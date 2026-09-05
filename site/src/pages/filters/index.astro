@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
 import { getUrlPlatform, downloadLinks, primaryDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
-import { sectionDataState } from "../../lib/game-bundles";
+import { effectiveSectionStyle, sectionDataState } from "../../lib/game-bundles";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown, compareLabels } from "../../lib/list-format";
 import { hasGenreSlug, isGameNsfw } from "../../lib/nsfw";
@@ -43,6 +43,7 @@ const games = await directusFetchItems("games", {
     "links.url",
     "links.kind",
     "links.sort",
+    "section_style",
     "sections.id",
     "bundle_members.id",
     "bundle_members.section_data_status",
@@ -346,6 +347,13 @@ const sfwCount = (games ?? []).length - nsfwCount;
 const contentRatingEntries = [
   { rating: "sfw", label: "SFW", count: sfwCount },
   { rating: "nsfw", label: "NSFW", count: nsfwCount },
+];
+
+const linearCount = (games ?? []).filter((game) => effectiveSectionStyle(game) === "linear").length;
+const nonlinearCount = (games ?? []).filter((game) => effectiveSectionStyle(game) === "nonlinear").length;
+const sectionStyleEntries = [
+  { style: "linear", label: "Linear", count: linearCount },
+  { style: "nonlinear", label: "Nonlinear", count: nonlinearCount },
 ];
 const nsfwNotAvnCount = (games ?? []).filter(
   (game) => isGameNsfw(game) && !hasAvnGenre(game),
@@ -819,6 +827,7 @@ const chartCount = [
       <h2>Jump to Section</h2>
       <ul>
         <li><a href="#content-rating">Content Rating ({contentRatingEntries.length})</a></li>
+        <li><a href="#section-style">Section Style ({sectionStyleEntries.length})</a></li>
         <li><a href="#developer-game-status">Developer + Game Status ({developerStatusEntries.length})</a></li>
         <li><a href="#developer-played-status">Developer + Played Status ({developerPlayedEntries.length})</a></li>
         <li><a href="#engine-game-status">Engine + Game Status ({engineStatusEntries.length})</a></li>
@@ -837,6 +846,18 @@ const chartCount = [
         {contentRatingEntries.map((entry) => (
           <li>
             <a href={`/filters/content-rating/${entry.rating}/index.html`}>{entry.label}</a>
+            <span style="opacity:.7;"> ({entry.count})</span>
+          </li>
+        ))}
+      </ul>
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
+    </div>
+    <div class="panel" id="section-style">
+      <h2>Section Style ({sectionStyleEntries.length} filters)</h2>
+      <ul>
+        {sectionStyleEntries.map((entry) => (
+          <li>
+            <a href={`/filters/section-style/${entry.style}/index.html`}>{entry.label}</a>
             <span style="opacity:.7;"> ({entry.count})</span>
           </li>
         ))}

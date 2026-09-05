@@ -68,6 +68,21 @@ export const sectionDataState = (
   return "present";
 };
 
+export type SectionStyleAwareGame = BundleAwareGame & {
+  section_style?: string | null;
+};
+
+// games.section_style defaults to "linear" in Directus so newly created games
+// declare an intent even before any chapters exist -- don't surface that
+// declared style anywhere (tags, filters, counts) until real section data
+// backs it up, or every un-tracked game would show as "Linear".
+export const effectiveSectionStyle = (
+  game: SectionStyleAwareGame | null | undefined,
+): string | null => {
+  if (!game?.section_style) return null;
+  return sectionDataState(game) === "present" ? game.section_style : null;
+};
+
 export const bundleProgressSummary = (
   game: BundleAwareGame | null | undefined,
 ): BundleProgressSummary | null => {
@@ -86,7 +101,8 @@ export const bundleProgressSummary = (
       : null;
     if (current !== null && total > 0) {
       const noun = member.section_noun || "Chapter";
-      const percent = sectionProgressPercent(current, total, member.player_status);
+      const currentSection = (member.sections ?? []).find((section) => section.number === current);
+      const percent = sectionProgressPercent(current, total, member.player_status, currentSection?.completed ?? false);
       return {
         label: `${member.title}: ${noun} ${current}/${total}`,
         title: `${member.title}: ${noun} ${current} of ${total}`,

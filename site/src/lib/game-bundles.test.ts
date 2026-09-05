@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import bundleMembersFixture from "../test/fixtures/bundle-members.json";
 import {
   bundleProgressSummary,
+  effectiveSectionStyle,
   hasBundleMembers,
   orderedBundleMembers,
   sectionDataState,
@@ -86,6 +87,25 @@ describe("sectionDataState", () => {
   });
 });
 
+describe("effectiveSectionStyle", () => {
+  it("hides a declared style until real section data backs it up", () => {
+    expect(effectiveSectionStyle({ section_style: "linear", sections: [] })).toBeNull();
+    expect(effectiveSectionStyle({ section_style: null, sections: [{ number: 1, title: "Chapter 1" }] })).toBeNull();
+    expect(effectiveSectionStyle(null)).toBeNull();
+  });
+
+  it("surfaces the declared style once section data is present", () => {
+    expect(effectiveSectionStyle({
+      section_style: "linear",
+      sections: [{ number: 1, title: "Chapter 1" }],
+    })).toBe("linear");
+    expect(effectiveSectionStyle({
+      section_style: "nonlinear",
+      bundle_members: [member(1, { section_data_status: "tracked" })],
+    })).toBe("nonlinear");
+  });
+});
+
 describe("bundleProgressSummary", () => {
   it("returns null when no members exist", () => {
     expect(bundleProgressSummary({ bundle_members: [] })).toBeNull();
@@ -132,6 +152,24 @@ describe("bundleProgressSummary", () => {
       label: "Member 1: Act 2/4",
       title: "Member 1: Act 2 of 4",
       percent: 38,
+    });
+  });
+
+  it("gives full credit when a member's current section is itself marked completed", () => {
+    expect(bundleProgressSummary({ bundle_members: [member(1, {
+      player_status: "on_hold",
+      section_noun: "Act",
+      current_section: 2,
+      sections: [
+        { number: 1, title: "Act 1", completed: true },
+        { number: 2, title: "Act 2", completed: true },
+        { number: 3, title: "Act 3" },
+        { number: 4, title: "Act 4" },
+      ],
+    })] })).toEqual({
+      label: "Member 1: Act 2/4",
+      title: "Member 1: Act 2 of 4",
+      percent: 50,
     });
   });
 

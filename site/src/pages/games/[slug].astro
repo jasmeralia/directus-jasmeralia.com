@@ -4,7 +4,7 @@ import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/
 import { formatDate } from "../../lib/date";
 import { downloadLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
-import { orderedBundleMembers } from "../../lib/game-bundles";
+import { effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
 import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, orderedSections, pluralizeNoun, sectionNoun } from "../../lib/game-sections";
 import { fetchActivity, fetchAllGameGenres, fetchRevisions } from "../../lib/changelog";
 import { compareLabels } from "../../lib/list-format";
@@ -217,6 +217,7 @@ const synopsis = gameSynopsis(game.title, game.game_status, game.player_status);
 
 const noun = sectionNoun(game.section_noun);
 const current = game.current_section ?? null;
+const sectionStyle = effectiveSectionStyle(game);
 const isNonlinear = game.section_style === "nonlinear";
 const displaySections = isNonlinear ? directGameSectionsByPosition(game.sections) : sections;
 const sectionGroups = isNonlinear ? groupSectionsByCategory(displaySections) : [];
@@ -351,6 +352,7 @@ const coverStackStyle = [
       .sections-list{margin-bottom:0;}
       .sections-list li{padding:.2rem .5rem;border-left:2px solid transparent;}
       .sections-list .current-section{color:#8c58ff;border-left-color:#8c58ff;font-weight:700;}
+      .sections-list .section-completed{opacity:.6;text-decoration:line-through;}
       .quest-category{margin-top:1rem;}
       .quest-category:first-child{margin-top:.5rem;}
       .quest-category-title{margin:0 0 .3rem;font-size:.85rem;opacity:.8;text-transform:uppercase;letter-spacing:.06em;}
@@ -458,6 +460,10 @@ const coverStackStyle = [
               ))}
             </li>
           ) : null}
+          <li>
+            <strong>Content rating:</strong>{" "}
+            <a href={`/filters/content-rating/${gameNsfw ? "nsfw" : "sfw"}/index.html`}>{gameNsfw ? "NSFW" : "SFW"}</a>
+          </li>
           {game.game_status ? (
             <li>
               <strong>Game status:</strong> <a href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
@@ -476,6 +482,11 @@ const coverStackStyle = [
           {game.player_status ? (
             <li>
               <strong>Player status:</strong> <a href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
+            </li>
+          ) : null}
+          {sectionStyle ? (
+            <li>
+              <strong>Section style:</strong> <a href={`/filters/section-style/${sectionStyle}/index.html`}>{labelize(sectionStyle)}</a>
             </li>
           ) : null}
           {game.release_year ? (
@@ -603,7 +614,11 @@ const coverStackStyle = [
                       <ol class="sections-list">
                         {memberSections.map((section) => (
                           <li
-                            class:list={{ "current-section": section.number === memberCurrent }}
+                            class:list={{
+                              "current-section": section.number === memberCurrent,
+                              "section-completed": member.player_status === "completed"
+                                || (memberCurrent !== null && section.number < memberCurrent),
+                            }}
                             aria-current={section.number === memberCurrent ? "step" : undefined}
                           >
                             {section.title}
@@ -652,7 +667,10 @@ const coverStackStyle = [
           <ol class="sections-list">
             {sections.map((section) => (
               <li
-                class:list={{ "current-section": section.number === current }}
+                class:list={{
+                  "current-section": section.number === current,
+                  "section-completed": completed || (current !== null && section.number < current),
+                }}
                 aria-current={section.number === current ? "step" : undefined}
               >
                 {section.title}
