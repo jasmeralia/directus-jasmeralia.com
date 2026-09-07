@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.189] - 2026-09-07
+- Games: highlight the quest(s) currently active in a nonlinear game's journal (e.g. A House In The Rift) with the same purple styling used for a linear game's current chapter, plus a textual "(Active)" badge so status isn't conveyed by color alone. Multiple quests may be active at once. Linear games are unaffected and continue to be driven only by `current_section`.
+
 ## [1.0.188] - 2026-09-05
 - Games: extend chapter/act category grouping to linear games (previously nonlinear-only), rendering act headers on the section list when a linear game's `game_sections.category` is populated; Mortal Kombat 1, Gears Tactics, and Gears of War Reloaded now group their chapters by act.
 

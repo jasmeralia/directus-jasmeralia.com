@@ -33,6 +33,7 @@ export const GAME_THUMB_FIELDS = [
   "sections.id",
   "sections.number",
   "sections.completed",
+  "sections.is_active",
   "sections.bundle_member_id",
   "bundle_members.id",
   "bundle_members.sort",

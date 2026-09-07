@@ -203,6 +203,40 @@ describe("sectionProgressSummary", () => {
       sections: [],
     })).toBeNull();
   });
+
+  it("ignores is_active for nonlinear progress even with multiple active quests", () => {
+    expect(sectionProgressSummary({
+      player_status: "in_progress",
+      section_style: "nonlinear",
+      section_noun: "Quest",
+      current_section: null,
+      sections: [
+        { number: 1, title: "One", category: "Main", completed: true, is_active: false },
+        { number: 2, title: "Two", category: "Main", completed: false, is_active: true },
+        { number: 1, title: "Three", category: "Side", completed: false, is_active: true },
+      ],
+    })).toEqual({
+      label: "1/3 Quests (33%)",
+      title: "1 of 3 Quests completed",
+      percent: 33,
+    });
+  });
+
+  it("ignores is_active for linear progress, which stays driven by current_section", () => {
+    expect(sectionProgressSummary({
+      player_status: "in_progress",
+      section_noun: "Mission",
+      current_section: 2,
+      sections: [
+        { number: 1, title: "One", completed: true, is_active: true },
+        { number: 2, title: "Two", is_active: true },
+      ],
+    })).toEqual({
+      label: "Mission 2/2 (75%)",
+      title: "Mission 2 of 2",
+      percent: 75,
+    });
+  });
 });
 
 describe("questProgressPercent", () => {

@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Sync A House In The Rift quest catalog and completion state to Directus.
+"""Sync A House In The Rift quest catalog, completion, and active state to
+Directus.
 
 Reads quest definitions from the installed game's unrpa_scripts tree and
-completion flags from the newest Ren'Py save, then creates or updates
+completion/active flags from the newest Ren'Py save, then creates or updates
 game_sections rows for slug a-house-in-the-rift. Quests marked hidden in
 source are excluded unless the class later sets self.hidden = False (unlock-
 gated journal quests). LEWDNESS/INTIMACY and Placeholder quests are always
-excluded.
+excluded. is_active is synced as `active and not hidden and not
+manually_hidden` from the save's live quest state, since AHITR can keep a
+quest active internally while hiding it from the journal.
 
 Apply aborts when stale game_sections rows remain unless --allow-orphans is
 passed (still aborts when an orphan occupies a sort slot the catalog needs).
@@ -110,12 +113,24 @@ class CatalogQuest:
 
 
 @dataclass(frozen=True)
+class QuestSaveState:
+    """Per-quest completion and active flags read from a Ren'Py save."""
+
+    completed: bool
+    is_active: bool
+
+
+_DEFAULT_SAVE_STATE = QuestSaveState(completed=False, is_active=False)
+
+
+@dataclass(frozen=True)
 class SyncQuest(CatalogQuest):
     """Catalog quest with Directus ordering and save completion state."""
 
     number: int
     sort: int
     completed: bool
+    is_active: bool
 
 
 def _version_key(version: str) -> tuple[tuple[int, ...], tuple[str, int | str]]:
@@ -497,8 +512,18 @@ def find_latest_save(save_glob: str) -> Path:
     return chosen
 
 
-def read_save_completion(save_path: Path) -> dict[str, bool]:
-    """Return quest_id -> completed from a Ren'Py .save zip."""
+def read_save_state(save_path: Path) -> dict[str, QuestSaveState]:
+    """Return quest_id -> QuestSaveState from a Ren'Py .save zip.
+
+    A quest is synced active only when the save marks it active AND it is
+    not currently hidden (dynamically or manually) - AHITR keeps some
+    quests active internally while hiding them from the journal (e.g.
+    BlairToys3SideJoiningIn), and raw `.active` alone would misreport
+    those as visible. The game additionally gates journal visibility on
+    has_hint_or_objectives(), which depends on executable game logic the
+    safe stub unpickler cannot reproduce, so that check is intentionally
+    not replicated here.
+    """
     with zipfile.ZipFile(save_path) as archive:
         if "log" not in archive.namelist():
             print(
@@ -509,29 +534,38 @@ def read_save_completion(save_path: Path) -> dict[str, bool]:
 
     roots = data[0]
     quest_manager = roots["store.state"].quest_manager
-    completion: dict[str, bool] = {}
+    state: dict[str, QuestSaveState] = {}
     for quest in quest_manager.quests:
         quest_id = _normalize_quest_id(getattr(quest, "quest_id", None))
         if not quest_id:
             continue
-        completion[quest_id] = bool(getattr(quest, "completed", False))
-    completed_count = sum(1 for value in completion.values() if value)
+        active = bool(getattr(quest, "active", False))
+        hidden = bool(getattr(quest, "hidden", False))
+        manually_hidden = bool(getattr(quest, "manually_hidden", False))
+        state[quest_id] = QuestSaveState(
+            completed=bool(getattr(quest, "completed", False)),
+            is_active=active and not hidden and not manually_hidden,
+        )
+    completed_count = sum(1 for value in state.values() if value.completed)
+    active_count = sum(1 for value in state.values() if value.is_active)
     print(
-        f"Read completion for {len(completion)} quests ({completed_count} completed)",
+        f"Read state for {len(state)} quests "
+        f"({completed_count} completed, {active_count} active)",
         file=sys.stderr,
     )
-    return completion
+    return state
 
 
 def build_sync_quests(
     catalog: list[CatalogQuest],
-    completion_by_id: dict[str, bool],
+    state_by_id: dict[str, QuestSaveState],
 ) -> list[SyncQuest]:
-    """Attach per-category number, global sort, and save completion flags."""
+    """Attach per-category number, global sort, and save completion/active flags."""
     sync_quests: list[SyncQuest] = []
     category_counters: dict[str, int] = {}
     for position, quest in enumerate(catalog, start=1):
         category_counters[quest.category] = category_counters.get(quest.category, 0) + 1
+        state = state_by_id.get(quest.quest_id, _DEFAULT_SAVE_STATE)
         sync_quests.append(
             SyncQuest(
                 quest_id=quest.quest_id,
@@ -540,7 +574,8 @@ def build_sync_quests(
                 source_path=quest.source_path,
                 number=category_counters[quest.category],
                 sort=position,
-                completed=completion_by_id.get(quest.quest_id, False),
+                completed=state.completed,
+                is_active=state.is_active,
             )
         )
     return sync_quests
@@ -701,7 +736,7 @@ def _fetch_existing_sections(
 ) -> list[dict[str, Any]]:
     return client.fetch_all(
         "/items/game_sections"
-        "?fields=id,games_id,category,title,completed,number,sort"
+        "?fields=id,games_id,category,title,completed,is_active,number,sort"
         f"&filter[games_id][_eq]={game_id}"
         "&filter[bundle_member_id][_null]=true",
         description=f"fetch game_sections for game {game_id}",
@@ -716,7 +751,7 @@ def _fetch_section_by_key(
 ) -> dict[str, Any] | None:
     """Return one parent game_sections row matched by category and title."""
     params: list[tuple[str, str]] = [
-        ("fields", "id,games_id,category,title,completed,number,sort"),
+        ("fields", "id,games_id,category,title,completed,is_active,number,sort"),
         ("filter[games_id][_eq]", str(game_id)),
         ("filter[bundle_member_id][_null]", "true"),
         ("filter[title][_eq]", title),
@@ -834,6 +869,7 @@ def sync_to_directus(
             "number": quest.number,
             "sort": quest.sort,
             "completed": quest.completed,
+            "is_active": quest.is_active,
             "is_ending": False,
         }
         existing = existing_by_key.get(key)
@@ -843,7 +879,8 @@ def sync_to_directus(
             if dry_run:
                 print(
                     f"[DRY RUN] Would create {label} "
-                    f"(#{quest.number}, sort={quest.sort}, completed={quest.completed})",
+                    f"(#{quest.number}, sort={quest.sort}, completed={quest.completed}, "
+                    f"is_active={quest.is_active})",
                     file=sys.stderr,
                 )
             else:
@@ -860,7 +897,8 @@ def sync_to_directus(
         changes = {
             field: value
             for field, value in payload.items()
-            if field in {"number", "sort", "completed"} and existing.get(field) != value
+            if field in {"number", "sort", "completed", "is_active"}
+            and existing.get(field) != value
         }
         if not changes:
             continue
@@ -979,8 +1017,8 @@ def main() -> None:
     catalog = parse_quest_catalog(scripts_dir)
 
     save_path = args.save_file or find_latest_save(args.save_glob)
-    completion_by_id = read_save_completion(save_path.expanduser())
-    sync_quests = build_sync_quests(catalog, completion_by_id)
+    state_by_id = read_save_state(save_path.expanduser())
+    sync_quests = build_sync_quests(catalog, state_by_id)
 
     client = RetryingDirectusClient(DirectusClient.from_config())
     game = resolve_game(client, args.slug)

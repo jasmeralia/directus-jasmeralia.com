@@ -61,6 +61,7 @@ export async function getStaticPaths() {
     'sections.category',
     'sections.completed',
     'sections.is_ending',
+    'sections.is_active',
     'sections.bundle_member_id',
     'bundle_members.id',
     'bundle_members.sort',
@@ -361,7 +362,7 @@ const coverStackStyle = [
       .quest-list li{list-style:disc;margin-left:1.1rem;padding:.15rem .5rem;}
       .quest-list .quest-completed{opacity:.6;text-decoration:line-through;}
       .quest-list .is-ending{color:#8c58ff;font-weight:700;text-decoration:none;}
-      .quest-ending-badge{margin-left:.4rem;font-size:.75rem;opacity:.85;text-decoration:none;}
+      .quest-ending-badge,.quest-active-badge{margin-left:.4rem;font-size:.75rem;opacity:.85;text-decoration:none;}
       .bundle-list{display:flex;flex-direction:column;gap:.75rem;margin-top:.75rem;}
       .bundle-member{background:#0b0b0b;border:1px solid #222;border-radius:10px;padding:.75rem;}
       .bundle-member-header{display:flex;gap:.75rem;align-items:center;}
@@ -648,9 +649,16 @@ const coverStackStyle = [
                 {group.category ? <h4 class="quest-category-title">{group.category}</h4> : null}
                 <ul class="sections-list quest-list">
                   {group.sections.map((section) => (
-                    <li class:list={{ "quest-completed": section.completed, "is-ending": section.is_ending }}>
+                    <li
+                      class:list={{
+                        "quest-completed": section.completed,
+                        "is-ending": section.is_ending,
+                        "current-section": section.is_active,
+                      }}
+                    >
                       {section.title}
                       {section.is_ending ? <span class="quest-ending-badge">(Ending)</span> : null}
+                      {section.is_active ? <span class="quest-active-badge">(Active)</span> : null}
                     </li>
                   ))}
                 </ul>
