@@ -8,7 +8,7 @@ import sys
 import urllib.parse
 from typing import Any
 
-from scriptlib import DirectusClient
+from scriptlib import DirectusClient, RetryingDirectusClient
 
 DEFAULT_NOUN = "Chapter"
 
@@ -66,7 +66,10 @@ def _flatten_filter(
     return [(prefix, str(value))]
 
 
-def resolve_game(client: DirectusClient, slug: str) -> dict[str, Any]:
+def resolve_game(
+    client: DirectusClient | RetryingDirectusClient,
+    slug: str,
+) -> dict[str, Any]:
     """Resolve a game slug to its id and title, exiting clearly if absent."""
     print(f"Looking up game '{slug}'...", file=sys.stderr)
     response = client.get(

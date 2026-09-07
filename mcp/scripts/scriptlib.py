@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 import sys
 import time
@@ -22,6 +23,7 @@ MCP_CONFIG_PATH = REPO_ROOT / ".mcp.json"
 
 DEFAULT_MAX_RETRIES = 5
 DEFAULT_BACKOFF_BASE = 2.0
+DIRECTUS_REQUEST_DELAY_S = 1.0
 
 
 @dataclass(frozen=True)
@@ -190,12 +192,267 @@ def delete_game_junctions(client: DirectusClient, game_id: int) -> None:
                 client.delete(f"/items/game_bundle_members/{member['id']}")
 
 
+def _directus_http_error(
+    error: urllib.error.HTTPError,
+    *,
+    description: str,
+    attempt: int,
+    max_retries: int,
+    delay: float,
+) -> tuple[bool, float]:
+    """Handle one Directus HTTP error. Returns (retry, next_delay)."""
+    if error.code == 403:
+        error_body = error.read().decode(errors="replace")
+        print(
+            f"ERROR: Directus forbidden (HTTP 403) during {description}: "
+            f"{error_body[:300]}",
+            file=sys.stderr,
+        )
+        raise error
+    if error.code == 429:
+        if attempt + 1 >= max_retries:
+            print(
+                f"ERROR: Directus rate limited (HTTP 429) during {description} "
+                f"after {max_retries} attempts",
+                file=sys.stderr,
+            )
+            raise error
+        print(
+            f"  Rate limited (HTTP 429) during {description}, "
+            f"backing off {delay:.0f}s (attempt {attempt + 1}/{max_retries})...",
+            file=sys.stderr,
+        )
+        time.sleep(delay)
+        return True, delay * 2
+    raise error
+
+
+def directus_request_with_retry(  # pylint: disable=too-many-arguments
+    client: DirectusClient,
+    method: str,
+    path: str,
+    body: dict[str, Any] | None = None,
+    *,
+    params: dict[str, Any] | None = None,
+    description: str,
+    retry_ambiguous_failures: bool = True,
+) -> dict[str, Any]:
+    """Execute one Directus HTTP request with pacing and exponential backoff."""
+    delay = DEFAULT_BACKOFF_BASE
+    for attempt in range(DEFAULT_MAX_RETRIES):
+        time.sleep(DIRECTUS_REQUEST_DELAY_S)
+        try:
+            return client.request(method, path, body, params=params)
+        except urllib.error.HTTPError as error:
+            retry, delay = _directus_http_error(
+                error,
+                description=description,
+                attempt=attempt,
+                max_retries=DEFAULT_MAX_RETRIES,
+                delay=delay,
+            )
+            if retry:
+                continue
+        except Exception as error:  # noqa: BLE001 - retry transient network failures
+            if not retry_ambiguous_failures:
+                print(
+                    f"ERROR: {description} failed with an ambiguous failure "
+                    f"(not retried): {error}",
+                    file=sys.stderr,
+                )
+                raise
+            if attempt + 1 >= DEFAULT_MAX_RETRIES:
+                print(
+                    f"ERROR: {description} failed after {DEFAULT_MAX_RETRIES} "
+                    f"attempts: {error}",
+                    file=sys.stderr,
+                )
+                raise
+            print(
+                f"  {description} failed ({error}); backing off {delay:.0f}s "
+                f"(attempt {attempt + 1}/{DEFAULT_MAX_RETRIES})...",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+            delay *= 2
+    print(
+        f"ERROR: {description} failed after {DEFAULT_MAX_RETRIES} attempts",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+
+def directus_fetch_all_with_retry(
+    client: DirectusClient,
+    path: str,
+    *,
+    description: str,
+    page_size: int = 500,
+) -> list[dict[str, Any]]:
+    """Fetch every page from a Directus items endpoint with per-request retry."""
+    results: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        separator = "&" if "?" in path else "?"
+        page_path = f"{path}{separator}limit={page_size}&offset={offset}"
+        response = directus_request_with_retry(
+            client,
+            "GET",
+            page_path,
+            description=f"{description} (offset {offset})",
+        )
+        batch = response.get("data", [])
+        results.extend(batch)
+        if len(batch) < page_size:
+            return results
+        offset += page_size
+
+
+def directus_operation_with_retry(
+    operation: Callable[[], Any],
+    *,
+    description: str,
+    retry_ambiguous_failures: bool = True,
+) -> Any:
+    """Run a callable with pacing and exponential backoff between attempts."""
+    delay = DEFAULT_BACKOFF_BASE
+    for attempt in range(DEFAULT_MAX_RETRIES):
+        time.sleep(DIRECTUS_REQUEST_DELAY_S)
+        try:
+            return operation()
+        except urllib.error.HTTPError as error:
+            retry, delay = _directus_http_error(
+                error,
+                description=description,
+                attempt=attempt,
+                max_retries=DEFAULT_MAX_RETRIES,
+                delay=delay,
+            )
+            if retry:
+                continue
+        except Exception as error:  # noqa: BLE001 - retry transient network failures
+            if not retry_ambiguous_failures:
+                print(
+                    f"ERROR: {description} failed with an ambiguous failure "
+                    f"(not retried): {error}",
+                    file=sys.stderr,
+                )
+                raise
+            if attempt + 1 >= DEFAULT_MAX_RETRIES:
+                print(
+                    f"ERROR: {description} failed after {DEFAULT_MAX_RETRIES} "
+                    f"attempts: {error}",
+                    file=sys.stderr,
+                )
+                raise
+            print(
+                f"  {description} failed ({error}); backing off {delay:.0f}s "
+                f"(attempt {attempt + 1}/{DEFAULT_MAX_RETRIES})...",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+            delay *= 2
+    print(
+        f"ERROR: {description} failed after {DEFAULT_MAX_RETRIES} attempts",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+
+class RetryingDirectusClient:
+    """DirectusClient wrapper that retries each HTTP request independently."""
+
+    def __init__(self, client: DirectusClient) -> None:
+        self._client = client
+
+    @property
+    def base_client(self) -> DirectusClient:
+        """Return the wrapped Directus client for non-retrying callers."""
+        return self._client
+
+    def get(
+        self,
+        path: str,
+        params: dict[str, Any] | None = None,
+        *,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """Fetch one Directus resource with retry."""
+        label = description or f"GET {path}"
+        return directus_request_with_retry(
+            self._client,
+            "GET",
+            path,
+            params=params,
+            description=label,
+        )
+
+    def post(
+        self,
+        path: str,
+        body: dict[str, Any],
+        *,
+        description: str | None = None,
+        retry_ambiguous_failures: bool = False,
+    ) -> dict[str, Any]:
+        """Create one Directus resource with retry."""
+        label = description or f"POST {path}"
+        return directus_request_with_retry(
+            self._client,
+            "POST",
+            path,
+            body,
+            description=label,
+            retry_ambiguous_failures=retry_ambiguous_failures,
+        )
+
+    def patch(
+        self,
+        path: str,
+        body: dict[str, Any],
+        *,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """Update one Directus resource with retry."""
+        label = description or f"PATCH {path}"
+        return directus_request_with_retry(
+            self._client,
+            "PATCH",
+            path,
+            body,
+            description=label,
+        )
+
+    def fetch_all(
+        self,
+        path: str,
+        *,
+        description: str | None = None,
+        page_size: int = 500,
+    ) -> list[dict[str, Any]]:
+        """Fetch every page from a Directus items endpoint with retry."""
+        return directus_fetch_all_with_retry(
+            self._client,
+            path,
+            description=description or f"fetch {path}",
+            page_size=page_size,
+        )
+
+
 def trigger_site_rebuild(client: DirectusClient, game_ids: list[int]) -> None:
     """Trigger one site rebuild for a deduplicated list of parent game IDs."""
     keys = [str(game_id) for game_id in sorted(set(game_ids))]
     if not keys:
         return
-    client.post(REBUILD_FLOW_PATH, {"collection": "games", "keys": keys})
+    payload = {"collection": "games", "keys": keys}
+    directus_request_with_retry(
+        client,
+        "POST",
+        REBUILD_FLOW_PATH,
+        payload,
+        description="trigger site rebuild",
+        retry_ambiguous_failures=False,
+    )
     print(f"Triggered site rebuild for game ids: {', '.join(keys)}", file=sys.stderr)
 
 
@@ -210,14 +467,21 @@ def take_pg_dump_backup(label: str) -> str:
     filename = f"directus_{timestamp}_{label}.sql.gz"
     remote_path = f"/mnt/myzmirror/directus-jasmeralia/backups/{filename}"
     remote_cmd = (
-        f"docker exec cms-db pg_dump -U directus directus | gzip > {remote_path}"
+        "set -o pipefail; "
+        f"docker exec cms-db pg_dump -U directus directus | gzip > {remote_path} && "
+        f"test -s {remote_path}"
     )
+    # Pass one remote shell command so bash -lc receives the full pipeline string.
+    ssh_command = f"bash -lc {shlex.quote(remote_cmd)}"
     result = subprocess.run(
-        ["ssh", "morgan@truenas.windsofstorm.net", remote_cmd],
+        ["ssh", "morgan@truenas.windsofstorm.net", ssh_command],
         check=False,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"pg_dump backup failed (ssh exit {result.returncode})")
+        raise RuntimeError(
+            f"pg_dump backup failed (ssh exit {result.returncode}); "
+            f"remote file may be missing or empty: {remote_path}"
+        )
     print(f"Backup written: {remote_path}", file=sys.stderr)
     return filename
 
