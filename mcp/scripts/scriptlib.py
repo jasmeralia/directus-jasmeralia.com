@@ -253,7 +253,7 @@ def directus_request_with_retry(  # pylint: disable=too-many-arguments
             )
             if retry:
                 continue
-        except Exception as error:  # noqa: BLE001 - retry transient network failures
+        except Exception as error:
             if not retry_ambiguous_failures:
                 print(
                     f"ERROR: {description} failed with an ambiguous failure "
@@ -330,7 +330,7 @@ def directus_operation_with_retry(
             )
             if retry:
                 continue
-        except Exception as error:  # noqa: BLE001 - retry transient network failures
+        except Exception as error:
             if not retry_ambiguous_failures:
                 print(
                     f"ERROR: {description} failed with an ambiguous failure "

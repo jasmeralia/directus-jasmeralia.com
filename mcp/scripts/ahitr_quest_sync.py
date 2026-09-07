@@ -29,7 +29,7 @@ import urllib.parse
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 from game_sections_lib import normalize_noun, resolve_game
 from scriptlib import (
@@ -395,7 +395,7 @@ def parse_quest_catalog(scripts_dir: Path) -> list[CatalogQuest]:
 
 
 class _PermissiveDict(dict):
-    def __new__(cls, *args: Any, **_kwargs: Any) -> _PermissiveDict:
+    def __new__(cls, *args: Any, **_kwargs: Any) -> Self:
         return super().__new__(cls)
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -414,14 +414,14 @@ class _PermissiveDict(dict):
 
 
 class _PermissiveList(list):
-    def __new__(cls, *args: Any, **_kwargs: Any) -> _PermissiveList:
+    def __new__(cls, *args: Any, **_kwargs: Any) -> Self:
         return super().__new__(cls)
 
     def __init__(self, *args: Any, **_kwargs: Any) -> None:
         if args:
             try:
                 self.extend(args[0])
-            except Exception:  # noqa: BLE001 - best-effort list hydration
+            except Exception:  # noqa: BLE001, S110 - best-effort list hydration
                 pass
 
     def __setstate__(self, state: Any) -> None:
@@ -434,7 +434,7 @@ class _PermissiveList(list):
         else:
             try:
                 self.extend(state)
-            except Exception:  # noqa: BLE001 - best-effort list hydration
+            except Exception:  # noqa: BLE001, S110 - best-effort list hydration
                 pass
 
 
