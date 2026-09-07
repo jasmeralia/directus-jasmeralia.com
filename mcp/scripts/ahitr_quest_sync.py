@@ -125,7 +125,7 @@ _DEFAULT_SAVE_STATE = QuestSaveState(completed=False, is_active=False)
 
 @dataclass(frozen=True)
 class SyncQuest(CatalogQuest):
-    """Catalog quest with Directus ordering and save completion state."""
+    """Catalog quest with Directus ordering and save completion/active state."""
 
     number: int
     sort: int
@@ -958,7 +958,7 @@ def sync_to_directus(
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Sync AHITR quest catalog and completion state to Directus."
+        description="Sync AHITR quest catalog and completion/active state to Directus."
     )
     parser.add_argument(
         "--dry-run",
@@ -997,7 +997,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--save-file",
         type=Path,
-        help="Override the Ren'Py .save file used for completion state",
+        help="Override the Ren'Py .save file used for completion/active state",
     )
     parser.add_argument(
         "--save-glob",
