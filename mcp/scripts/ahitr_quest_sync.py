@@ -720,7 +720,6 @@ def _fetch_section_by_key(
         ("filter[games_id][_eq]", str(game_id)),
         ("filter[bundle_member_id][_null]", "true"),
         ("filter[title][_eq]", title),
-        ("limit", "1"),
     ]
     if category is None:
         params.append(("filter[category][_null]", "true"))
