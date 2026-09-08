@@ -605,3 +605,57 @@ lintfix && make lint` first.
 - /home/morgan/git/directus-jasmeralia.com/site/src/pages/game_statuses/[slug].astro (copy target for the new filter page)
 - /home/morgan/git/directus-jasmeralia.com/site/src/pages/games/[slug].astro
 - /mnt/thor-hdd/GamesLinux/AVNs/AHouseInTheRift-0.8.14r1-pc/things_to_do_quests.txt (reference data)
+
+---
+
+## Addendum: `is_active` current-quest highlighting (Odoo task #515)
+
+Adds `game_sections.is_active` so the site can highlight the quest(s)
+currently in progress on a nonlinear game's page, the quest-tracking
+analogue of how a linear game highlights its current chapter via
+`games.current_section`.
+
+**Why a per-row flag instead of a `games`-level pointer:** a linear game
+has exactly one current chapter, so a single `games.current_section`
+ordinal works. A nonlinear game's in-game journal can show **multiple**
+quests active at once across different categories — there is no single
+"current" quest to point at. `is_active` is therefore a boolean on each
+`game_sections` row, deliberately with **no** partial unique index
+enforcing at-most-one-true (unlike `is_ending`, which really is a
+single-row invariant).
+
+**Schema** (mirrors `completed`/`is_ending`): `is_active` boolean,
+`schema.is_nullable: false`, `schema.default_value: false`. No new Astro
+Readonly permission needed — the existing wildcard grant (`fields: ["*"]`)
+on the `game_sections` read policy already exposes it.
+
+**Scope:** nonlinear games only. Linear games ignore `is_active` on their
+section rows entirely and stay driven by `games.current_section`, even if
+a row happens to have `is_active: true` (e.g. leftover from a
+section-style change).
+
+**AHITR sync (`mcp/scripts/ahitr_quest_sync.py`):** synced from each save
+quest object as `active and not hidden and not manually_hidden`, applied
+only to quests that already passed the catalog's type/placeholder/hidden
+exclusions. Raw `.active` alone is not sufficient — AHITR can keep a quest
+active internally while hiding it from the journal (confirmed example:
+`BlairToys3SideJoiningIn`, `active=True hidden=True`). The game also gates
+journal visibility on `has_hint_or_objectives()`, which depends on
+executable `get_quest_hint()` game logic; the safe stub unpickler cannot
+run game code, so that check is intentionally not replicated. Before the
+first real (non-`--dry-run`) write of `is_active` data, the serialized
+predicate's output was compared against the current in-game active
+journal for parity before being treated as ready to apply.
+
+**Site (`site/src/pages/games/[slug].astro`):** the nonlinear quest `<li>`
+gets the same `current-section` class used for a linear game's current
+chapter (purple left border, bold) when `section.is_active` is true, plus
+a textual `(Active)` badge — mirroring the existing `(Ending)` badge
+pattern — so status isn't conveyed by color alone. Deliberately **not**
+`aria-current="step"`: that attribute models a single current step in an
+ordered process, and multiple quests can be active simultaneously.
+
+**Other writers:** `game_sections_lib.upsert_quest_sections()` (used by
+`populate_game_quests.py`) now sets `is_active: false` explicitly on every
+new nonlinear row it creates, matching `completed`/`is_ending`, rather
+than relying only on the verified database default.

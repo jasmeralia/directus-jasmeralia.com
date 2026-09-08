@@ -10,7 +10,10 @@ disable = ["broad-exception-caught"]
 
 [tool.pylint.format]
 max-line-length = 180
-max-module-lines = 1050
+# Set to 2000 per Morgan's direct instruction (2026-09-07) after repeatedly
+# bumping this in small increments as mcp/scripts/ahitr_quest_sync.py grew -
+# stop revisiting this value for that reason alone.
+max-module-lines = 2000
 
 [tool.pylint.design]
 max-args = 6

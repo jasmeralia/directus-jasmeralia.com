@@ -6,6 +6,7 @@ export type GameSection = {
   category?: string | null;
   completed?: boolean | null;
   is_ending?: boolean | null;
+  is_active?: boolean | null;
   bundle_member_id?: number | { id?: number } | null;
 };
 

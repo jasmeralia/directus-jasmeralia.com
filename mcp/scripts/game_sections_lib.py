@@ -566,6 +566,7 @@ def upsert_quest_sections(
             "number": category_counters[category],
             "sort": position,
             "completed": False,
+            "is_active": False,
             "is_ending": False,
         }
         label = f"{category}: {entry['title']}" if category else entry["title"]
