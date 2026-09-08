@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.191] - 2026-09-08
+- Filters: add a discoverable Version Mismatches page with Orion, Typhoon, and GameStoryLog values, listing games whenever at least two populated sources differ.
+
 ## [1.0.190] - 2026-09-07
 - Games: mark generated placeholder cover art with a burgundy red "Placeholder" corner ribbon on game cards and detail-page covers.
 - Filters: add a discoverable Placeholder Covers page with a game count and CSV export.
