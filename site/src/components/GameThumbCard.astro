@@ -4,6 +4,7 @@ import { isGameNsfw } from "../lib/nsfw";
 import { downloadLinks, walkthroughLinks, getLinkMeta } from "../lib/download-link";
 import { bundleProgressSummary, effectiveSectionStyle } from "../lib/game-bundles";
 import { sectionProgressSummary } from "../lib/game-sections";
+import PlaceholderRibbon from "./PlaceholderRibbon.astro";
 
 const { game, reviewed = false, sTier = false } = Astro.props;
 const labelize = (value) =>
@@ -78,6 +79,7 @@ const progress = bundleProgress ?? (directProgress
                 <a class="game-link" href={`/games/${game.slug}/index.html`}>
                   <div class={`thumb${nsfw ? " nsfw-cover" : ""}`}>
                     {img ? <img src={img} alt={game.title} loading="lazy" /> : <span>No cover</span>}
+                    {game?.cover_is_placeholder ? <PlaceholderRibbon /> : null}
                   </div>
                 </a>
                 <div class="meta">
@@ -156,7 +158,7 @@ const progress = bundleProgress ?? (directProgress
   .card{border:2px solid var(--inner-border,#2b2b2b);overflow:hidden;background:#111;display:flex;flex-direction:column;flex:1;}
   .card a{color:inherit;text-decoration:none;}
   .game-link{display:block;flex-shrink:0;}
-  .thumb{aspect-ratio:2/3;background:#000;display:flex;align-items:center;justify-content:center;}
+  .thumb{position:relative;overflow:hidden;aspect-ratio:2/3;background:#000;display:flex;align-items:center;justify-content:center;}
   .thumb img{width:100%;height:100%;object-fit:contain;display:block;}
   .meta{padding:.75rem 1rem;display:flex;flex-direction:column;flex:1;}
   .title{font-weight:700;}

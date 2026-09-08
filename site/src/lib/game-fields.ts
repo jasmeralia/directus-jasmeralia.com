@@ -5,6 +5,7 @@ export const GAME_THUMB_FIELDS = [
   "release_year",
   "family_sharing",
   "nsfw",
+  "cover_is_placeholder",
   "game_status",
   "player_status",
   "cover_image.id",

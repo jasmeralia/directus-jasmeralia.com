@@ -37,6 +37,7 @@ const games = await directusFetchItems("games", {
     "player_status",
     "family_sharing",
     "nsfw",
+    "cover_is_placeholder",
     "engines.engines_id.slug",
     "genres.genres_id.slug",
     "genres.genres_id.nsfw",
@@ -658,6 +659,7 @@ const walkthroughFilterEntries: Array<{ kind: WalkthroughKind; label: string; co
     .map((k) => ({ kind: k, label: WALKTHROUGH_KIND_LABEL[k], count: walkthroughCounts[k] }))
     .filter((entry) => entry.count > 0);
 const familySharingDisabledCount = (games ?? []).filter((game) => isFamilySharingDisabled(game)).length;
+const placeholderCoverCount = (games ?? []).filter((game) => game.cover_is_placeholder).length;
 const omnibusGamesCount = (games ?? []).filter(
   (game) => (game.bundle_members ?? []).length > 0,
 ).length;
@@ -787,6 +789,7 @@ const miscFilterEntries = [
   { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Omnibus Games", href: "/filters/misc/omnibus-games/index.html", count: omnibusGamesCount },
   { label: "Progress - Partial (By Percent)", href: "/filters/misc/partial-progress/index.html", count: partialProgressCount },
+  { label: "Placeholder Covers", href: "/filters/misc/placeholder-covers/index.html", count: placeholderCoverCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
   ...walkthroughFilterEntries.map((entry) => ({
     label: `Walkthrough URL + ${entry.label}`,

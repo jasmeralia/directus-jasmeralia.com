@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.190] - 2026-09-07
+- Games: mark generated placeholder cover art with a burgundy red "Placeholder" corner ribbon on game cards and detail-page covers.
+- Filters: add a discoverable Placeholder Covers page with a game count and CSV export.
+- Tooling: add known placeholder-cover hashing and a dry-run-first Directus backfill for verified cover matches.
+
 ## [1.0.189] - 2026-09-07
 - Games: highlight the quest(s) currently active in a nonlinear game's journal (e.g. A House In The Rift) with the same purple styling used for a linear game's current chapter, plus a textual "(Active)" badge so status isn't conveyed by color alone. Multiple quests may be active at once. Linear games are unaffected and continue to be driven only by `current_section`.
 

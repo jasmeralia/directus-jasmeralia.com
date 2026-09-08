@@ -9,6 +9,7 @@ import { directGameSections, directGameSectionsByPosition, groupSectionsByCatego
 import { fetchActivity, fetchAllGameGenres, fetchRevisions } from "../../lib/changelog";
 import { compareLabels } from "../../lib/list-format";
 import { isGameNsfw } from "../../lib/nsfw";
+import PlaceholderRibbon from "../../components/PlaceholderRibbon.astro";
 
 export async function getStaticPaths() {
   // Every game page used to independently re-fetch its own game record,
@@ -29,6 +30,7 @@ export async function getStaticPaths() {
     'release_year',
     'family_sharing',
     'nsfw',
+    'cover_is_placeholder',
     'player_status',
     'game_status',
     'cover_image.id',
@@ -337,7 +339,7 @@ const coverStackStyle = [
       .cover-gap-gold{padding:var(--gap-gold-pad,0);background:#000;}
       .cover-ring-status{padding:var(--ring-status-pad,0);background:var(--ring-status-color,transparent);}
       .cover-gap-status{padding:var(--gap-status-pad,0);background:#000;}
-      .cover-card{width:320px;background:#000;border:2px solid var(--inner-border,#2b2b2b);padding:10px;}
+      .cover-card{position:relative;overflow:hidden;width:320px;background:#000;border:2px solid var(--inner-border,#2b2b2b);padding:10px;}
       .cover-card img { width: 100%; height: auto; object-fit: contain; display: block; }
       .meta { opacity: 0.9; }
       .section{margin-top:1.5rem;}
@@ -400,6 +402,7 @@ const coverStackStyle = [
                     <div class="cover-gap-status">
                       <div class={`cover-card${gameNsfw ? " nsfw-cover" : ""}`}>
                         {cover ? <img src={cover} alt={game.title} loading="lazy" data-pagefind-meta="image[src]" /> : null}
+                        {game.cover_is_placeholder ? <PlaceholderRibbon /> : null}
                       </div>
                     </div>
                   </div>
