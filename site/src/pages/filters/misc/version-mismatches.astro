@@ -1,0 +1,85 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { directusFetchItems } from "../../../lib/directus";
+import { formatTrackedVersion, hasVersionMismatch } from "../../../lib/game-versions";
+import { sortByTitle } from "../../../lib/list-format";
+import { isGameNsfw } from "../../../lib/nsfw";
+
+const allGames = await directusFetchItems("games", {
+  fields: [
+    "id",
+    "title",
+    "slug",
+    "nsfw",
+    "genres.genres_id.nsfw",
+    "version_orion",
+    "version_typhoon",
+    "version_gsl",
+  ],
+  limit: -1,
+});
+
+const games = sortByTitle((allGames ?? []).filter(hasVersionMismatch));
+const versionSources = [
+  { label: "Orion", field: "version_orion" },
+  { label: "Typhoon", field: "version_typhoon" },
+  { label: "GameStoryLog", field: "version_gsl" },
+] as const;
+const description = `${games.length} games have differing tracked version values across Orion, Typhoon, and GameStoryLog.`;
+---
+
+<BaseLayout title="Filters | Version Mismatches" description={description}>
+  <div slot="head">
+    <style>
+      main{padding:24px;}
+      .list{max-width:980px;margin:0 auto;}
+      .item{border:1px solid #222;border-radius:10px;padding:16px;margin:12px 0;background:#111;}
+      .item a{color:#9aa6ff;}
+      .item a:visited{color:#9aa6ff;}
+      .title{font-size:1.05rem;font-weight:600;}
+      .versions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 0;}
+      .version{background:#171717;border:1px solid #262626;border-radius:8px;padding:10px;min-width:0;}
+      .version dt{font-size:.75rem;font-weight:700;letter-spacing:.03em;opacity:.7;text-transform:uppercase;}
+      .version dd{margin:4px 0 0;overflow-wrap:anywhere;}
+      .version dd.missing{font-style:italic;opacity:.55;}
+      .content-rating-badge{border:1px solid;border-radius:3px;font-size:.65rem;font-weight:700;margin-left:.4rem;padding:1px 4px;vertical-align:middle;}
+      .content-rating-badge.is-sfw{background:#173d24;border-color:#2f7d46;color:#9ae6ad;}
+      .content-rating-badge.is-nsfw{background:#5c2020;border-color:#8c3535;color:#ffb4b4;}
+      @media (max-width:640px){.versions{grid-template-columns:1fr;}}
+    </style>
+  </div>
+  <main>
+    <div class="list">
+      <h1>Version Mismatches <span style="opacity:.6;font-size:.8em;">({games.length})</span></h1>
+      <p>A game appears here when at least two tracked version values are populated and differ. A mismatch flags the record for review; it does not by itself establish which copy is newest.</p>
+      {games.length === 0 ? (
+        <div class="item"><p>No tracked game versions currently differ.</p></div>
+      ) : (
+        games.map((game) => {
+          const gameNsfw = isGameNsfw(game);
+          return (
+            <article class="item">
+              <div class="title">
+                <a href={`/games/${game.slug}/index.html`}>{game.title}</a>
+                <span class={`content-rating-badge ${gameNsfw ? "is-nsfw" : "is-sfw"}`}>
+                  {gameNsfw ? "NSFW" : "SFW"}
+                </span>
+              </div>
+              <dl class="versions">
+                {versionSources.map((source) => {
+                  const version = formatTrackedVersion(game[source.field]);
+                  return (
+                    <div class="version">
+                      <dt>{source.label}</dt>
+                      <dd class:list={{ missing: version === null }}>{version ?? "Not recorded"}</dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </article>
+          );
+        })
+      )}
+    </div>
+  </main>
+</BaseLayout>
