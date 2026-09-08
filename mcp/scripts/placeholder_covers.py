@@ -15,11 +15,12 @@ KNOWN_PLACEHOLDER_FILENAMES = (
     "momo.png",
 )
 
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_STANDALONE_COVERS_DIR = _SCRIPT_DIR / "docs" / "Steam_Covers"
 STEAM_TYPHOON_COVERS_DIR = (
-    Path(__file__).resolve().parents[2].parent
-    / "steam-typhoon"
-    / "docs"
-    / "Steam_Covers"
+    _STANDALONE_COVERS_DIR
+    if _STANDALONE_COVERS_DIR.is_dir()
+    else _SCRIPT_DIR.parent.parent.parent / "steam-typhoon" / "docs" / "Steam_Covers"
 )
 
 
