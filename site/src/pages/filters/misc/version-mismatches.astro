@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../../lib/directus";
+import { downloadLinks, getLinkMeta } from "../../../lib/download-link";
 import { formatTrackedVersion, hasVersionMismatch } from "../../../lib/game-versions";
 import { sortByTitle } from "../../../lib/list-format";
 import { isGameNsfw } from "../../../lib/nsfw";
@@ -15,6 +16,11 @@ const allGames = await directusFetchItems("games", {
     "version_orion",
     "version_typhoon",
     "version_gsl",
+    "links.id",
+    "links.url",
+    "links.label",
+    "links.kind",
+    "links.sort",
   ],
   limit: -1,
 });
@@ -36,7 +42,11 @@ const description = `${games.length} games have differing tracked version values
       .item{border:1px solid #222;border-radius:10px;padding:16px;margin:12px 0;background:#111;}
       .item a{color:#9aa6ff;}
       .item a:visited{color:#9aa6ff;}
+      .item-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
       .title{font-size:1.05rem;font-weight:600;}
+      .download-links{display:flex;align-items:center;gap:.5rem;}
+      .download-links img{width:1.1rem;height:1.1rem;display:block;}
+      .download-links .platform-icon{filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
       .versions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 0;}
       .version{background:#171717;border:1px solid #262626;border-radius:8px;padding:10px;min-width:0;}
       .version dt{font-size:.75rem;font-weight:700;letter-spacing:.03em;opacity:.7;text-transform:uppercase;}
@@ -57,21 +67,48 @@ const description = `${games.length} games have differing tracked version values
       ) : (
         games.map((game) => {
           const gameNsfw = isGameNsfw(game);
+          const gslLink = (game.links ?? []).find((l) => l.kind === "gamestorylog") ?? null;
+          const downloadEntries = downloadLinks(game.links).map((link) => ({
+            url: link.url,
+            linkMeta: getLinkMeta(link),
+          }));
           return (
             <article class="item">
-              <div class="title">
-                <a href={`/games/${game.slug}/index.html`}>{game.title}</a>
-                <span class={`content-rating-badge ${gameNsfw ? "is-nsfw" : "is-sfw"}`}>
-                  {gameNsfw ? "NSFW" : "SFW"}
-                </span>
+              <div class="item-header">
+                <div class="title">
+                  <a href={`/games/${game.slug}/index.html`}>{game.title}</a>
+                  <span class={`content-rating-badge ${gameNsfw ? "is-nsfw" : "is-sfw"}`}>
+                    {gameNsfw ? "NSFW" : "SFW"}
+                  </span>
+                </div>
+                {downloadEntries.length > 0 ? (
+                  <div class="download-links">
+                    {downloadEntries.map((entry) => (
+                      entry.linkMeta.icon ? (
+                        <a href={entry.url} rel="noopener noreferrer" target="_blank" aria-label={entry.linkMeta.label}>
+                          <img class="platform-icon" src={entry.linkMeta.icon} alt={entry.linkMeta.label} loading="lazy" />
+                        </a>
+                      ) : null
+                    ))}
+                  </div>
+                ) : null}
               </div>
               <dl class="versions">
                 {versionSources.map((source) => {
                   const version = formatTrackedVersion(game[source.field]);
+                  const isGsl = source.field === "version_gsl";
                   return (
                     <div class="version">
                       <dt>{source.label}</dt>
-                      <dd class:list={{ missing: version === null }}>{version ?? "Not recorded"}</dd>
+                      <dd class:list={{ missing: version === null }}>
+                        {version === null ? (
+                          "Not recorded"
+                        ) : isGsl && gslLink ? (
+                          <a href={gslLink.url} rel="noopener noreferrer" target="_blank">{version}</a>
+                        ) : (
+                          version
+                        )}
+                      </dd>
                     </div>
                   );
                 })}

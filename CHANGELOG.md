@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.192] - 2026-09-08
+- Filters: exclude Companion of Darkness Season 1 from the Version Mismatches page (GSL tracks it as one combined game with Season 2) and treat a small set of known differently-named-but-equivalent releases (Beyond Time, House of Hearts, A House In The Rift) as matches instead of false positives.
+- Filters: show each mismatched game's download links as icons and link its GameStoryLog version value to the GameStoryLog page, for faster access to updates.
+- Filters: add a discoverable Not AVN + Has GameStoryLog URL page.
+
 ## [1.0.191] - 2026-09-08
 - Filters: add a discoverable Version Mismatches page with Orion, Typhoon, and GameStoryLog values, listing games whenever at least two populated sources differ.
 
