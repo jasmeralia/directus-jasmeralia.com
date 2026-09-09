@@ -372,6 +372,9 @@ const avnMissingGamestorylogCount = (games ?? []).filter(
 const avnWithGamestorylogCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && hasGslLink(game),
 ).length;
+const nonAvnWithGamestorylogCount = (games ?? []).filter(
+  (game) => !hasAvnGenre(game) && hasGslLink(game),
+).length;
 const avnMissingWalkthroughCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && walkthroughLinks(game?.links).length === 0,
 ).length;
@@ -768,6 +771,7 @@ const miscFilterEntries = [
   { label: "AVN + Harem", href: "/filters/misc/avn-harem/index.html", count: avnHaremCount },
   { label: "AVN + Sandbox", href: "/filters/misc/avn-sandbox/index.html", count: avnSandboxCount },
   { label: "AVN + Missing GameStoryLog URL", href: "/filters/misc/avn-missing-gamestorylog/index.html", count: avnMissingGamestorylogCount },
+  { label: "Not AVN + Has GameStoryLog URL", href: "/filters/misc/non-avn-with-gamestorylog/index.html", count: nonAvnWithGamestorylogCount },
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
   { label: "AVN + Not Harem", href: "/filters/misc/avn-not-harem/index.html", count: avnNotHaremCount },
   { label: "AVN + Download Platform Steam", href: "/filters/misc/avn-steam/index.html", count: avnSteamCount },
