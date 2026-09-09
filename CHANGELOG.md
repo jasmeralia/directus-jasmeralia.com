@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.193] - 2026-09-08
+- Filters: exclude completed/released games, demo/intro/prologue-only installs, and installs whose semver-style version is already at or ahead of GameStoryLog's record from the Version Mismatches page. Fixes false positives like Once In A Lifetime ("1.0.0" vs "1.0") and Ripples ("0.9.21" installed vs GSL's stale "0.9.0").
+- Filters: fix the Version Mismatches count on the Filters index page, which wasn't applying the same exclusions as the dedicated page because it never fetched `slug`.
+- Filters: add a discoverable Download Link - Missing page.
+- Filters: narrow Download Platform + Unknown to games with an actual, unrecognized download link, instead of also including games with no download link at all (those now belong on Download Link - Missing).
+
 ## [1.0.192] - 2026-09-08
 - Filters: exclude Companion of Darkness Season 1 from the Version Mismatches page (GSL tracks it as one combined game with Season 2) and treat a small set of known differently-named-but-equivalent releases (Beyond Time, House of Hearts, A House In The Rift) as matches instead of false positives.
 - Filters: show each mismatched game's download links as icons and link its GameStoryLog version value to the GameStoryLog page, for faster access to updates.

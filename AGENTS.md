@@ -174,6 +174,8 @@ All three are in `site/src/lib/list-format.ts`. All raw `localeCompare` calls mu
 
 **Steam imports: set `game_status` to `"unreleased"` when `release_year` is null.** A missing release year means the game has not yet shipped. Do not default to `"released"`. This applies to `wishlist_import.py`, `generate_import_proposals.py`, `bulk_import.py`, and any future import scripts.
 
+**Non-Steam AVN stub creation (`sync_installed_versions.py`): default `game_status` to `"in_development"`, never `"released"`.** Most non-Steam AVNs discovered via the shortcut docs are still actively receiving updates, not finished releases; defaulting to `"released"` misrepresents that and previously caused those games to be wrongly excluded from the Version Mismatches filter's completed/released exclusion (see below). Correct the status manually once a game's actual state is confirmed.
+
 **After every change to the Astro site, update the changelog and bump the version before committing.**
 
 - **Changelog**: `CHANGELOG.md` — prepend a new `## [x.y.z] - YYYY-MM-DD` section with bullet points describing what changed.

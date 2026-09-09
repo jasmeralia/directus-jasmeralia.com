@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
-import { getUrlPlatform, downloadLinks, primaryDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
+import { getUrlPlatform, downloadLinks, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
 import { bundleProgressSummary, effectiveSectionStyle, sectionDataState } from "../../lib/game-bundles";
 import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
 import { sectionProgressSummary } from "../../lib/game-sections";
@@ -34,6 +34,7 @@ const tierLists = await directusFetchItems("tier_lists", {
 const games = await directusFetchItems("games", {
   fields: [
     "id",
+    "slug",
     "game_status",
     "player_status",
     "family_sharing",
@@ -375,6 +376,9 @@ const avnWithGamestorylogCount = (games ?? []).filter(
 const nonAvnWithGamestorylogCount = (games ?? []).filter(
   (game) => !hasAvnGenre(game) && hasGslLink(game),
 ).length;
+const missingDownloadLinkCount = (games ?? []).filter(
+  (game) => downloadLinks(game?.links).length === 0,
+).length;
 const avnMissingWalkthroughCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && walkthroughLinks(game?.links).length === 0,
 ).length;
@@ -430,7 +434,10 @@ const platformCounts = {
   playstation:  countPlatform("playstation"),  playstationExclusive:  countPlatformExclusive("playstation"),
   xbox:         countPlatform("xbox"),         xboxExclusive:         countPlatformExclusive("xbox"),
 };
-const unknownPlatformCount = (games ?? []).filter((game) => getUrlPlatform(primaryDownloadLink(game?.links)?.url) === null).length;
+const unknownPlatformCount = (games ?? []).filter((game) => {
+  const links = downloadLinks(game?.links);
+  return links.length > 0 && links.some((l) => getUrlPlatform(l.url) === null);
+}).length;
 const platformPieSegments = [
   { label: "Steam", value: platformCounts.steam, color: "#4aa3ff" },
   { label: "PlayStation", value: platformCounts.playstation, color: "#003087" },
@@ -787,6 +794,7 @@ const miscFilterEntries = [
   { label: "Download Platform + Unknown",      href: "/filters/misc/platform/unknown/index.html",      count: unknownPlatformCount },
   { label: "Download Platform + Xbox",         href: "/filters/misc/platform/xbox/index.html",         count: platformCounts.xbox,         exclusiveCount: platformCounts.xboxExclusive },
   { label: "Cover Art - Missing", href: "/filters/misc/missing-cover-art/index.html", count: missingCoverArtCount },
+  { label: "Download Link - Missing", href: "/filters/misc/missing-download-link/index.html", count: missingDownloadLinkCount },
   { label: "Cover Art - Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
   { label: "Developer Links + Discord", href: "/filters/misc/developer-links/discord/index.html", count: devLinkKindCounts.discord },
   { label: "Developer Links + itch.io", href: "/filters/misc/developer-links/itch/index.html", count: devLinkKindCounts.itch },

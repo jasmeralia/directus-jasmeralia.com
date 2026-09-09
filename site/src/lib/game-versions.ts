@@ -1,5 +1,7 @@
 export type TrackedGameVersions = {
   slug?: string | null;
+  player_status?: string | null;
+  game_status?: string | null;
   version_orion?: string | null;
   version_typhoon?: string | null;
   version_gsl?: string | null;
@@ -28,6 +30,8 @@ const VERSION_MISMATCH_EXCLUDED_SLUGS = new Set<string>([
 // group below -- these are real installs/labels manually confirmed to
 // describe the same (or a known-newer) release under a different naming
 // convention than GSL uses, not an install that actually needs an update.
+// Purely numeric dotted labels (e.g. "1.0" vs "1.0.0") don't need an entry
+// here -- see the semver-aware comparison below instead.
 const KNOWN_VERSION_EQUIVALENCES: Record<string, string[][]> = {
   // The dev switched from decimal versioning to episode numbering; "0.6" and
   // "Ep. 6" name the same release.
@@ -45,21 +49,67 @@ function isKnownEquivalent(slug: string | null, distinctVersions: string[]): boo
   return groups.some((group) => distinctVersions.every((version) => group.includes(version)));
 }
 
+// A purely numeric dotted label (e.g. "0.9.21") only -- letters/words push a
+// version out of this fast path and into the known-equivalence table above.
+function parseSemver(value: string): number[] | null {
+  if (!/^\d+(\.\d+)*$/.test(value)) return null;
+  return value.split(".").map(Number);
+}
+
+// Compares zero-padded so "1.0" and "1.0.0" are equal, matching how these
+// installs actually describe the same release.
+function compareSemver(a: number[], b: number[]): number {
+  const length = Math.max(a.length, b.length);
+  for (let index = 0; index < length; index += 1) {
+    const diff = (a[index] ?? 0) - (b[index] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+// Orion/Typhoon installs that are only a taste-test demo/intro/prologue
+// aren't the real target version -- they exist to gauge interest, not to
+// track for updates, so they shouldn't drive a mismatch flag either way.
+const PREVIEW_INSTALL_PATTERN = /^(demo|intro|prologue)\b/i;
+
+function isPreviewInstall(value: string | null): boolean {
+  return value !== null && PREVIEW_INSTALL_PATTERN.test(value);
+}
+
 export function hasVersionMismatch(game: TrackedGameVersions): boolean {
   const slug = game.slug ?? null;
   if (slug && VERSION_MISMATCH_EXCLUDED_SLUGS.has(slug)) return false;
+  if (game.player_status === "completed" || game.game_status === "released") return false;
 
-  const versions = [
-    game.version_orion,
-    game.version_typhoon,
-    game.version_gsl,
-  ]
-    .map(formatTrackedVersion)
+  const orion = formatTrackedVersion(game.version_orion);
+  const typhoon = formatTrackedVersion(game.version_typhoon);
+  const gsl = formatTrackedVersion(game.version_gsl);
+  if (isPreviewInstall(orion) || isPreviewInstall(typhoon)) return false;
+
+  const versions = [orion, typhoon, gsl]
     .filter((version): version is string => version !== null)
     .map((version) => version.toLocaleLowerCase("en-US"));
-
   if (versions.length < 2) return false;
+
   const distinct = [...new Set(versions)];
   if (distinct.length <= 1) return false;
-  return !isKnownEquivalent(slug, distinct);
+  if (isKnownEquivalent(slug, distinct)) return false;
+
+  // If GSL's own record is a parseable version and every populated installed
+  // copy is a parseable version at or ahead of it, GSL is simply stale --
+  // there is nothing newer to install, so this isn't a real mismatch.
+  const gslSemver = gsl ? parseSemver(gsl.toLocaleLowerCase("en-US")) : null;
+  if (gslSemver) {
+    const installedSemvers = [orion, typhoon]
+      .filter((version): version is string => version !== null)
+      .map((version) => parseSemver(version.toLocaleLowerCase("en-US")));
+    if (
+      installedSemvers.length > 0 &&
+      installedSemvers.every((version) => version !== null && compareSemver(version, gslSemver) >= 0)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
