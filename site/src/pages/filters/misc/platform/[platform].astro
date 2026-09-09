@@ -36,7 +36,7 @@ const games = sortByTitle(await directusFetchItems("games", {
 const filteredGames = games.filter((game) => {
   const links = downloadLinks(game?.links);
   if (platform === "unknown") {
-    return links.length === 0 || links.some((link) => getUrlPlatform(link.url) === null);
+    return links.length > 0 && links.some((link) => getUrlPlatform(link.url) === null);
   }
   return links.some((link) => getUrlPlatform(link.url) === platform);
 });
@@ -67,7 +67,9 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   <main>
     <div class="panel">
       <CsvHeader title={`Download Platform + ${platformLabel}`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
-      <p>Games with download links detected as {platformLabel}.</p>
+      <p>{platform === "unknown"
+        ? "Games with at least one download link whose platform could not be detected. Games with no download link at all belong on the Download Link - Missing filter instead."
+        : `Games with download links detected as ${platformLabel}.`}</p>
     </div>
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (
