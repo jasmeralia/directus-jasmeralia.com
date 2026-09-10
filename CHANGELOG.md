@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.196] - 2026-09-10
+- Reviews: migrate the index page to a block/card layout matching Guides and Tier Lists, with a screenshot count per review.
+
 ## [1.0.195] - 2026-09-10
 - Developers: note when a developer has abandoned games at the top of their page, with links to each abandoned game.
 
