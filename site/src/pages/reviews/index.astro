@@ -4,20 +4,32 @@ import { directusFetchItems } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
 import { isGameNsfw } from "../../lib/nsfw";
 
-const reviews = await directusFetchItems('reviews', {
-  fields: [
-    'id',
-    'title',
-    'slug',
-    'published_at',
-    'rating',
-    'game.nsfw',
-    'game.genres.genres_id.nsfw',
-  ],
-  filter: { status: { _eq: "published" } },
-  sort: ['-published_at', 'title'],
-  limit: -1,
-});
+const [reviews, allReviewScreenshots] = await Promise.all([
+  directusFetchItems('reviews', {
+    fields: [
+      'id',
+      'title',
+      'slug',
+      'published_at',
+      'rating',
+      'game.nsfw',
+      'game.genres.genres_id.nsfw',
+    ],
+    filter: { status: { _eq: "published" } },
+    sort: ['-published_at', 'title'],
+    limit: -1,
+  }),
+  directusFetchItems("review_screenshots", {
+    fields: ["id", "review"],
+    limit: -1,
+  }),
+]);
+const countsByReview = new Map<number, number>();
+for (const screenshot of allReviewScreenshots ?? []) {
+  const id = screenshot?.review;
+  if (typeof id === "number") countsByReview.set(id, (countsByReview.get(id) ?? 0) + 1);
+}
+const countReviewScreenshots = (review) => countsByReview.get(review?.id) ?? 0;
 
 const description = `Browse all ${reviews.length} published reviews by Jasmeralia.`;
 ---
@@ -25,34 +37,38 @@ const description = `Browse all ${reviews.length} published reviews by Jasmerali
 <BaseLayout title="Reviews" description={description}>
   <div slot="head">
     <style>
-      main{max-width:1100px;margin:0 auto;padding:24px;}
-      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
-      .panel a{color:#9aa6ff;}
-      .panel a:visited{color:#9aa6ff;}
+      main{padding:24px;}
+      .list{max-width:980px;margin:0 auto;}
+      .item{border:1px solid #222;border-radius:10px;padding:16px;margin:12px 0;background:#111;}
+      .desc{opacity:.85;margin-top:.4rem;}
+      .item a{color:#9aa6ff;}
+      .item a:visited{color:#9aa6ff;}
       .content-rating-badge{border:1px solid;border-radius:3px;font-size:.65rem;font-weight:700;margin-left:.4rem;padding:1px 4px;vertical-align:middle;}
       .content-rating-badge.is-sfw{background:#173d24;border-color:#2f7d46;color:#9ae6ad;}
       .content-rating-badge.is-nsfw{background:#5c2020;border-color:#8c3535;color:#ffb4b4;}
     </style>
   </div>
   <main>
-      <div class="panel">
+      <div class="list">
         <h1>Reviews</h1>
         {reviews.length === 0 ? (
           <p>No reviews yet.</p>
         ) : (
-          <ul>
-            {reviews.map((review) => {
-              const gameNsfw = isGameNsfw(review.game ?? {});
-              return <li>
+          reviews.map((review) => {
+            const gameNsfw = isGameNsfw(review.game ?? {});
+            const screenshotCount = countReviewScreenshots(review);
+            return (
+              <div class="item">
                 <a href={`/reviews/${review.slug}/index.html`}>{review.title}</a>
                 <span class={`content-rating-badge ${gameNsfw ? "is-nsfw" : "is-sfw"}`}>
                   {gameNsfw ? "NSFW" : "SFW"}
                 </span>
-                {typeof review.rating === "number" ? <span> (Rating: {review.rating}/10)</span> : null}
-                {review.published_at ? <span style="opacity:.6;margin-left:.5rem;">Published: {formatDate(review.published_at)}</span> : null}
-              </li>
-            })}
-          </ul>
+                {screenshotCount > 0 ? <span style="opacity:.7;margin-left:.5rem;">📷 {screenshotCount}</span> : null}
+                {typeof review.rating === "number" ? <div class="desc">Rating: {review.rating}/10</div> : null}
+                {review.published_at ? <div class="desc">Published: {formatDate(review.published_at)}</div> : null}
+              </div>
+            );
+          })
         )}
       </div>
   </main>

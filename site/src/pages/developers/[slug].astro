@@ -31,6 +31,7 @@ const {
 const logo = developer?.logo ? fileUrl(developer.logo) : null;
 const reviewedGameIds = new Set(reviewedGameIdValues);
 const sTierGameIds = new Set(sTierGameIdValues);
+const abandonedGames = games.filter((g) => g.game_status === "abandoned");
 const excludedFields = new Set([
   "id",
   "slug",
@@ -82,6 +83,8 @@ const description = isUnknown
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .abandoned-note{background:#2a1515;border-color:#5a2020;color:#ff8080;}
+      .abandoned-note a,.abandoned-note a:visited{color:#ff8080;}
       .label{opacity:.7;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;}
       .logo{max-width:200px;margin:12px 0;}
@@ -142,10 +145,20 @@ const description = isUnknown
       </div>
     ) : (
       <>
+        {abandonedGames.length > 0 ? (
+          <div class="panel abandoned-note">
+            <p>This developer has abandoned {abandonedGames.length} of their {games.length} tracked games</p>
+            <ul>
+              {abandonedGames.map((game) => (
+                <li><a href={`/games/${game.slug}/index.html`}>{game.title}</a></li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div class="panel">
           <div class="label">Games</div>
           <ThumbnailBorderLegend />
-    {games.length === 0 ? (
+          {games.length === 0 ? (
             <p>No games found for this developer.</p>
           ) : (
             <div class="grid">

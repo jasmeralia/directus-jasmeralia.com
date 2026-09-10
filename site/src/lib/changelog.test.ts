@@ -125,6 +125,17 @@ describe("changelog value formatting", () => {
     );
   });
 
+  it("keeps version fields in the default History delta formatting", () => {
+    const result = fmtDelta(
+      { version_orion: "0.2", version_typhoon: "0.3", version_gsl: "0.4" },
+      { version_orion: "0.1", version_typhoon: "0.2", version_gsl: "0.3" },
+    );
+
+    expect(result).toContain(`**version_orion**: 0.1 ${deltaArrow} 0.2`);
+    expect(result).toContain(`**version_typhoon**: 0.2 ${deltaArrow} 0.3`);
+    expect(result).toContain(`**version_gsl**: 0.3 ${deltaArrow} 0.4`);
+  });
+
   it("formats a new game and omits absent fields", () => {
     expect(fmtNewGame({
       release_year: 2025,

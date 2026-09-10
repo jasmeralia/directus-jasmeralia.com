@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.196] - 2026-09-10
+- Reviews: migrate the index page to a block/card layout matching Guides and Tier Lists, with a screenshot count per review.
+
+## [1.0.195] - 2026-09-10
+- Developers: note when a developer has abandoned games at the top of their page, with links to each abandoned game.
+
+## [1.0.194] - 2026-09-10
+- Feeds: stop AVN version-sync updates (Orion, Typhoon, GameStoryLog) from generating low-signal RSS items or homepage "recent update" noise, while keeping them fully visible in the Game Versions panel, Version Mismatches filter, and game History tab.
+
 ## [1.0.193] - 2026-09-08
 - Filters: exclude completed/released games, demo/intro/prologue-only installs, and installs whose semver-style version is already at or ahead of GameStoryLog's record from the Version Mismatches page. Fixes false positives like Once In A Lifetime ("1.0.0" vs "1.0") and Ripples ("0.9.21" installed vs GSL's stale "0.9.0").
 - Filters: fix the Version Mismatches count on the Filters index page, which wasn't applying the same exclusions as the dedicated page because it never fetched `slug`.
