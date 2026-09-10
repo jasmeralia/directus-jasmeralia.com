@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.195] - 2026-09-10
+- Developers: note when a developer has abandoned games at the top of their page, with links to each abandoned game.
+
 ## [1.0.194] - 2026-09-10
 - Feeds: stop AVN version-sync updates (Orion, Typhoon, GameStoryLog) from generating low-signal RSS items or homepage "recent update" noise, while keeping them fully visible in the Game Versions panel, Version Mismatches filter, and game History tab.
 
