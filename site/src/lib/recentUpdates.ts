@@ -20,7 +20,7 @@ export type UpdateEntry = {
 
 const SKIP_DELTA = new Set([
   "date_updated", "date_created", "sort", "id", "slug", "body", "updated_at",
-  "engines",
+  "engines", "version_orion", "version_typhoon", "version_gsl",
 ]);
 
 function hasMeaningfulDelta(delta: Record<string, unknown> | null): boolean {

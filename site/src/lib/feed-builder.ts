@@ -30,6 +30,18 @@ const LIMIT_JUNCTIONS   = 300; // tier_list_games activities
 const LIMIT_LINKS       = 400; // games_links activities (create + update)
 const LIMIT_BUNDLE_MEMBERS = 200;
 
+const SKIP_FEED_DELTA = new Set([
+  ...SKIP_DELTA,
+  "version_orion",
+  "version_typhoon",
+  "version_gsl",
+]);
+
+const feedDelta = (delta: Record<string, unknown> | null): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(delta ?? {}).filter(([field]) => !SKIP_FEED_DELTA.has(field)),
+  );
+
 // ─── XML helpers ─────────────────────────────────────────────────────────────
 
 const xmlEscape = (v: string) =>
@@ -131,7 +143,9 @@ const itemXml = (e: {
 
 function gameGuidEvent(rev: Revision): string {
   if (rev.activity?.action === "create") return "created";
-  const changedFields = Object.keys(rev.delta ?? {}).filter((field) => !SKIP_DELTA.has(field));
+  const changedFields = Object.keys(rev.delta ?? {}).filter(
+    (field) => !SKIP_FEED_DELTA.has(field),
+  );
   if (changedFields.length === 1 && changedFields[0] === "player_status") return "play_status";
   if (changedFields.length === 1 && changedFields[0] === "game_status") return "release_status";
   return "updated";
@@ -186,7 +200,7 @@ function buildGameEntry(
     };
   }
 
-  const desc = fmtDelta(rev.delta ?? {}, prevData, data, sections);
+  const desc = fmtDelta(feedDelta(rev.delta), prevData, data, sections);
   if (!desc.trim()) return null; // only skipped fields changed (e.g. just date_updated)
 
   return {

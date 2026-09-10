@@ -32,7 +32,13 @@ describe("fetchRecentUpdates", () => {
           {
             item: "3",
             data: { title: "Metadata Only", slug: "metadata-only" },
-            delta: { slug: "metadata-only", engines: [] },
+            delta: {
+              slug: "metadata-only",
+              engines: [],
+              version_orion: "0.2",
+              version_typhoon: "0.3",
+              version_gsl: "0.4",
+            },
             activity: { action: "update", timestamp: "2026-08-08T12:00:00Z" },
           },
           {
