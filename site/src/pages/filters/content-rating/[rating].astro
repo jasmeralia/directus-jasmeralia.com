@@ -6,36 +6,29 @@ import GameThumbCard from "../../../components/GameThumbCard.astro";
 import { directusFetchItems, getReviewedGameIds, getSTierGameIds } from "../../../lib/directus";
 import { csvDataUri, gamesToCsv } from "../../../lib/csv";
 import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
-import { sortByTitle } from "../../../lib/list-format";
-import { isGameNsfw } from "../../../lib/nsfw";
-
-const ratingMeta = {
-  sfw: {
-    label: "SFW",
-    description: "Games not classified as NSFW by their game or genre flags.",
-  },
-  nsfw: {
-    label: "NSFW",
-    description: "Games classified as NSFW by their game or genre flags.",
-  },
-};
+import { compareLabels, sortByTitle } from "../../../lib/list-format";
+import {
+  CONTENT_RATINGS,
+  CONTENT_RATING_META,
+  contentRating,
+  isContentRating,
+} from "../../../lib/nsfw";
 
 export async function getStaticPaths() {
-  return ["sfw", "nsfw"].map((rating) => ({ params: { rating } }));
+  return CONTENT_RATINGS.map((rating) => ({ params: { rating } }));
 }
 
 const { rating } = Astro.params;
-if (!rating || !(rating in ratingMeta)) {
+if (!isContentRating(rating)) {
   throw new Error(`Unsupported content rating filter: ${rating}`);
 }
-const meta = ratingMeta[rating as keyof typeof ratingMeta];
-const wantNsfw = rating === "nsfw";
+const meta = CONTENT_RATING_META[rating];
 
 const games = sortByTitle(await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   limit: -1,
 }));
-const filteredGames = games.filter((game) => isGameNsfw(game) === wantNsfw);
+const filteredGames = games.filter((game) => contentRating(game) === rating);
 const gameIds = filteredGames
   .map((game) => game.id)
   .filter((id) => typeof id === "number");
@@ -45,6 +38,20 @@ const [reviewedGameIds, sTierGameIds] = await Promise.all([
 ]);
 const csvName = `content-rating-${rating}.csv`;
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
+
+const labelize = (value) =>
+  value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
+const playedStatusCounts = new Map();
+for (const game of filteredGames) {
+  if (!game.player_status) continue;
+  playedStatusCounts.set(
+    game.player_status,
+    (playedStatusCounts.get(game.player_status) || 0) + 1,
+  );
+}
+const playedStatusEntries = Array.from(playedStatusCounts.entries())
+  .map(([status, count]) => ({ status, count, statusLabel: labelize(status) }))
+  .sort((a, b) => compareLabels(a.statusLabel, b.statusLabel));
 ---
 
 <BaseLayout title={`Filters | Content Rating + ${meta.label}`}>
@@ -55,6 +62,8 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .panel h2{margin:0 0 8px 0;font-size:1.05rem;}
+      .combos{list-style:disc;margin:0;padding-left:20px;}
     </style>
   </div>
   <main>
@@ -62,6 +71,19 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
       <CsvHeader title={`Content Rating + ${meta.label}`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>{meta.description}</p>
     </div>
+    {playedStatusEntries.length > 0 ? (
+      <div class="panel">
+        <h2>Narrow by Played Status</h2>
+        <ul class="combos">
+          {playedStatusEntries.map((entry) => (
+            <li>
+              <a href={`/filters/content-rating/${rating}/played_status/${entry.status}/index.html`}>{meta.label} + {entry.statusLabel}</a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null}
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (
       <p>No {meta.label} games found.</p>

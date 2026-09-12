@@ -8,7 +8,7 @@ import { sectionProgressSummary } from "../../lib/game-sections";
 import { hasVersionMismatch } from "../../lib/game-versions";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 import { formatUnknown, compareLabels } from "../../lib/list-format";
-import { hasGenreSlug, isGameNsfw } from "../../lib/nsfw";
+import { CONTENT_RATING_META, contentRating, hasGenreSlug, isGameNsfw } from "../../lib/nsfw";
 import {
   WALKTHROUGH_KIND_LABEL,
   WALKTHROUGH_KINDS,
@@ -91,6 +91,7 @@ const genrePlayedCounts = new Map();
 const genrePlayedTotalCounts = new Map();
 const genrePlayedValues = new Map();
 const sectionDataPlayedCounts = new Map();
+const contentRatingPlayedCounts = new Map();
 
 for (const game of games ?? []) {
   const engineSlugs =
@@ -182,6 +183,8 @@ for (const game of games ?? []) {
     const sectionState = sectionDataState(game);
     const sectionKey = `${sectionState}::${game.player_status}`;
     sectionDataPlayedCounts.set(sectionKey, (sectionDataPlayedCounts.get(sectionKey) || 0) + 1);
+    const ratingKey = `${contentRating(game)}::${game.player_status}`;
+    contentRatingPlayedCounts.set(ratingKey, (contentRatingPlayedCounts.get(ratingKey) || 0) + 1);
   }
 }
 
@@ -335,6 +338,21 @@ const sectionDataPlayedEntries = Array.from(sectionDataPlayedCounts.entries())
   })
   .sort((a, b) =>
     compareLabels(a.stateLabel, b.stateLabel) ||
+    compareLabels(a.statusLabel, b.statusLabel));
+
+const contentRatingPlayedEntries = Array.from(contentRatingPlayedCounts.entries())
+  .map(([key, count]) => {
+    const [rating, status] = key.split("::");
+    return {
+      rating,
+      status,
+      count,
+      ratingLabel: CONTENT_RATING_META[rating]?.label ?? rating,
+      statusLabel: labelize(status),
+    };
+  })
+  .sort((a, b) =>
+    compareLabels(a.ratingLabel, b.ratingLabel) ||
     compareLabels(a.statusLabel, b.statusLabel));
 
 const INCOMPLETE_STATUSES = new Set(["not_started", "in_progress", "on_hold", "waiting_for_update"]);
@@ -860,6 +878,7 @@ const chartCount = [
       <h2>Jump to Section</h2>
       <ul>
         <li><a href="#content-rating">Content Rating ({contentRatingEntries.length})</a></li>
+        <li><a href="#content-rating-played-status">Content Rating + Played Status ({contentRatingPlayedEntries.length})</a></li>
         <li><a href="#section-style">Section Style ({sectionStyleEntries.length})</a></li>
         <li><a href="#developer-game-status">Developer + Game Status ({developerStatusEntries.length})</a></li>
         <li><a href="#developer-played-status">Developer + Played Status ({developerPlayedEntries.length})</a></li>
@@ -883,6 +902,23 @@ const chartCount = [
           </li>
         ))}
       </ul>
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
+    </div>
+    <div class="panel" id="content-rating-played-status">
+      <h2>Content Rating + Played Status ({contentRatingPlayedEntries.length} combinations)</h2>
+      <p style="opacity:.7;margin-top:-8px;">Combinations with no games are hidden.</p>
+      {contentRatingPlayedEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {contentRatingPlayedEntries.map((entry) => (
+            <li>
+              <a href={`/filters/content-rating/${entry.rating}/played_status/${entry.status}/index.html`}>{entry.ratingLabel} + {entry.statusLabel}</a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="section-style">
