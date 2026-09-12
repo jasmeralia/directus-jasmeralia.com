@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.197] - 2026-09-12
+- Filters: add Content Rating + Played Status composite pages (e.g. NSFW + On Hold, SFW + Completed), each with counts and a CSV export, listed in a new section on the filters index. Combinations with no games are not generated.
+- Filters: link each content rating page to its played-status breakdown from a new "Narrow by Played Status" panel.
+
 ## [1.0.196] - 2026-09-10
 - Reviews: migrate the index page to a block/card layout matching Guides and Tier Lists, with a screenshot count per review.
 
