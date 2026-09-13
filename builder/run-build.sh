@@ -8,18 +8,20 @@ AWS_REGION="${AWS_REGION:-}"
 INVALIDATE_ON_PUBLISH="${INVALIDATE_ON_PUBLISH:-true}"
 CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-}"
 DEPLOY_MANIFEST_PATH="${DEPLOY_MANIFEST_PATH:-${ASTRO_DIR%/*}/.site-deploy-manifest.json}"
-BUILD_ROOT="$(mktemp -d /tmp/astro-build.XXXXXX)"
-BUILD_DIR="$BUILD_ROOT/site"
+# Fixed (not mktemp'd) and a sibling of ASTRO_DIR on the bind-mounted repo
+# checkout (not /tmp, which is tmpfs/RAM-backed on the TrueNAS host) so rsync
+# below can use it as a persistent mirror across container recreations and
+# only transfer what changed since the last build, instead of a full deep
+# copy every time. Builds are strictly serialized by server.js (buildRunning
+# guard + queue), so reusing this path across runs is safe. tmp-site/ and
+# tmp-site/.keep are committed to git (everything else under it is
+# gitignored) so the directory exists on a fresh checkout.
+BUILD_DIR="${ASTRO_DIR%/*}/tmp-site"
 
 BUILD_START_MS=0
 TIMING_STAGE=""
 TIMING_STAGE_START_MS=0
 TIMING_SUMMARY_PARTS=()
-
-cleanup() {
-  rm -rf "$BUILD_ROOT"
-}
-trap cleanup EXIT
 
 now_ms() {
   date +%s%3N
@@ -83,12 +85,18 @@ fi
 mkdir -p "$BUILD_DIR"
 timing_start staging_copy
 if [[ -d "$ASTRO_DIR/node_modules" ]]; then
-  node_modules_mb="$(du -sm "$ASTRO_DIR/node_modules" 2>/dev/null | awk '{print $1}')"
-  echo "[timing] staging_note node_modules_present=true node_modules_mb=${node_modules_mb:-unknown}"
+  echo "[timing] staging_note node_modules_present=true (excluded from sync; npm ci reinstalls it directly in the build dir)"
 else
   echo "[timing] staging_note node_modules_present=false"
 fi
-cp -a "$ASTRO_DIR"/. "$BUILD_DIR"/
+# --delete keeps BUILD_DIR an exact mirror of ASTRO_DIR (minus node_modules,
+# which npm ci below always removes and reinstalls from the lockfile anyway,
+# so syncing it here would be wasted I/O). Reusing the same BUILD_DIR across
+# builds means rsync only transfers what actually changed. -W skips the
+# delta-transfer algorithm, which only helps over a slow link -- for a local
+# same-host copy it's pure overhead. .keep has no counterpart in ASTRO_DIR,
+# so it's protected from --delete via the P filter rule.
+rsync --delete -avWP --exclude=/node_modules --filter='P /.keep' "$ASTRO_DIR"/ "$BUILD_DIR"/
 timing_end
 
 echo "==> Building Astro site from staged copy $BUILD_DIR"
@@ -122,7 +130,7 @@ timing_end
 # Provide DIRECTUS_URL to the build if your Astro code reads it.
 # Example in Astro: import.meta.env.DIRECTUS_URL (via env prefix rules) or process.env.DIRECTUS_URL.
 # You may want to map this to PUBLIC_ variables depending on your Astro config.
-ASTRO_BUILD_LOG="${BUILD_ROOT}/astro-build.log"
+ASTRO_BUILD_LOG="${BUILD_DIR}/astro-build.log"
 timing_start astro_build
 npx astro build 2>&1 | tee "$ASTRO_BUILD_LOG"
 node /srv/parse-astro-build-log.mjs "$ASTRO_BUILD_LOG"
