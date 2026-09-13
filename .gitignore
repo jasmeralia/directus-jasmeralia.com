@@ -7,5 +7,7 @@ __pycache__/
 mcp/scripts/ignored/
 .claude/*.lock
 .site-deploy-manifest.json
+tmp-site/*
+!tmp-site/.keep
 site/coverage/
 .kanna

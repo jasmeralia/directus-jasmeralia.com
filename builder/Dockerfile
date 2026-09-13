@@ -11,7 +11,7 @@ FROM node:26-slim
 # tag already floats.
 # hadolint ignore=DL3008
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends bash curl unzip ca-certificates git \
+  && apt-get install -y --no-install-recommends bash curl unzip ca-certificates git rsync \
   && curl -sS "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip" \
   && unzip /tmp/awscliv2.zip -d /tmp \
   && /tmp/aws/install \
