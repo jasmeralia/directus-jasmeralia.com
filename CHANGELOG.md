@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.198] - 2026-09-12
+- Tier Lists: show an entry count next to the tier list title, and a per-tier entry count next to each tier's label (e.g. "C (6)"). Right-align the CSV download link.
+
 ## [1.0.197] - 2026-09-12
 - Filters: add Content Rating + Played Status composite pages (e.g. NSFW + On Hold, SFW + Completed), each with counts and a CSV export, listed in a new section on the filters index. Combinations with no games are not generated.
 - Filters: link each content rating page to its played-status breakdown from a new "Narrow by Played Status" panel.
