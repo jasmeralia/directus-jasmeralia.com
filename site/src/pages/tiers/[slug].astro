@@ -48,6 +48,8 @@ const tierGroups = Object.entries(TIER_RATING_CONFIG)
     ),
   }));
 
+const totalEntryCount = tierGroups.reduce((sum, group) => sum + group.games.length, 0);
+
 function tierRatingSummary(title: string, groups: { displayLabel: string; games: unknown[] }[]): string {
   if (!groups.length) return `${title} - no games rated yet.`;
   const clauses = groups.map((group, index) =>
@@ -111,7 +113,7 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
 <BaseLayout title={`Tier Lists | ${tierList.title}`} description={description}>
 <main class="tier-page">
       <div class="tier-heading">
-        <h1 class="tier-title">{tierList.title}</h1>
+        <h1 class="tier-title">{tierList.title} <span class="tier-title-count">({totalEntryCount})</span></h1>
         <a class="csv-link" href={csvHref} download={csvName} aria-label="Download CSV">CSV</a>
       </div>
       {tierList.description && <p class="tier-desc">{tierList.description}</p>}
@@ -120,7 +122,7 @@ const thumbBorderStyle = (reviewed, playerStatus, sTier, hasWalkthrough) => {
         {tierGroups.map((group) => (
           <div class="tier-row">
             <div class="tier-label" style={`background:${group.color};`}>
-              {group.displayLabel}
+              {group.displayLabel} ({group.games.length})
             </div>
 
             <div class="tier-cells">

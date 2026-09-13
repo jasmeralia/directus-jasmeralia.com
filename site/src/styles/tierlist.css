@@ -20,7 +20,14 @@
   margin: 0;
 }
 
+.tier-title-count {
+  font-size: 1.1rem;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
 .csv-link {
+  margin-left: auto;
   border: 1px solid #2b2b2b;
   border-radius: 999px;
   padding: 4px 10px;
