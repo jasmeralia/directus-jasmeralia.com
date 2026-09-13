@@ -7,7 +7,8 @@ import { directusFetchItems, getReviewedGameIds, getSTierGameIds } from "../../.
 import { csvDataUri, gamesToCsv } from "../../../lib/csv";
 import { effectiveSectionStyle } from "../../../lib/game-bundles";
 import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
-import { sortByTitle } from "../../../lib/list-format";
+import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../../lib/genre-supersets";
+import { compareLabels, sortByTitle } from "../../../lib/list-format";
 
 const styleMeta = {
   linear: {
@@ -47,6 +48,39 @@ const [reviewedGameIds, sTierGameIds] = await Promise.all([
 
 const csvName = `section-style-${style}.csv`;
 const csvHref = csvDataUri(gamesToCsv(games));
+
+const isSupersetGenre = (slug) =>
+  Object.prototype.hasOwnProperty.call(GENRE_SUPERSETS, slug);
+const genreCounts = new Map();
+const genreTotalCounts = new Map();
+const genreLabels = new Map();
+for (const game of games) {
+  const rawGenreSlugs =
+    (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
+  const distinctGenreSlugs = normalizeGenreSlugs(rawGenreSlugs);
+  const totalGenresForGame = rawGenreSlugs.length ? rawGenreSlugs : ["unknown"];
+  const distinctGenresForGame = distinctGenreSlugs.length ? distinctGenreSlugs : ["unknown"];
+  for (const genre of distinctGenresForGame) {
+    genreCounts.set(genre, (genreCounts.get(genre) || 0) + 1);
+  }
+  for (const genre of totalGenresForGame) {
+    genreTotalCounts.set(genre, (genreTotalCounts.get(genre) || 0) + 1);
+  }
+  for (const entry of game.genres ?? []) {
+    const slug = entry?.genres_id?.slug;
+    const name = entry?.genres_id?.name;
+    if (slug && name) genreLabels.set(slug, name);
+  }
+}
+const genreEntries = Array.from(genreTotalCounts.entries())
+  .map(([genre, totalCount]) => ({
+    genre,
+    totalCount,
+    count: genreCounts.get(genre) || 0,
+    genreLabel: genre === "unknown" ? "Unknown" : (genreLabels.get(genre) ?? genre),
+  }))
+  .filter((entry) => !(isSupersetGenre(entry.genre) && entry.count === 0))
+  .sort((a, b) => compareLabels(a.genreLabel, b.genreLabel));
 ---
 
 <BaseLayout title={`Filters | Section Style + ${meta.label}`}>
@@ -57,6 +91,8 @@ const csvHref = csvDataUri(gamesToCsv(games));
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .panel h2{margin:0 0 8px 0;font-size:1.05rem;}
+      .combos{list-style:disc;margin:0;padding-left:20px;}
     </style>
   </div>
   <main>
@@ -64,6 +100,23 @@ const csvHref = csvDataUri(gamesToCsv(games));
       <CsvHeader title={`Section Style + ${meta.label}`} count={games.length} csvHref={csvHref} csvName={csvName} />
       <p>{meta.description}</p>
     </div>
+    {genreEntries.length > 0 ? (
+      <div class="panel">
+        <h2>Narrow by Genre</h2>
+        <ul class="combos">
+          {genreEntries.map((entry) => (
+            <li>
+              <a href={`/filters/section-style/${style}/genre/${entry.genre}/index.html`}>{meta.label} + {entry.genreLabel}</a>
+              {isSupersetGenre(entry.genre) ? (
+                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
+              ) : (
+                <span style="opacity:.7;"> ({entry.count})</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null}
     <ThumbnailBorderLegend />
     {games.length === 0 ? (
       <p>No {meta.label} games found.</p>

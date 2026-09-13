@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.199] - 2026-09-13
+- Filters: combine the Content Rating panel with Content Rating + Played Status into one section on the filters index, and add Content Rating + Section Style and Content Rating + Game Status composite pages alongside it.
+- Filters: add Section Style + Genre composite pages (Linear + Genre, Nonlinear + Genre), linked from both the Section Style detail pages and a new subsection on the filters index.
+
 ## [1.0.198] - 2026-09-12
 - Tier Lists: show an entry count next to the tier list title, and a per-tier entry count next to each tier's label (e.g. "C (6)"). Right-align the CSV download link.
 

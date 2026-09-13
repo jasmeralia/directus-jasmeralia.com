@@ -92,6 +92,10 @@ const genrePlayedTotalCounts = new Map();
 const genrePlayedValues = new Map();
 const sectionDataPlayedCounts = new Map();
 const contentRatingPlayedCounts = new Map();
+const contentRatingGameStatusCounts = new Map();
+const contentRatingSectionStyleCounts = new Map();
+const sectionStyleGenreCounts = new Map();
+const sectionStyleGenreTotalCounts = new Map();
 
 for (const game of games ?? []) {
   const engineSlugs =
@@ -148,6 +152,22 @@ for (const game of games ?? []) {
     for (const genre of totalGenresForGame) {
       const key = `${genre}::${game.game_status}`;
       genreStatusTotalCounts.set(key, (genreStatusTotalCounts.get(key) || 0) + 1);
+    }
+    const statusRatingKey = `${contentRating(game)}::${game.game_status}`;
+    contentRatingGameStatusCounts.set(statusRatingKey, (contentRatingGameStatusCounts.get(statusRatingKey) || 0) + 1);
+  }
+
+  const effectiveStyle = effectiveSectionStyle(game);
+  if (effectiveStyle) {
+    const styleRatingKey = `${contentRating(game)}::${effectiveStyle}`;
+    contentRatingSectionStyleCounts.set(styleRatingKey, (contentRatingSectionStyleCounts.get(styleRatingKey) || 0) + 1);
+    for (const genre of distinctGenresForGame) {
+      const key = `${effectiveStyle}::${genre}`;
+      sectionStyleGenreCounts.set(key, (sectionStyleGenreCounts.get(key) || 0) + 1);
+    }
+    for (const genre of totalGenresForGame) {
+      const key = `${effectiveStyle}::${genre}`;
+      sectionStyleGenreTotalCounts.set(key, (sectionStyleGenreTotalCounts.get(key) || 0) + 1);
     }
   }
 
@@ -381,6 +401,56 @@ const sectionStyleEntries = [
   { style: "linear", label: "Linear", count: linearCount },
   { style: "nonlinear", label: "Nonlinear", count: nonlinearCount },
 ];
+const STYLE_LABEL = { linear: "Linear", nonlinear: "Nonlinear" };
+
+const contentRatingSectionStyleEntries = Array.from(contentRatingSectionStyleCounts.entries())
+  .map(([key, count]) => {
+    const [rating, style] = key.split("::");
+    return {
+      rating,
+      style,
+      count,
+      ratingLabel: CONTENT_RATING_META[rating]?.label ?? rating,
+      styleLabel: STYLE_LABEL[style] ?? style,
+    };
+  })
+  .sort((a, b) =>
+    compareLabels(a.ratingLabel, b.ratingLabel) ||
+    compareLabels(a.styleLabel, b.styleLabel));
+
+const contentRatingGameStatusEntries = Array.from(contentRatingGameStatusCounts.entries())
+  .map(([key, count]) => {
+    const [rating, status] = key.split("::");
+    return {
+      rating,
+      status,
+      count,
+      ratingLabel: CONTENT_RATING_META[rating]?.label ?? rating,
+      statusLabel: labelize(status),
+    };
+  })
+  .sort((a, b) =>
+    compareLabels(a.ratingLabel, b.ratingLabel) ||
+    compareLabels(a.statusLabel, b.statusLabel));
+
+const sectionStyleGenreEntries = Array.from(sectionStyleGenreTotalCounts.entries())
+  .map(([key, totalCount]) => {
+    const [style, genre] = key.split("::");
+    return {
+      style,
+      genre,
+      count: sectionStyleGenreCounts.get(key) || 0,
+      totalCount,
+      styleLabel: STYLE_LABEL[style] ?? style,
+      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
+    };
+  })
+  .filter((entry) => !(isSupersetGenre(entry.genre) && entry.count === 0))
+  .sort((a, b) =>
+    compareLabels(a.styleLabel, b.styleLabel) ||
+    unknownLast(a, b, "genreLabel") ||
+    compareLabels(a.genreLabel, b.genreLabel));
+
 const nsfwNotAvnCount = (games ?? []).filter(
   (game) => isGameNsfw(game) && !hasAvnGenre(game),
 ).length;
@@ -861,6 +931,7 @@ const chartCount = [
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
       .panel a{color:#9aa6ff;}
       .panel a:visited{color:#9aa6ff;}
+      .panel h3{margin:16px 0 8px 0;font-size:.95rem;opacity:.85;}
       .jump-top{margin:12px 0 0;font-size:.85rem;opacity:.8;text-align:right;}
       .pie-wrap{display:flex;justify-content:center;padding-top:45px;padding-bottom:45px;}
       .pie-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:16px;}
@@ -878,7 +949,6 @@ const chartCount = [
       <h2>Jump to Section</h2>
       <ul>
         <li><a href="#content-rating">Content Rating ({contentRatingEntries.length})</a></li>
-        <li><a href="#content-rating-played-status">Content Rating + Played Status ({contentRatingPlayedEntries.length})</a></li>
         <li><a href="#section-style">Section Style ({sectionStyleEntries.length})</a></li>
         <li><a href="#developer-game-status">Developer + Game Status ({developerStatusEntries.length})</a></li>
         <li><a href="#developer-played-status">Developer + Played Status ({developerPlayedEntries.length})</a></li>
@@ -902,10 +972,33 @@ const chartCount = [
           </li>
         ))}
       </ul>
-      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
-    </div>
-    <div class="panel" id="content-rating-played-status">
-      <h2>Content Rating + Played Status ({contentRatingPlayedEntries.length} combinations)</h2>
+      <h3>Content Rating + Section Style ({contentRatingSectionStyleEntries.length} combinations)</h3>
+      {contentRatingSectionStyleEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {contentRatingSectionStyleEntries.map((entry) => (
+            <li>
+              <a href={`/filters/content-rating/${entry.rating}/section_style/${entry.style}/index.html`}>{entry.ratingLabel} + {entry.styleLabel}</a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <h3>Content Rating + Game Status ({contentRatingGameStatusEntries.length} combinations)</h3>
+      {contentRatingGameStatusEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {contentRatingGameStatusEntries.map((entry) => (
+            <li>
+              <a href={`/filters/content-rating/${entry.rating}/game_status/${entry.status}/index.html`}>{entry.ratingLabel} + {entry.statusLabel}</a>
+              <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <h3>Content Rating + Played Status ({contentRatingPlayedEntries.length} combinations)</h3>
       <p style="opacity:.7;margin-top:-8px;">Combinations with no games are hidden.</p>
       {contentRatingPlayedEntries.length === 0 ? (
         <p>No combinations yet.</p>
@@ -931,6 +1024,24 @@ const chartCount = [
           </li>
         ))}
       </ul>
+      <h3>Section Style + Genre ({sectionStyleGenreEntries.length} combinations)</h3>
+      <p style="opacity:.7;margin-top:-8px;">Superset genres with zero distinct matches are hidden.</p>
+      {sectionStyleGenreEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {sectionStyleGenreEntries.map((entry) => (
+            <li>
+              <a href={`/filters/section-style/${entry.style}/genre/${entry.genre}/index.html`}>{entry.styleLabel} + {entry.genreLabel}</a>
+              {isSupersetGenre(entry.genre) ? (
+                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
+              ) : (
+                <span style="opacity:.7;"> ({entry.count})</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="developer-game-status">

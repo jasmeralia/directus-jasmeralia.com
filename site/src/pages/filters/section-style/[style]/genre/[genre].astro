@@ -1,0 +1,131 @@
+---
+import BaseLayout from "../../../../../layouts/BaseLayout.astro";
+import CsvHeader from "../../../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../../../components/ThumbnailBorderLegend.astro";
+import GameThumbCard from "../../../../../components/GameThumbCard.astro";
+import { directusFetchItems, getReviewedGameIds, getSTierGameIds } from "../../../../../lib/directus";
+import { effectiveSectionStyle } from "../../../../../lib/game-bundles";
+import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../../../../lib/genre-supersets";
+import { csvDataUri, gamesToCsv } from "../../../../../lib/csv";
+import { GAME_THUMB_FIELDS } from "../../../../../lib/game-fields";
+import { sortByTitle } from "../../../../../lib/list-format";
+
+const STYLE_LABEL = { linear: "Linear", nonlinear: "Nonlinear" };
+
+export async function getStaticPaths() {
+  const games = await directusFetchItems("games", {
+    fields: [
+      "id",
+      "section_style",
+      "sections.id",
+      "bundle_members.id",
+      "bundle_members.section_data_status",
+      "genres.genres_id.slug",
+    ],
+    limit: -1,
+  });
+
+  const comboCounts = new Map();
+  const distinctCounts = new Map();
+  for (const game of games ?? []) {
+    const style = effectiveSectionStyle(game);
+    if (!style) continue;
+    const genreSlugs =
+      (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
+    const distinctGenreSlugs = normalizeGenreSlugs(genreSlugs);
+    const genresForGame = genreSlugs.length ? genreSlugs : ["unknown"];
+    const distinctGenresForGame = distinctGenreSlugs.length ? distinctGenreSlugs : ["unknown"];
+    for (const genre of genresForGame) {
+      const key = `${style}::${genre}`;
+      comboCounts.set(key, (comboCounts.get(key) || 0) + 1);
+    }
+    for (const genre of distinctGenresForGame) {
+      const key = `${style}::${genre}`;
+      distinctCounts.set(key, (distinctCounts.get(key) || 0) + 1);
+    }
+  }
+
+  return Array.from(comboCounts.keys())
+    .filter((key) => {
+      const [, genre] = key.split("::");
+      if (!Object.prototype.hasOwnProperty.call(GENRE_SUPERSETS, genre)) return true;
+      return (distinctCounts.get(key) || 0) > 0;
+    })
+    .map((key) => {
+      const [style, genre] = key.split("::");
+      return { params: { style, genre } };
+    });
+}
+
+const { style, genre } = Astro.params;
+if (!style || !(style in STYLE_LABEL)) {
+  throw new Error(`Unsupported section style filter: ${style}`);
+}
+const styleLabel = STYLE_LABEL[style as keyof typeof STYLE_LABEL];
+
+const genres = await directusFetchItems("genres", {
+  fields: ["slug", "name"],
+  filter: { slug: { _eq: genre } },
+  limit: 1,
+});
+const genreLabel = genre === "unknown" ? "Unknown" : (genres?.[0]?.name ?? genre);
+
+const candidates = await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  filter: { section_style: { _eq: style } },
+  limit: -1,
+});
+let games = (candidates ?? []).filter((game) => effectiveSectionStyle(game) === style);
+if (genre === "unknown") {
+  games = games.filter((game) => (game.genres ?? []).length === 0);
+} else {
+  games = games.filter((game) =>
+    (game.genres ?? []).some((entry) => entry?.genres_id?.slug === genre),
+  );
+}
+games = sortByTitle(games);
+
+const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
+const [reviewedGameIds, sTierGameIds] = await Promise.all([
+  getReviewedGameIds(gameIds),
+  getSTierGameIds(gameIds),
+]);
+
+const csvName = `section-style-${style}-genre-${genre}.csv`;
+const csvHref = csvDataUri(gamesToCsv(games));
+---
+
+<BaseLayout title={`Filters | Section Style ${styleLabel} + ${genreLabel}`}>
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <CsvHeader title={`Section Style: ${styleLabel} + ${genreLabel}`} count={games.length} csvHref={csvHref} csvName={csvName} />
+      <p>
+        Section style: <strong><a href={`/filters/section-style/${style}/index.html`}>{styleLabel}</a></strong> &nbsp;|&nbsp;
+        Genre: <strong>{genreLabel}</strong>
+      </p>
+    </div>
+    <ThumbnailBorderLegend />
+    {games.length === 0 ? (
+      <p>No games found for this combination.</p>
+    ) : (
+      <div class="grid">
+        {games.map((game) => (
+          <GameThumbCard
+            game={game}
+            reviewed={reviewedGameIds.has(game.id)}
+            sTier={sTierGameIds.has(game.id)}
+          />
+        ))}
+      </div>
+    )}
+  </main>
+</BaseLayout>
