@@ -458,6 +458,7 @@ Supported modes:
 
 ```text
 populate_game_bundle.py --from-json <path|-> [--dry-run] [--replace]
+populate_game_bundle.py --from-json <path|-> --migrate-direct-sections [--dry-run]
 populate_game_bundle.py <parent-slug> --list
 ```
 
@@ -485,6 +486,14 @@ Example payload shape:
 
 Null current values mean "leave current progress unset". They must never
 inherit the source game's current section.
+
+`--migrate-direct-sections` is only for converting an already-researched
+ordinary game into an omnibus. Each member receiving section rows sets
+`section_categories` to the parent category or categories that belong to it.
+The command moves every direct parent section to its member, renumbers it
+within that member, and clears the parent section metadata. It rejects an
+incomplete or overlapping category map, refuses target members that already
+have section rows, and does not delete any section rows.
 
 ### 8.2 Extend `game_sections_lib.py`
 

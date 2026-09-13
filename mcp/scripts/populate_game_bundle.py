@@ -46,6 +46,14 @@ def _parser() -> argparse.ArgumentParser:
         help="Remove existing members omitted from the reviewed payload",
     )
     parser.add_argument(
+        "--migrate-direct-sections",
+        action="store_true",
+        help=(
+            "Move the parent's category-mapped direct sections to the reviewed "
+            "members, renumbering each member's rows from 1"
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print planned Directus writes without changing data",
@@ -143,6 +151,21 @@ def _normalize_member(raw: dict[str, Any], parent_slug: str) -> dict[str, Any]:
             "section_noun",
             f"{context} '{slug}'",
         )
+    if "section_categories" in raw:
+        categories = raw["section_categories"]
+        if not isinstance(categories, list) or not categories:
+            raise ValueError(
+                f"{context} '{slug}': section_categories must be a non-empty array"
+            )
+        normalized_categories = [
+            _ascii_string(category, "section_categories", f"{context} '{slug}'")
+            for category in categories
+        ]
+        if len(normalized_categories) != len(set(normalized_categories)):
+            raise ValueError(
+                f"{context} '{slug}': section_categories contains a duplicate"
+            )
+        normalized["section_categories"] = normalized_categories
     if section_status == "not_applicable":
         normalized["current_section"] = None
     elif "current" in raw:
@@ -189,22 +212,29 @@ def _existing_members(
 
 
 def _assert_no_direct_sections(client: DirectusClient, game_id: int) -> None:
-    direct_sections = client.fetch_all(
-        "/items/game_sections?fields=id"
-        f"&filter[games_id][_eq]={game_id}"
-        "&filter[bundle_member_id][_null]=true"
-    )
-    if direct_sections:
+    if _direct_sections(client, game_id):
         raise ValueError(
             f"Game id={game_id} has direct sections; remove or migrate them "
             "before adding bundle members"
         )
 
 
+def _direct_sections(client: DirectusClient, game_id: int) -> list[dict[str, Any]]:
+    """Return direct parent rows in their established display order."""
+    return client.fetch_all(
+        "/items/game_sections?fields=id,number,title,category,sort"
+        f"&filter[games_id][_eq]={game_id}"
+        "&filter[bundle_member_id][_null]=true"
+        "&sort=sort"
+    )
+
+
 def _assert_member_section_state(
     client: DirectusClient,
     existing: dict[str, Any] | None,
     desired: dict[str, Any],
+    *,
+    allow_pending_sections: bool = False,
 ) -> None:
     """Reject member metadata that would violate section-state invariants."""
     member_id = existing.get("id") if existing else None
@@ -227,7 +257,7 @@ def _assert_member_section_state(
         if existing
         else None
     )
-    if status == "tracked" and not sections:
+    if status == "tracked" and not sections and not allow_pending_sections:
         raise ValueError(
             f"Member '{desired['slug']}': tracked requires existing section rows; "
             "create the member as unknown, then populate its sections"
@@ -236,7 +266,11 @@ def _assert_member_section_state(
         raise ValueError(
             f"Member '{desired['slug']}': not_applicable requires no section rows"
         )
-    if current is not None and current not in section_numbers:
+    if (
+        current is not None
+        and current not in section_numbers
+        and not allow_pending_sections
+    ):
         raise ValueError(
             f"Member '{desired['slug']}': current_section {current} does not "
             "match an existing section row"
@@ -318,6 +352,106 @@ def _directus_payload(
     return payload
 
 
+def _section_category_members(
+    members: list[dict[str, Any]],
+    direct_sections: list[dict[str, Any]],
+    parent_slug: str,
+) -> dict[str, str]:
+    """Validate a complete category-to-member migration map."""
+    category_members: dict[str, str] = {}
+    for member in members:
+        for category in member.get("section_categories", []):
+            if category in category_members:
+                raise ValueError(
+                    f"Parent '{parent_slug}': category '{category}' maps to multiple members"
+                )
+            category_members[category] = member["slug"]
+
+    if not category_members:
+        raise ValueError(
+            f"Parent '{parent_slug}': --migrate-direct-sections requires "
+            "one or more section_categories"
+        )
+
+    raw_direct_categories = [row.get("category") for row in direct_sections]
+    if not all(isinstance(category, str) for category in raw_direct_categories):
+        raise ValueError(
+            f"Parent '{parent_slug}': every direct section needs a category to migrate"
+        )
+    direct_categories: set[str] = {
+        category for category in raw_direct_categories if isinstance(category, str)
+    }
+    unknown_categories = direct_categories - set(category_members)
+    missing_categories = set(category_members) - direct_categories
+    if unknown_categories:
+        raise ValueError(
+            f"Parent '{parent_slug}': unmapped direct categories: "
+            f"{', '.join(sorted(unknown_categories))}"
+        )
+    if missing_categories:
+        raise ValueError(
+            f"Parent '{parent_slug}': no direct sections for categories: "
+            f"{', '.join(sorted(missing_categories))}"
+        )
+    return category_members
+
+
+def _assert_migration_members_are_empty(
+    client: DirectusClient,
+    existing_by_slug: dict[str, dict[str, Any]],
+    category_members: dict[str, str],
+) -> None:
+    """Avoid mixing a parent-section migration with existing member sections."""
+    member_slugs = set(category_members.values())
+    for slug in member_slugs:
+        existing = existing_by_slug.get(slug)
+        if not existing:
+            continue
+        member_id = existing["id"]
+        sections = client.fetch_all(
+            f"/items/game_sections?fields=id&filter[bundle_member_id][_eq]={member_id}"
+        )
+        if sections:
+            raise ValueError(
+                f"Member '{slug}': cannot migrate direct sections into a member "
+                "that already has section rows"
+            )
+
+
+def _migrate_direct_sections(
+    client: DirectusClient,
+    *,
+    direct_sections: list[dict[str, Any]],
+    category_members: dict[str, str],
+    member_ids: dict[str, int],
+    dry_run: bool,
+) -> None:
+    """Move direct sections to members and make their order member-local."""
+    next_numbers: dict[str, int] = {}
+    for section in direct_sections:
+        category = section.get("category")
+        if not isinstance(category, str):
+            raise TypeError(f"Section id={section['id']} has no migration category")
+        member_slug = category_members[category]
+        next_numbers[member_slug] = next_numbers.get(member_slug, 0) + 1
+        number = next_numbers[member_slug]
+        payload = {
+            "bundle_member_id": member_ids[member_slug],
+            "number": number,
+            "sort": number,
+            "category": None,
+        }
+        path = f"/items/game_sections/{section['id']}"
+        if dry_run:
+            print(
+                f"[DRY RUN] PATCH {path} -> member '{member_slug}': "
+                f"{json.dumps(payload, sort_keys=True)}",
+                file=sys.stderr,
+            )
+        else:
+            client.patch(path, payload)
+
+
 def _changed_fields(
     existing: dict[str, Any],
     desired: dict[str, Any],
@@ -370,13 +504,22 @@ def main() -> None:
     args = parser.parse_args()
     client = DirectusClient.from_config()
     if args.list:
-        if not args.game_slug or args.from_json or args.replace:
-            parser.error("--list requires one game_slug and no payload or --replace")
+        if (
+            not args.game_slug
+            or args.from_json
+            or args.replace
+            or args.migrate_direct_sections
+        ):
+            parser.error(
+                "--list requires one game_slug and no payload, --replace, or migration"
+            )
         game = resolve_game(client, args.game_slug)
         print(json.dumps(_existing_members(client, game["id"]), indent=2))
         return
     if not args.from_json or args.game_slug:
         parser.error("--from-json is required unless using game_slug --list")
+    if args.migrate_direct_sections and args.replace:
+        parser.error("--migrate-direct-sections cannot be combined with --replace")
     try:
         parents = [
             _normalize_parent(entry) for entry in _load_payload(parser, args.from_json)
@@ -387,9 +530,24 @@ def main() -> None:
         planned: list[dict[str, Any]] = []
         for parent in parents:
             game = resolve_game(client, parent["slug"])
-            _assert_no_direct_sections(client, game["id"])
+            direct_sections = _direct_sections(client, game["id"])
+            if args.migrate_direct_sections:
+                if not direct_sections:
+                    raise ValueError(
+                        f"Parent '{parent['slug']}': no direct sections to migrate"
+                    )
+                category_members = _section_category_members(
+                    parent["members"], direct_sections, parent["slug"]
+                )
+            else:
+                _assert_no_direct_sections(client, game["id"])
+                category_members = {}
             existing = _existing_members(client, game["id"])
             existing_by_slug = {member["slug"]: member for member in existing}
+            if args.migrate_direct_sections:
+                _assert_migration_members_are_empty(
+                    client, existing_by_slug, category_members
+                )
             desired = [
                 _directus_payload(client, game["id"], member)
                 for member in parent["members"]
@@ -406,6 +564,7 @@ def main() -> None:
                     client,
                     existing_by_slug.get(desired_member["slug"]),
                     desired_member,
+                    allow_pending_sections=args.migrate_direct_sections,
                 )
             planned.append(
                 {
@@ -413,6 +572,8 @@ def main() -> None:
                     "desired": desired,
                     "existing_by_slug": existing_by_slug,
                     "removals": removals,
+                    "direct_sections": direct_sections,
+                    "category_members": category_members,
                 }
             )
     except ValueError as error:
@@ -427,6 +588,9 @@ def main() -> None:
     for plan in planned:
         game = plan["game"]
         changed = False
+        member_ids = {
+            slug: member["id"] for slug, member in plan["existing_by_slug"].items()
+        }
         for member in plan["removals"]:
             _delete_member(client, member, dry_run=args.dry_run)
             changed = True
@@ -453,7 +617,38 @@ def main() -> None:
                         file=sys.stderr,
                     )
                 else:
-                    client.post("/items/game_bundle_members", desired)
+                    created = client.post("/items/game_bundle_members", desired)
+                    member_id = created.get("data", {}).get("id")
+                    if not isinstance(member_id, int):
+                        raise RuntimeError(
+                            f"Created member '{desired['slug']}' has no integer id"
+                        )
+                    member_ids[desired["slug"]] = member_id
+            changed = True
+
+        if args.migrate_direct_sections:
+            if args.dry_run:
+                member_ids = {member["slug"]: -1 for member in plan["desired"]}
+            _migrate_direct_sections(
+                client,
+                direct_sections=plan["direct_sections"],
+                category_members=plan["category_members"],
+                member_ids=member_ids,
+                dry_run=args.dry_run,
+            )
+            if not args.dry_run and _direct_sections(client, game["id"]):
+                raise RuntimeError(
+                    f"Direct sections remain after migrating game id={game['id']}"
+                )
+            parent_payload = {"section_noun": None, "current_section": None}
+            if args.dry_run:
+                print(
+                    f"[DRY RUN] PATCH /items/games/{game['id']}: "
+                    f"{json.dumps(parent_payload, sort_keys=True)}",
+                    file=sys.stderr,
+                )
+            else:
+                client.patch(f"/items/games/{game['id']}", parent_payload)
             changed = True
 
         if changed:
