@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.200] - 2026-09-13
+- Filters: fix the "Jump to Section" counts for Content Rating and Section Style on the filters index, which still showed only the base filter count (2 each) after those sections were merged with their new composite subsections.
+
 ## [1.0.199] - 2026-09-13
 - Filters: combine the Content Rating panel with Content Rating + Played Status into one section on the filters index, and add Content Rating + Section Style and Content Rating + Game Status composite pages alongside it.
 - Filters: add Section Style + Genre composite pages (Linear + Genre, Nonlinear + Genre), linked from both the Section Style detail pages and a new subsection on the filters index.
