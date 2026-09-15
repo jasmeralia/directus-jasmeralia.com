@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.201] - 2026-09-15
+- Homepage: let long Recent Updates titles wrap onto multiple lines instead of truncating with an ellipsis.
+
 ## [1.0.200] - 2026-09-13
 - Filters: fix the "Jump to Section" counts for Content Rating and Section Style on the filters index, which still showed only the base filter count (2 each) after those sections were merged with their new composite subsections.
 

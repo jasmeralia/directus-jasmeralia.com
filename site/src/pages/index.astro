@@ -82,7 +82,7 @@ const TAG_LABEL: Record<UpdateTag, string> = {
       }
       .update-item:first-child { border-top: none; }
       .update-item:hover { background: #12122a; }
-      .update-main { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+      .update-main { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
       .update-tag {
         flex-shrink: 0;
         font-size: .65rem; font-weight: 700;
@@ -95,7 +95,7 @@ const TAG_LABEL: Record<UpdateTag, string> = {
       .tag-tier-updated { background: #1e1a30; color: #a090e8; border: 1px solid #2e2848; }
       .tag-review       { background: #2a1e08; color: #e8b45a; border: 1px solid #3f2c0e; }
       .update-subject {
-        overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        overflow-wrap: break-word;
         flex: 1; min-width: 0;
       }
       .update-subject a { color: #c8c8e0; text-decoration: none; }
