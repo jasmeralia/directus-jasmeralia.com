@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
+import { downloadLinks, getLinkMeta } from "../../lib/download-link";
 import { plainTextExcerpt } from "../../lib/markdown";
 import {
   bundleProgressSummary,
@@ -40,6 +41,8 @@ const members = await directusFetchItems("franchise_games", {
     "game_id.release_year", "game_id.player_status",
     "game_id.nsfw", "game_id.genres.genres_id.nsfw",
     "game_id.cover_image.id", "game_id.cover_image.filename_disk",
+    "game_id.links.id", "game_id.links.url", "game_id.links.label",
+    "game_id.links.kind", "game_id.links.sort",
     "game_id.section_style", "game_id.section_noun", "game_id.current_section",
     "game_id.sections.id", "game_id.sections.number",
     "game_id.sections.completed",
@@ -63,6 +66,11 @@ const members = await directusFetchItems("franchise_games", {
     "game_id.bundle_members.source_game_id.cover_image.filename_disk",
     "game_id.bundle_members.source_game_id.nsfw",
     "game_id.bundle_members.source_game_id.genres.genres_id.nsfw",
+    "game_id.bundle_members.source_game_id.links.id",
+    "game_id.bundle_members.source_game_id.links.url",
+    "game_id.bundle_members.source_game_id.links.label",
+    "game_id.bundle_members.source_game_id.links.kind",
+    "game_id.bundle_members.source_game_id.links.sort",
   ],
   filter: { franchise_id: { _eq: franchise.id } },
   sort: ["sort"],
@@ -89,10 +97,11 @@ const hasExplicitMatch = (member) => {
     explicitTitles.has((source?.title ?? member.title).trim().toLocaleLowerCase())
   );
 };
-const includedMembers = (game) =>
-  orderedBundleMembers(game.bundle_members).filter(
-    (member) => !hasExplicitMatch(member),
-  );
+const downloadEntries = (game) =>
+  downloadLinks(game?.links).map((link) => ({
+    url: link.url,
+    meta: getLinkMeta(link),
+  }));
 const progressForGame = (game) =>
   bundleProgressSummary(game) ?? sectionProgressSummary(game);
 
@@ -127,12 +136,18 @@ const description = plainTextExcerpt(franchise.description)
       .badge{font-size:.72rem;padding:.15rem .45rem;border-radius:999px;background:#1a1a1a;border:1px solid #333;}
       .badge-omnibus{background:#211b38;border-color:#6551a1;color:#c8b8ff;}
       .badge-included{background:#15202a;border-color:#35526d;color:#a9d5ff;}
+      .badge-listed{background:#1f1f14;border-color:#66602c;color:#d9cd72;}
       .badge-completed{border-color:#777;color:#d4d4d4;}
       .badge-in-progress{border-color:#315f8c;color:#70b7ff;}
       .badge-on-hold{border-color:#7c571b;color:#e8a020;}
       .badge-waiting-for-update{border-color:#315f38;color:#71bd7d;}
       .badge-did-not-finish{border-color:#743333;color:#e47777;}
       .game-note{font-size:.86rem;color:#c7c7c7;line-height:1.4;}
+      .download-icons{display:flex;gap:.45rem;align-items:center;flex-shrink:0;}
+      .download-icon{display:flex;width:1.85rem;height:1.85rem;align-items:center;justify-content:center;border:1px solid #303047;border-radius:6px;background:#171723;}
+      .download-icon:hover{background:#24243a;border-color:#56508a;}
+      .download-icon img{width:1rem;height:1rem;object-fit:contain;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
+      .download-fallback{font-size:.65rem;font-weight:700;color:#9aa6ff;}
       .progress{max-width:360px;}
       .progress-bar{height:5px;border-radius:3px;background:#252525;overflow:hidden;}
       .progress-fill{height:100%;background:#70b7ff;}
@@ -151,7 +166,7 @@ const description = plainTextExcerpt(franchise.description)
         const game = member.game_id;
         const img = fileUrl(game.cover_image);
         const bundleMembers = orderedBundleMembers(game.bundle_members);
-        const unmatchedMembers = includedMembers(game);
+        const gameDownloads = downloadEntries(game);
         const progress = progressForGame(game);
         return (
           <div class="game-group">
@@ -189,13 +204,35 @@ const description = plainTextExcerpt(franchise.description)
                 ) : null}
                 {member.notes ? <div class="game-note">{member.notes}</div> : null}
               </div>
+              {gameDownloads.length > 0 ? (
+                <div class="download-icons" role="group" aria-label={`Download links for ${game.title}`}>
+                  {gameDownloads.map((entry) => (
+                    <a
+                      class="download-icon"
+                      href={entry.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Download ${game.title} from ${entry.meta.label}`}
+                      title={entry.meta.label}
+                    >
+                      {entry.meta.icon ? (
+                        <img src={entry.meta.icon} alt="" aria-hidden="true" loading="lazy" />
+                      ) : (
+                        <span class="download-fallback" aria-hidden="true">DL</span>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              ) : null}
             </article>
-            {unmatchedMembers.map((included) => {
+            {bundleMembers.map((included) => {
               const source = sourceGame(included);
               const includedImg = fileUrl(included.cover_image ?? source?.cover_image);
               const includedYear = included.release_year ?? source?.release_year ?? null;
               const includedProgress = sectionProgressSummary(included, { nested: true });
               const includedNsfw = source ? isGameNsfw(source) : isGameNsfw(game);
+              const includedDownloads = downloadEntries(source);
+              const listedSeparately = hasExplicitMatch(included);
               return (
                 <article class="game-item game-item-included">
                   <span class="game-index"></span>
@@ -219,6 +256,7 @@ const description = plainTextExcerpt(franchise.description)
                     <div class="game-badges">
                       {includedYear ? <span class="game-meta">{includedYear}</span> : null}
                       <span class="badge badge-included">Included Game</span>
+                      {listedSeparately ? <span class="badge badge-listed">Listed Separately</span> : null}
                       {included.player_status ? (
                         <span class={`badge badge-${included.player_status.replace(/_/g, "-")}`}>
                           {labelize(included.player_status)}
@@ -234,6 +272,26 @@ const description = plainTextExcerpt(franchise.description)
                       </div>
                     ) : null}
                   </div>
+                  {includedDownloads.length > 0 ? (
+                    <div class="download-icons" role="group" aria-label={`Download links for ${included.title}`}>
+                      {includedDownloads.map((entry) => (
+                        <a
+                          class="download-icon"
+                          href={entry.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`Download ${included.title} from ${entry.meta.label}`}
+                          title={entry.meta.label}
+                        >
+                          {entry.meta.icon ? (
+                            <img src={entry.meta.icon} alt="" aria-hidden="true" loading="lazy" />
+                          ) : (
+                            <span class="download-fallback" aria-hidden="true">DL</span>
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
                 </article>
               );
             })}

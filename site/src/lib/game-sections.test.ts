@@ -4,6 +4,8 @@ import {
   directGameSections,
   directGameSectionsByPosition,
   groupSectionsByCategory,
+  isSectionCategoryComplete,
+  isSectionComplete,
   orderedSections,
   pluralizeNoun,
   questProgressPercent,
@@ -75,6 +77,43 @@ describe("game section helpers", () => {
     ]);
     expect(sections).toHaveLength(4);
     expect(directGameSections(undefined)).toEqual([]);
+  });
+
+  it("derives linear completion from current position and row completion", () => {
+    const entry = {
+      current_section: 2,
+      player_status: "in_progress",
+      section_style: "linear",
+    };
+
+    expect(isSectionComplete({ number: 1, title: "Passed" }, entry)).toBe(true);
+    expect(isSectionComplete({ number: 2, title: "Current" }, entry)).toBe(false);
+    expect(isSectionComplete({ number: 2, title: "Current", completed: true }, entry)).toBe(true);
+    expect(isSectionComplete({ number: 3, title: "Future" }, entry)).toBe(false);
+    expect(isSectionComplete(
+      { number: 1, title: "Untracked" },
+      { current_section: null, player_status: "on_hold", section_style: "linear" },
+    )).toBe(false);
+  });
+
+  it("marks every linear section complete when the game is completed", () => {
+    expect(isSectionComplete(
+      { number: 4, title: "Ending" },
+      { player_status: "completed", section_style: "linear" },
+    )).toBe(true);
+  });
+
+  it("requires every nonlinear row to be completed before its category is complete", () => {
+    const entry = { player_status: "completed", section_style: "nonlinear" };
+    const complete = [
+      { number: 1, title: "One", completed: true },
+      { number: 2, title: "Two", completed: true },
+    ];
+    const partial = [...complete, { number: 3, title: "Three", completed: false }];
+
+    expect(isSectionCategoryComplete(complete, entry)).toBe(true);
+    expect(isSectionCategoryComplete(partial, entry)).toBe(false);
+    expect(isSectionCategoryComplete([], entry)).toBe(false);
   });
 });
 

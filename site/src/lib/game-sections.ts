@@ -46,6 +46,32 @@ export type SectionCategoryGroup = {
   sections: GameSection[];
 };
 
+type SectionCompletionEntry = {
+  current_section?: number | null;
+  player_status?: string | null;
+  section_style?: string | null;
+};
+
+export const isSectionComplete = (
+  section: GameSection,
+  entry: SectionCompletionEntry,
+): boolean => {
+  if (entry.section_style === "nonlinear") return Boolean(section.completed);
+  if (entry.player_status === "completed") return true;
+  const current = typeof entry.current_section === "number"
+    ? entry.current_section
+    : null;
+  if (current === null) return false;
+  return section.number < current
+    || (section.number === current && Boolean(section.completed));
+};
+
+export const isSectionCategoryComplete = (
+  sections: GameSection[],
+  entry: SectionCompletionEntry,
+): boolean =>
+  sections.length > 0 && sections.every((section) => isSectionComplete(section, entry));
+
 export const groupSectionsByCategory = (
   sections: GameSection[],
 ): SectionCategoryGroup[] => {
