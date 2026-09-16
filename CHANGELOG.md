@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.206] - 2026-09-16
+- RSS/Discord feed: stop showing no-op "X → X" lines (e.g. "Section Noun: Chapter → Chapter") for games whose section metadata was re-saved unchanged.
+
 ## [1.0.205] - 2026-09-16
 - Franchises: always show every included omnibus game, mark members that are also listed separately, and add right-aligned download platform links to game and included-game rows.
 - Games: group categorized included-game sections, and show a green Complete badge when every section in a category is finished.
