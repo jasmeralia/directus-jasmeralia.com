@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.204] - 2026-09-16
+- Games: expand each included game's section data by default on omnibus detail pages while retaining the option to collapse it.
+
 ## [1.0.203] - 2026-09-16
 - Games: move progress text and bars from the detail-page header into the matching mission, chapter, or included-game section panel.
 
