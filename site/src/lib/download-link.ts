@@ -2,7 +2,7 @@ export type GameLink = {
   id?: number;
   url: string;
   label?: string | null;
-  kind: "download" | "walkthrough" | "text-note" | "other";
+  kind: "download" | "walkthrough" | "text-note" | "other" | "gamestorylog";
   sort?: number | null;
 };
 
@@ -24,6 +24,12 @@ export const downloadLinks = (links: GameLink[] | null | undefined): GameLink[] 
 
 export const primaryDownloadLink = (links: GameLink[] | null | undefined): GameLink | null =>
   downloadLinks(links)[0] ?? null;
+
+export const isMissingDownloadLink = (game: {
+  game_status?: string | null;
+  links?: GameLink[] | null;
+}): boolean =>
+  game.game_status !== "unreleased" && downloadLinks(game.links).length === 0;
 
 export const walkthroughLinks = (links: GameLink[] | null | undefined): GameLink[] => {
   if (!links?.length) return [];

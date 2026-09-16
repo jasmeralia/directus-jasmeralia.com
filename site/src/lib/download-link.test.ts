@@ -6,6 +6,7 @@ import {
   getLinkMeta,
   getUrlLinkMeta,
   getUrlPlatform,
+  isMissingDownloadLink,
   primaryDownloadLink,
   walkthroughLinks,
   walkthroughTextNotes,
@@ -58,6 +59,12 @@ describe("game link selection", () => {
       "https://example.test/note-later",
     ]);
     expect(walkthroughTextNotes(undefined)).toEqual([]);
+  });
+
+  it("does not treat unreleased games as missing a download link", () => {
+    expect(isMissingDownloadLink({ game_status: "released", links: [] })).toBe(true);
+    expect(isMissingDownloadLink({ game_status: "unreleased", links: [] })).toBe(false);
+    expect(isMissingDownloadLink({ game_status: "released", links })).toBe(false);
   });
 });
 
