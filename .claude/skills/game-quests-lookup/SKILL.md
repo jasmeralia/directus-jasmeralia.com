@@ -15,6 +15,16 @@ quests/missions completed in largely arbitrary order rather than a strict
 1..N sequence (`games.section_style = "nonlinear"`). See
 `mcp/plans/game_sections_nonlinear.md` for the full design.
 
+**"Groups" alone does not mean this skill.** A request to group missions by
+chapter/act/location is not, by itself, a request for the nonlinear model --
+a strictly-ordered game whose chapters each contain several named missions
+stays `linear` and uses `game-sections-lookup`'s `category`-grouped,
+globally-numbered rows (one row per mission, `category` set to the
+chapter/act label) instead. Only reach for this skill and `nonlinear` when
+the items themselves have no fixed overall order (an open quest pool), not
+merely because the source happens to organize a fixed sequence into named
+groups.
+
 ## When To Use This Skill vs. The Manual Path
 
 This skill is for games with no local, parseable source to read a quest list
