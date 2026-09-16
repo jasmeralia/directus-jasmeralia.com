@@ -4,8 +4,8 @@ import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/
 import { formatDate } from "../../lib/date";
 import { downloadLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
-import { effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
-import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, orderedSections, pluralizeNoun, sectionNoun } from "../../lib/game-sections";
+import { bundleProgressSummary, effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
+import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, orderedSections, pluralizeNoun, sectionNoun, sectionProgressSummary } from "../../lib/game-sections";
 import { fetchActivity, fetchAllGameGenres, fetchRevisions } from "../../lib/changelog";
 import { compareLabels } from "../../lib/list-format";
 import { isGameNsfw } from "../../lib/nsfw";
@@ -197,6 +197,7 @@ const { game, reviews, franchiseEntries, tierEntries, bundleMembers, sections, h
 const PLAYER_STATUS_PHRASE: Record<string, string> = {
   not_started: "Jasmeralia hasn't started it yet.",
   in_progress: "Jasmeralia is currently playing it.",
+  on_hold: "Jasmeralia has put it on hold.",
   completed: "Jasmeralia has completed it.",
   did_not_finish: "Jasmeralia did not finish it.",
   waiting_for_update: "Jasmeralia is waiting for the next update.",
@@ -229,6 +230,10 @@ const linearSectionGroups = linearHasCategories ? groupSectionsByCategory(sectio
 const completedQuestCount = isNonlinear
   ? displaySections.filter((section) => section.completed).length
   : 0;
+const progress = bundleProgressSummary(game) ?? sectionProgressSummary(game);
+const progressLabel = progress && progress.percent !== null && !progress.label.includes("%")
+  ? `${progress.label} (${progress.percent}%)`
+  : progress?.label;
 const includedIn = (game.included_in_bundles ?? [])
   .map((membership) => membership?.games_id)
   .filter((parent) => parent?.slug && parent?.title)
@@ -295,6 +300,7 @@ const sTier = tierLists.some((tier) => tier.label === "S");
 const completed = game?.player_status === "completed";
 const didNotFinish = game?.player_status === "did_not_finish";
 const inProgress = game?.player_status === "in_progress";
+const onHold = game?.player_status === "on_hold";
 const waitingForUpdate = game?.player_status === "waiting_for_update";
 const hasWalkthrough = walkthroughEntries.length > 0 || textNoteEntries.length > 0;
 const statusColor = completed
@@ -303,9 +309,11 @@ const statusColor = completed
     ? "#d14b4b"
     : inProgress
       ? "#70b7ff"
-      : waitingForUpdate
-        ? "#1f6b2b"
-        : null;
+      : onHold
+        ? "#e8a020"
+        : waitingForUpdate
+          ? "#1f6b2b"
+          : null;
 const innerBorderColor = hasWalkthrough
   ? "#8c58ff"
   : statusColor ?? (!reviewed && !sTier ? "#2b2b2b" : "transparent");
@@ -327,6 +335,7 @@ const coverStackStyle = [
     <style>
       .container { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
       .header { display: flex; gap: 1rem; align-items: center; }
+      .header-info{flex:1;min-width:0;}
       .cover-stack,.cover-ring-rainbow,.cover-gap-rainbow,.cover-ring-gold,.cover-gap-gold,.cover-ring-status,.cover-gap-status,.cover-card{border-radius:10px;}
       .cover-ring-rainbow,.cover-gap-rainbow,.cover-ring-gold,.cover-gap-gold,.cover-ring-status,.cover-gap-status{padding:0;background:transparent;}
       .cover-ring-rainbow{
@@ -342,6 +351,10 @@ const coverStackStyle = [
       .cover-card{position:relative;overflow:hidden;width:320px;background:#000;border:2px solid var(--inner-border,#2b2b2b);padding:10px;}
       .cover-card img { width: 100%; height: auto; object-fit: contain; display: block; }
       .meta { opacity: 0.9; }
+      .game-progress{max-width:420px;margin-top:.75rem;}
+      .progress-bar{height:7px;border-radius:4px;background:#252525;overflow:hidden;}
+      .progress-fill{height:100%;background:#70b7ff;}
+      .progress-label{margin-bottom:.25rem;font-size:.85rem;opacity:.8;}
       .section{margin-top:1.5rem;}
       .label{opacity:.7;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;}
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
@@ -411,9 +424,26 @@ const coverStackStyle = [
             </div>
           </div>
         </div>
-        <div>
+        <div class="header-info">
           <h1 data-pagefind-meta="title">{game.title}</h1>
-                    {downloadEntries.length > 0 || gslLink ? (
+          {progress ? (
+            <div class="game-progress" title={progress.title}>
+              <div class="progress-label">{progressLabel}</div>
+              {progress.percent !== null ? (
+                <div
+                  class="progress-bar"
+                  role="progressbar"
+                  aria-label={progress.title}
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-valuenow={progress.percent}
+                >
+                  <div class="progress-fill" style={`width:${progress.percent}%`}></div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {downloadEntries.length > 0 || gslLink ? (
             <div class="meta">
               {downloadEntries.map((entry) => (
                 <div>

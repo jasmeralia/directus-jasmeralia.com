@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.202] - 2026-09-15
+- Franchises: restore quest and mission progress for nonlinear games, including on-hold games such as Marvel's Midnight Suns.
+- Games: show the shared progress bar and percentage summary in the detail-page header, and apply the existing orange on-hold status treatment there.
+
 ## [1.0.201] - 2026-09-15
 - Homepage: let long Recent Updates titles wrap onto multiple lines instead of truncating with an ellipsis.
 
