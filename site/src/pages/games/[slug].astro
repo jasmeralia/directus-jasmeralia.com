@@ -622,8 +622,8 @@ const coverStackStyle = [
                     <GameSectionProgress progress={memberProgress} />
                   ) : null}
                   {sectionStatus === "tracked" && memberSections.length > 0 ? (
-                    <details>
-                      <summary>Show {memberSections.length} {pluralizeNoun(memberNoun)}</summary>
+                    <details open>
+                      <summary>Section data ({memberSections.length} {pluralizeNoun(memberNoun)})</summary>
                       <ol class="sections-list">
                         {memberSections.map((section) => (
                           <li
