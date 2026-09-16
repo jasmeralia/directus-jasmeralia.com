@@ -51,6 +51,31 @@ describe("changelog value formatting", () => {
     ).toBe(`**Section Style**: Linear ${deltaArrow} Nonlinear`);
   });
 
+  it("omits fields whose value is unchanged (e.g. a no-op re-save)", () => {
+    expect(
+      fmtDelta(
+        { section_noun: "chapter", section_style: "linear", release_year: 2025 },
+        { section_noun: "chapter", section_style: "linear", release_year: 2024 },
+      ),
+    ).toBe(`**Year**: 2024 ${deltaArrow} 2025`);
+    expect(
+      fmtDelta(
+        { section_noun: "chapter", section_style: "linear" },
+        { section_noun: "chapter", section_style: "linear" },
+      ),
+    ).toBe("");
+  });
+
+  it("omits a current_section no-op even when the resolved label matches", () => {
+    expect(
+      fmtDelta(
+        { current_section: 1 },
+        { current_section: 1, section_noun: "Chapter" },
+        { section_noun: "Chapter" },
+      ),
+    ).toBe("");
+  });
+
   it("formats current_section changes with the game's section noun", () => {
     expect(
       fmtDelta(

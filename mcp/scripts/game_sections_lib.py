@@ -279,6 +279,12 @@ def upsert_game_sections(
                 "Direct parent sections are not allowed when bundle members exist"
             )
         metadata_path = f"/items/games/{game_id}"
+        current_game = client.get(metadata_path).get("data", {})
+        current_meta = {
+            "section_noun": current_game.get("section_noun"),
+            "section_style": current_game.get("section_style"),
+            "current_section": current_game.get("current_section"),
+        }
         metadata_update: dict[str, Any] = {
             "section_noun": normalized_noun,
             "section_style": "linear",
@@ -299,6 +305,11 @@ def upsert_game_sections(
                 f"Bundle member id={bundle_member_id} does not belong to game id={game_id}"
             )
         metadata_path = f"/items/game_bundle_members/{bundle_member_id}"
+        current_meta = {
+            "section_noun": member.get("section_noun"),
+            "section_data_status": member.get("section_data_status"),
+            "current_section": member.get("current_section"),
+        }
         metadata_update = {
             "section_noun": normalized_noun,
             "section_data_status": "tracked",
@@ -309,6 +320,15 @@ def upsert_game_sections(
         }
     if current is not None:
         metadata_update["current_section"] = current
+    # Drop fields that already match the stored value so an idempotent re-run
+    # doesn't write a no-op revision (Directus records the delta as sent, not
+    # diffed against the previous value, which showed up as bogus "X -> X"
+    # lines in the site's RSS/Discord feed).
+    metadata_update = {
+        field: value
+        for field, value in metadata_update.items()
+        if current_meta.get(field) != value
+    }
 
     existing = client.fetch_all(
         _query_path(
@@ -377,7 +397,9 @@ def upsert_game_sections(
                 )
             created += 1
 
-    if dry_run:
+    if not metadata_update:
+        print(f"  No metadata changes needed for {metadata_path}", file=sys.stderr)
+    elif dry_run:
         print(
             f"[DRY RUN] PATCH {metadata_path}: {metadata_update}",
             file=sys.stderr,
@@ -580,9 +602,19 @@ def upsert_quest_sections(
             print(f"  Created quest {position}/{total}: {label}", file=sys.stderr)
         created += 1
 
-    metadata_update = {"section_style": "nonlinear", "section_noun": normalized_noun}
     metadata_path = f"/items/games/{game_id}"
-    if dry_run:
+    current_game = client.get(metadata_path).get("data", {})
+    metadata_update = {
+        field: value
+        for field, value in {
+            "section_style": "nonlinear",
+            "section_noun": normalized_noun,
+        }.items()
+        if current_game.get(field) != value
+    }
+    if not metadata_update:
+        print(f"  No metadata changes needed for {metadata_path}", file=sys.stderr)
+    elif dry_run:
         print(f"[DRY RUN] PATCH {metadata_path}: {metadata_update}", file=sys.stderr)
     else:
         client.patch(metadata_path, metadata_update)
