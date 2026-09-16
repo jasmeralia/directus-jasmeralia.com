@@ -181,6 +181,25 @@ describe("sectionProgressSummary", () => {
     });
   });
 
+  it("shows completed-quest progress for nonlinear games that are on hold", () => {
+    expect(sectionProgressSummary({
+      player_status: "on_hold",
+      section_style: "nonlinear",
+      section_noun: "Mission",
+      current_section: null,
+      sections: [
+        { number: 1, title: "One", completed: true },
+        { number: 2, title: "Two", completed: false },
+        { number: 3, title: "Three", completed: false },
+        { number: 4, title: "Four", completed: false },
+      ],
+    })).toEqual({
+      label: "1/4 Missions (25%)",
+      title: "1 of 4 Missions completed",
+      percent: 25,
+    });
+  });
+
   it("clamps nonlinear games to 100% when completed regardless of row-level completed flags", () => {
     expect(sectionProgressSummary({
       player_status: "completed",
