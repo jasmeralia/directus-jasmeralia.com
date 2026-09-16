@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { compareLabels, formatUnknown, sortByName, sortByTitle } from "./list-format";
+import {
+  compareLabels,
+  formatUnknown,
+  sortByName,
+  sortByReleaseYear,
+  sortByTitle,
+} from "./list-format";
 
 describe("list formatting and sorting", () => {
   it("labels unknown values while preserving known values", () => {
@@ -29,6 +35,30 @@ describe("list formatting and sorting", () => {
     expect(input.map(({ name }) => name)).toEqual(["zulu", "Alpha", "beta"]);
     expect(sortByName([])).toEqual([]);
     expect(sortByTitle([])).toEqual([]);
+  });
+
+  it("sorts by release year oldest-first, unknown years last, ties broken by title", () => {
+    const input = [
+      { title: "Newer", release_year: 2022 },
+      { title: "Zebra Unknown", release_year: null },
+      { title: "Older", release_year: 2018 },
+      { title: "Same Year B", release_year: 2020 },
+      { title: "Same Year A", release_year: 2020 },
+      { title: "Alpha Unknown" },
+    ];
+
+    const result = sortByReleaseYear(input);
+
+    expect(result.map(({ title }) => title)).toEqual([
+      "Older",
+      "Same Year A",
+      "Same Year B",
+      "Newer",
+      "Alpha Unknown",
+      "Zebra Unknown",
+    ]);
+    expect(result).not.toBe(input);
+    expect(sortByReleaseYear([])).toEqual([]);
   });
 
   it("compares labels without case sensitivity", () => {

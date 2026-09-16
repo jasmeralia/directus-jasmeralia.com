@@ -17,6 +17,7 @@ const games = [
   {
     id: 1,
     title: "Zebra",
+    release_year: 2018,
     game_status: "released",
     player_status: "completed",
     developers: [{ developers_id: { slug: "alpha" } }],
@@ -24,6 +25,7 @@ const games = [
   {
     id: 2,
     title: "alpha",
+    release_year: 2020,
     game_status: "in_development",
     player_status: "in_progress",
     developers: [
@@ -35,6 +37,7 @@ const games = [
   {
     id: 3,
     title: "Unknown Game",
+    release_year: null,
     game_status: "released",
     player_status: "not_started",
     developers: [],
@@ -76,15 +79,17 @@ describe("developer route build data", () => {
     expect(reviewsUrl.searchParams.get("filter[status][_eq]")).toBe("published");
   });
 
-  it("builds detail pages with sorted games and scoped review/tier metadata", () => {
+  it("builds detail pages with games sorted by release year and scoped review/tier metadata", () => {
     const paths = buildDeveloperDetailPaths({ developers, games, reviews, sTierEntries });
     expect(paths.map((path) => path.params.slug)).toEqual(["alpha", "beta", "unknown"]);
 
     const alpha = paths[0].props;
     expect(alpha.title).toBe("Alpha Studio");
-    expect(alpha.games.map((game) => game.id)).toEqual([2, 1]);
+    // Zebra (2018) sorts before alpha (2020) despite title order -- proves the sort is by
+    // release_year, not title.
+    expect(alpha.games.map((game) => game.id)).toEqual([1, 2]);
     expect(alpha.reviews.map((review) => review.id)).toEqual([11, 10]);
-    expect(alpha.reviewedGameIdValues).toEqual([2, 1]);
+    expect(alpha.reviewedGameIdValues).toEqual([1, 2]);
     expect(alpha.sTierGameIdValues).toEqual([2]);
 
     const unknown = paths[2].props;

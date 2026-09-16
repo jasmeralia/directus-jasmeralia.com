@@ -1,6 +1,6 @@
 import { directusFetchItems } from "./directus";
 import { GAME_THUMB_FIELDS } from "./game-fields";
-import { compareLabels, sortByTitle } from "./list-format";
+import { compareLabels, sortByReleaseYear } from "./list-format";
 
 type Developer = Record<string, unknown> & {
   slug?: string | null;
@@ -15,6 +15,7 @@ type DeveloperRelation = {
 type Game = Record<string, unknown> & {
   id?: number | null;
   title?: string | null;
+  release_year?: number | null;
   game_status?: string | null;
   player_status?: string | null;
   developers?: DeveloperRelation[] | null;
@@ -101,7 +102,7 @@ const idsWithin = (games: Game[], ids: Set<number>): number[] =>
     .filter((id): id is number => typeof id === "number" && ids.has(id));
 
 const gamesForDeveloper = (games: Game[], slug: string): Game[] =>
-  sortByTitle(
+  sortByReleaseYear(
     games.filter((game) => {
       const slugs = developerSlugs(game);
       return slug === "unknown" ? slugs.length === 0 : slugs.includes(slug);
@@ -193,7 +194,7 @@ export const buildDeveloperStatusPaths = (
     .sort(([left], [right]) => compareLabels(left, right))
     .map(([key, combinationGames]) => {
       const [developer, status] = key.split("::");
-      const routeGames = sortByTitle(combinationGames as Array<Game & { title: string }>);
+      const routeGames = sortByReleaseYear(combinationGames as Array<Game & { title: string }>);
       return {
         params: { developer, status },
         props: {
