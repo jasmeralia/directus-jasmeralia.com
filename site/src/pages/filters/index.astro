@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
-import { getUrlPlatform, downloadLinks, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
+import { getUrlPlatform, downloadLinks, isMissingDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
 import { bundleProgressSummary, effectiveSectionStyle, sectionDataState } from "../../lib/game-bundles";
 import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
 import { sectionProgressSummary } from "../../lib/game-sections";
@@ -464,9 +464,7 @@ const avnWithGamestorylogCount = (games ?? []).filter(
 const nonAvnWithGamestorylogCount = (games ?? []).filter(
   (game) => !hasAvnGenre(game) && hasGslLink(game),
 ).length;
-const missingDownloadLinkCount = (games ?? []).filter(
-  (game) => downloadLinks(game?.links).length === 0,
-).length;
+const missingDownloadLinkCount = (games ?? []).filter(isMissingDownloadLink).length;
 const avnMissingWalkthroughCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && walkthroughLinks(game?.links).length === 0,
 ).length;
