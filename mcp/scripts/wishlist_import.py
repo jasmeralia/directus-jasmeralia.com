@@ -178,7 +178,7 @@ def generate_proposals(delay: float):
     page = 1
     while True:
         data = DIRECTUS.get(
-            f"/items/games?fields=id,title,download_url"
+            f"/items/games?fields=id,title,links.url,links.kind"
             f"&limit=500&offset={500 * (page - 1)}&sort=id"
         )
         batch = data.get("data", [])
@@ -187,9 +187,11 @@ def generate_proposals(delay: float):
             break
         page += 1
     directus_appids = {
-        extract_steam_appid(g.get("download_url"))
-        for g in all_games
-        if extract_steam_appid(g.get("download_url"))
+        appid
+        for game in all_games
+        for link in game.get("links", [])
+        if link.get("kind") == "download"
+        if (appid := extract_steam_appid(link.get("url"))) is not None
     }
     print(f"Directus has {len(directus_appids)} Steam games", file=sys.stderr)
 
@@ -368,7 +370,6 @@ def apply_proposals(
             "title": title,
             "slug": slug,
             "release_year": game.get("release_year"),
-            "download_url": game["download_url"],
             "game_status": derive_game_status(game.get("release_year")),
             "player_status": game.get("player_status", "not_started"),
             "family_sharing": game.get("family_sharing", False),
