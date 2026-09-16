@@ -1,5 +1,11 @@
 import { directusFetchRaw } from "./directus";
-import { sectionNoun, type GameSection } from "./game-sections";
+import {
+  pluralizeNoun,
+  questProgressPercent,
+  sectionNoun,
+  sectionProgressPercent,
+  type GameSection,
+} from "./game-sections";
 
 type DirectusRecord = Record<string, unknown>;
 
@@ -83,16 +89,24 @@ export function fmtDelta(
     }
     // Special-case current_section: prefer the section's own title (e.g.
     // "The Arrival"); fall back to the game's section noun + number
-    // (e.g. "Episode 1") when no matching section row exists.
+    // (e.g. "Episode 1") when no matching section row exists. When the
+    // game's total section count is known, append a "current/total (pct%)"
+    // suffix so progress is visible without a separate delta line.
     if (f === "current_section") {
       const noun = sectionNoun(
         (currentData?.section_noun as string | null | undefined)
           ?? (prev?.section_noun as string | null | undefined),
       );
+      const playerStatus = (currentData?.player_status as string | null | undefined)
+        ?? (prev?.player_status as string | null | undefined);
+      const total = sections?.length ?? 0;
       const fmtProgress = (v: unknown) => {
         if (v === null || v === undefined) return humanVal(f, v);
-        return sections?.find((section) => section.number === v)?.title
-          ?? `${noun} ${humanVal(f, v)}`;
+        const match = sections?.find((section) => section.number === v);
+        const base  = match?.title ?? `${noun} ${humanVal(f, v)}`;
+        if (total <= 0 || typeof v !== "number") return base;
+        const percent = sectionProgressPercent(v, total, playerStatus, Boolean(match?.completed));
+        return `${base} (${v}/${total}, ${percent}%)`;
       };
       const oldVal = prev?.[f] ?? null;
       if (oldVal !== null && oldVal !== undefined) {
@@ -117,6 +131,35 @@ export function fmtDelta(
     }
   }
   return lines.join("\n");
+}
+
+// Aggregate section-row counts for a game/bundle member at a point in time,
+// used by fmtSectionCountDelta below.
+export type SectionCountState = { total: number; completed: number };
+
+// Describe a change to a game/bundle member's *section rows themselves*
+// (count and, for nonlinear games, how many are marked completed) -- as
+// opposed to fmtDelta's current_section handling above, which describes
+// movement through an already-fixed linear section list. Returns "" when
+// neither total nor completed count actually changed.
+export function fmtSectionCountDelta(
+  sectionStyle: string | null | undefined,
+  noun: string,
+  before: SectionCountState,
+  after: SectionCountState,
+): string {
+  const nounPlural = pluralizeNoun(noun);
+  if (sectionStyle === "nonlinear") {
+    if (before.total === after.total && before.completed === after.completed) return "";
+    const pctBefore = questProgressPercent(before.completed, before.total);
+    const pctAfter  = questProgressPercent(after.completed, after.total);
+    return `**${nounPlural}**: ${before.completed}/${before.total} (${pctBefore}%) → `
+      + `${after.completed}/${after.total} (${pctAfter}%)`;
+  }
+  // Linear: current-section movement is already reported inline by
+  // fmtDelta's current_section branch, so only report a bare count change.
+  if (before.total === after.total) return "";
+  return `**${nounPlural}**: ${before.total} → ${after.total}`;
 }
 
 // Build description for a newly added game (creation snapshot).
@@ -222,7 +265,13 @@ export async function fetchItemMap(collection: string, ids: number[], fields: st
 }
 
 // Batch-fetch game_sections rows grouped by one of their foreign keys, for
-// resolving current_section titles in fmtDelta.
+// resolving current_section titles in fmtDelta. Fetches both FK fields
+// regardless of which one is being grouped on: a games_id lookup also
+// returns bundle-member-owned rows (every section row carries its parent
+// game's games_id in addition to an optional bundle_member_id), and without
+// bundle_member_id in the result, callers like directGameSections() can't
+// filter those back out -- see site/src/pages/games/[slug].astro's own
+// sections.bundle_member_id fetch for the query this mirrors.
 async function fetchSectionsGroupedBy(
   fkField: "games_id" | "bundle_member_id",
   ids: number[],
@@ -230,7 +279,7 @@ async function fetchSectionsGroupedBy(
   if (!ids.length) return {};
   const qs = new URLSearchParams({
     [`filter[${fkField}][_in]`]: ids.join(","),
-    "fields": `id,number,title,${fkField}`,
+    "fields": "id,number,title,completed,games_id,bundle_member_id",
     "limit": String(ids.length * 50 + 10),
   });
   const res = await directusFetchRaw<{ data: Record<string, unknown>[] }>(`/items/game_sections?${qs.toString()}`);
@@ -242,6 +291,8 @@ async function fetchSectionsGroupedBy(
       id: row.id as number,
       number: row.number as number,
       title: row.title as string,
+      completed: row.completed as boolean | null | undefined,
+      bundle_member_id: row.bundle_member_id as number | null | undefined,
     });
   }
   return map;

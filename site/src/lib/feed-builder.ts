@@ -1,5 +1,5 @@
 import { siteBaseUrl, type DirectusFile } from "./directus";
-import { directGameSections, type GameSection } from "./game-sections";
+import { directGameSections, sectionNoun, type GameSection } from "./game-sections";
 import { isGameNsfw, isTierBoardEntryNsfw, isTierListNsfw } from "./nsfw";
 import {
   SKIP_DELTA,
@@ -11,9 +11,11 @@ import {
   fetchRevisions,
   fmtDelta,
   fmtNewGame,
+  fmtSectionCountDelta,
   previousRevisionDataMap,
   type Activity,
   type Revision,
+  type SectionCountState,
 } from "./changelog";
 
 type DirectusRecord = Record<string, unknown>;
@@ -29,6 +31,14 @@ const LIMIT_TIER_LISTS  = 50;
 const LIMIT_JUNCTIONS   = 300; // tier_list_games activities
 const LIMIT_LINKS       = 400; // games_links activities (create + update)
 const LIMIT_BUNDLE_MEMBERS = 200;
+
+// Game-related feed entries (direct game revisions, included-game revisions,
+// download/walkthrough links, section-count changes) landing within this
+// window of the first entry in a burst are merged into one feed item, so a
+// flurry of edits to the same game reads as one Discord notification instead
+// of several near-simultaneous ones. The window is anchored to the first
+// entry in each burst, not a sliding per-gap window.
+const GAME_CONSOLIDATION_WINDOW_MS = 30 * 60 * 1000;
 
 const SKIP_FEED_DELTA = new Set([
   ...SKIP_DELTA,
@@ -409,6 +419,280 @@ const bundleDelta = (record: Record<string, unknown> | null): Record<string, unk
   );
 };
 
+// ─── section count/completion tracking ─────────────────────────────────────
+//
+// game_sections rows have no field on the parent games/game_bundle_members
+// record tracking their own count or how many are completed, so unlike every
+// other entry type above, this can't be read off a single revision's delta.
+// Instead: group the game_sections collection's own revisions into per-parent
+// "runs" (mirroring the tier_list_games minute-bucketing above, so one bulk
+// import or sync doesn't become one entry per row), then reconstruct a full
+// point-in-time snapshot of every row's existence/completed state just
+// before and just after each run.
+//
+// A point-in-time model (rather than "roll touched rows back/forward, use
+// today's live rows for everything else") is required here specifically
+// because a game can rack up several *separate* update sessions over time
+// (e.g. a mission count bumped last month, then bumped again this week --
+// exactly the "before/after" tracking this feature exists for). Using
+// today's live state for any row not touched by a given run would leak a
+// *later* run's changes into an *older* run's reported totals whenever that
+// other row was touched in between -- e.g. the older run would appear to
+// jump straight to today's count instead of the count as of its own end.
+
+type SectionParent = { kind: "game" | "bundle_member"; id: number };
+
+function sectionRevisionParent(rev: Revision): SectionParent | null {
+  const data = (rev.data ?? {}) as Record<string, unknown>;
+  const bundleMemberId = relationId(data.bundle_member_id);
+  if (bundleMemberId) return { kind: "bundle_member", id: bundleMemberId };
+  const gamesId = relationId(data.games_id);
+  if (gamesId) return { kind: "game", id: gamesId };
+  return null;
+}
+
+// Resolve each row's parent once, from whichever of its revisions happens to
+// carry the games_id/bundle_member_id FK (a delete revision's data may lack
+// it) -- so every revision for that row, including a delete with no FK, can
+// still be attributed to the right run/timeline.
+function resolveRowParents(revisions: Revision[]): Map<number, SectionParent> {
+  const rowParents = new Map<number, SectionParent>();
+  for (const rev of revisions) {
+    const rowId = Number(rev.item);
+    if (!rowId || rowParents.has(rowId)) continue;
+    const parent = sectionRevisionParent(rev);
+    if (parent) rowParents.set(rowId, parent);
+  }
+  return rowParents;
+}
+
+type SectionRun = {
+  key: string;
+  parent: SectionParent;
+  timestamp: string; // latest revision's activity timestamp in the run
+  revisions: Revision[];
+};
+
+// A colon-free bucket key: guid event segments can't contain colons (see
+// GUID_RE), and ISO timestamps do.
+const runBucket = (timestamp: string): string => timestamp.slice(0, 16).replace(/[-:]/g, "");
+
+function groupSectionRuns(
+  revisions: Revision[],
+  rowParents: Map<number, SectionParent>,
+): SectionRun[] {
+  const runs = new Map<string, SectionRun>();
+  for (const rev of revisions) {
+    const ts = rev.activity?.timestamp;
+    if (!ts) continue;
+    const parent = rowParents.get(Number(rev.item));
+    if (!parent) continue;
+    const key = `${parent.kind}_${parent.id}_${runBucket(ts)}`;
+    let run = runs.get(key);
+    if (!run) {
+      run = { key, parent, timestamp: ts, revisions: [] };
+      runs.set(key, run);
+    }
+    run.revisions.push(rev);
+    if (ts > run.timestamp) run.timestamp = ts;
+  }
+  return Array.from(runs.values());
+}
+
+type RowTimeline = { parent: SectionParent; revisions: Revision[] }; // revisions sorted oldest -> newest by id
+
+const parentKey = (parent: SectionParent): string => `${parent.kind}_${parent.id}`;
+
+function buildRowTimelinesByParent(
+  revisions: Revision[],
+  rowParents: Map<number, SectionParent>,
+): Map<string, Map<number, RowTimeline>> {
+  const byParent = new Map<string, Map<number, RowTimeline>>();
+  for (const rev of revisions) {
+    const rowId = Number(rev.item);
+    const parent = rowId ? rowParents.get(rowId) : undefined;
+    if (!parent) continue;
+    const rows = byParent.get(parentKey(parent)) ?? new Map<number, RowTimeline>();
+    const timeline = rows.get(rowId) ?? { parent, revisions: [] as Revision[] };
+    timeline.revisions.push(rev);
+    rows.set(rowId, timeline);
+    byParent.set(parentKey(parent), rows);
+  }
+  for (const rows of byParent.values()) {
+    for (const timeline of rows.values()) timeline.revisions.sort((a, b) => a.id - b.id);
+  }
+  return byParent;
+}
+
+// A row's existence/completed state as of (i.e. immediately after) the
+// latest revision with id <= asOfRevisionId. exists=false means either the
+// row had no revision at or before this point (didn't exist yet) or its
+// latest qualifying revision was a delete.
+function rowStateAsOf(
+  timeline: RowTimeline,
+  asOfRevisionId: number,
+): { exists: boolean; completed: boolean } {
+  let exists = false;
+  let completed = false;
+  for (const rev of timeline.revisions) {
+    if (rev.id > asOfRevisionId) break;
+    if (rev.activity?.action === "delete" || !rev.data) {
+      exists = false;
+    } else {
+      exists = true;
+      completed = Boolean(rev.data.completed);
+    }
+  }
+  return { exists, completed };
+}
+
+// Reconstruct a parent's total/completed section counts as of a given
+// revision id. Rows with no revision history at all (e.g. predating
+// revision tracking) fall back to today's live value, treated as constant
+// across all points in time -- a reasonable best effort since there is no
+// way to know their historical state.
+function sectionCountsAt(
+  parent: SectionParent,
+  asOfRevisionId: number,
+  timelinesByParent: Map<string, Map<number, RowTimeline>>,
+  liveRows: GameSection[],
+): SectionCountState {
+  const rows = timelinesByParent.get(parentKey(parent));
+  const trackedIds = new Set<number>();
+  let total = 0;
+  let completed = 0;
+  if (rows) {
+    for (const [rowId, timeline] of rows) {
+      trackedIds.add(rowId);
+      const state = rowStateAsOf(timeline, asOfRevisionId);
+      if (!state.exists) continue;
+      total += 1;
+      if (state.completed) completed += 1;
+    }
+  }
+  for (const row of liveRows) {
+    if (row.id !== undefined && trackedIds.has(row.id)) continue;
+    total += 1;
+    if (row.completed) completed += 1;
+  }
+  return { total, completed };
+}
+
+function buildSectionCountEntry(
+  run: SectionRun,
+  liveRows: GameSection[],
+  timelinesByParent: Map<string, Map<number, RowTimeline>>,
+  metaRecord: DirectusRecord | null, // games row (kind "game") or game_bundle_members row (kind "bundle_member")
+  gameItem: DirectusRecord | null,   // top-level game record, for the link/cover/nsfw
+): Entry | null {
+  if (!metaRecord || !gameItem) return null;
+  const runIds = run.revisions.map((rev) => rev.id);
+  const runStartId = Math.min(...runIds) - 1; // just before this run's earliest change
+  const runEndId = Math.max(...runIds);       // just after this run's latest change
+  const before = sectionCountsAt(run.parent, runStartId, timelinesByParent, liveRows);
+  if (before.total === 0) return null; // initial population -- covered by the Added entry
+  const after = sectionCountsAt(run.parent, runEndId, timelinesByParent, liveRows);
+  const style = run.parent.kind === "game" ? (metaRecord.section_style as string | null) : "linear";
+  const noun  = sectionNoun(metaRecord.section_noun as string | null | undefined);
+  const description = fmtSectionCountDelta(style, noun, before, after);
+  if (!description.trim()) return null;
+
+  const date  = requireDate(run.timestamp, `game_sections run ${run.key}`);
+  const slug  = requireGuidPart(gameItem.slug, `game_sections run ${run.key} slug`);
+  const title = String(metaRecord.title ?? gameItem.title ?? "Untitled");
+  return {
+    title: `Game Updated: ${title}`,
+    link: `${siteBase}/games/${slug}/index.html`,
+    description,
+    pubDate: date,
+    imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
+    guid: rssGuid("game", slug, `sections_${run.key}`, date, `game_sections run ${run.key}`),
+    nsfw: isGameNsfw(gameItem),
+    completed: false,
+  };
+}
+
+// ─── cross-type consolidation ───────────────────────────────────────────────
+
+const KNOWN_TITLE_PREFIXES = [
+  "Game Added: ", "Game Updated: ",
+  "Download Added: ", "Download Updated: ",
+  "Walkthrough Added: ", "Walkthrough Updated: ",
+  "Included Game Added - ", "Included Game Updated - ", "Included Game Removed - ",
+];
+
+function coreEntryTitle(entryTitle: string): string {
+  for (const prefix of KNOWN_TITLE_PREFIXES) {
+    if (entryTitle.startsWith(prefix)) return entryTitle.slice(prefix.length);
+  }
+  return entryTitle;
+}
+
+function mergeGameSession(session: Entry[]): Entry {
+  const last = session[session.length - 1];
+  const addedEntry = session.find((entry) => entry.title.startsWith("Game Added: "));
+  const title = addedEntry ? addedEntry.title : `Game Updated: ${coreEntryTitle(last.title)}`;
+  const description = session
+    .map((entry) => entry.description)
+    .filter((text) => text.trim().length > 0)
+    .join("\n\n");
+  const imageUrl = session.map((entry) => entry.imageUrl).find(Boolean);
+  const slug = requireGuidPart(last.guid.split(":")[1], "consolidated session slug");
+  const anchorMs = session[0].pubDate.getTime();
+  return {
+    title,
+    link: last.link,
+    description,
+    pubDate: last.pubDate,
+    imageUrl,
+    guid: rssGuid("game", slug, `consolidated_${anchorMs}`, last.pubDate, "consolidated session"),
+    nsfw: session.some((entry) => entry.nsfw),
+    completed: last.completed,
+  };
+}
+
+// Merge same-game entries emitted within GAME_CONSOLIDATION_WINDOW_MS of each
+// other into one feed item. Only "game:"-guid entries participate (direct
+// games, included/bundle-member games, download/walkthrough links, and
+// section-count changes all resolve to the same game page); reviews and tier
+// lists pass through untouched.
+function consolidateGameEntries(entries: Entry[]): Entry[] {
+  const byGame = new Map<string, Entry[]>();
+  const others: Entry[] = [];
+  for (const entry of entries) {
+    const [type, key] = entry.guid.split(":");
+    if (type !== "game") {
+      others.push(entry);
+      continue;
+    }
+    const groupKey = `${type}:${key}`;
+    const group = byGame.get(groupKey) ?? [];
+    group.push(entry);
+    byGame.set(groupKey, group);
+  }
+
+  const merged: Entry[] = [];
+  for (const group of byGame.values()) {
+    group.sort((a, b) => a.pubDate.getTime() - b.pubDate.getTime());
+    let session: Entry[] = [];
+    let anchor = 0;
+    const flush = () => {
+      if (!session.length) return;
+      merged.push(session.length === 1 ? session[0] : mergeGameSession(session));
+      session = [];
+    };
+    for (const entry of group) {
+      if (session.length && entry.pubDate.getTime() - anchor > GAME_CONSOLIDATION_WINDOW_MS) {
+        flush();
+      }
+      if (!session.length) anchor = entry.pubDate.getTime();
+      session.push(entry);
+    }
+    flush();
+  }
+  return [...others, ...merged];
+}
+
 function buildBundleMemberEntry(
   rev: Revision,
   previousData: Record<string, unknown> | null,
@@ -477,6 +761,7 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     allBundleMemberRevs,
     tlgActs,
     glinkActs,
+    allSectionRevs,
   ] = await Promise.all([
     fetchRevisions("games",       -1),
     fetchRevisions("reviews",     LIMIT_REVIEWS),
@@ -484,9 +769,23 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     fetchRevisions("game_bundle_members", -1),
     fetchCreateActivity("tier_list_games", LIMIT_JUNCTIONS),
     fetchActivity("games_links", ["create", "update"], LIMIT_LINKS),
+    fetchRevisions("game_sections", -1),
   ]);
   const gameRevs = allGameRevs.slice(0, LIMIT_GAMES);
   const bundleMemberRevs = allBundleMemberRevs.slice(0, LIMIT_BUNDLE_MEMBERS);
+
+  // Section runs are resolved up front (no network access) so their parent
+  // ids can be folded into the batch id sets below instead of triggering a
+  // second round of fetches.
+  const sectionRowParents = resolveRowParents(allSectionRevs);
+  const sectionRuns = groupSectionRuns(allSectionRevs, sectionRowParents);
+  const sectionTimelinesByParent = buildRowTimelinesByParent(allSectionRevs, sectionRowParents);
+  const sectionGameIds = new Set<number>(
+    sectionRuns.filter((run) => run.parent.kind === "game").map((run) => run.parent.id),
+  );
+  const sectionBundleMemberIds = new Set<number>(
+    sectionRuns.filter((run) => run.parent.kind === "bundle_member").map((run) => run.parent.id),
+  );
 
   // 2. Resolve IDs needed for batch lookups
 
@@ -495,7 +794,10 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
   const glinkItemIds = glinkActs.map((a) => Number(a.item));
   const reviewItemIds = reviewRevs.map((r) => Number(r.item));
   const gameRevisionIds = gameRevs.map((r) => Number(r.item));
-  const bundleMemberItemIds = bundleMemberRevs.map((r) => Number(r.item));
+  const bundleMemberItemIds = Array.from(new Set([
+    ...bundleMemberRevs.map((r) => Number(r.item)),
+    ...sectionBundleMemberIds,
+  ]));
   const tierListRevisionIds = tierListRevs.map((revision) => Number(revision.item));
 
   const [tlgItemMap, glinkItemMap, reviewItemMap, bundleMemberItemMap] = await Promise.all([
@@ -529,6 +831,10 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     const gameId = relationId(liveItem?.games_id ?? rev.data?.games_id);
     if (gameId) gameIdsForBundleMembers.add(gameId);
   }
+  for (const memberId of sectionBundleMemberIds) {
+    const gameId = relationId(bundleMemberItemMap[memberId]?.games_id);
+    if (gameId) gameIdsForBundleMembers.add(gameId);
+  }
 
   // 3. Batch-fetch support data
   const allGameIds = new Set([
@@ -536,6 +842,7 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     ...gameIdsForLinks,
     ...gameIdsForBundleMembers,
     ...gameRevisionIds,
+    ...sectionGameIds,
   ]);
   const [
     tierListMap,
@@ -546,8 +853,8 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
   ] = await Promise.all([
     fetchItemMap("tier_lists", Array.from(tierListIdsForAdd), "id,title,slug,nsfw"),
     fetchItemMap("games", Array.from(allGameIds),
-      "id,title,slug,cover_image.id,cover_image.filename_disk,nsfw,genres.genres_id.nsfw"),
-    fetchGameSectionsByGameIds(Array.from(new Set(gameRevisionIds))),
+      "id,title,slug,cover_image.id,cover_image.filename_disk,nsfw,genres.genres_id.nsfw,section_style,section_noun"),
+    fetchGameSectionsByGameIds(Array.from(new Set([...gameRevisionIds, ...sectionGameIds]))),
     fetchGameSectionsByBundleMemberIds(Array.from(new Set(bundleMemberItemIds))),
     fetchAllGameGenres(),
   ]);
@@ -598,6 +905,22 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     if (entry) entries.push(entry);
   }
 
+  // Section count/completion changes (chapters/missions/quests added, or
+  // nonlinear completion progress), batched into per-parent runs above.
+  for (const run of sectionRuns) {
+    const liveRows = run.parent.kind === "game"
+      ? directGameSections(gameSectionsMap[run.parent.id])
+      : (bundleMemberSectionsMap[run.parent.id] ?? []);
+    const metaRecord = run.parent.kind === "game"
+      ? gameMap[run.parent.id] ?? null
+      : bundleMemberItemMap[run.parent.id] ?? null;
+    const gameItem = run.parent.kind === "game"
+      ? gameMap[run.parent.id] ?? null
+      : gameMap[relationId(metaRecord?.games_id) ?? -1] ?? null;
+    const entry = buildSectionCountEntry(run, liveRows, sectionTimelinesByParent, metaRecord, gameItem);
+    if (entry) entries.push(entry);
+  }
+
   // Reviews
   for (const rev of reviewRevs) {
     const liveItem = reviewItemMap[Number(rev.item)] ?? null;
@@ -633,10 +956,11 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     entries.push(...batchEntries);
   }
 
-  // 6. Sort, dedupe guids, limit, and render
-  entries.sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
+  // 6. Consolidate bursts of same-game activity, sort, dedupe guids, limit
+  const consolidated = consolidateGameEntries(entries);
+  consolidated.sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
   const seen  = new Set<string>();
-  const top   = entries.filter((e) => {
+  const top   = consolidated.filter((e) => {
     if (seen.has(e.guid)) return false;
     seen.add(e.guid);
     return true;

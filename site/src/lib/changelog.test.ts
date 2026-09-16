@@ -11,6 +11,7 @@ import {
   fetchRevisions,
   fmtDelta,
   fmtNewGame,
+  fmtSectionCountDelta,
   humanVal,
   previousRevisionDataMap,
   SKIP_DELTA,
@@ -102,7 +103,7 @@ describe("changelog value formatting", () => {
     );
   });
 
-  it("prefers a matching section's own title over the noun and number", () => {
+  it("prefers a matching section's own title over the noun and number, with a progress fraction", () => {
     const sections = [
       { number: 1, title: "The Arrival" },
       { number: 2, title: "The Storm" },
@@ -114,11 +115,14 @@ describe("changelog value formatting", () => {
         { section_noun: "Episode" },
         sections,
       ),
-    ).toBe("**Current Progress**: The Arrival → The Storm");
+    ).toBe(`**Current Progress**: The Arrival (1/2, 50%) ${deltaArrow} The Storm (2/2, 100%)`);
   });
 
-  it("falls back to noun + number for a section with no matching title row", () => {
-    const sections = [{ number: 1, title: "The Arrival" }];
+  it("falls back to noun + number for a section with no matching title row, with a progress fraction", () => {
+    const sections = [
+      { number: 1, title: "The Arrival" },
+      { number: 3, title: "The Ending" },
+    ];
     expect(
       fmtDelta(
         { current_section: 2 },
@@ -126,7 +130,35 @@ describe("changelog value formatting", () => {
         { section_noun: "Episode" },
         sections,
       ),
-    ).toBe("**Current Progress**: The Arrival → Episode 2");
+    ).toBe(`**Current Progress**: The Arrival (1/2, 50%) ${deltaArrow} Episode 2 (2/2, 100%)`);
+  });
+
+  it("omits the progress fraction when the total section count is unknown", () => {
+    expect(
+      fmtDelta(
+        { current_section: 2 },
+        { current_section: 1, section_noun: "Episode" },
+        { section_noun: "Episode" },
+        [],
+      ),
+    ).toBe(`**Current Progress**: Episode 1 ${deltaArrow} Episode 2`);
+  });
+
+  it("applies half-credit progress for an in-progress game on an unfinished current section", () => {
+    const sections = [
+      { number: 1, title: "Ch 1" },
+      { number: 2, title: "Ch 2", completed: false },
+      { number: 3, title: "Ch 3" },
+      { number: 4, title: "Ch 4" },
+    ];
+    expect(
+      fmtDelta(
+        { current_section: 2 },
+        { current_section: 1 },
+        { section_noun: "Chapter", player_status: "in_progress" },
+        sections,
+      ),
+    ).toBe(`**Current Progress**: Ch 1 (1/4, 13%) ${deltaArrow} Ch 2 (2/4, 38%)`);
   });
 
   it("shows an em dash when current_section becomes undefined", () => {
@@ -136,6 +168,39 @@ describe("changelog value formatting", () => {
         { current_section: 1, section_noun: "Chapter" },
       ),
     ).toBe("**Current Progress**: Chapter 1 → —");
+  });
+
+  it("formats a nonlinear completed-count change as a fraction with percent", () => {
+    expect(
+      fmtSectionCountDelta("nonlinear", "Mission", { total: 30, completed: 2 }, { total: 30, completed: 10 }),
+    ).toBe(`**Missions**: 2/30 (7%) ${deltaArrow} 10/30 (33%)`);
+  });
+
+  it("formats a nonlinear total-count change (e.g. new quests added)", () => {
+    expect(
+      fmtSectionCountDelta("nonlinear", "Quest", { total: 303, completed: 200 }, { total: 346, completed: 200 }),
+    ).toBe(`**Quests**: 200/303 (66%) ${deltaArrow} 200/346 (58%)`);
+  });
+
+  it("omits a nonlinear delta line when neither total nor completed changed", () => {
+    expect(
+      fmtSectionCountDelta("nonlinear", "Mission", { total: 30, completed: 10 }, { total: 30, completed: 10 }),
+    ).toBe("");
+  });
+
+  it("formats a linear total-count change as a bare count (no percent)", () => {
+    expect(
+      fmtSectionCountDelta("linear", "Chapter", { total: 7, completed: 0 }, { total: 10, completed: 0 }),
+    ).toBe(`**Chapters**: 7 ${deltaArrow} 10`);
+    expect(
+      fmtSectionCountDelta(null, "Chapter", { total: 7, completed: 0 }, { total: 10, completed: 0 }),
+    ).toBe(`**Chapters**: 7 ${deltaArrow} 10`);
+  });
+
+  it("omits a linear delta line when the total count is unchanged", () => {
+    expect(
+      fmtSectionCountDelta("linear", "Chapter", { total: 10, completed: 0 }, { total: 10, completed: 0 }),
+    ).toBe("");
   });
 
   it("excludes skip keys and describes cover-image changes", () => {
@@ -308,22 +373,38 @@ describe("changelog Directus helpers", () => {
     const fetchMock = mockDirectusFetch([{
       match: "/items/game_sections?",
       data: [
-        { id: 1, number: 1, title: "The Arrival", games_id: 7 },
-        { id: 2, number: 2, title: "The Storm", games_id: 7 },
-        { id: 3, number: 1, title: "Chapter 1", games_id: 8 },
+        { id: 1, number: 1, title: "The Arrival", completed: null, games_id: 7, bundle_member_id: null },
+        { id: 2, number: 2, title: "The Storm", completed: null, games_id: 7, bundle_member_id: null },
+        { id: 3, number: 1, title: "Chapter 1", completed: null, games_id: 8, bundle_member_id: null },
       ],
     }]);
 
     await expect(fetchGameSectionsByGameIds([7, 8])).resolves.toEqual({
       7: [
-        { id: 1, number: 1, title: "The Arrival" },
-        { id: 2, number: 2, title: "The Storm" },
+        { id: 1, number: 1, title: "The Arrival", completed: null, bundle_member_id: null },
+        { id: 2, number: 2, title: "The Storm", completed: null, bundle_member_id: null },
       ],
-      8: [{ id: 3, number: 1, title: "Chapter 1" }],
+      8: [{ id: 3, number: 1, title: "Chapter 1", completed: null, bundle_member_id: null }],
     });
     const url = new URL(String(fetchMock.mock.calls[0][0]));
     expect(url.searchParams.get("filter[games_id][_in]")).toBe("7,8");
-    expect(url.searchParams.get("fields")).toBe("id,number,title,games_id");
+    expect(url.searchParams.get("fields")).toBe("id,number,title,completed,games_id,bundle_member_id");
+  });
+
+  it("includes bundle_member_id so a games_id lookup lets callers filter out bundle-member rows", async () => {
+    mockDirectusFetch([{
+      match: "/items/game_sections?",
+      data: [
+        { id: 1, number: 1, title: "Direct Chapter 1", completed: null, games_id: 7, bundle_member_id: null },
+        { id: 2, number: 1, title: "Member Episode 1", completed: true, games_id: 7, bundle_member_id: 41 },
+      ],
+    }]);
+
+    const result = await fetchGameSectionsByGameIds([7]);
+    expect(result[7]).toEqual([
+      { id: 1, number: 1, title: "Direct Chapter 1", completed: null, bundle_member_id: null },
+      { id: 2, number: 1, title: "Member Episode 1", completed: true, bundle_member_id: 41 },
+    ]);
   });
 
   it("groups sections by bundle member id", async () => {
@@ -333,7 +414,7 @@ describe("changelog Directus helpers", () => {
     }]);
 
     await expect(fetchGameSectionsByBundleMemberIds([41])).resolves.toEqual({
-      41: [{ id: 9, number: 1, title: "Episode 1" }],
+      41: [{ id: 9, number: 1, title: "Episode 1", bundle_member_id: 41 }],
     });
     const url = new URL(String(fetchMock.mock.calls[0][0]));
     expect(url.searchParams.get("filter[bundle_member_id][_in]")).toBe("41");
