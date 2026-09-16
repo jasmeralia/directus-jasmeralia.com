@@ -1,0 +1,32 @@
+---
+import type { SectionProgressSummary } from "../lib/game-sections";
+
+interface Props {
+  progress: SectionProgressSummary | null;
+}
+
+const { progress } = Astro.props;
+---
+
+{progress ? (
+  <div class="game-progress" title={progress.title}>
+    <div class="progress-label">{progress.label}</div>
+    <div
+      class="progress-bar"
+      role="progressbar"
+      aria-label={progress.title}
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow={progress.percent}
+    >
+      <div class="progress-fill" style={`width:${progress.percent}%`}></div>
+    </div>
+  </div>
+) : null}
+
+<style>
+  .game-progress{max-width:420px;margin:.5rem 0 .75rem;}
+  .progress-label{margin-bottom:.25rem;font-size:.85rem;opacity:.8;}
+  .progress-bar{height:7px;border-radius:4px;background:#252525;overflow:hidden;}
+  .progress-fill{height:100%;background:#70b7ff;}
+</style>
