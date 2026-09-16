@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.203] - 2026-09-16
+- Games: move progress text and bars from the detail-page header into the matching mission, chapter, or included-game section panel.
+
 ## [1.0.202] - 2026-09-15
 - Franchises: restore quest and mission progress for nonlinear games, including on-hold games such as Marvel's Midnight Suns.
 - Games: show the shared progress bar and percentage summary in the detail-page header, and apply the existing orange on-hold status treatment there.

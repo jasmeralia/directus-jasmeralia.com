@@ -4,11 +4,12 @@ import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/
 import { formatDate } from "../../lib/date";
 import { downloadLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
-import { bundleProgressSummary, effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
+import { effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
 import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, orderedSections, pluralizeNoun, sectionNoun, sectionProgressSummary } from "../../lib/game-sections";
 import { fetchActivity, fetchAllGameGenres, fetchRevisions } from "../../lib/changelog";
 import { compareLabels } from "../../lib/list-format";
 import { isGameNsfw } from "../../lib/nsfw";
+import GameSectionProgress from "../../components/GameSectionProgress.astro";
 import PlaceholderRibbon from "../../components/PlaceholderRibbon.astro";
 
 export async function getStaticPaths() {
@@ -227,13 +228,7 @@ const displaySections = isNonlinear ? directGameSectionsByPosition(game.sections
 const sectionGroups = isNonlinear ? groupSectionsByCategory(displaySections) : [];
 const linearHasCategories = !isNonlinear && sections.some((section) => section.category);
 const linearSectionGroups = linearHasCategories ? groupSectionsByCategory(sections) : [];
-const completedQuestCount = isNonlinear
-  ? displaySections.filter((section) => section.completed).length
-  : 0;
-const progress = bundleProgressSummary(game) ?? sectionProgressSummary(game);
-const progressLabel = progress && progress.percent !== null && !progress.label.includes("%")
-  ? `${progress.label} (${progress.percent}%)`
-  : progress?.label;
+const directProgress = sectionProgressSummary(game);
 const includedIn = (game.included_in_bundles ?? [])
   .map((membership) => membership?.games_id)
   .filter((parent) => parent?.slug && parent?.title)
@@ -335,7 +330,6 @@ const coverStackStyle = [
     <style>
       .container { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
       .header { display: flex; gap: 1rem; align-items: center; }
-      .header-info{flex:1;min-width:0;}
       .cover-stack,.cover-ring-rainbow,.cover-gap-rainbow,.cover-ring-gold,.cover-gap-gold,.cover-ring-status,.cover-gap-status,.cover-card{border-radius:10px;}
       .cover-ring-rainbow,.cover-gap-rainbow,.cover-ring-gold,.cover-gap-gold,.cover-ring-status,.cover-gap-status{padding:0;background:transparent;}
       .cover-ring-rainbow{
@@ -351,10 +345,6 @@ const coverStackStyle = [
       .cover-card{position:relative;overflow:hidden;width:320px;background:#000;border:2px solid var(--inner-border,#2b2b2b);padding:10px;}
       .cover-card img { width: 100%; height: auto; object-fit: contain; display: block; }
       .meta { opacity: 0.9; }
-      .game-progress{max-width:420px;margin-top:.75rem;}
-      .progress-bar{height:7px;border-radius:4px;background:#252525;overflow:hidden;}
-      .progress-fill{height:100%;background:#70b7ff;}
-      .progress-label{margin-bottom:.25rem;font-size:.85rem;opacity:.8;}
       .section{margin-top:1.5rem;}
       .label{opacity:.7;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;}
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
@@ -424,25 +414,8 @@ const coverStackStyle = [
             </div>
           </div>
         </div>
-        <div class="header-info">
+        <div>
           <h1 data-pagefind-meta="title">{game.title}</h1>
-          {progress ? (
-            <div class="game-progress" title={progress.title}>
-              <div class="progress-label">{progressLabel}</div>
-              {progress.percent !== null ? (
-                <div
-                  class="progress-bar"
-                  role="progressbar"
-                  aria-label={progress.title}
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                  aria-valuenow={progress.percent}
-                >
-                  <div class="progress-fill" style={`width:${progress.percent}%`}></div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
           {downloadEntries.length > 0 || gslLink ? (
             <div class="meta">
               {downloadEntries.map((entry) => (
@@ -604,6 +577,7 @@ const coverStackStyle = [
               const memberNoun = sectionNoun(member.section_noun);
               const memberCurrent = member.current_section ?? null;
               const sectionStatus = member.section_data_status ?? "unknown";
+              const memberProgress = sectionProgressSummary(member, { nested: true });
               return (
                 <article class="bundle-member">
                   <div class="bundle-member-header">
@@ -645,6 +619,9 @@ const coverStackStyle = [
                     </div>
                   </div>
                   {sectionStatus === "tracked" && memberSections.length > 0 ? (
+                    <GameSectionProgress progress={memberProgress} />
+                  ) : null}
+                  {sectionStatus === "tracked" && memberSections.length > 0 ? (
                     <details>
                       <summary>Show {memberSections.length} {pluralizeNoun(memberNoun)}</summary>
                       <ol class="sections-list">
@@ -674,9 +651,7 @@ const coverStackStyle = [
         displaySections.length > 0 ? (
           <div class="section panel">
             <div class="label">{pluralizeNoun(noun)}</div>
-            <p class="sections-summary">
-              {`${completedQuestCount} of ${displaySections.length} ${pluralizeNoun(noun)} completed`}
-            </p>
+            <GameSectionProgress progress={directProgress} />
             {sectionGroups.map((group) => (
               <div class="quest-category">
                 {group.category ? <h4 class="quest-category-title">{group.category}</h4> : null}
@@ -702,11 +677,11 @@ const coverStackStyle = [
       ) : sections.length > 0 ? (
         <div class="section panel">
           <div class="label">{pluralizeNoun(noun)}</div>
-          <p class="sections-summary">
-            {current !== null
-              ? `Currently on ${noun} ${current} of ${sections.length}`
-              : `${sections.length} ${pluralizeNoun(noun)}`}
-          </p>
+          {directProgress ? (
+            <GameSectionProgress progress={directProgress} />
+          ) : (
+            <p class="sections-summary">{sections.length} {pluralizeNoun(noun)}</p>
+          )}
           {linearHasCategories ? (
             linearSectionGroups.map((group) => (
               <div class="quest-category">
