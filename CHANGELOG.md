@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.205] - 2026-09-16
+- Franchises: always show every included omnibus game, mark members that are also listed separately, and add right-aligned download platform links to game and included-game rows.
+- Games: group categorized included-game sections, and show a green Complete badge when every section in a category is finished.
+- Section tracking: represent DLC as categorized section data for both linear and nonlinear games instead of creating bundle members solely for DLC.
+
 ## [1.0.204] - 2026-09-16
 - Games: expand each included game's section data by default on omnibus detail pages while retaining the option to collapse it.
 
