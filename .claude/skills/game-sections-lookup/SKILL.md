@@ -82,6 +82,46 @@ Determine a credible total from the search snippets. Require corroboration. AVN 
 
 Save credible findings in `mcp/cache/game_sections_lookup.json` under the slug, including at least `slug`, `title`, `noun`, `count`, `sections`, `reason`, and the search queries or source descriptions used.
 
+## Category Grouping (Chapters/Acts That Contain Multiple Named Items)
+
+Some games have a two-level structure: chapters/acts/locations that each
+contain several separately-named missions or sub-sections. When a source
+gives named items *within* each chapter/act -- not just a list of chapter
+names -- write one `game_sections` row per named item, grouped by a shared
+`category`, not one row per chapter with the item names squashed into a
+single `title`:
+
+- Every row's `number` is still one globally-unique ordinal across the
+  whole game (`1..total item count`), never restarting per chapter.
+- Set `category` on every row to its chapter/act/location label. The site
+  (`groupSectionsByCategory` in `site/src/lib/game-sections.ts`) renders
+  *consecutive* same-`category` rows as one visual group, so a label can
+  legitimately repeat later in the list for a returning chapter or location
+  (the story goes back to an earlier place) and will still render as its
+  own separate group box, since only contiguous runs merge.
+- Never collapse a chapter's item list into a single row with the item
+  names concatenated into `title` (e.g. `"Knock Knock, Mutant Detected &
+  For Our Future"`) -- that throws away the per-item structure the request
+  for "groups" is actually asking for.
+- This is still a **linear** game. `section_style` stays `"linear"` --
+  grouping items with `category` does not by itself mean the game belongs
+  in the nonlinear/quest-pool model; see `game-quests-lookup`'s skill for
+  when `nonlinear` is actually the right call (an unordered quest pool, not
+  a fixed sequence). Write it with `mcp/scripts/populate_game_sections.py`
+  (`--from-json`), never `populate_game_quests.py`, and leave `current`
+  (`current_section`) tracking the flat item ordinal `1..total`, same as
+  always.
+- The "credible total" the Mandatory Correctness Gate requires, in this
+  case, is the total **item** count (e.g. 30 missions), not just the
+  chapter/act count -- corroborate the chapter list *and* the per-chapter
+  item lists before writing. A source's own literal label for an
+  unnamed/ungrouped chapter (e.g. a walkthrough's own "Unknown" heading) is
+  real sourced data, not a guess -- use it verbatim rather than inventing a
+  name or leaving `category` null for that group.
+- When no source gives named items within a chapter (only a chapter
+  list/count), fall back to the plain one-row-per-chapter model with no
+  `category`, exactly as documented above.
+
 ## Mandatory Correctness Gate
 
 If WebSearch cannot establish a credible total count, do not invent one, do not create default rows, and do not write that game to Directus. Skip the game and add or update this object in `mcp/cache/game_sections_needs_manual.json`:
@@ -121,6 +161,35 @@ Build a JSON array in this shape:
 ```
 
 Use the real per-section title when credible evidence provides it. Otherwise omit `title` or set it to `null`; the population CLI will supply `"{Noun} {N}"`. Always pass `"current": null`, which leaves `current_section` untouched.
+
+For a game with named items grouped under chapters/acts/locations (see
+"Category Grouping" above), add a `category` per section and keep numbering
+globally unique across the whole list:
+
+```json
+[
+  {
+    "slug": "marvel-s-wolverine",
+    "member": null,
+    "noun": "Mission",
+    "current": null,
+    "sections": [
+      {"number": 1, "title": "Back in Action", "category": "Telambang"},
+      {"number": 2, "title": "A Debt Repaid", "category": "Telambang"},
+      {"number": 3, "title": "Last Meal", "category": "Telambang"},
+      {"number": 4, "title": "Homecoming", "category": "Canada"},
+      {"number": 5, "title": "Knock Knock", "category": "Madripoor"},
+      {"number": 6, "title": "Jetlag", "category": "Japan"},
+      {"number": 7, "title": "Way Down Low", "category": "Madripoor"}
+    ]
+  }
+]
+```
+
+Note `category: "Madripoor"` reappearing at section 7 after `"Japan"` at
+section 6 -- that is correct when the source's own chapter list actually
+returns to that location later; it renders as its own separate group, not
+merged with the earlier Madripoor rows.
 
 For a bundle member, set `member` to its stable member slug:
 
