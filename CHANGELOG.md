@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.207] - 2026-09-16
+- RSS/Discord feed: track section-count and completion changes (e.g. "7 → 10 Chapters" or "2/30 (7%) → 10/30 (33%) Missions"), and show a resolved progress fraction/percent inline on "Current Progress" lines for linear games.
+- RSS/Discord feed: consolidate a game's changes landing within 30 minutes of each other into a single feed item instead of one item per change, to reduce Discord notification noise from bulk edits.
+
 ## [1.0.206] - 2026-09-16
 - RSS/Discord feed: stop showing no-op "X → X" lines (e.g. "Section Noun: Chapter → Chapter") for games whose section metadata was re-saved unchanged.
 

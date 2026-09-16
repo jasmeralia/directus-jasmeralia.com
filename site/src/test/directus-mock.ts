@@ -8,7 +8,10 @@ export type DirectusMockRoute = {
 const matchesRoute = (url: string, match: string | RegExp): boolean => {
   if (typeof match === "string") return url.includes(match);
   match.lastIndex = 0;
-  return match.test(url);
+  // Decode so regex routes can use readable literal brackets (e.g.
+  // "collection][_eq]=games") instead of having to match the
+  // percent-encoded query string URLSearchParams actually produces.
+  return match.test(decodeURIComponent(url));
 };
 
 export const mockDirectusFetch = (routes: DirectusMockRoute[]) => {
