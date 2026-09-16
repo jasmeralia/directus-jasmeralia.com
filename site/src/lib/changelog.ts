@@ -96,7 +96,10 @@ export function fmtDelta(
       };
       const oldVal = prev?.[f] ?? null;
       if (oldVal !== null && oldVal !== undefined) {
-        lines.push(`**Current Progress**: ${fmtProgress(oldVal)} → ${fmtProgress(newVal)}`);
+        const fromLabel = fmtProgress(oldVal);
+        const toLabel   = fmtProgress(newVal);
+        if (fromLabel === toLabel) continue; // no-op write (e.g. re-saved unchanged)
+        lines.push(`**Current Progress**: ${fromLabel} → ${toLabel}`);
       } else {
         lines.push(`**Current Progress**: ${fmtProgress(newVal)}`);
       }
@@ -105,7 +108,10 @@ export function fmtDelta(
     const label  = FIELD_LABEL[f] ?? f;
     const oldVal = prev?.[f] ?? null;
     if (oldVal !== null && oldVal !== undefined) {
-      lines.push(`**${label}**: ${humanVal(f, oldVal)} → ${humanVal(f, newVal)}`);
+      const fromLabel = humanVal(f, oldVal);
+      const toLabel   = humanVal(f, newVal);
+      if (fromLabel === toLabel) continue; // no-op write (e.g. re-saved unchanged)
+      lines.push(`**${label}**: ${fromLabel} → ${toLabel}`);
     } else {
       lines.push(`**${label}**: ${humanVal(f, newVal)}`);
     }
