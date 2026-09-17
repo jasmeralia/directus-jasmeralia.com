@@ -89,9 +89,14 @@ function publishedDate(html) {
   return match ? decodeHtml(match[1]) : null;
 }
 
-function releaseYear(date) {
+function releaseYear(date, fetchedAt) {
   const match = date?.match(/\b(?:19|20)\d{2}\b/);
-  return match ? Number.parseInt(match[0], 10) : null;
+  if (match) return Number.parseInt(match[0], 10);
+  const relativeDays = date?.match(/^(\d+) days? ago$/i);
+  if (!relativeDays) return null;
+  const reference = new Date(fetchedAt);
+  reference.setUTCDate(reference.getUTCDate() - Number.parseInt(relativeDays[1], 10));
+  return reference.getUTCFullYear();
 }
 
 async function fetchPublished(url, cookies) {
@@ -117,14 +122,15 @@ async function main() {
 
   for (const [index, game] of games.entries()) {
     const urls = itchUrls(game);
-    const record = { title: game.title, urls, url: null, published: null, release_year: null, error: null };
+    const fetchedAt = new Date().toISOString();
+    const record = { title: game.title, urls, url: null, published: null, release_year: null, fetched_at: fetchedAt, error: null };
     for (const url of urls) {
       try {
         const date = await fetchPublished(url, cookies);
         if (date) {
           record.url = url;
           record.published = date;
-          record.release_year = releaseYear(date);
+          record.release_year = releaseYear(date, fetchedAt);
           break;
         }
       } catch (error) {

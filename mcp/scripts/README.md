@@ -9,4 +9,4 @@ node mcp/scripts/itch_published_dates.mjs
 node mcp/scripts/itch_published_dates.mjs --apply
 ```
 
-The first command saves the research results to `mcp/cache/itch_published_dates.json`; `--apply` updates only records with an unambiguous four-digit year. The script uses the Android Firefox user agent required for this source. Never commit the cookie export.
+The first command saves the research results to `mcp/cache/itch_published_dates.json`; `--apply` updates records with an absolute year or a day-relative date resolved against that record's fetch time. The script uses the Android Firefox user agent required for this source. Never commit the cookie export.
