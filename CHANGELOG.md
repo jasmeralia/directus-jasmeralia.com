@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.209] - 2026-09-19
+- Build: log `[timing] page_generation_summary duration_ms=N`, isolating Astro's static-route-generation phase from Vite client-entrypoint bundling, to evaluate `build.concurrency` before/after.
+
 ## [1.0.208] - 2026-09-16
 - Filters: exclude unreleased games from Download Link - Missing, and keep the Filters index count aligned with the dedicated page.
 - Data: normalize six legacy Steam/GOG game-link kinds to `download`, so their store links display and count consistently.
