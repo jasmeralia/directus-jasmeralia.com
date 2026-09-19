@@ -5,18 +5,22 @@ MYPY   := $(if $(wildcard $(VENV)/bin/mypy),$(VENV)/bin/mypy,mypy)
 PYLINT := $(if $(wildcard $(VENV)/bin/pylint),$(VENV)/bin/pylint,pylint)
 PY_SRC := mcp/scripts
 
-.PHONY: lint lintfix lint-site test-site lint-python lint-docker lint-shell \
+.PHONY: lint lintfix lint-site lint-builder test-site lint-python lint-docker lint-shell \
         ruff ruff-format pylint mypy
 
-lint: lint-site lint-python lint-docker lint-shell
+lint: lint-site lint-builder lint-python lint-docker lint-shell
 
 lintfix:
 	cd site && npm run lint -- --fix
+	site/node_modules/.bin/eslint --fix builder/*.mjs
 	$(RUFF) check --fix $(PY_SRC)
 	$(RUFF) format $(PY_SRC)
 
 lint-site:
 	cd site && npm run lint
+
+lint-builder:
+	site/node_modules/.bin/eslint builder/*.mjs
 
 test-site:
 	cd site && npm test
