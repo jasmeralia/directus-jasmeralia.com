@@ -3,7 +3,7 @@
 Backfill family_sharing field for all Directus games that have a Steam appid.
 
 Fetches Steam appdetails and checks for "Family Sharing" in the categories list.
-Skips games without a Steam download_url, and games already processed.
+Skips games without a Steam download link, and games already processed.
 
 Resumable: progress saved to cache/family_sharing_progress.json.
 
@@ -20,7 +20,7 @@ import urllib.request
 from pathlib import Path
 
 from scriptlib import server_env
-from steamlib import extract_steam_appid, fetch_steam_details
+from steamlib import extract_steam_appid_from_links, fetch_steam_details
 
 DIRECTUS_ENV = server_env("directus")
 TOKEN = DIRECTUS_ENV["DIRECTUS_TOKEN"]
@@ -62,7 +62,7 @@ def main():
     # Fetch all games from Directus
     print("Fetching all games from Directus...", file=sys.stderr)
     req = urllib.request.Request(
-        f"{BASE}/items/games?limit=-1&fields=id,title,download_url,family_sharing",
+        f"{BASE}/items/games?limit=-1&fields=id,title,links.url,links.kind,family_sharing",
         headers={"Authorization": f"Bearer {TOKEN}"},
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
@@ -84,7 +84,7 @@ def main():
     pending = [
         g
         for g in games
-        if extract_steam_appid(g.get("download_url")) is not None
+        if extract_steam_appid_from_links(g.get("links")) is not None
         and (g["id"] not in done_ids or g["id"] in retry_ids)
     ]
 
@@ -92,7 +92,7 @@ def main():
         pending = pending[: args.limit]
 
     no_steam = sum(
-        1 for g in games if extract_steam_appid(g.get("download_url")) is None
+        1 for g in games if extract_steam_appid_from_links(g.get("links")) is None
     )
     print(
         f"Steam games: {len(games) - no_steam} | Already done: {len(done_ids)} | Pending: {len(pending)}",
@@ -100,7 +100,7 @@ def main():
     )
 
     for i, game in enumerate(pending):
-        appid = extract_steam_appid(game["download_url"])
+        appid = extract_steam_appid_from_links(game.get("links"))
         print(f"[{i + 1}/{len(pending)}] {appid}: {game['title']}", file=sys.stderr)
 
         if appid is None:

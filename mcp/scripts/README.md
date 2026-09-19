@@ -1,5 +1,17 @@
 # MCP maintenance scripts
 
+## Game links
+
+The old `games.download_url` field no longer exists. Scripts that need a
+storefront link must expand `games.links` with `links.url,links.kind`, filter to
+the canonical `download` kind, and create new acquisition links as
+`games_links` rows. A game may have more than one download destination, so
+Steam-specific work must select its Steam URL rather than assume a scalar link.
+
+`migrate_games_links.py` is the sole historical exception: it intentionally
+reads the former fields only when restoring or replaying a pre-migration
+database snapshot. Do not run it against the current schema.
+
 ## Itch.io release-year backfill
 
 `itch_published_dates.mjs` retrieves the account-gated `Published` field for games with no release year and an itch.io link. Export the authorized itch.io cookies from Firefox to the gitignored path `mcp/scripts/ignored/cookies.json`, then run:

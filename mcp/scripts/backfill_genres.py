@@ -19,7 +19,11 @@ import time
 from collections import Counter
 
 from scriptlib import CACHE_DIR, DirectusClient, ProgressCache
-from steamlib import extract_steam_appid, fetch_steamspy_tags, genres_from_tags
+from steamlib import (
+    extract_steam_appid_from_links,
+    fetch_steamspy_tags,
+    genres_from_tags,
+)
 
 CACHE = CACHE_DIR
 DIRECTUS = DirectusClient.from_config()
@@ -148,7 +152,7 @@ def generate_proposals():
     page = 1
     while True:
         data = DIRECTUS.get(
-            f"/items/games?fields=id,title,download_url,genres.genres_id.id,genres.genres_id.slug"
+            f"/items/games?fields=id,title,links.url,links.kind,genres.genres_id.id,genres.genres_id.slug"
             f"&limit=500&offset={500 * (page - 1)}&sort=id"
         )
         batch = data.get("data", [])
@@ -165,7 +169,7 @@ def generate_proposals():
 
     steam_games = []
     for game in all_games:
-        appid = extract_steam_appid(game.get("download_url"))
+        appid = extract_steam_appid_from_links(game.get("links"))
         if appid:
             steam_games.append((game, appid))
     print(f"{len(steam_games)} Steam games to process", file=sys.stderr)

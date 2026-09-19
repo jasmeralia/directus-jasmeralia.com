@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """
-Migrate games.download_url and games.walkthrough_url into the games_links junction table.
+Historical one-time migration of games.download_url and games.walkthrough_url into
+the games_links junction table.
 Also enriches GSL-sourced games with additional URLs from the GSL cache
 (itch.io, SubscribeStar, etc. stored in game.other_urls).
 
 Usage:
     python3 migrate_games_links.py          # dry run
     python3 migrate_games_links.py --apply  # write to Directus
+
+This script intentionally reads the removed columns and is only for restoring or
+replaying a pre-migration database snapshot. Do not use it against the current
+schema; active scripts must use the games_links relation instead.
 """
 
 import json

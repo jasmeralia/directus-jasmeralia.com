@@ -77,6 +77,27 @@ def extract_steam_appid(url: str | None) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def steam_download_url(links: list[dict] | None) -> str | None:
+    """Return the first Steam store URL among a game's download links.
+
+    ``games`` can have multiple links, including several download destinations.
+    Only a canonical ``download`` link is eligible for Steam-specific work; other
+    link kinds, such as a GameStoryLog reference, must not affect Steam matching.
+    """
+    for link in links or []:
+        if link.get("kind") != "download":
+            continue
+        url = link.get("url")
+        if extract_steam_appid(url) is not None:
+            return url
+    return None
+
+
+def extract_steam_appid_from_links(links: list[dict] | None) -> int | None:
+    """Extract a Steam app ID from a game's canonical download links."""
+    return extract_steam_appid(steam_download_url(links))
+
+
 def extract_release_year(date_str: str | None) -> int | None:
     """Extract a four-digit release year from a Steam-style date string."""
     match = re.search(r"\b(19|20)\d{2}\b", date_str or "")

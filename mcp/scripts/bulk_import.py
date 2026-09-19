@@ -161,7 +161,6 @@ def main():
             "title": title,
             "slug": slug,
             "release_year": game.get("release_year"),
-            "download_url": game["download_url"],
             "game_status": derive_game_status(game.get("release_year")),
             "player_status": game.get("player_status", "not_started"),
         }

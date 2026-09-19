@@ -32,7 +32,7 @@ from scriptlib import (
     fetch_with_backoff,
     server_env,
 )
-from steamlib import extract_steam_appid
+from steamlib import extract_steam_appid_from_links
 
 CACHE = CACHE_DIR
 DIRECTUS = DirectusClient.from_config()
@@ -101,7 +101,8 @@ def audit():
 
     print("Fetching games with cover images...", file=sys.stderr)
     games = DIRECTUS.fetch_all(
-        "/items/games?fields=id,title,slug,cover_image,download_url&filter%5Bcover_image%5D%5B_nnull%5D=true"
+        "/items/games?fields=id,title,slug,cover_image,links.url,links.kind"
+        "&filter%5Bcover_image%5D%5B_nnull%5D=true"
     )
     print(f"  {len(games)} games with cover_image", file=sys.stderr)
 
@@ -186,7 +187,7 @@ def fix(dry_run: bool):
         if cache.get(game_key, {}).get("status") == "done":
             skipped += 1
             continue
-        appid = extract_steam_appid(game.get("download_url"))
+        appid = extract_steam_appid_from_links(game.get("links"))
         if not appid:
             print(f"  SKIP (no Steam appid): {game['title']}", file=sys.stderr)
             skipped += 1
