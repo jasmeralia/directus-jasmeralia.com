@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.213] - 2026-09-19
+- Build: re-test `build.concurrency: 12` now that Directus runs under PM2 (8 workers) with a Redis-backed cache/sync store instead of a single process -- the earlier diminishing-returns result at 12 was measured against a single-process Directus and may no longer hold.
+
 ## [1.0.212] - 2026-09-19
 - Build: revert `build.concurrency` from 12 to 8 -- 12 showed no further wall-clock improvement (diminishing returns confirmed), while adding unnecessary queueing pressure on Directus.
 
