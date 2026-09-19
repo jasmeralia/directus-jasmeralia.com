@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.210] - 2026-09-19
+- Build: set `build.concurrency: 8` so Astro renders multiple pages concurrently instead of strictly serially, overlapping their per-page Directus fetch waits.
+
 ## [1.0.209] - 2026-09-19
 - Build: log `[timing] page_generation_summary duration_ms=N`, isolating Astro's static-route-generation phase from Vite client-entrypoint bundling, to evaluate `build.concurrency` before/after.
 
