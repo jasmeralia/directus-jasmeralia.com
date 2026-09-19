@@ -123,7 +123,14 @@ def take_backup():
         CACHE / f"backup_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     )
     backup_dir.mkdir(parents=True)
-    collections = ["games", "genres", "developers", "games_genres", "games_developers"]
+    collections = [
+        "games",
+        "genres",
+        "developers",
+        "games_genres",
+        "games_developers",
+        "games_links",
+    ]
     print(f"Taking backup to {backup_dir}/")
     for col in collections:
         data = api_get(f"/items/{col}?limit=-1")
@@ -201,7 +208,7 @@ def main():
                 else:
                     print("  Cover upload failed — continuing without cover")
 
-            # Build download_url
+            # Build the download link URL.
             download_url = game.get("download_url") or ""
             if not download_url:
                 platform = game.get("platform", "psn")
@@ -224,7 +231,6 @@ def main():
                 "release_year": game.get("release_year"),
                 "player_status": player_status,
                 "game_status": derive_game_status(game.get("release_year")),
-                "download_url": download_url,
                 "cover_image": file_uuid,
                 "family_sharing": None,
             }

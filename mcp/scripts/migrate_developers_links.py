@@ -8,7 +8,7 @@ Populate developers_links from two sources:
 
 2. Directus developers.website_url scalar field — migrated as kind=website.
 
-3. Inferred from games.download_url — if a game's download URL is a Patreon page,
+3. Inferred from games_links — if a game's download link is a Patreon page,
    infer the developer's Patreon link from it.
 
 Usage:
@@ -99,8 +99,8 @@ existing_rows = fetch_all("/items/developers_links?fields=developers_id,url&limi
 existing_set = {(r["developers_id"], r["url"]) for r in existing_rows}
 print(f"  {len(existing_set)} existing rows", file=sys.stderr)
 
-print("Loading games (for Patreon inference)...", file=sys.stderr)
-games = fetch_all("/items/games?fields=id,title,download_url,gamestorylog_url&limit=-1")
+print("Loading games and download links (for Patreon inference)...", file=sys.stderr)
+games = fetch_all("/items/games?fields=id,title,links.url,links.kind&limit=-1")
 print(f"  {len(games)} games", file=sys.stderr)
 
 gsl_data: dict = {}
@@ -193,9 +193,9 @@ for dev in devs:
     else:
         stats["error"] += 1
 
-# ── Source 3: Infer Patreon from games.download_url ──────────────────────────
+# ── Source 3: Infer Patreon from games_links ─────────────────────────────────
 print(
-    f"\n{'DRY RUN — ' if not APPLY else ''}Source 3: Patreon inference from games.download_url",
+    f"\n{'DRY RUN — ' if not APPLY else ''}Source 3: Patreon inference from games_links",
     file=sys.stderr,
 )
 
@@ -206,26 +206,30 @@ for row in gd_rows:
     game_to_devs.setdefault(row["games_id"], []).append(row["developers_id"])
 
 for game in games:
-    dl = (game.get("download_url") or "").strip()
-    if not dl:
-        continue
-    kind = classify_url(dl)
-    if kind not in ("patreon", "subscribestar"):
-        continue
     dev_ids = game_to_devs.get(game["id"], [])
-    for dev_id in dev_ids:
-        result = insert_link(dev_id, dl, kind, known_links=existing_set)
-        if result in ("ok", "dry"):
-            stats["inferred"] += 1
-            if not APPLY:
-                print(
-                    f"  [DRY] dev/{dev_id} inferred {kind} from game/{game['id']}: {dl[:80]}",
-                    file=sys.stderr,
-                )
-        elif result == "skip":
-            stats["skip"] += 1
-        else:
-            stats["error"] += 1
+    for link in game.get("links") or []:
+        if link.get("kind") != "download":
+            continue
+        download_url = (link.get("url") or "").strip()
+        inferred_kind = classify_url(download_url)
+        if inferred_kind not in ("patreon", "subscribestar"):
+            continue
+        for dev_id in dev_ids:
+            result = insert_link(
+                dev_id, download_url, inferred_kind, known_links=existing_set
+            )
+            if result in ("ok", "dry"):
+                stats["inferred"] += 1
+                if not APPLY:
+                    print(
+                        f"  [DRY] dev/{dev_id} inferred {inferred_kind} from "
+                        f"game/{game['id']}: {download_url[:80]}",
+                        file=sys.stderr,
+                    )
+            elif result == "skip":
+                stats["skip"] += 1
+            else:
+                stats["error"] += 1
 
 print(
     f"""

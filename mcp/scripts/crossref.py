@@ -3,7 +3,7 @@
 Cross-reference Directus games library against Steam library.
 
 Match priority:
-  1. appid extracted from Directus download_url (steam store URLs)
+  1. appid extracted from a Directus download link (Steam store URLs)
   2. Fuzzy title match against Steam library titles
 """
 
@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from steamlib import extract_steam_appid
+from steamlib import extract_steam_appid_from_links, steam_download_url
 
 CACHE = Path(__file__).parent.parent / "cache"
 
@@ -52,7 +52,8 @@ def main():
     results = []
 
     for dgame in directus:
-        appid = extract_steam_appid(dgame.get("download_url"))
+        steam_url = steam_download_url(dgame.get("links"))
+        appid = extract_steam_appid_from_links(dgame.get("links"))
         match_method = None
         smatch = None
 
@@ -76,7 +77,7 @@ def main():
                 "directus_slug": dgame["slug"],
                 "directus_player_status": dgame.get("player_status"),
                 "directus_game_status": dgame.get("game_status"),
-                "directus_url": dgame.get("download_url"),
+                "directus_url": steam_url,
                 "match_method": match_method,
                 "steam_appid": smatch["appid"] if smatch else appid,
                 "steam_title": smatch["name"] if smatch else None,
