@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.214] - 2026-09-19
+- Build: revert `build.concurrency` from 12 back to 8. Pairing it with 8 PM2 workers and a bigger DB pool (10/30) gave no further wall-clock improvement over 4 workers/pool 5/20 -- the host's 8 logical CPUs get contended between Directus and the builder itself once Directus alone tries to use all of them. Reverting to the best confirmed configuration: `build.concurrency: 8` + `PM2_INSTANCES: 4` + DB pool 5/20.
+
 ## [1.0.213] - 2026-09-19
 - Build: re-test `build.concurrency: 12` now that Directus runs under PM2 (8 workers) with a Redis-backed cache/sync store instead of a single process -- the earlier diminishing-returns result at 12 was measured against a single-process Directus and may no longer hold.
 
