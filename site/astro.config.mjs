@@ -5,6 +5,6 @@ export default defineConfig({
   site: "http://localhost:4321",
   integrations: [buildMetricsIntegration()],
   build: {
-    concurrency: 8,
+    concurrency: 12,
   },
 });
