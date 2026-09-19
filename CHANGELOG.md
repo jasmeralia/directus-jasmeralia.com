@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.211] - 2026-09-19
+- Build: bump `build.concurrency` from 8 to 12 to test scaling further, per profiling of the effective-parallelism ceiling.
+
 ## [1.0.210] - 2026-09-19
 - Build: set `build.concurrency: 8` so Astro renders multiple pages concurrently instead of strictly serially, overlapping their per-page Directus fetch waits.
 
