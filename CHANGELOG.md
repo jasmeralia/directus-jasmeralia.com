@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.212] - 2026-09-19
+- Build: revert `build.concurrency` from 12 to 8 -- 12 showed no further wall-clock improvement (diminishing returns confirmed), while adding unnecessary queueing pressure on Directus.
+
 ## [1.0.211] - 2026-09-19
 - Build: bump `build.concurrency` from 8 to 12 to test scaling further, per profiling of the effective-parallelism ceiling.
 
