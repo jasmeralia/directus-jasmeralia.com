@@ -2,8 +2,10 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import {
   logDirectusFetchSummary,
+  logPageGenerationSummary,
   logRouteTimingSummary,
   normalizeDirectusPath,
+  parsePageGenerationDurationMs,
   parseRouteTimings,
   recordDirectusFetch,
   resetBuildMetrics,
@@ -170,5 +172,55 @@ describe("build metrics helpers", () => {
         { route: "/games/bar/index.html", durationMs: 40 },
       ],
     });
+  });
+
+  it("parses the page-generation phase duration from Astro's own completion line", () => {
+    const lines = [
+      "08:50:53 [build] Building static entrypoints...",
+      "08:50:53 [vite] ✓ built in 405ms",
+      " generating static routes ",
+      "08:51:41   ├─ /about/index.html (+26ms)",
+      "08:51:41 ✓ Completed in 47.81s.",
+      "08:51:41 [build] ✓ Completed in 48.29s.",
+    ];
+
+    expect(parsePageGenerationDurationMs(lines)).toBe(47810);
+  });
+
+  it("returns null for page-generation duration when markers are missing", () => {
+    expect(parsePageGenerationDurationMs(["no phase markers here"])).toBeNull();
+  });
+
+  it("logs the page-generation summary", () => {
+    const lines = [" generating static routes ", "08:51:41 ✓ Completed in 47.81s."];
+    const logs: string[] = [];
+    const original = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(String(args[0]));
+    };
+
+    try {
+      expect(logPageGenerationSummary(lines)).toEqual({ durationMs: 47810 });
+      expect(logs).toEqual(["[timing] page_generation_summary duration_ms=47810"]);
+    } finally {
+      console.log = original;
+    }
+  });
+
+  it("logs a zero page-generation summary when markers are missing", () => {
+    const logs: string[] = [];
+    const original = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(String(args[0]));
+    };
+
+    try {
+      expect(logPageGenerationSummary(["no phase markers here"])).toEqual({
+        durationMs: null,
+      });
+      expect(logs).toEqual(["[timing] page_generation_summary duration_ms=0"]);
+    } finally {
+      console.log = original;
+    }
   });
 });
