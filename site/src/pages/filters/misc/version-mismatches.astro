@@ -57,6 +57,7 @@ const description = `${games.length} games have differing tracked version values
       .content-rating-badge{border:1px solid;border-radius:3px;font-size:.65rem;font-weight:700;margin-left:.4rem;padding:1px 4px;vertical-align:middle;}
       .content-rating-badge.is-sfw{background:#173d24;border-color:#2f7d46;color:#9ae6ad;}
       .content-rating-badge.is-nsfw{background:#5c2020;border-color:#8c3535;color:#ffb4b4;}
+      .content-rating-badge.is-abandoned{background:#2a1515;border-color:#5a2020;color:#ff8080;}
       @media (max-width:640px){.versions{grid-template-columns:1fr;}}
     </style>
   </div>
@@ -82,6 +83,9 @@ const description = `${games.length} games have differing tracked version values
                   <span class={`content-rating-badge ${gameNsfw ? "is-nsfw" : "is-sfw"}`}>
                     {gameNsfw ? "NSFW" : "SFW"}
                   </span>
+                  {game.game_status === "abandoned" ? (
+                    <span class="content-rating-badge is-abandoned">Abandoned</span>
+                  ) : null}
                 </div>
                 {downloadEntries.length > 0 ? (
                   <div class="download-links">
