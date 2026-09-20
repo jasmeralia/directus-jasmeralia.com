@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
-import { sortByTitle } from "../../lib/list-format";
+import { ALPHABET, buildAlphaAnchors, invertAlphaAnchors, sortByTitle } from "../../lib/list-format";
 
 const [franchisesRaw, allFranchiseGames] = await Promise.all([
   directusFetchItems("franchises", {
@@ -15,6 +15,8 @@ const [franchisesRaw, allFranchiseGames] = await Promise.all([
   }),
 ]);
 const franchises = sortByTitle(franchisesRaw);
+const alphaAnchors = buildAlphaAnchors(franchises.map((f) => f.title ?? ""));
+const alphaAnchorLetters = invertAlphaAnchors(alphaAnchors);
 const countsByFranchise = new Map<number, number>();
 for (const entry of allFranchiseGames ?? []) {
   const id = entry?.franchise_id;
@@ -116,17 +118,31 @@ const description = `Browse all ${franchises.length} tracked franchises by Jasme
       .pie-outer{padding:45px 80px;}
       .pie{width:220px;height:220px;overflow:visible;border:1px solid #2b2b2b;border-radius:50%;background:#222;display:block;}
       .li-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px;}
+      .alpha-jump{display:flex;flex-wrap:wrap;gap:4px;margin:12px 0 4px;}
+      .alpha-jump a,.alpha-jump span{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;font-size:12px;text-decoration:none;}
+      .alpha-jump a{background:#1a1a1a;color:#9aa6ff;}
+      .alpha-jump a:hover{background:#25264a;}
+      .alpha-jump span{color:#444;}
     </style>
   </div>
   <main>
     <div class="panel">
       <h1>Franchises</h1>
+      <nav class="alpha-jump" aria-label="Jump to letter">
+        {ALPHABET.map((letter) => (
+          alphaAnchors.has(letter) ? (
+            <a href={`#letter-${letter}`}>{letter}</a>
+          ) : (
+            <span aria-hidden="true">{letter}</span>
+          )
+        ))}
+      </nav>
       {franchises.length === 0 ? (
         <p>No franchises yet.</p>
       ) : (
         <ul>
-          {franchises.map((f) => (
-            <li>
+          {franchises.map((f, i) => (
+            <li id={alphaAnchorLetters.has(i) ? `letter-${alphaAnchorLetters.get(i)}` : undefined}>
               <span class="li-swatch" style={`background:${franchiseBucketColor.get(f.id) ?? "#555"};`}></span>
               <a href={`/franchises/${f.slug}/index.html`}>{f.title}</a>
               <span style="opacity:.7;"> ({countsByFranchise.get(f.id) ?? 0})</span>

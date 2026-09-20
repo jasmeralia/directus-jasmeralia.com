@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.215] - 2026-09-19
+- Developers and Franchises index pages: add an alphabetical jump-link nav bar underneath the title, so clicking a letter scrolls to the first entry starting with it.
+
 ## [1.0.214] - 2026-09-19
 - Build: revert `build.concurrency` from 12 back to 8. Pairing it with 8 PM2 workers and a bigger DB pool (10/30) gave no further wall-clock improvement over 4 workers/pool 5/20 -- the host's 8 logical CPUs get contended between Directus and the builder itself once Directus alone tries to use all of them. Reverting to the best confirmed configuration: `build.concurrency: 8` + `PM2_INSTANCES: 4` + DB pool 5/20.
 
