@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.216] - 2026-09-20
+- Version Mismatches filter page: show an "Abandoned" pip after the NSFW/SFW pip for games with `game_status: "abandoned"` (e.g. The Hellcat Lounge).
+
 ## [1.0.215] - 2026-09-19
 - Developers and Franchises index pages: add an alphabetical jump-link nav bar underneath the title, so clicking a letter scrolls to the first entry starting with it.
 
