@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
-import { compareLabels, formatUnknown } from "../../lib/list-format";
+import { ALPHABET, buildAlphaAnchors, compareLabels, formatUnknown, invertAlphaAnchors } from "../../lib/list-format";
 
 const developers = await directusFetchItems("developers", {
   fields: ["id", "name", "slug"],
@@ -11,6 +11,8 @@ const sortedDevelopers = [...developers].sort((a, b) =>
   compareLabels(a.name ?? "", b.name ?? ""),
 );
 const unknownLabel = formatUnknown("unknown", "Developer");
+const alphaAnchors = buildAlphaAnchors(sortedDevelopers.map((d) => d.name ?? ""));
+const alphaAnchorLetters = invertAlphaAnchors(alphaAnchors);
 const games = await directusFetchItems("games", {
   fields: ["id", "developers.developers_id.slug"],
   limit: -1,
@@ -131,17 +133,31 @@ const description = `Browse all ${sortedDevelopers.length} tracked developers by
       .pie-outer{padding:45px 80px;}
       .pie{width:220px;height:220px;overflow:visible;border:1px solid #2b2b2b;border-radius:50%;background:#222;display:block;}
       .li-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px;}
+      .alpha-jump{display:flex;flex-wrap:wrap;gap:4px;margin:12px 0 4px;}
+      .alpha-jump a,.alpha-jump span{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;font-size:12px;text-decoration:none;}
+      .alpha-jump a{background:#1a1a1a;color:#9aa6ff;}
+      .alpha-jump a:hover{background:#25264a;}
+      .alpha-jump span{color:#444;}
     </style>
   </div>
   <main>
     <div class="panel">
       <h1>Developers</h1>
+      <nav class="alpha-jump" aria-label="Jump to letter">
+        {ALPHABET.map((letter) => (
+          alphaAnchors.has(letter) ? (
+            <a href={`#letter-${letter}`}>{letter}</a>
+          ) : (
+            <span aria-hidden="true">{letter}</span>
+          )
+        ))}
+      </nav>
       {developers.length === 0 ? (
         <p>No developers yet.</p>
       ) : (
         <ul>
-          {sortedDevelopers.map((developer) => (
-            <li>
+          {sortedDevelopers.map((developer, i) => (
+            <li id={alphaAnchorLetters.has(i) ? `letter-${alphaAnchorLetters.get(i)}` : undefined}>
               <span class="li-swatch" style={`background:${developerColorMap.get(developer.slug) ?? '#555'};`}></span>
               <a href={`/developers/${developer.slug}/index.html`}>{developer.name}</a>
               <span style="opacity:.7;"> ({developerCounts.get(developer.slug) || 0})</span>
