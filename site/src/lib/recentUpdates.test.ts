@@ -235,6 +235,52 @@ describe("fetchRecentUpdates", () => {
   });
 });
 
+describe("fetchRecentUpdates tier-list burst consolidation", () => {
+  it("collapses same-tier-list additions within 30 minutes into one entry, but not across a gap", async () => {
+    mockDirectusFetch([
+      { match: "/revisions?filter[collection][_eq]=games", data: [] },
+      { match: "/revisions?filter[collection][_eq]=reviews", data: [] },
+      { match: "/revisions?filter[collection][_eq]=game_bundle_members", data: [] },
+      { match: "/revisions?filter[collection][_eq]=tier_lists", data: [] },
+      {
+        match: "/activity?filter[collection][_eq]=tier_list_games",
+        data: [
+          { item: "1", timestamp: "2026-08-10T12:00:00Z" },
+          { item: "2", timestamp: "2026-08-10T12:15:00Z" },
+          { item: "3", timestamp: "2026-08-10T12:29:00Z" },
+          // Outside the 30-minute window anchored at 12:00 -- starts a new burst
+          { item: "4", timestamp: "2026-08-10T12:45:00Z" },
+          // A different tier list entirely -- never grouped with "AVNs"
+          { item: "5", timestamp: "2026-08-10T12:05:00Z" },
+        ],
+      },
+      {
+        match: "/items/tier_list_games?filter[id][_in]=1,2,3,4,5",
+        data: [
+          { id: 1, tier_list_id: { title: "AVNs", slug: "avns", nsfw: true } },
+          { id: 2, tier_list_id: { title: "AVNs", slug: "avns", nsfw: true } },
+          { id: 3, tier_list_id: { title: "AVNs", slug: "avns", nsfw: true } },
+          { id: 4, tier_list_id: { title: "AVNs", slug: "avns", nsfw: true } },
+          { id: 5, tier_list_id: { title: "Isekai", slug: "isekai", nsfw: false } },
+        ],
+      },
+    ]);
+
+    const entries = await fetchRecentUpdates(20);
+
+    expect(entries.map(({ tag, subject, timestamp }) => [tag, subject, timestamp.toISOString()]))
+      .toEqual(
+        expect.arrayContaining([
+          ["tier-updated", "AVNs", "2026-08-10T12:29:00.000Z"],
+          ["tier-updated", "AVNs", "2026-08-10T12:45:00.000Z"],
+          ["tier-updated", "Isekai", "2026-08-10T12:05:00.000Z"],
+        ]),
+      );
+    expect(entries.filter((e) => e.subject === "AVNs")).toHaveLength(2);
+    expect(entries.filter((e) => e.subject === "Isekai")).toHaveLength(1);
+  });
+});
+
 describe("formatUpdateTimestamp", () => {
   it("formats a fixed timestamp in the configured site timezone", () => {
     vi.stubEnv("SITE_TIMEZONE", "America/Los_Angeles");
