@@ -4,6 +4,7 @@ import { renderMarkdown } from "../lib/markdown";
 import { directusFetchItems, fileUrl } from "../lib/directus";
 import { fetchRecentUpdates, formatUpdateTimestamp } from "../lib/recentUpdates";
 import type { UpdateTag } from "../lib/recentUpdates";
+import { formatDate } from "../lib/date";
 
 const news = await directusFetchItems<{ id: number; date_created: string; body: string }>("news", {
   fields: ["id", "date_created", "body"],
@@ -134,7 +135,7 @@ const TAG_LABEL: Record<UpdateTag, string> = {
         ) : (
           news.map((item) => (
             <article class="news-item">
-              <div class="news-date">{new Date(item.date_created).toLocaleDateString()}</div>
+              <div class="news-date">{formatDate(item.date_created)}</div>
               <div class="news-body" set:html={renderMarkdown(item.body ?? "")} />
             </article>
           ))
