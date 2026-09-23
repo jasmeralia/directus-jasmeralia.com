@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { formatDate } from "./date";
 
@@ -13,5 +13,16 @@ describe("formatDate", () => {
 
   it("falls back to the date-like prefix for unparseable input", () => {
     expect(formatDate("not-a-date 12:34:56")).toBe("not-a-date");
+  });
+
+  it("uses the configured site timezone instead of the host clock", () => {
+    vi.stubEnv("SITE_TIMEZONE", "America/Los_Angeles");
+    // 06:05 UTC on the 23rd is still 23:05 on the 22nd in Pacific time.
+    expect(formatDate("2026-09-23T06:05:57.636Z")).toBe("Sep 22, 2026");
+  });
+
+  it("falls back to America/Los_Angeles when SITE_TIMEZONE is unset", () => {
+    vi.stubEnv("SITE_TIMEZONE", "");
+    expect(formatDate("2026-09-23T06:05:57.636Z")).toBe("Sep 22, 2026");
   });
 });
