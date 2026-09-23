@@ -3,6 +3,11 @@ import { isGameNsfw, isTierListNsfw } from "./nsfw";
 
 const siteBase = (assetsBaseUrl() || "https://jasmeralia.com").replace(/\/$/, "");
 
+// See TIER_UPDATE_WINDOW_MS usage below: collapses a burst of tier-list-game
+// additions to the same tier list into one widget entry, matching the RSS
+// feed's GAME_CONSOLIDATION_WINDOW_MS in feed-builder.ts.
+const TIER_UPDATE_WINDOW_MS = 30 * 60 * 1000;
+
 export type UpdateTag =
   | "added"
   | "updated"
@@ -218,6 +223,11 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
     const tlgMap: Record<number, TierListGameRow> = {};
     for (const tlg of tlgRes.data ?? []) tlgMap[tlg.id] = tlg;
 
+    type TierUpdateCandidate = {
+      tierList: NonNullable<TierListGameRow["tier_list_id"]>;
+      date: Date;
+    };
+    const tierCandidates: TierUpdateCandidate[] = [];
     for (const act of tierActivities.data ?? []) {
       const ts = act.timestamp;
       if (!ts) continue;
@@ -226,13 +236,44 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
       const tlg = tlgMap[Number(act.item)];
       const tierList = tlg?.tier_list_id;
       if (!tierList?.slug || !tierList?.title) continue;
-      entries.push({
-        tag: "tier-updated",
-        subject: tierList.title,
-        link: `${siteBase}/tiers/${tierList.slug}/index.html`,
-        timestamp: date,
-        nsfw: isTierListNsfw(tierList),
-      });
+      tierCandidates.push({ tierList, date });
+    }
+
+    // A burst of tier-list additions (e.g. rating a dozen games in one sitting)
+    // otherwise floods the widget with one row per row created. Collapse
+    // same-tier-list additions landing within TIER_UPDATE_WINDOW_MS of the
+    // first entry in a burst into a single entry, mirroring
+    // feed-builder.ts's GAME_CONSOLIDATION_WINDOW_MS anchor pattern.
+    const byTierList = new Map<string, TierUpdateCandidate[]>();
+    for (const candidate of tierCandidates) {
+      const group = byTierList.get(candidate.tierList.slug) ?? [];
+      group.push(candidate);
+      byTierList.set(candidate.tierList.slug, group);
+    }
+    for (const group of byTierList.values()) {
+      group.sort((a, b) => a.date.getTime() - b.date.getTime());
+      let session: TierUpdateCandidate[] = [];
+      let anchor = 0;
+      const flush = () => {
+        if (!session.length) return;
+        const last = session[session.length - 1];
+        entries.push({
+          tag: "tier-updated",
+          subject: last.tierList.title,
+          link: `${siteBase}/tiers/${last.tierList.slug}/index.html`,
+          timestamp: last.date,
+          nsfw: session.some((c) => isTierListNsfw(c.tierList)),
+        });
+        session = [];
+      };
+      for (const candidate of group) {
+        if (session.length && candidate.date.getTime() - anchor > TIER_UPDATE_WINDOW_MS) {
+          flush();
+        }
+        if (!session.length) anchor = candidate.date.getTime();
+        session.push(candidate);
+      }
+      flush();
     }
   }
 
