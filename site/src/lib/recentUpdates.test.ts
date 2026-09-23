@@ -281,6 +281,111 @@ describe("fetchRecentUpdates tier-list burst consolidation", () => {
   });
 });
 
+describe("fetchRecentUpdates game update burst consolidation", () => {
+  it("collapses same-game update revisions within 30 minutes into one entry, but not across a gap or across games", async () => {
+    mockDirectusFetch([
+      {
+        match: "/revisions?filter[collection][_eq]=games",
+        data: [
+          {
+            item: "1",
+            data: { title: "Valhalla: Lilith Rising", slug: "valhalla-lilith-rising" },
+            delta: { player_status: "in_progress" },
+            activity: { action: "update", timestamp: "2026-09-22T22:46:00Z" },
+          },
+          {
+            item: "1",
+            data: { title: "Valhalla: Lilith Rising", slug: "valhalla-lilith-rising" },
+            delta: { section_noun: "Level" },
+            activity: { action: "update", timestamp: "2026-09-22T22:51:00Z" },
+          },
+          {
+            item: "1",
+            data: { title: "Valhalla: Lilith Rising", slug: "valhalla-lilith-rising" },
+            delta: { current_section: 1 },
+            activity: { action: "update", timestamp: "2026-09-22T22:52:00Z" },
+          },
+          // Outside the 30-minute window anchored at 22:46 -- starts a new burst
+          {
+            item: "1",
+            data: { title: "Valhalla: Lilith Rising", slug: "valhalla-lilith-rising" },
+            delta: { player_status: "on_hold" },
+            activity: { action: "update", timestamp: "2026-09-22T23:20:00Z" },
+          },
+          // A different game entirely -- never grouped with Valhalla's burst
+          {
+            item: "2",
+            data: { title: "Goddesses' Whim", slug: "goddesses-whim" },
+            delta: { player_status: "in_progress" },
+            activity: { action: "update", timestamp: "2026-09-22T22:50:00Z" },
+          },
+        ],
+      },
+      { match: "/revisions?filter[collection][_eq]=reviews", data: [] },
+      { match: "/revisions?filter[collection][_eq]=game_bundle_members", data: [] },
+      { match: "/activity?filter[collection][_eq]=tier_list_games", data: [] },
+      { match: "/revisions?filter[collection][_eq]=tier_lists", data: [] },
+      {
+        match: "/items/games?filter[id][_in]=1,1,1,1,2",
+        data: [
+          { id: 1, slug: "valhalla-lilith-rising" },
+          { id: 2, slug: "goddesses-whim" },
+        ],
+      },
+    ]);
+
+    const entries = await fetchRecentUpdates(20);
+
+    expect(entries.map(({ tag, subject, timestamp }) => [tag, subject, timestamp.toISOString()]))
+      .toEqual(
+        expect.arrayContaining([
+          ["updated", "Valhalla: Lilith Rising", "2026-09-22T22:52:00.000Z"],
+          ["updated", "Valhalla: Lilith Rising", "2026-09-22T23:20:00.000Z"],
+          ["updated", "Goddesses' Whim", "2026-09-22T22:50:00.000Z"],
+        ]),
+      );
+    expect(entries.filter((e) => e.subject === "Valhalla: Lilith Rising")).toHaveLength(2);
+    expect(entries.filter((e) => e.subject === "Goddesses' Whim")).toHaveLength(1);
+  });
+
+  it("collapses same-bundle-member update revisions within 30 minutes into one entry", async () => {
+    mockDirectusFetch([
+      { match: "/revisions?filter[collection][_eq]=games", data: [] },
+      { match: "/revisions?filter[collection][_eq]=reviews", data: [] },
+      {
+        match: "/revisions?filter[collection][_eq]=game_bundle_members",
+        data: [
+          {
+            item: "10",
+            data: { title: "First Member" },
+            delta: { current_section: 1 },
+            activity: { action: "update", timestamp: "2026-09-22T22:00:00Z" },
+          },
+          {
+            item: "10",
+            data: { title: "First Member" },
+            delta: { current_section: 2 },
+            activity: { action: "update", timestamp: "2026-09-22T22:10:00Z" },
+          },
+        ],
+      },
+      { match: "/activity?filter[collection][_eq]=tier_list_games", data: [] },
+      { match: "/revisions?filter[collection][_eq]=tier_lists", data: [] },
+      {
+        match: "/items/game_bundle_members?filter[id][_in]=10,10",
+        data: [
+          { id: 10, title: "First Member", games_id: { title: "Collection", slug: "collection" } },
+        ],
+      },
+    ]);
+
+    const entries = await fetchRecentUpdates(20);
+
+    expect(entries.map(({ tag, subject, timestamp }) => [tag, subject, timestamp.toISOString()]))
+      .toEqual([["updated", "Collection: First Member", "2026-09-22T22:10:00.000Z"]]);
+  });
+});
+
 describe("formatUpdateTimestamp", () => {
   it("formats a fixed timestamp in the configured site timezone", () => {
     vi.stubEnv("SITE_TIMEZONE", "America/Los_Angeles");

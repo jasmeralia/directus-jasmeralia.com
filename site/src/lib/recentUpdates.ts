@@ -3,10 +3,49 @@ import { isGameNsfw, isTierListNsfw } from "./nsfw";
 
 const siteBase = (assetsBaseUrl() || "https://jasmeralia.com").replace(/\/$/, "");
 
-// See TIER_UPDATE_WINDOW_MS usage below: collapses a burst of tier-list-game
-// additions to the same tier list into one widget entry, matching the RSS
-// feed's GAME_CONSOLIDATION_WINDOW_MS in feed-builder.ts.
-const TIER_UPDATE_WINDOW_MS = 30 * 60 * 1000;
+// See collapseBursts() usage below: collapses a burst of same-item edits
+// (e.g. a tier-list-game addition spree, or several quick edits to one game
+// record) into one widget entry, matching the RSS feed's
+// GAME_CONSOLIDATION_WINDOW_MS in feed-builder.ts.
+const UPDATE_BURST_WINDOW_MS = 30 * 60 * 1000;
+
+// Groups candidates by `key`, then within each group collapses runs of
+// entries landing within `windowMs` of the first entry in the run into a
+// single representative (the last, i.e. newest, entry of that run) - an
+// anchored sliding window, not a rolling one, so a long steady trickle of
+// edits still gets split into multiple bursts rather than merging into one.
+function collapseBursts<T extends { key: string; date: Date }>(
+  candidates: T[],
+  windowMs: number,
+): T[] {
+  const byKey = new Map<string, T[]>();
+  for (const candidate of candidates) {
+    const group = byKey.get(candidate.key) ?? [];
+    group.push(candidate);
+    byKey.set(candidate.key, group);
+  }
+
+  const collapsed: T[] = [];
+  for (const group of byKey.values()) {
+    group.sort((a, b) => a.date.getTime() - b.date.getTime());
+    let session: T[] = [];
+    let anchor = 0;
+    const flush = () => {
+      if (!session.length) return;
+      collapsed.push(session[session.length - 1]);
+      session = [];
+    };
+    for (const candidate of group) {
+      if (session.length && candidate.date.getTime() - anchor > windowMs) {
+        flush();
+      }
+      if (!session.length) anchor = candidate.date.getTime();
+      session.push(candidate);
+    }
+    flush();
+  }
+  return collapsed;
+}
 
 export type UpdateTag =
   | "added"
@@ -144,6 +183,21 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
   const entries: UpdateEntry[] = [];
 
   // ── Game revisions ────────────────────────────────────────────────────────
+  // Several quick successive edits to the same game (e.g. setting section
+  // data, then player_status, then current_section a minute later) each
+  // produce their own revision row. Without collapsing, that floods the
+  // widget with near-duplicate "Updated" entries for one game - so "updated"
+  // candidates are batched below and run through collapseBursts() per game;
+  // "added" (create) entries are pushed immediately since a game is only
+  // ever created once.
+  type GameUpdateCandidate = {
+    key: string;
+    date: Date;
+    subject: string;
+    link: string;
+    nsfw: boolean;
+  };
+  const gameUpdateCandidates: GameUpdateCandidate[] = [];
   for (const rev of gameRevs.data ?? []) {
     const ts = rev.activity?.timestamp;
     if (!ts || !rev.data?.title) continue;
@@ -154,12 +208,32 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
     if (!slug) continue;
     const isCreate = rev.activity?.action === "create";
     if (!isCreate && !hasMeaningfulDelta(rev.delta)) continue;
-    entries.push({
-      tag: isCreate ? "added" : "updated",
+    const candidate: GameUpdateCandidate = {
+      key: String(rev.item),
+      date,
       subject: String(rev.data.title),
       link: `${siteBase}/games/${slug}/index.html`,
-      timestamp: date,
       nsfw: isGameNsfw(liveGame ?? {}),
+    };
+    if (isCreate) {
+      entries.push({
+        tag: "added",
+        subject: candidate.subject,
+        link: candidate.link,
+        timestamp: candidate.date,
+        nsfw: candidate.nsfw,
+      });
+    } else {
+      gameUpdateCandidates.push(candidate);
+    }
+  }
+  for (const candidate of collapseBursts(gameUpdateCandidates, UPDATE_BURST_WINDOW_MS)) {
+    entries.push({
+      tag: "updated",
+      subject: candidate.subject,
+      link: candidate.link,
+      timestamp: candidate.date,
+      nsfw: candidate.nsfw,
     });
   }
 
@@ -176,6 +250,7 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
     const memberMap = new Map(
       (members.data ?? []).map((member) => [member.id, member]),
     );
+    const bundleMemberUpdateCandidates: GameUpdateCandidate[] = [];
     for (const revision of bundleMemberRevs.data ?? []) {
       const timestamp = revision.activity?.timestamp;
       const member = memberMap.get(Number(revision.item));
@@ -185,12 +260,32 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
       if (Number.isNaN(date.getTime())) continue;
       const isCreate = revision.activity?.action === "create";
       if (!isCreate && !hasMeaningfulDelta(revision.delta)) continue;
-      entries.push({
-        tag: isCreate ? "added" : "updated",
+      const candidate: GameUpdateCandidate = {
+        key: String(revision.item),
+        date,
         subject: `${parent.title}: ${member.title}`,
         link: `${siteBase}/games/${parent.slug}/index.html`,
-        timestamp: date,
         nsfw: isGameNsfw(parent),
+      };
+      if (isCreate) {
+        entries.push({
+          tag: "added",
+          subject: candidate.subject,
+          link: candidate.link,
+          timestamp: candidate.date,
+          nsfw: candidate.nsfw,
+        });
+      } else {
+        bundleMemberUpdateCandidates.push(candidate);
+      }
+    }
+    for (const candidate of collapseBursts(bundleMemberUpdateCandidates, UPDATE_BURST_WINDOW_MS)) {
+      entries.push({
+        tag: "updated",
+        subject: candidate.subject,
+        link: candidate.link,
+        timestamp: candidate.date,
+        nsfw: candidate.nsfw,
       });
     }
   }
@@ -241,9 +336,12 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
 
     // A burst of tier-list additions (e.g. rating a dozen games in one sitting)
     // otherwise floods the widget with one row per row created. Collapse
-    // same-tier-list additions landing within TIER_UPDATE_WINDOW_MS of the
+    // same-tier-list additions landing within UPDATE_BURST_WINDOW_MS of the
     // first entry in a burst into a single entry, mirroring
-    // feed-builder.ts's GAME_CONSOLIDATION_WINDOW_MS anchor pattern.
+    // feed-builder.ts's GAME_CONSOLIDATION_WINDOW_MS anchor pattern. This
+    // predates collapseBursts() above and isn't rewritten to use it directly
+    // since it also ORs nsfw across the whole session, not just the last
+    // entry - a different reduction than the generic helper does.
     const byTierList = new Map<string, TierUpdateCandidate[]>();
     for (const candidate of tierCandidates) {
       const group = byTierList.get(candidate.tierList.slug) ?? [];
@@ -267,7 +365,7 @@ export async function fetchRecentUpdates(limit = 10): Promise<UpdateEntry[]> {
         session = [];
       };
       for (const candidate of group) {
-        if (session.length && candidate.date.getTime() - anchor > TIER_UPDATE_WINDOW_MS) {
+        if (session.length && candidate.date.getTime() - anchor > UPDATE_BURST_WINDOW_MS) {
           flush();
         }
         if (!session.length) anchor = candidate.date.getTime();
