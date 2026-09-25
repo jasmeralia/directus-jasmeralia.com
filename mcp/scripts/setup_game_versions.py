@@ -116,6 +116,7 @@ FIELDS = [
 
 
 def exists(client: DirectusClient, path: str) -> bool:
+    """Return whether an API resource is visible and exists."""
     try:
         client.request("GET", path)
         return True
@@ -126,6 +127,7 @@ def exists(client: DirectusClient, path: str) -> bool:
 
 
 def main() -> int:
+    """Create the collection schema and grant the static site read access."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--skip-backup",

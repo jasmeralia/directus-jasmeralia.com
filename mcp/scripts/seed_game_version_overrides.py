@@ -50,6 +50,7 @@ OVERRIDES = {
 
 
 def main() -> None:
+    """Attach existing equivalence decisions to matching current GSL updates."""
     client = DirectusClient.from_config()
     for slug, (raw, comparison, reason) in OVERRIDES.items():
         game = client.request(
@@ -60,7 +61,14 @@ def main() -> None:
             continue
         rows = client.request(
             "GET",
-            f"/items/game_versions?filter[games_id][_eq]={game[0]['id']}&filter[source][_eq]=gsl&filter[is_current][_eq]=true&fields=id,reported_version,comparison_override&limit=-1",
+            "/items/game_versions",
+            params={
+                "filter[games_id][_eq]": game[0]["id"],
+                "filter[source][_eq]": "gsl",
+                "filter[is_current][_eq]": "true",
+                "fields": "id,reported_version,comparison_override",
+                "limit": -1,
+            },
         ).get("data", [])
         matches = [
             row

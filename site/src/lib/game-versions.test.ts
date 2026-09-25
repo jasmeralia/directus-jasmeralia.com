@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatTrackedVersion, hasVersionMismatch } from "./game-versions";
+import { effectiveVersion, formatTrackedVersion, hasVersionMismatch } from "./game-versions";
 
 describe("tracked game versions", () => {
   it("requires at least two populated sources before declaring a mismatch", () => {
@@ -48,25 +48,37 @@ describe("tracked game versions", () => {
     })).toBe(true);
   });
 
-  it("treats known differently-named releases as equivalent", () => {
+  it("uses update-scoped overrides for differently named GSL releases", () => {
+    const gslVersion = {
+      source: "gsl" as const,
+      reported_version: "Update 4 Final",
+      comparison_override: "0.4.6",
+      is_current: true,
+    };
+    expect(effectiveVersion(gslVersion)).toBe("0.4.6");
+    expect(gslVersion.reported_version).toBe("Update 4 Final");
     expect(hasVersionMismatch({
-      slug: "beyond-time",
-      version_orion: "0.6",
-      version_typhoon: "0.6",
-      version_gsl: "Ep. 6",
+      versions: [
+        { source: "orion", reported_version: "0.4.6", is_current: true },
+        gslVersion,
+      ],
     })).toBe(false);
     expect(hasVersionMismatch({
-      slug: "house-of-hearts",
-      version_orion: "Ep. 2 Pt. 1 Public v1",
-      version_typhoon: "Ep. 2 Pt. 1 Public v1",
-      version_gsl: "Ep. 2 Pt. 1 Beta",
+      versions: [
+        { source: "typhoon", reported_version: "1.0.2", is_current: true },
+        { source: "gsl", reported_version: "Ch. 1 P2", comparison_override: "1.0.2", is_current: true },
+      ],
     })).toBe(false);
+  });
+
+  it("does not carry an override onto a newer GSL update", () => {
     expect(hasVersionMismatch({
-      slug: "a-house-in-the-rift",
-      version_orion: "0.8.14r1",
-      version_typhoon: "0.8.14r1",
-      version_gsl: "0.8.14 Alpha",
-    })).toBe(false);
+      versions: [
+        { source: "orion", reported_version: "0.8.14r1", is_current: true },
+        { source: "gsl", reported_version: "0.8.15 Alpha", is_current: true },
+        { source: "gsl", reported_version: "0.8.14 Alpha", comparison_override: "0.8.14r1", is_current: false },
+      ],
+    })).toBe(true);
   });
 
   it("still flags a known slug when a value falls outside every equivalence group", () => {

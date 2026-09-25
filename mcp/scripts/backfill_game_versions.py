@@ -11,7 +11,6 @@ import argparse
 import hashlib
 import importlib.util
 import json
-import re
 import sys
 import time
 import urllib.error
@@ -23,69 +22,17 @@ from pathlib import Path
 from typing import Any
 
 from scriptlib import DirectusClient
+from seed_game_version_overrides import OVERRIDES as COMPARISON_OVERRIDES
 
 REPO = Path(__file__).resolve().parents[2]
 STEAM_REPO = REPO.parent / "steam-typhoon"
 GSL_CACHE_URL = "https://gsl-cache-api.gamestorylog.workers.dev/"
 GSL_AUTH = "Bearer sb_publishable_qQv-EBnc_aXnjvQUN3YDpQ_X7IzzLno"
-VERSION_RE = re.compile(r"\d+(?:\.\d+){1,3}[a-zA-Z]?\d*")
-PLATFORM_RE = re.compile(r"(?i)(?:[-_\s]+)(?:pc|win|windows|linux|public)(?=$|[-_\s/])")
-LEGACY_COMPARISON_OVERRIDES = {
-    "perfect-son-in-law-hidden-s-rank": (
-        "Act 3 & 4 Beta",
-        "0.2.0",
-        "GSL's Act 3 & 4 Beta label corresponds to installed version 0.2.0.",
-    ),
-    "irys": (
-        "Ch. 1 P2",
-        "1.0.2",
-        "GSL's Ch. 1 P2 label corresponds to installed version 1.0.2.",
-    ),
-    "fleeting-memories": (
-        "Update 4 Final",
-        "0.4.6",
-        "GSL's Update 4 Final label corresponds to installed version 0.4.6.",
-    ),
-    "cross-realms": (
-        "Ch. IV",
-        "0.4.1",
-        "GSL's Ch. IV label corresponds to installed version 0.4.1.",
-    ),
-    "beyond-time": (
-        "Ep. 6",
-        "0.6",
-        "The installed 0.6 release is the same release GSL labels Ep. 6.",
-    ),
-    "house-of-hearts": (
-        "Ep. 2 Pt. 1 Beta",
-        "Ep. 2 Pt. 1 Public v1",
-        "The installed public v1 release supersedes the beta label still shown on GSL.",
-    ),
-    "a-house-in-the-rift": (
-        "0.8.14 Alpha",
-        "0.8.14r1",
-        "The installed r1 release supersedes the alpha label still shown on GSL.",
-    ),
-    "out-of-touch": (
-        "Amber & Gold Part 3 (Ch6269)",
-        "Ch6269",
-        "GSL labels the same Out of Touch release as Amber & Gold Part 3 (Ch6269).",
-    ),
-}
-
-
-def version_for(directory: str) -> str | None:
-    if directory in {"NoTraceOfLuck-v10-win"}:
-        return "v10-win"
-    if directory == "Out of Touch-Ch6269":
-        return "Ch6269"
-    cleaned = PLATFORM_RE.sub(" ", directory)
-    hits = VERSION_RE.findall(cleaned)
-    return hits[-1] if hits else None
 
 
 @cache
 def _version_parser() -> Any:
+    """Load the private repo's authoritative directory-version parser."""
     module_path = STEAM_REPO / "scripts/avn_version_sync/sync_installed_versions.py"
     spec = importlib.util.spec_from_file_location(
         "avn_installed_version_sync", module_path
@@ -98,6 +45,7 @@ def _version_parser() -> Any:
 
 
 def host_version(host: str, directory: str) -> tuple[str | None, str | None]:
+    """Extract one host's version and optional parser diagnostic."""
     module = _version_parser()
     curated = module.CURATED_HOST_DIRECTORY_VERSIONS.get((host, directory))
     if curated is None:
@@ -106,6 +54,7 @@ def host_version(host: str, directory: str) -> tuple[str | None, str | None]:
 
 
 def rows_from_manifest(path: Path) -> list[dict[str, str]]:
+    """Parse the manifest table into named row dictionaries."""
     lines = path.read_text(encoding="utf-8").splitlines()
     table = [line for line in lines if line.startswith("|")]
     if not table:
@@ -123,12 +72,14 @@ def rows_from_manifest(path: Path) -> list[dict[str, str]]:
 
 
 def stable_key(*parts: str) -> str:
+    """Hash source identity components into Directus's unique key field."""
     return hashlib.sha256("\0".join(parts).encode()).hexdigest()
 
 
 def get_all(
     client: DirectusClient, collection: str, fields: str
 ) -> list[dict[str, Any]]:
+    """Read every item from one Directus collection."""
     response = client.request(
         "GET", f"/items/{collection}?fields={urllib.parse.quote(fields)}&limit=-1"
     )
@@ -136,6 +87,7 @@ def get_all(
 
 
 def gsl_details(slug: str) -> dict[str, Any]:
+    """Fetch one GSL game history, backing off on rate limits."""
     body = json.dumps({"endpoint": "game_details", "params": {"id": slug}}).encode()
     request = urllib.request.Request(
         GSL_CACHE_URL,
@@ -165,6 +117,7 @@ def gsl_details(slug: str) -> dict[str, Any]:
 
 
 def main() -> int:
+    """Plan or apply an idempotent host and GSL version-history backfill."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -286,9 +239,9 @@ def main() -> int:
                 }
                 if (
                     version_id == newest_key
-                    and game.get("slug") in LEGACY_COMPARISON_OVERRIDES
+                    and game.get("slug") in COMPARISON_OVERRIDES
                 ):
-                    raw, comparison, reason = LEGACY_COMPARISON_OVERRIDES[game["slug"]]
+                    raw, comparison, reason = COMPARISON_OVERRIDES[game["slug"]]
                     if str(entry["version_number"]).casefold() == raw.casefold():
                         payload["comparison_override"] = comparison
                         payload["override_reason"] = reason
@@ -302,7 +255,7 @@ def main() -> int:
     for key, payload in planned.items():
         previous = by_key.get(key)
         if previous:
-            patch = {}
+            patch: dict[str, Any] = {}
             for field in ("is_current", "comparison_override", "override_reason"):
                 if field in payload and previous.get(field) != payload[field]:
                     patch[field] = payload[field]
