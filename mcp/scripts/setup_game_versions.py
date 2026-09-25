@@ -8,7 +8,6 @@ Directus database backup. Writes schema only; data is populated separately.
 from __future__ import annotations
 
 import argparse
-import sys
 
 from scriptlib import DirectusClient, take_pg_dump_backup
 
@@ -164,7 +163,7 @@ def main() -> int:
         )
         print(f"Created {COLLECTION}.{field}")
 
-    try:
+    if not exists(client, f"/relations/{COLLECTION}/games_id"):
         client.request(
             "POST",
             "/relations",
@@ -185,10 +184,30 @@ def main() -> int:
             },
         )
         print("Created relation game_versions.games_id → games.versions")
-    except Exception as error:
-        if not exists(client, "/relations/game_versions/games_id"):
-            raise
-        print(f"Relation already exists: {error}", file=sys.stderr)
+
+    # The FK relation's one_field metadata does not create the reverse alias
+    # field in Directus. Add that alias explicitly so it appears in the games
+    # data model and can be edited from a game's record page.
+    if not exists(client, "/fields/games/versions"):
+        client.request(
+            "POST",
+            "/fields/games",
+            {
+                "field": "versions",
+                "type": "alias",
+                "meta": {
+                    "special": ["o2m"],
+                    "interface": "list-o2m",
+                    "options": {"template": "{{source}} · {{reported_version}}"},
+                    "display": "related-values",
+                    "display_options": {
+                        "template": "{{source}} · {{reported_version}}"
+                    },
+                    "note": "Source-specific version history and installed versions",
+                },
+            },
+        )
+        print("Created games.versions O2M alias")
 
     perms = client.request(
         "GET",
