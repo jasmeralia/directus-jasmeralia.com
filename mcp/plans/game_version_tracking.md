@@ -160,17 +160,23 @@ sufficient if GSL can publish separate updates with the same label.
    separate explicit approval, remove `games.version_orion`,
    `games.version_typhoon`, and `games.version_gsl`.
 
-## Decisions to settle before schema work
+## Settled decisions
 
-1. Import all available GSL update history, or only the current GSL version
-   plus future updates? The recommendation is to import all available history
-   once so overrides and source labels have useful context.
-2. For multiple active Orion/Typhoon directories, should any outdated copy
-   cause a mismatch, or should one installation be designated as preferred?
-3. Should an override affect comparison only (recommended), or also replace
-   the displayed source label?
-4. Keep scalar compatibility fields for a transition period, then remove
-   them, or retain them indefinitely as derived current-value mirrors?
+1. Import all available GSL update history, then continue ingesting new
+   updates.
+2. If any active Orion/Typhoon installation is behind the current GSL value,
+   flag the game as a mismatch. Show each active installation separately so
+   the outdated copy is clear.
+3. Overrides affect comparison only. Always preserve and display the raw
+   source-reported label, marking when an override is used.
+4. Keep the three scalar fields only during migration. Remove them after all
+   consumers use `game_versions` and parity checks pass.
+
+## Implementation authorization
+
+The user has directed implementation of this plan. The full-database backup
+and API-only write requirements in `AGENTS.md` still apply before schema
+changes.
 
 ## Acceptance criteria
 
