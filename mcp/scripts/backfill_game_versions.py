@@ -155,6 +155,8 @@ def main() -> int:  # pylint: disable=too-many-branches
             if not game:
                 continue
             directory = row["Game Directory"]
+            if directory in _version_parser().EXCLUDED_GAME_DIRECTORIES:
+                continue
             version, parse_error = host_version(host, directory)
             installation = f"{host}:{game['id']}:{directory}"
             key = stable_key(host, str(game["id"]), directory, version or "")

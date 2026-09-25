@@ -141,26 +141,35 @@ sufficient if GSL can publish separate updates with the same label.
    Astro Readonly `fields: ["*"]` grant. The setup is in
    `mcp/scripts/setup_game_versions.py`.
 4. **Backfill — complete:** pagination, blank optional trailing manifest
-   cells, and transient GSL retries are handled. The collection has 2,611
-   rows: 2,215 GSL updates (270 current, one per linked game) and 396 Orion /
-   Typhoon observations. All 94 Orion and 144 Typhoon active manifest
-   installations match Directus by host, game, directory, and parsed version;
-   the audit found no missing, extra, or differing rows. Thirty old Typhoon
-   and 92 old Orion observations remain as history, alongside 36 current
-   legacy scalar observations for games without a manifest-listed install.
-   The rebuild Flow was paused for the corrected run, then restored after a
-   full backup at
+   cells, transient GSL retries, and the shared excluded-directory rule are
+   handled. The collection has 2,612 rows: 2,215 GSL records (271 current,
+   one per linked game) and 397 Orion/Typhoon observations. All 93 Orion and
+   144 Typhoon included manifest installations match Directus by host, game,
+   directory, and parsed version; there are no duplicate current rows. The
+   older `Eternum-0.8.5-pc` directory is intentionally excluded on both hosts
+   and retained as inactive history. Sixty Typhoon and 93 Orion observations
+   remain as history, alongside seven current legacy scalar observations for
+   games without a manifest-listed install. Stormside's GSL current value is
+   `0.23.1.4`, sourced from its game page's `current_version` because the GSL
+   update-history list is empty. The rebuild Flow was paused for the corrected
+   run, then restored after a full backup at
    `/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_064123_before_restoring_game_versions_rebuild_flow_after_repair.sql.gz`.
    The earlier backup before that pause is
    `/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_063259_before_repausing_game_versions_rebuild_flow.sql.gz`.
    Seven confirmed comparison overrides are current, including the four
    recent examples. A House in the Rift's old override was not carried
    forward because GSL has since published 0.8.15 Alpha.
-5. **Update sync — implemented, awaiting deployment:** the private Typhoon sync
-   now records individual manifest installations and all linked GSL histories,
-   including games outside the AVN manifests. It continues dual-writing the
-   scalar fields during migration. The TrueNAS parser cache remains diagnostic
-   state only.
+5. **Update sync — deployed and run:** private commit `03b6840` records
+   individual manifest installations and all linked GSL histories, including
+   games outside the AVN manifests. It continues dual-writing the scalar
+   fields during migration. The TrueNAS parser cache remains diagnostic state
+   only. The TrueNAS job completed successfully at 2026-09-25 07:12:58 UTC:
+   144 shortcut candidates, 148 GSL-linked games outside the candidates, zero
+   newly created games, zero manual-review additions, zero removed installs,
+   and zero email-worthy changes. A follow-up commit `d85a7ba` ensures the
+   sync also consults the shared curated mapping; comparison against every
+   installed manifest directory confirms it produces the same versions for
+   the current manifests.
 6. **Update consumers — deployed:** game detail pages show raw source labels
    and overrides; mismatch detection uses current collection rows and flags
    any active install behind GSL; filter counts read the same records. Version
@@ -171,14 +180,15 @@ sufficient if GSL can publish separate updates with the same label.
    for Perfect Son-In-Law, IRYS, Fleeting Memories, and Cross Realms show each
    raw GSL label and comparison value; all four are absent from the mismatch
    filter.
-7. **Validate:** schema, both host manifests, GSL current rows, comparison
-   overrides, and deployed example pages passed their audits. Remaining before
-   scalar-field retirement: deploy and rerun the updated sync to confirm
-   idempotence, and confirm removed paths become inactive. A newer GSL update
-   naturally becomes current without inheriting the older row's override.
-8. **Deploy — site complete:** the site PR is merged and the corrected
-   production TrueNAS build succeeded; the private sync deployment remains
-   pending.
+7. **Validate:** schema, both host manifests, all 271 GSL links/current rows,
+   comparison overrides, and deployed example pages passed their audits. The
+   sync run reported zero changes and zero removed installations to
+   deactivate. Before scalar-field retirement, still confirm a genuinely
+   removed path becomes inactive. A newer GSL update naturally becomes
+   current without inheriting the older row's override.
+8. **Deploy — complete:** the site PR is merged, the corrected production
+   TrueNAS build succeeded, and the private sync is on `master` and has run
+   successfully on TrueNAS.
 9. **Retire scalar fields:** later work, after deployment and parity checks:
    take a fresh full backup and remove `games.version_orion`,
    `games.version_typhoon`, and `games.version_gsl` only after every consumer
