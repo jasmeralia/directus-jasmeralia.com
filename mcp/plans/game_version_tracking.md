@@ -175,11 +175,13 @@ sufficient if GSL can publish separate updates with the same label.
    any active install behind GSL; filter counts read the same records. Version
    rows remain out of recent-update feeds, matching the prior behavior that
    excluded scalar version changes and preventing a historical backfill from
-   appearing as thousands of editorial updates. The corrected production
-   rebuild completed successfully at 2026-09-25 06:42:14 UTC. Public pages
-   for Perfect Son-In-Law, IRYS, Fleeting Memories, and Cross Realms show each
-   raw GSL label and comparison value; all four are absent from the mismatch
-   filter.
+   appearing as thousands of editorial updates. The corrected backfill build
+   succeeded at 2026-09-25 06:42:14 UTC; the post-sync debounced production
+   build succeeded at 07:18:35 UTC. Public pages for Perfect Son-In-Law, IRYS,
+   Fleeting Memories, and Cross Realms show each raw GSL label and comparison
+   value; all four are absent from the mismatch filter. Stormside's deployed
+   page shows On Hiatus, its Typhoon directory and version, GSL's current
+   version, and the itch and Patreon links.
 7. **Validate:** schema, both host manifests, all 271 GSL links/current rows,
    comparison overrides, and deployed example pages passed their audits. The
    sync run reported zero changes and zero removed installations to
