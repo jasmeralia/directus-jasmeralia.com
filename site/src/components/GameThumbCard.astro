@@ -119,7 +119,7 @@ const progress = bundleProgress ?? (directProgress
                       <a class="tag" href={`/played_statuses/${game.player_status}/index.html`}>{labelize(game.player_status)}</a>
                     ) : null}
                     {game.game_status ? (
-                      <a class={`tag${game.game_status === "abandoned" ? " tag-abandoned" : game.game_status === "unreleased" ? " tag-unreleased" : ""}`} href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
+                      <a class={`tag${game.game_status === "abandoned" ? " tag-abandoned" : game.game_status === "unreleased" ? " tag-unreleased" : game.game_status === "on_hiatus" ? " tag-on-hiatus" : ""}`} href={`/game_statuses/${game.game_status}/index.html`}>{labelize(game.game_status)}</a>
                     ) : null}
                     {sectionStyle ? (
                       <a class="tag" href={`/filters/section-style/${sectionStyle}/index.html`}>{labelize(sectionStyle)}</a>
@@ -178,4 +178,5 @@ const progress = bundleProgress ?? (directProgress
   .tag-fs-disabled{background:#2a1515;border-color:#5a2020;color:#ff8080;}
   .tag-abandoned{background:#2a1515;border-color:#5a2020;color:#ff8080;}
   .tag-unreleased{background:#0f1f2e;border-color:#1a3d5c;color:#6aabff;}
+  .tag-on-hiatus{background:#20192d;border-color:#49356b;color:#c3a4ff;}
 </style>

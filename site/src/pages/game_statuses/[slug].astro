@@ -13,6 +13,7 @@ const STATUS_OPTIONS = [
   { slug: "in_development", label: "In Development" },
   { slug: "abandoned", label: "Abandoned" },
   { slug: "released", label: "Released" },
+  { slug: "on_hiatus", label: "On Hiatus" },
 ];
 
 export async function getStaticPaths() {
@@ -21,6 +22,7 @@ export async function getStaticPaths() {
     { params: { slug: "in_development" } },
     { params: { slug: "abandoned" } },
     { params: { slug: "released" } },
+    { params: { slug: "on_hiatus" } },
   ];
 }
 
