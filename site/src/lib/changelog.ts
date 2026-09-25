@@ -44,6 +44,7 @@ export const ENUM_LABEL: Record<string, string> = {
   waiting_for_update: "Waiting for Update",
   released: "Released",
   in_development: "In Development",
+  on_hiatus: "On Hiatus",
   cancelled: "Cancelled",
   draft: "Draft",
   published: "Published",

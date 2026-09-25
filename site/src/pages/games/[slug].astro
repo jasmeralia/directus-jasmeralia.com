@@ -213,6 +213,9 @@ function gameSynopsis(title: string, gameStatus: string | null | undefined, play
   if (gameStatus === "abandoned") {
     return `${title} - Development abandoned.`;
   }
+  if (gameStatus === "on_hiatus") {
+    return `${title} - Development is on hiatus.`;
+  }
   const playerPhrase = playerStatus ? PLAYER_STATUS_PHRASE[playerStatus] : null;
   if (gameStatus === "released") {
     return playerPhrase ? `${title} - Released. ${playerPhrase}` : `${title} - Released.`;

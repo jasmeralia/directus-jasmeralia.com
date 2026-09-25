@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.217] - 2026-09-24
+- Games: add the On Hiatus release status, including its status page, game card badge, detail-page synopsis, and changelog label.
+
 ## [1.0.216] - 2026-09-20
 - Version Mismatches filter page: show an "Abandoned" pip after the NSFW/SFW pip for games with `game_status: "abandoned"` (e.g. The Hellcat Lounge).
 

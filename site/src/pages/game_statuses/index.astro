@@ -7,6 +7,7 @@ const statuses = [
   { value: "in_development", label: "In Development" },
   { value: "abandoned", label: "Abandoned" },
   { value: "released", label: "Released" },
+  { value: "on_hiatus", label: "On Hiatus" },
 ];
 const games = await directusFetchItems("games", {
   fields: ["id", "game_status"],
