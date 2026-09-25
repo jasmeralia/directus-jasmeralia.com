@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.219] - 2026-09-25
+- Game versions: display source-specific version history with raw GSL labels and comparison overrides; compare active Orion/Typhoon installs against the current GSL version, flagging any outdated copy.
+
 ## [1.0.218] - 2026-09-25
 - Version Mismatches: recognize `Ch6269` and GSL's `Amber & Gold Part 3 (Ch6269)` as equivalent, and ignore an optional `v` prefix on numeric versions.
 

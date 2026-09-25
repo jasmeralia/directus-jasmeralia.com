@@ -11,6 +11,7 @@ import { compareLabels } from "../../lib/list-format";
 import { isGameNsfw } from "../../lib/nsfw";
 import GameSectionProgress from "../../components/GameSectionProgress.astro";
 import PlaceholderRibbon from "../../components/PlaceholderRibbon.astro";
+import { effectiveVersion } from "../../lib/game-versions";
 
 export async function getStaticPaths() {
   // Every game page used to independently re-fetch its own game record,
@@ -119,6 +120,7 @@ export async function getStaticPaths() {
     allTierCreateActivities,
     allLinkActivities,
     genresByGame,
+    allGameVersions,
   ] = await Promise.all([
     directusFetchItems('games', {
       fields: GAME_FIELDS,
@@ -146,11 +148,16 @@ export async function getStaticPaths() {
     fetchActivity('tier_list_games', 'create', -1),
     fetchActivity('games_links', ['create', 'update'], -1),
     fetchAllGameGenres(),
+    directusFetchItems('game_versions', {
+      fields: ['id', 'games_id', 'source', 'reported_version', 'comparison_override', 'override_reason', 'source_reference', 'installation_key', 'release_date', 'is_current'],
+      limit: -1,
+    }),
   ]);
 
   const reviewsByGame = groupBy(allReviews, (r) => r.game);
   const franchisesByGame = groupBy(allFranchiseEntries, (f) => f.game_id);
   const tierEntriesByGame = groupBy(allTierEntries, (t) => t.game_id);
+  const versionsByGame = groupBy(allGameVersions, (row) => typeof row.games_id === 'object' ? row.games_id?.id : row.games_id);
 
   return games
     .filter((g) => !!g.slug)
@@ -171,6 +178,7 @@ export async function getStaticPaths() {
       const bundleMembers = orderedBundleMembers(game.bundle_members);
       const sections = directGameSections(game.sections);
       const genres = genresByGame[game.id] ?? [];
+      game.versions = versionsByGame.get(game.id) ?? [];
 
       const history = buildGameHistory({
         gameId: game.id,
@@ -267,6 +275,7 @@ for (const entry of (tierEntries ?? [])) {
 const tierLists = Array.from(tierListsMap.values())
   .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 const gslLink = (game.links ?? []).find((l) => l.kind === "gamestorylog") ?? null;
+const gameVersions = game.versions ?? [];
 const downloadEntries = downloadLinks(game.links).map((link) => {
   const linkMeta = getLinkMeta(link);
   return {
@@ -473,6 +482,24 @@ const coverStackStyle = [
                   {index < engines.length - 1 ? ", " : ""}
                 </span>
               ))}
+            </li>
+          ) : null}
+          {gameVersions.length ? (
+            <li>
+              <strong>Game versions:</strong>
+              <ul>
+                {gameVersions.map((row) => {
+                  const source = row.source === "gsl" ? "GameStoryLog" : row.source === "orion" ? "Orion" : "Typhoon";
+                  const raw = row.reported_version ?? "Version unresolved";
+                  return (
+                    <li>
+                      {source}{row.source_reference && row.source !== "gsl" ? ` · ${row.source_reference}` : ""}: {row.source === "gsl" && gslLink ? <a href={gslLink.url} rel="noopener noreferrer" target="_blank">{raw}</a> : raw}
+                      {row.comparison_override ? <span> (compared as {effectiveVersion(row)}{row.override_reason ? `: ${row.override_reason}` : ""})</span> : null}
+                      {row.is_current === false ? <span> · historical</span> : null}
+                    </li>
+                  );
+                })}
+              </ul>
             </li>
           ) : null}
           <li>

@@ -39,10 +39,9 @@ update.
 
 ## Proposed data model
 
-Use a Directus collection named `game_versions`, unless schema inspection shows
-that an existing collection can serve this purpose safely. The current API
-token cannot read `/items/game_versions` (403), so confirm its schema through
-an authorized Directus schema view before creating or reusing it.
+Create the Directus collection named `game_versions`; schema inspection
+confirmed no collection by that name currently exists. Grant the site builder
+read access before deploying collection-backed consumers.
 
 | Field | Purpose |
 |---|---|
@@ -54,20 +53,21 @@ an authorized Directus schema view before creating or reusing it.
 | `source_reference` | GSL update identifier, or the host manifest's Game Directory value |
 | `installation_key` | Stable host + game + directory identity for relating successive observations of one install; null for GSL |
 | `release_date` | Source release date when available; null for host installations or unavailable GSL dates |
-| `observed_at` | When the sync last observed this source record |
-| `is_active` | Whether this host installation is still present in its manifest; GSL currentness is derived from source ordering |
+| `recorded_at` | When this source version row was first imported or observed; do not rewrite it during unchanged daily syncs |
+| `is_current` | Current GSL update, or current version observation for a manifest-listed host installation; multiple host paths can be current |
+| `parse_error` | Optional explanation when a host manifest directory cannot be resolved to a version |
 | `comparison_override` | Optional human-entered value used only by mismatch comparison; initially supported for GSL records |
 | `override_reason` | Why the raw GSL label and comparison value refer to the same release |
 
 Keep one GSL row per source update, and one Orion/Typhoon row per observed
-version of a manifest installation. A unique constraint on
-`(games_id, source, source_key)` makes repeated syncs idempotent. For GSL,
+version of a manifest installation. A unique `source_key`, derived from source,
+game, and source record identity, makes repeated syncs idempotent. For GSL,
 prefer the source's stable update ID; otherwise use a stable composite derived
 from release date and reported label. For host records, derive the key from
 host, game, manifest directory, and reported version. This preserves prior
 versions when a directory is renamed or its reported version changes. Track
 the stable host installation identity separately so the sync can mark its
-latest row active and older observations inactive.
+latest row current and older observations not current.
 
 `comparison_override` is deliberately separate from `reported_version`.
 Version details should continue to expose GSL's original wording, with the
@@ -88,10 +88,10 @@ the current sync does. For each row with a Directus slug:
    parser, and curated mappings. Preserve unresolved rows with a null version
    and a parse status or diagnostic instead of inventing a value.
 4. Upsert the host observation so reruns do not duplicate it. If the version
-   for an existing installation changes, add a new observation and deactivate
-   its prior version row.
-5. Mark host installation records inactive when their directory disappears
-   from that host's manifest; do not delete version history.
+   for an existing installation changes, add a new observation and mark its
+   prior version row not current.
+5. Mark host version rows not current when their installation directory
+   disappears from that host's manifest; do not delete version history.
 
 The manifests are the sync's authority. This records manifest-listed
 installations; it does not prove that a directory still exists on disk. A
@@ -126,51 +126,76 @@ sufficient if GSL can publish separate updates with the same label.
 - Completed/released exclusions, preview-install handling, and known
   cross-entry GSL exclusions must keep their current meaning during migration.
 - If more than one active directory exists for a host, show each installation
-  explicitly. Decide whether any outdated active copy should flag the game or
-  whether a preferred installation should be selected before implementation.
+  explicitly. Any active Orion or Typhoon installation behind the current GSL
+  comparison value flags the game.
 
 ## Migration and rollout
 
-1. **Schema discovery:** inspect Directus for an existing `game_versions`
-   collection, determine available GSL update identifiers, and document the
-   exact unique constraints and relation behavior.
-2. **Approval and backup:** schema work requires a separate explicit go-ahead.
-   Before any schema change, take a full `pg_dump` of the Directus database
-   through `cms-db` on TrueNAS.
-3. **Create schema:** create or adapt the collection and relations; add the
-   source choices, override fields, unique indexes, and site-builder read
-   permission. All data writes must use the Directus API.
-4. **Backfill:** create current Orion/Typhoon records from manifests and GSL
-   history from its API. Copy existing scalar values first, preserving exact
-   strings. Keep `games.version_*` during rollout.
-5. **Update sync:** make GSL and manifest upserts idempotent; add a dry-run
-   summary that shows created, changed, deactivated, and override-cleared
-   records before applying.
-6. **Update consumers:** migrate game detail display, mismatch detection,
-   filters index counts, recent-updates/changelog/feed handling, and the AVN
-   digest to read the collection. Avoid flooding feeds with historical
-   backfill rows.
-7. **Validate:** exercise the four label examples above, repeat a sync to
-   prove no duplicates, and simulate a newer GSL update to prove the old
-   override is no longer active. Confirm multiple host installations remain
-   distinguishable and absent manifest rows become inactive.
-8. **Deploy:** merge the site changes, trigger the production TrueNAS site
-   build, and monitor the builder logs to completion.
-9. **Retire scalar fields:** only after every consumer is migrated and a
-   separate explicit approval, remove `games.version_orion`,
-   `games.version_typhoon`, and `games.version_gsl`.
+1. **Schema discovery:** verified `game_versions` was absent. GSL update UUIDs
+   are stable and retained as `source_reference`; `source_key` is a unique
+   SHA-256 identity across the collection.
+2. **Backup:** before each schema or live Flow change, take a full `pg_dump`
+   of the Directus database through `cms-db` on TrueNAS.
+3. **Create schema — complete:** created `game_versions`, its `games_id`
+   relation, source choices, unique `source_key`, override fields, and the
+   Astro Readonly `fields: ["*"]` grant. The setup is in
+   `mcp/scripts/setup_game_versions.py`.
+4. **Backfill — complete:** imported 2,488 rows through Directus REST: 271
+   current GSL rows with available update history, 95 current Orion install
+   observations, 178 current Typhoon observations, and prior GSL versions.
+   Existing scalar-only host values outside the manifests were retained as
+   legacy source rows. Seven confirmed equivalences, including the four recent
+   examples, were moved to GSL row overrides. A House in the Rift's old
+   override was not carried forward because GSL has since published 0.8.15
+   Alpha.
+5. **Update sync — implemented, awaiting deployment:** the private Typhoon sync
+   now records individual manifest installations and all linked GSL histories,
+   including games outside the AVN manifests. It continues dual-writing the
+   scalar fields during migration. The TrueNAS parser cache remains diagnostic
+   state only.
+6. **Update consumers — implemented, awaiting deployment:** game detail pages
+   show raw source labels and overrides; mismatch detection uses current
+   collection rows and flags any active install behind GSL; filter counts read
+   the same records. Version rows remain out of recent-update feeds, matching
+   the prior behavior that excluded scalar version changes and preventing a
+   historical backfill from appearing as thousands of editorial updates.
+7. **Validate:** remaining before scalar-field retirement: verify the four
+   label examples and multiple installs on the deployed build, repeat the sync
+   to confirm idempotence, and confirm removed paths become inactive. A newer
+   GSL update naturally becomes current without inheriting the older row's
+   override.
+8. **Deploy:** open and merge the site PR, then monitor the production
+   TrueNAS build to completion.
+9. **Retire scalar fields:** later work, after deployment and parity checks:
+   take a fresh full backup and remove `games.version_orion`,
+   `games.version_typhoon`, and `games.version_gsl` only after every consumer
+   has moved to `game_versions`.
 
-## Decisions to settle before schema work
+The production `Rebuild Site on Content Change` Flow now includes
+`game_versions`. Before that live Flow mutation, the prior definition was saved
+to the ignored `mcp/cache/rebuild_flow_before_game_versions.json` and compared;
+a fresh full backup was taken at
+`/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_054745_before_game_versions_rebuild_flow.sql.gz`.
+The schema backup is
+`/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_053017_before_game_versions_schema.sql.gz`.
 
-1. Import all available GSL update history, or only the current GSL version
-   plus future updates? The recommendation is to import all available history
-   once so overrides and source labels have useful context.
-2. For multiple active Orion/Typhoon directories, should any outdated copy
-   cause a mismatch, or should one installation be designated as preferred?
-3. Should an override affect comparison only (recommended), or also replace
-   the displayed source label?
-4. Keep scalar compatibility fields for a transition period, then remove
-   them, or retain them indefinitely as derived current-value mirrors?
+## Settled decisions
+
+1. Import all available GSL update history, then continue ingesting new
+   updates.
+2. If any active Orion/Typhoon installation is behind the current GSL value,
+   flag the game as a mismatch. Show each active installation separately so
+   the outdated copy is clear.
+3. Overrides affect comparison only. Always preserve and display the raw
+   source-reported label, marking when an override is used.
+4. Keep the three scalar fields only during migration. Remove them after all
+   consumers use `game_versions` and parity checks pass.
+
+## Implementation authorization
+
+The user has directed implementation of this plan. The full-database backup
+and API-only write requirements in `AGENTS.md` still apply before schema
+changes.
 
 ## Acceptance criteria
 

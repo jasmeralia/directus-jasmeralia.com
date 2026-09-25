@@ -58,6 +58,19 @@ const games = await directusFetchItems("games", {
   ],
   limit: -1,
 });
+const versions = await directusFetchItems("game_versions", {
+  fields: ["id", "games_id", "source", "reported_version", "comparison_override", "source_reference", "installation_key", "is_current"],
+  limit: -1,
+});
+const versionsByGame = new Map();
+for (const version of versions) {
+  const gameId = typeof version.games_id === "object" ? version.games_id?.id : version.games_id;
+  if (gameId == null) continue;
+  const rows = versionsByGame.get(gameId) ?? [];
+  rows.push(version);
+  versionsByGame.set(gameId, rows);
+}
+for (const game of games) game.versions = versionsByGame.get(game.id) ?? [];
 
 const engineLabel = new Map();
 for (const engine of engines ?? []) {

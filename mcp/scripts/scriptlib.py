@@ -152,6 +152,7 @@ def parse_playnite_release_year(date_str: str | None) -> int | None:
 
 GAME_JUNCTIONS: tuple[tuple[str, str], ...] = (
     ("game_sections", "games_id"),
+    ("game_versions", "games_id"),
     ("tier_list_games", "game_id"),
     ("games_genres", "games_id"),
     ("games_developers", "games_id"),

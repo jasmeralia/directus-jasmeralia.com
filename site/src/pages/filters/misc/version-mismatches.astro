@@ -2,7 +2,7 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../../lib/directus";
 import { downloadLinks, getLinkMeta } from "../../../lib/download-link";
-import { formatTrackedVersion, hasVersionMismatch } from "../../../lib/game-versions";
+import { effectiveVersion, formatTrackedVersion, hasVersionMismatch } from "../../../lib/game-versions";
 import { sortByTitle } from "../../../lib/list-format";
 import { isGameNsfw } from "../../../lib/nsfw";
 
@@ -15,9 +15,6 @@ const allGames = await directusFetchItems("games", {
     "genres.genres_id.nsfw",
     "player_status",
     "game_status",
-    "version_orion",
-    "version_typhoon",
-    "version_gsl",
     "links.id",
     "links.url",
     "links.label",
@@ -26,13 +23,21 @@ const allGames = await directusFetchItems("games", {
   ],
   limit: -1,
 });
+const versions = await directusFetchItems("game_versions", {
+  fields: ["id", "games_id", "source", "reported_version", "comparison_override", "override_reason", "source_reference", "installation_key", "is_current"],
+  limit: -1,
+});
+const versionsByGame = new Map();
+for (const version of versions) {
+  const gameId = typeof version.games_id === "object" ? version.games_id?.id : version.games_id;
+  if (gameId == null) continue;
+  const rows = versionsByGame.get(gameId) ?? [];
+  rows.push(version);
+  versionsByGame.set(gameId, rows);
+}
+for (const game of allGames) game.versions = versionsByGame.get(game.id) ?? [];
 
 const games = sortByTitle((allGames ?? []).filter(hasVersionMismatch));
-const versionSources = [
-  { label: "Orion", field: "version_orion" },
-  { label: "Typhoon", field: "version_typhoon" },
-  { label: "GameStoryLog", field: "version_gsl" },
-] as const;
 const description = `${games.length} games have differing tracked version values across Orion, Typhoon, and GameStoryLog.`;
 ---
 
@@ -49,7 +54,7 @@ const description = `${games.length} games have differing tracked version values
       .download-links{display:flex;align-items:center;gap:.5rem;}
       .download-links img{width:1.1rem;height:1.1rem;display:block;}
       .download-links .platform-icon{filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
-      .versions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 0;}
+      .versions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0 0;}
       .version{background:#171717;border:1px solid #262626;border-radius:8px;padding:10px;min-width:0;}
       .version dt{font-size:.75rem;font-weight:700;letter-spacing:.03em;opacity:.7;text-transform:uppercase;}
       .version dd{margin:4px 0 0;overflow-wrap:anywhere;}
@@ -64,7 +69,7 @@ const description = `${games.length} games have differing tracked version values
   <main>
     <div class="list">
       <h1>Version Mismatches <span style="opacity:.6;font-size:.8em;">({games.length})</span></h1>
-      <p>A game appears here when at least two tracked version values are populated and differ. A mismatch flags the record for review; it does not by itself establish which copy is newest.</p>
+      <p>A game appears here when an active Orion or Typhoon installation is behind the current GameStoryLog version. Every active installation is shown separately.</p>
       {games.length === 0 ? (
         <div class="item"><p>No tracked game versions currently differ.</p></div>
       ) : (
@@ -100,12 +105,13 @@ const description = `${games.length} games have differing tracked version values
                 ) : null}
               </div>
               <dl class="versions">
-                {versionSources.map((source) => {
-                  const version = formatTrackedVersion(game[source.field]);
-                  const isGsl = source.field === "version_gsl";
+                {(game.versions ?? []).filter((row) => row.is_current !== false).map((row) => {
+                  const version = formatTrackedVersion(row.reported_version);
+                  const isGsl = row.source === "gsl";
+                  const sourceLabel = row.source === "gsl" ? "GameStoryLog" : row.source === "orion" ? "Orion" : "Typhoon";
                   return (
                     <div class="version">
-                      <dt>{source.label}</dt>
+                      <dt>{sourceLabel}{row.installation_key ? ` · ${row.source_reference ?? "installation"}` : ""}</dt>
                       <dd class:list={{ missing: version === null }}>
                         {version === null ? (
                           "Not recorded"
@@ -115,6 +121,7 @@ const description = `${games.length} games have differing tracked version values
                           version
                         )}
                       </dd>
+                      {row.comparison_override ? <dd>Compared as {effectiveVersion(row)}{row.override_reason ? ` — ${row.override_reason}` : ""}</dd> : null}
                     </div>
                   );
                 })}
