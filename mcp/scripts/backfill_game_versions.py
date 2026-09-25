@@ -64,8 +64,11 @@ def rows_from_manifest(path: Path) -> list[dict[str, str]]:
     result = []
     for line in table[2:]:
         parts = [part.strip() for part in line.strip("|").split("|")]
-        if len(parts) != len(header):
+        if len(parts) > len(header):
             continue
+        # The Orion manifest has an optional trailing Launch Options column;
+        # markdown rows with an empty final value omit that trailing cell.
+        parts.extend([""] * (len(header) - len(parts)))
         row = dict(zip(header, parts, strict=True))
         if row.get("Directus Slug") and row.get("Game Directory"):
             result.append(row)
@@ -85,7 +88,7 @@ def get_all(
 
 
 def gsl_details(slug: str) -> dict[str, Any]:
-    """Fetch one GSL game history, backing off on rate limits."""
+    """Fetch one GSL game history, retrying transient API/network failures."""
     body = json.dumps({"endpoint": "game_details", "params": {"id": slug}}).encode()
     request = urllib.request.Request(
         GSL_CACHE_URL,
@@ -102,15 +105,27 @@ def gsl_details(slug: str) -> dict[str, Any]:
     )
     delay = 2
     for attempt in range(5):
+        retryable = False
+        failure: Exception | None = None
         try:
             with urllib.request.urlopen(request, timeout=30) as response:
                 return json.loads(response.read()).get("data") or {}
         except urllib.error.HTTPError as error:
-            if error.code == 429 and attempt < 4:
-                time.sleep(delay)
-                delay *= 2
-                continue
-            raise
+            retryable = error.code == 429 or 500 <= error.code < 600
+            failure = error
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            retryable = True
+            failure = error
+        assert failure is not None
+        if not retryable or attempt == 4:
+            raise failure
+        print(
+            f"Retrying GSL details for {slug} after transient failure "
+            f"({attempt + 1}/5): {failure}; waiting {delay}s",
+            file=sys.stderr,
+        )
+        time.sleep(delay)
+        delay *= 2
     return {}
 
 

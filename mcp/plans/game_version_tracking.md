@@ -140,45 +140,55 @@ sufficient if GSL can publish separate updates with the same label.
    relation, source choices, unique `source_key`, override fields, and the
    Astro Readonly `fields: ["*"]` grant. The setup is in
    `mcp/scripts/setup_game_versions.py`.
-4. **Backfill — repair in progress:** the first REST backfill imported 2,488
-   rows and all 271 GSL histories, but a manifest parity audit found that
-   Directus's maximum page size had capped the game lookup. It omitted 93
-   Orion manifest observations and left 29 Typhoon labels needing the shared
-   curated parser. The backfill script now paginates every collection and
-   deactivates obsolete current observations while preserving history. Rerun
-   it after temporarily pausing the rebuild Flow, then re-enable the Flow and
-   validate the final counts. Existing scalar-only host values outside each
-   host's manifests remain as legacy source rows. Seven confirmed
-   equivalences, including the four recent examples, have GSL row overrides.
-   A House in the Rift's old override was not carried forward because GSL has
-   since published 0.8.15 Alpha.
+4. **Backfill — complete:** pagination, blank optional trailing manifest
+   cells, and transient GSL retries are handled. The collection has 2,611
+   rows: 2,215 GSL updates (270 current, one per linked game) and 396 Orion /
+   Typhoon observations. All 94 Orion and 144 Typhoon active manifest
+   installations match Directus by host, game, directory, and parsed version;
+   the audit found no missing, extra, or differing rows. Thirty old Typhoon
+   and 92 old Orion observations remain as history, alongside 36 current
+   legacy scalar observations for games without a manifest-listed install.
+   The rebuild Flow was paused for the corrected run, then restored after a
+   full backup at
+   `/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_064123_before_restoring_game_versions_rebuild_flow_after_repair.sql.gz`.
+   The earlier backup before that pause is
+   `/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_063259_before_repausing_game_versions_rebuild_flow.sql.gz`.
+   Seven confirmed comparison overrides are current, including the four
+   recent examples. A House in the Rift's old override was not carried
+   forward because GSL has since published 0.8.15 Alpha.
 5. **Update sync — implemented, awaiting deployment:** the private Typhoon sync
    now records individual manifest installations and all linked GSL histories,
    including games outside the AVN manifests. It continues dual-writing the
    scalar fields during migration. The TrueNAS parser cache remains diagnostic
    state only.
-6. **Update consumers — implemented, awaiting deployment:** game detail pages
-   show raw source labels and overrides; mismatch detection uses current
-   collection rows and flags any active install behind GSL; filter counts read
-   the same records. Version rows remain out of recent-update feeds, matching
-   the prior behavior that excluded scalar version changes and preventing a
-   historical backfill from appearing as thousands of editorial updates.
-7. **Validate:** remaining before scalar-field retirement: verify the four
-   label examples and multiple installs on the deployed build, repeat the sync
-   to confirm idempotence, and confirm removed paths become inactive. A newer
-   GSL update naturally becomes current without inheriting the older row's
-   override.
-8. **Deploy:** open and merge the site PR, then monitor the production
-   TrueNAS build to completion.
+6. **Update consumers — deployed:** game detail pages show raw source labels
+   and overrides; mismatch detection uses current collection rows and flags
+   any active install behind GSL; filter counts read the same records. Version
+   rows remain out of recent-update feeds, matching the prior behavior that
+   excluded scalar version changes and preventing a historical backfill from
+   appearing as thousands of editorial updates. The corrected production
+   rebuild completed successfully at 2026-09-25 06:42:14 UTC. Public pages
+   for Perfect Son-In-Law, IRYS, Fleeting Memories, and Cross Realms show each
+   raw GSL label and comparison value; all four are absent from the mismatch
+   filter.
+7. **Validate:** schema, both host manifests, GSL current rows, comparison
+   overrides, and deployed example pages passed their audits. Remaining before
+   scalar-field retirement: deploy and rerun the updated sync to confirm
+   idempotence, and confirm removed paths become inactive. A newer GSL update
+   naturally becomes current without inheriting the older row's override.
+8. **Deploy — site complete:** the site PR is merged and the corrected
+   production TrueNAS build succeeded; the private sync deployment remains
+   pending.
 9. **Retire scalar fields:** later work, after deployment and parity checks:
    take a fresh full backup and remove `games.version_orion`,
    `games.version_typhoon`, and `games.version_gsl` only after every consumer
    has moved to `game_versions`.
 
-The production `Rebuild Site on Content Change` Flow now includes
-`game_versions`. Before that live Flow mutation, the prior definition was saved
-to the ignored `mcp/cache/rebuild_flow_before_game_versions.json` and compared;
-a fresh full backup was taken at
+The production `Rebuild Site on Content Change` Flow is active and includes
+`game_versions`. Its original definition was saved to the ignored
+`mcp/cache/rebuild_flow_before_game_versions.json`; it was paused and restored
+around each backfill repair, with full backups recorded above. The original
+Flow-change backup was
 `/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_054745_before_game_versions_rebuild_flow.sql.gz`.
 The schema backup is
 `/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_053017_before_game_versions_schema.sql.gz`.
