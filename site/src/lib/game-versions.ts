@@ -41,6 +41,9 @@ const KNOWN_VERSION_EQUIVALENCES: Record<string, string[][]> = {
   "house-of-hearts": [["ep. 2 pt. 1 beta", "ep. 2 pt. 1 public v1"]],
   // "r1" is the release build superseding the alpha GSL still lists as newest.
   "a-house-in-the-rift": [["0.8.14 alpha", "0.8.14r1"]],
+  // GSL includes the chapter in a longer release label; both identify the
+  // same installed Out of Touch release.
+  "out-of-touch": [["ch6269", "amber & gold part 3 (ch6269)"]],
 };
 
 function isKnownEquivalent(slug: string | null, distinctVersions: string[]): boolean {
@@ -49,11 +52,12 @@ function isKnownEquivalent(slug: string | null, distinctVersions: string[]): boo
   return groups.some((group) => distinctVersions.every((version) => group.includes(version)));
 }
 
-// A purely numeric dotted label (e.g. "0.9.21") only -- letters/words push a
-// version out of this fast path and into the known-equivalence table above.
+// A purely numeric dotted label (e.g. "0.9.21"), optionally prefixed with
+// the conventional "v" marker. Other letters/words use the equivalence table.
 function parseSemver(value: string): number[] | null {
-  if (!/^\d+(\.\d+)*$/.test(value)) return null;
-  return value.split(".").map(Number);
+  const normalized = value.replace(/^v(?=\d)/i, "");
+  if (!/^\d+(\.\d+)*$/.test(normalized)) return null;
+  return normalized.split(".").map(Number);
 }
 
 // Compares zero-padded so "1.0" and "1.0.0" are equal, matching how these
