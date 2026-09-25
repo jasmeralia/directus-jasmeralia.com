@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.218] - 2026-09-25
+- Version Mismatches: recognize `Ch6269` and GSL's `Amber & Gold Part 3 (Ch6269)` as equivalent, and ignore an optional `v` prefix on numeric versions.
+
 ## [1.0.217] - 2026-09-24
 - Games: add the On Hiatus release status, including its status page, game card badge, detail-page synopsis, and changelog label.
 
