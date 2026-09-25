@@ -105,7 +105,13 @@ const description = `${games.length} games have differing tracked version values
                 ) : null}
               </div>
               <dl class="versions">
-                {(game.versions ?? []).filter((row) => row.is_current !== false).map((row) => {
+                {(game.versions ?? [])
+                  .filter((row) => row.is_current !== false)
+                  .sort((a, b) => {
+                    const order = { gsl: 0, typhoon: 1, orion: 2 };
+                    return order[a.source] - order[b.source];
+                  })
+                  .map((row) => {
                   const version = formatTrackedVersion(row.reported_version);
                   const isGsl = row.source === "gsl";
                   const sourceLabel = row.source === "gsl" ? "GameStoryLog" : row.source === "orion" ? "Orion" : "Typhoon";
