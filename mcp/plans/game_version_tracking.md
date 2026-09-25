@@ -140,14 +140,18 @@ sufficient if GSL can publish separate updates with the same label.
    relation, source choices, unique `source_key`, override fields, and the
    Astro Readonly `fields: ["*"]` grant. The setup is in
    `mcp/scripts/setup_game_versions.py`.
-4. **Backfill — complete:** imported 2,488 rows through Directus REST: 271
-   current GSL rows with available update history, 95 current Orion install
-   observations, 178 current Typhoon observations, and prior GSL versions.
-   Existing scalar-only host values outside the manifests were retained as
-   legacy source rows. Seven confirmed equivalences, including the four recent
-   examples, were moved to GSL row overrides. A House in the Rift's old
-   override was not carried forward because GSL has since published 0.8.15
-   Alpha.
+4. **Backfill — repair in progress:** the first REST backfill imported 2,488
+   rows and all 271 GSL histories, but a manifest parity audit found that
+   Directus's maximum page size had capped the game lookup. It omitted 93
+   Orion manifest observations and left 29 Typhoon labels needing the shared
+   curated parser. The backfill script now paginates every collection and
+   deactivates obsolete current observations while preserving history. Rerun
+   it after temporarily pausing the rebuild Flow, then re-enable the Flow and
+   validate the final counts. Existing scalar-only host values outside each
+   host's manifests remain as legacy source rows. Seven confirmed
+   equivalences, including the four recent examples, have GSL row overrides.
+   A House in the Rift's old override was not carried forward because GSL has
+   since published 0.8.15 Alpha.
 5. **Update sync — implemented, awaiting deployment:** the private Typhoon sync
    now records individual manifest installations and all linked GSL histories,
    including games outside the AVN manifests. It continues dual-writing the

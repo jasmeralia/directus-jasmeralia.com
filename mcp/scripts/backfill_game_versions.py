@@ -80,10 +80,7 @@ def get_all(
     client: DirectusClient, collection: str, fields: str
 ) -> list[dict[str, Any]]:
     """Read every item from one Directus collection."""
-    response = client.request(
-        "GET", f"/items/{collection}?fields={urllib.parse.quote(fields)}&limit=-1"
-    )
-    return response.get("data", [])
+    return client.fetch_all(f"/items/{collection}?fields={urllib.parse.quote(fields)}")
 
 
 def gsl_details(slug: str) -> dict[str, Any]:
@@ -116,7 +113,7 @@ def gsl_details(slug: str) -> dict[str, Any]:
     return {}
 
 
-def main() -> int:
+def main() -> int:  # pylint: disable=too-many-branches
     """Plan or apply an idempotent host and GSL version-history backfill."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
@@ -127,7 +124,9 @@ def main() -> int:
     )
     games_by_slug = {game["slug"]: game for game in games if game.get("slug")}
     existing = get_all(
-        client, "game_versions", "id,source_key,is_current,comparison_override"
+        client,
+        "game_versions",
+        "id,games_id,source,source_key,installation_key,reported_version,is_current,comparison_override",
     )
     by_key = {row["source_key"]: row for row in existing}
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -251,7 +250,7 @@ def main() -> int:
         time.sleep(1.5)
 
     creates = [row for key, row in planned.items() if key not in by_key]
-    patches: list[tuple[int, dict[str, Any]]] = []
+    patches_by_id: dict[int, dict[str, Any]] = {}
     for key, payload in planned.items():
         previous = by_key.get(key)
         if previous:
@@ -260,12 +259,39 @@ def main() -> int:
                 if field in payload and previous.get(field) != payload[field]:
                     patch[field] = payload[field]
             if patch:
-                patches.append((previous["id"], patch))
-    # Deactivate disappeared host installs and older GSL rows only after complete data is loaded.
+                patches_by_id[int(previous["id"])] = patch
+
+    planned_installations = {
+        (payload["source"], payload["installation_key"])
+        for payload in planned.values()
+        if payload.get("installation_key")
+    }
+    planned_manifest_games = {
+        (payload["source"], payload["games_id"])
+        for payload in planned.values()
+        if payload.get("installation_key")
+    }
+    # Deactivate obsolete source observations only after the complete backfill
+    # plan is known. Preserve legacy scalar rows when no manifest install exists.
     for row in existing:
-        if row.get("source_key") not in planned and row.get("is_current"):
-            # Historical rows are intentionally retained; host removals will be handled by daily sync.
+        if not row.get("is_current") or row.get("source_key") in planned:
             continue
+        source = row.get("source")
+        if source == "gsl":
+            obsolete = True
+        elif source in {"orion", "typhoon"}:
+            installation_key = row.get("installation_key")
+            obsolete = (
+                (source, installation_key) not in planned_installations
+                if installation_key
+                else (source, row.get("games_id")) in planned_manifest_games
+            )
+        else:
+            obsolete = False
+        if obsolete:
+            patches_by_id[int(row["id"])] = {"is_current": False}
+
+    patches = list(patches_by_id.items())
     print(
         f"Plan: {len(creates)} creates; {len(patches)} current-state updates; {len(gsl_games)} GSL games; dry_run={args.dry_run}"
     )
