@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.220] - 2026-09-29
+- Dependencies: update the locked `undici` package to 8.11.2 to resolve the Dependabot security alert.
+
 ## [1.0.219] - 2026-09-25
 - Game versions: display source-specific version history with raw GSL labels and comparison overrides; compare active Orion/Typhoon installs against the current GSL version, flagging any outdated copy.
 
