@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.221] - 2026-10-01
+- Dependencies: update `brace-expansion` to 5.0.12 to resolve Dependabot security alert 16.
+
 ## [1.0.220] - 2026-09-29
 - Dependencies: update the locked `undici` package to 8.11.2 to resolve the Dependabot security alert.
 
