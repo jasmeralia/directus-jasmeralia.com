@@ -127,7 +127,12 @@ timing_start npm_audit
 # no-fix-available advisories accepted in audit-gate.mjs. Print the plain
 # report first for visibility; its exit code is intentionally not what gates.
 npm audit || true
-npm audit --json | node /srv/audit-gate.mjs
+# Write the JSON to a file rather than piping it: `npm audit --json` exits
+# non-zero whenever it finds anything, which would trip pipefail even for
+# accepted advisories.
+AUDIT_JSON="${BUILD_DIR}/npm-audit.json"
+npm audit --json > "$AUDIT_JSON" || true
+node /srv/audit-gate.mjs < "$AUDIT_JSON"
 timing_end
 
 # Provide DIRECTUS_URL to the build if your Astro code reads it.

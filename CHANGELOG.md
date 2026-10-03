@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.223] - 2026-10-03
+- Builder: fix the audit gate failing under `pipefail` when `npm audit --json` exits non-zero for an accepted advisory.
+
 ## [1.0.222] - 2026-10-03
 - Builder: publish was failing `npm audit` on `http-cache-semantics` (GHSA-ch52-4w7c-c8xp, reached via `astro`), which has no patched release. The audit step now runs through `builder/audit-gate.mjs`, which still fails on every other advisory and only exempts this one by ID (remove it once a fixed version ships).
 
