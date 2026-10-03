@@ -123,8 +123,11 @@ fi
 timing_end
 
 timing_start npm_audit
-# Fail the build if npm audit reports any vulnerabilities.
-npm audit
+# Fail the build if npm audit reports any vulnerability, except the specific
+# no-fix-available advisories accepted in audit-gate.mjs. Print the plain
+# report first for visibility; its exit code is intentionally not what gates.
+npm audit || true
+npm audit --json | node /srv/audit-gate.mjs
 timing_end
 
 # Provide DIRECTUS_URL to the build if your Astro code reads it.
