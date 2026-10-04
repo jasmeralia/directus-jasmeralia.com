@@ -10,14 +10,9 @@
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
-// Advisories with no patched release, reviewed and accepted. Remove an entry
-// as soon as a fixed version exists upstream.
-//
-// GHSA-ch52-4w7c-c8xp: http-cache-semantics <= 4.2.0 (no patched version;
-// upstream issue kornelski/http-cache-semantics#56 is open). Reached only via
-// astro's build-time remote-image fetching; this site is a static build with
-// no shared server-side HTTP cache, so cross-user cache disclosure does not apply.
-export const ACCEPTED_ADVISORIES = ["GHSA-ch52-4w7c-c8xp"];
+// No advisories are currently accepted. Add an entry only after reviewing an
+// unpatched advisory and documenting why it does not affect this build.
+export const ACCEPTED_ADVISORIES = [];
 
 const advisoryId = (via) => via.url?.split("/").pop();
 

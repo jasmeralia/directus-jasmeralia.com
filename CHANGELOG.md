@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.224] - 2026-10-03
+- Dependencies: update `http-cache-semantics` to 4.3.0 to resolve Dependabot security alert 17, and remove its now-resolved advisory from the build audit exemption.
+
 ## [1.0.223] - 2026-10-03
 - Builder: fix the audit gate failing under `pipefail` when `npm audit --json` exits non-zero for an accepted advisory.
 

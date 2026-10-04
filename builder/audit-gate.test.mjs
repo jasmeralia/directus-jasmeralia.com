@@ -10,9 +10,9 @@ const devalue = {
   via: [{ name: "devalue", url: "https://github.com/advisories/GHSA-j22f-vq7h-c4qm" }],
 };
 
-test("accepted advisory and its pass-through dependents do not block", () => {
+test("http-cache-semantics advisory and pass-through dependents block", () => {
   const report = { vulnerabilities: { "http-cache-semantics": hcs, astro: { via: ["http-cache-semantics"] } } };
-  assert.deepEqual(findBlocking(report), []);
+  assert.deepEqual(findBlocking(report).sort(), ["astro", "http-cache-semantics"]);
 });
 
 test("any other advisory still blocks, including pass-through dependents", () => {
