@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.225] - 2026-10-10
+- Filters: add "AVN + Backlog" misc filter listing AVN games that are not abandoned and whose played status is not did not finish, completed, in progress, or waiting for update.
+
 ## [1.0.224] - 2026-10-03
 - Dependencies: update `http-cache-semantics` to 4.3.0 to resolve Dependabot security alert 17, and remove its now-resolved advisory from the build audit exemption.
 
