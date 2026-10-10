@@ -494,6 +494,13 @@ const hasSandboxGenre = (game) =>
 const avnSandboxCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && hasSandboxGenre(game),
 ).length;
+const AVN_BACKLOG_EXCLUDED_PLAYER_STATUSES = new Set(["did_not_finish", "completed", "in_progress", "waiting_for_update"]);
+const avnBacklogCount = (games ?? []).filter(
+  (game) =>
+    hasAvnGenre(game) &&
+    game?.game_status !== "abandoned" &&
+    !AVN_BACKLOG_EXCLUDED_PLAYER_STATUSES.has(game?.player_status),
+).length;
 const hasVnGenre = (game) =>
   (game?.genres ?? []).some((entry) => entry?.genres_id?.slug === "visual-novel");
 // A rendering/art engine (e.g. Daz 3D) doesn't preclude a game engine like
@@ -876,6 +883,7 @@ const miscFilterEntries = [
   { label: "AVN + Has GameStoryLog URL", href: "/filters/misc/avn-with-gamestorylog/index.html", count: avnWithGamestorylogCount },
   { label: "AVN + Harem", href: "/filters/misc/avn-harem/index.html", count: avnHaremCount },
   { label: "AVN + Sandbox", href: "/filters/misc/avn-sandbox/index.html", count: avnSandboxCount },
+  { label: "AVN + Backlog", href: "/filters/misc/avn-backlog/index.html", count: avnBacklogCount },
   { label: "AVN + Missing GameStoryLog URL", href: "/filters/misc/avn-missing-gamestorylog/index.html", count: avnMissingGamestorylogCount },
   { label: "Not AVN + Has GameStoryLog URL", href: "/filters/misc/non-avn-with-gamestorylog/index.html", count: nonAvnWithGamestorylogCount },
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },

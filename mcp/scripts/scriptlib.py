@@ -12,7 +12,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -464,7 +464,7 @@ def take_pg_dump_backup(label: str) -> str:
     changes" section over SSH. Returns the backup filename on success;
     raises RuntimeError if the remote pipeline exits non-zero.
     """
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     filename = f"directus_{timestamp}_{label}.sql.gz"
     remote_path = f"/mnt/myzmirror/directus-jasmeralia/backups/{filename}"
     remote_cmd = (

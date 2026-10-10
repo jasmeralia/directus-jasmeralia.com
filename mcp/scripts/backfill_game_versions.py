@@ -16,7 +16,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -145,7 +145,7 @@ def main() -> int:  # pylint: disable=too-many-branches
         "id,games_id,source,source_key,installation_key,reported_version,is_current,comparison_override",
     )
     by_key = {row["source_key"]: row for row in existing}
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now = datetime.now(UTC).isoformat(timespec="seconds")
     planned: dict[str, dict[str, Any]] = {}
 
     for host in ("orion", "typhoon"):

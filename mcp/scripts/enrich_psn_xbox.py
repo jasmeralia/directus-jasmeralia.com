@@ -16,7 +16,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -87,9 +87,7 @@ def igdb_search(title: str, client_id: str, token: str) -> dict | None:
     # Extract release year from Unix timestamp
     release_year = None
     if best.get("first_release_date"):
-        release_year = datetime.fromtimestamp(
-            best["first_release_date"], tz=timezone.utc
-        ).year
+        release_year = datetime.fromtimestamp(best["first_release_date"], tz=UTC).year
 
     genres = [g["name"] for g in best.get("genres", [])]
 
