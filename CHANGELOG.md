@@ -1,6 +1,7 @@
 # Changelog
 
 ## [1.0.225] - 2026-10-10
+- Lint: apply ruff 0.17 `UP017` autofixes (`datetime.UTC` alias) in `mcp/scripts/` so `lint-python` passes again.
 - Filters: add "AVN + Backlog" misc filter listing AVN games that are not abandoned and whose played status is not did not finish, completed, in progress, or waiting for update.
 
 ## [1.0.224] - 2026-10-03

@@ -15,7 +15,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from scriptlib import derive_game_status, server_env
@@ -119,9 +119,7 @@ def ensure_developer(name: str, cache: dict) -> int:
 
 def take_backup():
     """Write a JSON backup of collections changed by the import."""
-    backup_dir = (
-        CACHE / f"backup_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
-    )
+    backup_dir = CACHE / f"backup_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
     backup_dir.mkdir(parents=True)
     collections = [
         "games",

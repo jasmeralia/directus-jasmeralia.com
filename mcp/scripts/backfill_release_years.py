@@ -20,7 +20,7 @@ import json
 import sys
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from scriptlib import (
     CACHE_DIR,
@@ -116,7 +116,7 @@ def igdb_release_year(token: str, title: str) -> tuple[int | None, str | None]:
     ts = best.get("first_release_date")
     if not ts:
         return None, None
-    year = datetime.fromtimestamp(ts, tz=timezone.utc).year
+    year = datetime.fromtimestamp(ts, tz=UTC).year
     return year, best.get("name")
 
 
