@@ -136,8 +136,13 @@ class ProgressCache:
 
 
 def derive_game_status(release_year: int | None) -> str:
-    """Return the game_status implied by a release year: unreleased when null."""
-    return "released" if release_year else "unreleased"
+    """Return released only for a known year that is not in the future."""
+    current_year = datetime.now(UTC).year
+    return (
+        "released"
+        if release_year is not None and release_year <= current_year
+        else "unreleased"
+    )
 
 
 def parse_playnite_release_year(date_str: str | None) -> int | None:
