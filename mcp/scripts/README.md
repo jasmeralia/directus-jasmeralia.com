@@ -12,6 +12,20 @@ Steam-specific work must select its Steam URL rather than assume a scalar link.
 reads the former fields only when restoring or replaying a pre-migration
 database snapshot. Do not run it against the current schema.
 
+## Steam wishlist imports
+
+`wishlist_import.py` reads the Steam wishlist and current Directus catalog to
+build import proposals. The default command only refreshes proposal/cache files;
+`--apply` creates game rows, cover files, download links, and genre/developer
+links, so review the proposal list and title matches before using it. The
+`--dry-run` flag exercises the apply path without Directus writes. Steam
+acquisition links belong in `games_links` with `kind: download`.
+
+Steam-derived `game_status` is `unreleased` when the release year is unknown or
+in the future, and `released` for a known current or past year. A release year
+alone cannot distinguish an unreleased title scheduled later in the current
+year, so verify those dates before applying proposals.
+
 ## Itch.io release-year backfill
 
 `itch_published_dates.mjs` retrieves the account-gated `Published` field for games with no release year and an itch.io link. Export the authorized itch.io cookies from Firefox to the gitignored path `mcp/scripts/ignored/cookies.json`, then run:
