@@ -49,6 +49,13 @@ describe("tracked game versions", () => {
     expect(hasVersionMismatch(versionsOf("S1 Ch.9", "S1 Ch.9", "S2 Ch. 12.5", { slug: "companion-of-darkness-season-1" }))).toBe(false);
   });
 
+  it("excludes completed, released, and abandoned games", () => {
+    expect(hasVersionMismatch(versionsOf("0.8", null, "0.9", { player_status: "completed" }))).toBe(false);
+    expect(hasVersionMismatch(versionsOf("0.8", null, "0.9", { game_status: "released" }))).toBe(false);
+    expect(hasVersionMismatch(versionsOf("0.8", null, "0.9", { game_status: "abandoned" }))).toBe(false);
+    expect(hasVersionMismatch(versionsOf("0.8", null, "0.9", { game_status: "in_development" }))).toBe(true);
+  });
+
   it("does not exclude other games sharing an otherwise-differing slug", () => {
     expect(hasVersionMismatch(versionsOf("S2 Ch. 12", "S2 Ch. 12", "S2 Ch. 12.5", { slug: "companion-of-darkness-season-2" }))).toBe(true);
   });
