@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.226] - 2026-10-14
+- Versions: stop reading the retired `games.version_orion`, `version_typhoon` and `version_gsl` fields. The Version Mismatches filter and filter index now use only `game_versions` rows, and the legacy scalar fallback and its tests are removed. Revision-history skip lists are kept so old scalar edits stay out of the feeds.
+- Scripts: remove the finished `backfill_game_versions.py` one-time backfill.
+- Scripts: Directus calls are no longer rate limited (no per-request delay or HTTP 429 backoff); external APIs keep their delays and backoff. Remove the per-item pacing sleeps from Directus-only loops, and document the exemption in `AGENTS.md`.
+
 ## [1.0.225] - 2026-10-10
 - Lint: apply ruff 0.17 `UP017` autofixes (`datetime.UTC` alias) in `mcp/scripts/` so `lint-python` passes again.
 - Filters: add "AVN + Backlog" misc filter listing AVN games that are not abandoned and whose played status is not did not finish, completed, in progress, or waiting for update.

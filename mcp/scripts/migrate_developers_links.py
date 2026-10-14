@@ -19,7 +19,6 @@ Usage:
 import json
 import re
 import sys
-import time
 from urllib.parse import urlparse
 
 from scriptlib import CACHE_DIR, DirectusClient
@@ -49,7 +48,6 @@ def insert_link(developers_id, link_url, link_kind, label=None, known_links=None
     if r and r.get("data"):
         if known_links is not None:
             known_links.add(key)
-        time.sleep(0.05)
         return "ok"
     return "error"
 

@@ -511,7 +511,6 @@ def apply_cached_links(progress: dict) -> None:
         # Any per-link failure is logged and skipped so the batch continues.
         except Exception as error:  # noqa: BLE001
             print(f"  ERROR game={entry['game_id']}: {error}")
-        time.sleep(0.1)
 
     APPLIED_FILE.write_text(json.dumps(sorted(applied_keys), indent=2))
     print(f"Done. Added {ok}/{len(to_add)} links.")

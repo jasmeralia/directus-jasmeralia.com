@@ -13,7 +13,6 @@ Usage:
 """
 
 import sys
-import time
 
 from scriptlib import (
     DirectusClient,
@@ -163,7 +162,6 @@ def main():
         deleted += 1
 
         print()
-        time.sleep(0.15)
 
     print(
         f"Summary: {links_added} links transferred, "

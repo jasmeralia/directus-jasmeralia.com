@@ -38,7 +38,6 @@ from game_sections_lib import normalize_noun, resolve_game
 from scriptlib import (
     DEFAULT_BACKOFF_BASE,
     DEFAULT_MAX_RETRIES,
-    DIRECTUS_REQUEST_DELAY_S,
     DirectusClient,
     RetryingDirectusClient,
     take_pg_dump_backup,
@@ -790,7 +789,6 @@ def _create_section_idempotent(
     description = f"create {label}"
     delay = DEFAULT_BACKOFF_BASE
     for attempt in range(DEFAULT_MAX_RETRIES):
-        time.sleep(DIRECTUS_REQUEST_DELAY_S)
         try:
             created = _create_section(
                 client,

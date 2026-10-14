@@ -17,7 +17,6 @@ schema; active scripts must use the games_links relation instead.
 import json
 import re
 import sys
-import time
 
 from scriptlib import CACHE_DIR, DirectusClient
 
@@ -201,8 +200,6 @@ for game in games:
                 stats["skip"] += 1
             else:
                 stats["error"] += 1
-        if APPLY:
-            time.sleep(0.05)
 
 print(
     f"""

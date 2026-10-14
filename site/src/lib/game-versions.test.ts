@@ -2,26 +2,41 @@ import { describe, expect, it } from "vitest";
 
 import { effectiveVersion, formatTrackedVersion, hasVersionMismatch } from "./game-versions";
 
+type Source = "orion" | "typhoon" | "gsl";
+
+const current = (source: Source, reported_version: string | null) => ({
+  source,
+  reported_version,
+  is_current: true,
+});
+
+// Build a game's current game_versions rows; a null source is simply absent.
+const versionsOf = (
+  orion: string | null,
+  typhoon: string | null,
+  gsl: string | null,
+  extra: Record<string, unknown> = {},
+) => ({
+  ...extra,
+  versions: [
+    ...(orion === null ? [] : [current("orion", orion)]),
+    ...(typhoon === null ? [] : [current("typhoon", typhoon)]),
+    ...(gsl === null ? [] : [current("gsl", gsl)]),
+  ],
+});
+
 describe("tracked game versions", () => {
   it("requires at least two populated sources before declaring a mismatch", () => {
     expect(hasVersionMismatch({})).toBe(false);
-    expect(hasVersionMismatch({ version_orion: "0.9" })).toBe(false);
+    expect(hasVersionMismatch(versionsOf("0.9", null, null))).toBe(false);
   });
 
   it("treats whitespace and casing differences as equivalent", () => {
-    expect(hasVersionMismatch({
-      version_orion: " Ch. 4   Ep. 3 ",
-      version_typhoon: "ch. 4 ep. 3",
-      version_gsl: "CH. 4 EP. 3",
-    })).toBe(false);
+    expect(hasVersionMismatch(versionsOf(" Ch. 4   Ep. 3 ", "ch. 4 ep. 3", "CH. 4 EP. 3"))).toBe(false);
   });
 
   it("detects a difference between any populated sources", () => {
-    expect(hasVersionMismatch({
-      version_orion: "0.8",
-      version_typhoon: null,
-      version_gsl: "0.9",
-    })).toBe(true);
+    expect(hasVersionMismatch(versionsOf("0.8", null, "0.9"))).toBe(true);
   });
 
   it("normalizes version values for display", () => {
@@ -31,21 +46,11 @@ describe("tracked game versions", () => {
   });
 
   it("excludes games where GSL is known to track a different season/entry", () => {
-    expect(hasVersionMismatch({
-      slug: "companion-of-darkness-season-1",
-      version_orion: "S1 Ch.9",
-      version_typhoon: "S1 Ch.9",
-      version_gsl: "S2 Ch. 12.5",
-    })).toBe(false);
+    expect(hasVersionMismatch(versionsOf("S1 Ch.9", "S1 Ch.9", "S2 Ch. 12.5", { slug: "companion-of-darkness-season-1" }))).toBe(false);
   });
 
   it("does not exclude other games sharing an otherwise-differing slug", () => {
-    expect(hasVersionMismatch({
-      slug: "companion-of-darkness-season-2",
-      version_orion: "S2 Ch. 12",
-      version_typhoon: "S2 Ch. 12",
-      version_gsl: "S2 Ch. 12.5",
-    })).toBe(true);
+    expect(hasVersionMismatch(versionsOf("S2 Ch. 12", "S2 Ch. 12", "S2 Ch. 12.5", { slug: "companion-of-darkness-season-2" }))).toBe(true);
   });
 
   it("uses update-scoped overrides for differently named GSL releases", () => {
@@ -82,63 +87,28 @@ describe("tracked game versions", () => {
   });
 
   it("still flags a known slug when a value falls outside every equivalence group", () => {
-    expect(hasVersionMismatch({
-      slug: "beyond-time",
-      version_orion: "0.7",
-      version_typhoon: "0.6",
-      version_gsl: "Ep. 6",
-    })).toBe(true);
+    expect(hasVersionMismatch(versionsOf("0.7", "0.6", "Ep. 6", { slug: "beyond-time" }))).toBe(true);
   });
 
   it("treats zero-padded semver labels as equal", () => {
-    expect(hasVersionMismatch({
-      version_orion: "1.0.0",
-      version_typhoon: "1.0.0",
-      version_gsl: "1.0",
-    })).toBe(false);
+    expect(hasVersionMismatch(versionsOf("1.0.0", "1.0.0", "1.0"))).toBe(false);
   });
 
   it("excludes a game whose installed semver is already ahead of GSL's stale record", () => {
-    expect(hasVersionMismatch({
-      version_orion: "0.9.21",
-      version_typhoon: "0.9.21",
-      version_gsl: "0.9.0",
-    })).toBe(false);
+    expect(hasVersionMismatch(versionsOf("0.9.21", "0.9.21", "0.9.0"))).toBe(false);
   });
 
   it("still flags a game whose installed semver is behind GSL", () => {
-    expect(hasVersionMismatch({
-      version_orion: "0.9.0",
-      version_typhoon: "0.9.0",
-      version_gsl: "0.9.21",
-    })).toBe(true);
+    expect(hasVersionMismatch(versionsOf("0.9.0", "0.9.0", "0.9.21"))).toBe(true);
   });
 
   it("excludes installs that are only a demo, intro, or prologue", () => {
-    expect(hasVersionMismatch({
-      version_orion: "Demo",
-      version_typhoon: null,
-      version_gsl: "Ep. 3",
-    })).toBe(false);
-    expect(hasVersionMismatch({
-      version_orion: "Prologue: Part 1",
-      version_typhoon: "Prologue: Part 1",
-      version_gsl: "0.3",
-    })).toBe(false);
+    expect(hasVersionMismatch(versionsOf("Demo", null, "Ep. 3"))).toBe(false);
+    expect(hasVersionMismatch(versionsOf("Prologue: Part 1", "Prologue: Part 1", "0.3"))).toBe(false);
   });
 
   it("excludes completed or released games", () => {
-    expect(hasVersionMismatch({
-      player_status: "completed",
-      version_orion: "1.0.0",
-      version_typhoon: "1.0.0",
-      version_gsl: "1.0",
-    })).toBe(false);
-    expect(hasVersionMismatch({
-      game_status: "released",
-      version_orion: "0.8",
-      version_typhoon: null,
-      version_gsl: "0.9",
-    })).toBe(false);
+    expect(hasVersionMismatch(versionsOf("1.0.0", "1.0.0", "1.0", { player_status: "completed" }))).toBe(false);
+    expect(hasVersionMismatch(versionsOf("0.8", null, "0.9", { game_status: "released" }))).toBe(false);
   });
 });
