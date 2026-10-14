@@ -191,8 +191,8 @@ sufficient if GSL can publish separate updates with the same label.
 8. **Deploy — complete:** the site PR is merged, the corrected production
    TrueNAS build succeeded, and the private sync is on `master` and has run
    successfully on TrueNAS.
-9. **Retire scalar fields:** later work, after deployment and parity checks:
-   take a fresh full backup and remove `games.version_orion`,
+9. **Retire scalar fields:** see "Scalar field retirement plan" below. Take a
+   fresh full backup and remove `games.version_orion`,
    `games.version_typhoon`, and `games.version_gsl` only after every consumer
    has moved to `game_versions`.
 
@@ -204,6 +204,69 @@ Flow-change backup was
 `/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_054745_before_game_versions_rebuild_flow.sql.gz`.
 The schema backup is
 `/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_053017_before_game_versions_schema.sql.gz`.
+
+## Scalar field retirement plan
+
+Audit of 2026-10-14. The scalar fields are **not** yet unreferenced. Removal
+must follow this order, because Directus rejects a `fields=` list that names a
+deleted field (the site build and the AVN sync would both fail outright).
+
+### Remaining references
+
+| Where | Use | Action |
+|---|---|---|
+| `~/git/steam-typhoon/scripts/avn_version_sync/sync_installed_versions.py` (private repo; `GAME_FIELDS`, `sync_gsl_version`, `sync_remaining_gsl_games`, `patch_host_versions`, `current_version_pair` in the digest) | Reads all three scalars (the digest's "old version", `gsl_version_unchanged`) and **writes** `version_gsl` (and the host scalars) as a dual-write | Blocker. Move the "old/current version" reads to `game_versions` current rows (`is_current`, per source), stop all scalar writes, drop the three names from `GAME_FIELDS` and the `{"fields": "id,slug,version_gsl"}` query, update its README. Deploy to TrueNAS and let one scheduled run succeed. |
+| `site/src/pages/filters/index.astro` | Lists the three scalars in the games `fields` array | Blocker for the build. Remove the three entries. |
+| `site/src/lib/game-versions.ts` | `TrackedGameVersions` type fields and the legacy fallback loop in `currentVersions()` | Remove the fallback and the type fields. Safe once the data gap below is closed. |
+| `site/src/lib/game-versions.test.ts` (37 hits), `feed-builder.test.ts`, `recentUpdates.test.ts`, `changelog.test.ts` | Fixtures and fallback tests | Delete the fallback tests; convert fixtures to `versions: [...]` rows. |
+| `mcp/scripts/backfill_game_versions.py` | One-time backfill; fetches the scalars and retains "legacy scalar values not represented by an active manifest row" | Delete the script (the backfill is complete), or strip the scalar read and legacy-retention block if kept for GSL re-imports. Remove any references to it in docs. |
+| `AGENTS.md` (`games` row) and this plan's "Current state" section | Document the scalars as retained compatibility fields | Remove the sentence once the fields are gone. |
+
+**Keep, do not remove:** the `version_orion` / `version_typhoon` /
+`version_gsl` entries in `SKIP_DELTA` (`site/src/lib/recentUpdates.ts`) and
+`SKIP_FEED_DELTA` (`site/src/lib/feed-builder.ts`), plus their tests. They
+filter historical `directus_revisions` deltas, which persist after the column
+is dropped; deleting them would make old scalar edits reappear in the RSS feed
+and recent-updates list.
+
+Verified clean: Directus `permissions` (Astro Readonly uses `fields: ["*"]`),
+`presets`, `flows`, `operations`, dashboards, panels and translations contain
+no reference to the three fields, and no other repo under `~/git` (excluding
+the archived `OLD/` copy) uses them.
+
+### Data parity (checked 2026-10-14)
+
+Every non-null scalar has matching `game_versions` rows (Orion 99, Typhoon 149,
+GSL 296), all with a current row, except:
+
+- `the-hellcat-lounge`: `version_gsl = '0.3.67'` but no `game_versions` row.
+  Accepted as a loss, not a blocker: the game is abandoned.
+- `defending-lydia-collier` (`0.22.1` vs. current `0.22`) and `desirium`
+  (`0.13` vs. current `0.13 Beta`): the scalar is stale or an older
+  normalization. `game_versions` is authoritative; no action beyond confirming
+  the current row is the intended value.
+
+### Steps
+
+1. Migrate and deploy the steam-typhoon sync off the scalars (see table); run
+   it once in production and confirm it neither reads nor writes them
+   (`--dry-run` output should no longer mention `PLAN PATCH GSL SCALAR`).
+2. Site PR (branch `feat/retire-legacy-version-fields`): remove the `index.astro` field entries, the
+   `game-versions.ts` fallback and type fields, and the fallback tests and
+   fixtures; delete `backfill_game_versions.py`; update `AGENTS.md`.
+   Bump `site/package.json` and prepend a `CHANGELOG.md` entry. Merge, then
+   watch the TrueNAS builder to `Build/publish completed successfully.` to
+   prove the site no longer needs the columns.
+3. Only then, with explicit go-ahead for the schema change: full-database
+   `pg_dump` through `cms-db` (per `AGENTS.md`), then
+   `DELETE /fields/games/version_orion`, `/version_typhoon`, `/version_gsl`
+   via the REST API. Rebuild and monitor to completion.
+4. Verify: `GET /fields/games` lists none of the three; the next scheduled
+   AVN sync run and a fresh site build both succeed; the Version Mismatches
+   filter count is unchanged from before step 3.
+
+Rollback: restore from the step 3 dump (columns are nullable strings with no
+other dependents). Steps 1-2 are plain code reverts.
 
 ## Settled decisions
 

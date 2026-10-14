@@ -11,7 +11,6 @@ Usage:
 """
 
 import sys
-import time
 from collections import defaultdict
 
 import requests
@@ -268,7 +267,6 @@ def main():
             timeout=30,
         )
         r.raise_for_status()
-        time.sleep(0.04)
 
     print(f"Done. Updated {len(updates)} franchise_games records.")
 

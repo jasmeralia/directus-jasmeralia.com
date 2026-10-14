@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CACHE_DIR = Path(__file__).resolve().parent.parent / "cache"
@@ -23,7 +23,6 @@ MCP_CONFIG_PATH = REPO_ROOT / ".mcp.json"
 
 DEFAULT_MAX_RETRIES = 5
 DEFAULT_BACKOFF_BASE = 2.0
-DIRECTUS_REQUEST_DELAY_S = 1.0
 
 
 @dataclass(frozen=True)
@@ -198,15 +197,16 @@ def delete_game_junctions(client: DirectusClient, game_id: int) -> None:
                 client.delete(f"/items/game_bundle_members/{member['id']}")
 
 
-def _directus_http_error(
+def _raise_directus_http_error(
     error: urllib.error.HTTPError,
     *,
     description: str,
-    attempt: int,
-    max_retries: int,
-    delay: float,
-) -> tuple[bool, float]:
-    """Handle one Directus HTTP error. Returns (retry, next_delay)."""
+) -> NoReturn:
+    """Re-raise a Directus HTTP error, logging the body for 403s.
+
+    Directus is an internal service, so HTTP errors are never paced or
+    retried as rate limiting; only ambiguous network failures are retried.
+    """
     if error.code == 403:
         error_body = error.read().decode(errors="replace")
         print(
@@ -214,22 +214,6 @@ def _directus_http_error(
             f"{error_body[:300]}",
             file=sys.stderr,
         )
-        raise error
-    if error.code == 429:
-        if attempt + 1 >= max_retries:
-            print(
-                f"ERROR: Directus rate limited (HTTP 429) during {description} "
-                f"after {max_retries} attempts",
-                file=sys.stderr,
-            )
-            raise error
-        print(
-            f"  Rate limited (HTTP 429) during {description}, "
-            f"backing off {delay:.0f}s (attempt {attempt + 1}/{max_retries})...",
-            file=sys.stderr,
-        )
-        time.sleep(delay)
-        return True, delay * 2
     raise error
 
 
@@ -243,22 +227,13 @@ def directus_request_with_retry(  # pylint: disable=too-many-arguments
     description: str,
     retry_ambiguous_failures: bool = True,
 ) -> dict[str, Any]:
-    """Execute one Directus HTTP request with pacing and exponential backoff."""
+    """Execute one Directus HTTP request, retrying ambiguous failures with backoff."""
     delay = DEFAULT_BACKOFF_BASE
     for attempt in range(DEFAULT_MAX_RETRIES):
-        time.sleep(DIRECTUS_REQUEST_DELAY_S)
         try:
             return client.request(method, path, body, params=params)
         except urllib.error.HTTPError as error:
-            retry, delay = _directus_http_error(
-                error,
-                description=description,
-                attempt=attempt,
-                max_retries=DEFAULT_MAX_RETRIES,
-                delay=delay,
-            )
-            if retry:
-                continue
+            _raise_directus_http_error(error, description=description)
         except Exception as error:
             if not retry_ambiguous_failures:
                 print(
@@ -320,22 +295,13 @@ def directus_operation_with_retry(
     description: str,
     retry_ambiguous_failures: bool = True,
 ) -> Any:
-    """Run a callable with pacing and exponential backoff between attempts."""
+    """Run a callable, retrying ambiguous failures with exponential backoff."""
     delay = DEFAULT_BACKOFF_BASE
     for attempt in range(DEFAULT_MAX_RETRIES):
-        time.sleep(DIRECTUS_REQUEST_DELAY_S)
         try:
             return operation()
         except urllib.error.HTTPError as error:
-            retry, delay = _directus_http_error(
-                error,
-                description=description,
-                attempt=attempt,
-                max_retries=DEFAULT_MAX_RETRIES,
-                delay=delay,
-            )
-            if retry:
-                continue
+            _raise_directus_http_error(error, description=description)
         except Exception as error:
             if not retry_ambiguous_failures:
                 print(

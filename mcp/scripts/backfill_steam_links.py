@@ -316,7 +316,6 @@ def main():
         # Any per-link failure is logged and skipped so the batch continues.
         except Exception as e:  # noqa: BLE001
             print(f"  ERROR game={entry['game_id']} {entry['title']}: {e}")
-        time.sleep(0.1)
 
     print(f"Done. Added {ok}/{len(added)} Steam links.")
 

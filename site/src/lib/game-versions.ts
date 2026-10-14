@@ -16,10 +16,6 @@ export type TrackedGameVersions = {
   player_status?: string | null;
   game_status?: string | null;
   versions?: GameVersion[] | null;
-  // Kept as a read fallback while the scalar fields are dual-written.
-  version_orion?: string | null;
-  version_typhoon?: string | null;
-  version_gsl?: string | null;
 };
 
 export function formatTrackedVersion(value: unknown): string | null {
@@ -53,14 +49,7 @@ function compareSemver(a: number[], b: number[]): number {
 const PREVIEW_INSTALL_PATTERN = /^(demo|intro|prologue)\b/i;
 
 function currentVersions(game: TrackedGameVersions): GameVersion[] {
-  const versions = (game.versions ?? []).filter((row) => row.is_current !== false);
-  if (versions.length) return versions;
-  const legacy: GameVersion[] = [];
-  for (const source of ["orion", "typhoon", "gsl"] as const) {
-    const value = game[`version_${source}`];
-    if (value) legacy.push({ source, reported_version: value, is_current: true });
-  }
-  return legacy;
+  return (game.versions ?? []).filter((row) => row.is_current !== false);
 }
 
 export function hasVersionMismatch(game: TrackedGameVersions): boolean {
