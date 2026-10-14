@@ -54,7 +54,13 @@ function currentVersions(game: TrackedGameVersions): GameVersion[] {
 
 export function hasVersionMismatch(game: TrackedGameVersions): boolean {
   if (game.slug && VERSION_MISMATCH_EXCLUDED_SLUGS.has(game.slug)) return false;
-  if (game.player_status === "completed" || game.game_status === "released") return false;
+  if (
+    game.player_status === "completed" ||
+    game.game_status === "released" ||
+    game.game_status === "abandoned"
+  ) {
+    return false;
+  }
   const versions = currentVersions(game);
   const gsl = versions.find((row) => row.source === "gsl");
   const gslValue = gsl ? effectiveVersion(gsl) : null;

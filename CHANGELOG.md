@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.227] - 2026-10-14
+- Filters: the Version Mismatches filter now also skips abandoned games (it already skipped completed and released ones).
+
 ## [1.0.226] - 2026-10-14
 - Versions: stop reading the retired `games.version_orion`, `version_typhoon` and `version_gsl` fields. The Version Mismatches filter and filter index now use only `game_versions` rows, and the legacy scalar fallback and its tests are removed. Revision-history skip lists are kept so old scalar edits stay out of the feeds.
 - Scripts: remove the finished `backfill_game_versions.py` one-time backfill.
