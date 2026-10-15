@@ -8,6 +8,7 @@ import {
   getUrlPlatform,
   isMissingDownloadLink,
   otherLinks,
+  otherLinkText,
   primaryDownloadLink,
   walkthroughLinks,
   walkthroughTextNotes,
@@ -33,6 +34,24 @@ describe("other links", () => {
       ]).map(({ url }) => url),
     ).toEqual(["https://x.test/a", "https://x.test/b"]);
     expect(otherLinks(undefined)).toEqual([]);
+  });
+});
+
+describe("other link text", () => {
+  const text = (url: string, label?: string) => otherLinkText({ url, kind: "other", label });
+
+  it("uses the label, else Visit plus the site name, else Visit plus the host", () => {
+    expect(text("https://www.youtube.com/@x", "Dev channel")).toBe("Dev channel");
+    expect(text("https://www.youtube.com/@x")).toBe("Visit YouTube");
+    expect(text("https://m.youtube.com/@x")).toBe("Visit YouTube");
+    expect(text("https://bsky.app/profile/x")).toBe("Visit Bluesky");
+    expect(text("https://twitter.com/x")).toBe("Visit X (Twitter)");
+    expect(text("https://www.example.org/page")).toBe("Visit example.org");
+  });
+
+  it("does not match a lookalike host and falls back to the raw text for non-URLs", () => {
+    expect(text("https://notyoutube.com/x")).toBe("Visit notyoutube.com");
+    expect(text("not a url")).toBe("not a url");
   });
 });
 

@@ -296,6 +296,67 @@ describe("buildGameHistory", () => {
   });
 });
 
+describe("link history details", () => {
+  const revision = (
+    id: number,
+    item: string,
+    activityId: number,
+    action: string,
+    timestamp: string,
+    data: Record<string, unknown>,
+    delta: Record<string, unknown>,
+  ) => ({ id, item, collection: "games_links", data, delta, activity: { id: activityId, action, timestamp } });
+  const activity = (id: number, item: string, action: string, timestamp: string) => ({
+    id, item, action, collection: "games_links", timestamp,
+  });
+
+  it("shows what a link event added or changed, and skips sort-only edits", () => {
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [
+        { id: 31, kind: "download", url: "https://b.test/new" },
+        { id: 32, kind: "other", url: "https://youtube.com/@x" },
+      ],
+      bundleMembers: [],
+      allLinkActivities: [
+        activity(1, "31", "create", "2026-07-01T00:00:00Z"),
+        activity(2, "31", "update", "2026-07-02T00:00:00Z"),
+        activity(3, "31", "update", "2026-07-03T00:00:00Z"),
+        activity(4, "32", "update", "2026-07-04T00:00:00Z"),
+      ],
+      allLinkRevisions: [
+        revision(11, "31", 1, "create", "2026-07-01T00:00:00Z",
+          { url: "https://a.test/old", kind: "download", label: null, sort: 1, games_id: 7 }, {}),
+        revision(12, "31", 2, "update", "2026-07-02T00:00:00Z",
+          { url: "https://b.test/new", kind: "download", label: null, sort: 1 }, { url: "https://b.test/new" }),
+        revision(13, "31", 3, "update", "2026-07-03T00:00:00Z",
+          { url: "https://b.test/new", kind: "download", label: null, sort: 2 }, { sort: 2 }),
+        revision(14, "32", 4, "update", "2026-07-04T00:00:00Z",
+          { url: "https://youtube.com/@x", kind: "other", label: null }, { kind: "other" }),
+      ],
+    });
+
+    expect(entries.map(({ title }) => title)).toEqual([
+      "Other Link Updated",
+      "Download Updated",
+      "Download Added",
+    ]);
+    expect(entries[2].bodyHtml).toBe(
+      '<ul class="history-changes"><li><strong>URL</strong>: '
+        + '<a href="https://a.test/old" target="_blank" rel="noopener noreferrer">https://a.test/old</a></li>'
+        + "<li><strong>Kind</strong>: Download</li></ul>",
+    );
+    expect(entries[1].bodyHtml).toContain(
+      '<a href="https://a.test/old" target="_blank" rel="noopener noreferrer">https://a.test/old</a>'
+        + ' \u2192 <a href="https://b.test/new" target="_blank" rel="noopener noreferrer">https://b.test/new</a>',
+    );
+    expect(entries[0].bodyHtml).toContain("<strong>Kind</strong>: \u2014 \u2192 Other link");
+  });
+});
+
 describe("deltaLinesToHtml", () => {
   it("links play status, release status, section style, and year values", () => {
     expect(deltaLinesToHtml("**Play Status**: In Progress \u2192 Waiting for Update")).toBe(

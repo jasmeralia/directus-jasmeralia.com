@@ -62,7 +62,7 @@ const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // Delta-line labels whose values are URLs, rendered as clickable links.
-const URL_LABELS = new Set(["Download URL", "Walkthrough URL", "GameStoryLog URL"]);
+const URL_LABELS = new Set(["URL", "Download URL", "Walkthrough URL", "GameStoryLog URL"]);
 const isHttpUrl = (value: string) => /^https?:\/\/\S+$/i.test(value);
 
 // Render one "**Label**: value" or "**Label**: old \u2192 new" delta line,
@@ -149,6 +149,51 @@ function recordTitle(value: unknown): string {
   return typeof value === "string" && value.trim() ? value : "Untitled";
 }
 
+const LINK_KIND_LABELS: Record<string, string> = {
+  download: "Download",
+  walkthrough: "Walkthrough",
+  "text-note": "Walkthrough note",
+  other: "Other link",
+  gamestorylog: "GameStoryLog",
+};
+
+const LINK_EVENT_TITLES: Record<string, string> = {
+  walkthrough: "Walkthrough",
+  "text-note": "Walkthrough",
+  other: "Other Link",
+  gamestorylog: "GameStoryLog Link",
+};
+
+// Describe a games_links revision: every populated field for a new link, or
+// the changed fields (old -> new) for an update. Sort-only edits yield "".
+function fmtLinkDelta(
+  delta: Record<string, unknown>,
+  prev: Record<string, unknown> | null,
+  data: Record<string, unknown> | null,
+  isCreate: boolean,
+): string {
+  const source = isCreate ? (data ?? delta) : delta;
+  const show = (field: string, value: unknown) =>
+    field === "kind" && typeof value === "string" ? (LINK_KIND_LABELS[value] ?? value) : String(value);
+  const lines: string[] = [];
+  for (const [field, label] of [["url", "URL"], ["kind", "Kind"], ["label", "Label"]] as const) {
+    if (!(field in source)) continue;
+    const next = source[field];
+    const before = isCreate ? null : (prev?.[field] ?? null);
+    if (next === before || (next === null && before === null)) continue;
+    if (isCreate) {
+      if (next !== null && next !== undefined && next !== "") lines.push(`**${label}**: ${show(field, next)}`);
+    } else {
+      lines.push(
+        `**${label}**: ${before === null ? "\u2014" : show(field, before)} \u2192 ${
+          next === null ? "\u2014" : show(field, next)
+        }`,
+      );
+    }
+  }
+  return lines.join("\n");
+}
+
 export function buildGameHistory(params: {
   gameId: number;
   reviews: Review[];
@@ -166,6 +211,8 @@ export function buildGameHistory(params: {
   allTierCreateActivities: Activity[];
   allTierRevisions: Revision[];
   allLinkActivities: Activity[];
+  // games_links revisions, so link events can show what was added or changed.
+  allLinkRevisions?: Revision[];
   allBundleMemberRevisions: Revision[];
 }): HistoryEntry[] {
   const reviewIds = params.reviews.map((review) => review.id);
@@ -324,20 +371,40 @@ export function buildGameHistory(params: {
   }
 
   const linkMap = new Map(params.links.map((link) => [link.id, link]));
+  const linkRevisionsByItem = groupRevisionsByItem(
+    scopedRevisions(params.allLinkRevisions ?? [], linkIds),
+  );
   for (const activity of linkActivities) {
     const link = linkMap.get(Number(activity.item));
     if (!link) continue;
-    const isWalkthrough = link.kind === "walkthrough" || link.kind === "text-note";
-    const kindLabel = isWalkthrough ? "Walkthrough" : "Download";
+    const kindLabel = LINK_EVENT_TITLES[link.kind ?? ""] ?? "Download";
+    const isCreate = activity.action !== "update";
+    const itemRevisions = linkRevisionsByItem.get(String(activity.item)) ?? [];
+    const revisionIndex = itemRevisions.findIndex((rev) => rev.activity?.id === activity.id);
+    let body = "";
+    if (revisionIndex >= 0) {
+      const revision = itemRevisions[revisionIndex];
+      body = fmtLinkDelta(
+        revision.delta ?? {},
+        itemRevisions[revisionIndex + 1]?.data ?? null,
+        revision.data ?? null,
+        isCreate,
+      );
+      // Nothing displayable changed (e.g. only the sort order): not an event.
+      if (!isCreate && !body) continue;
+    } else if (link.url) {
+      body = `**URL**: ${link.url}`;
+    }
     entries.push({
       date: requireHistoryDate(
         activity.timestamp,
         `games link activity ${activity.id}`,
       ),
-      title: `${kindLabel} ${activity.action === "update" ? "Updated" : "Added"}`,
-      bodyHtml: "",
+      title: `${kindLabel} ${isCreate ? "Added" : "Updated"}`,
+      bodyHtml: deltaLinesToHtml(body),
     });
   }
+
 
   entries.sort((a, b) => b.date.getTime() - a.date.getTime());
   return entries;
