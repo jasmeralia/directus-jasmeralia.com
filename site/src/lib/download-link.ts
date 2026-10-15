@@ -75,6 +75,8 @@ const hostFromUrl = (value: string): string => {
   }
 };
 
+const GENERIC_LINK_ICON = "/icons/link.svg";
+
 const isSubscribeStarHost = (value: string | null | undefined): boolean =>
   /(^|\.)subscribestar\.(com|adult)$/.test(hostFromUrl(value ?? ""));
 
@@ -105,9 +107,12 @@ export const getUrlLinkMeta = (value: string | null | undefined): UrlLinkMeta =>
     // classify by getUrlPlatform, and adding it there would pull these links
     // out of the "Unknown" list without a SubscribeStar filter to land in.
     default:
-      return isSubscribeStarHost(value)
-        ? { icon: "/icons/simple/subscribestar.svg", label: "SubscribeStar", host }
-        : { icon: null, label: "Download", host };
+      if (isSubscribeStarHost(value)) {
+        return { icon: "/icons/simple/subscribestar.svg", label: "SubscribeStar", host };
+      }
+      // Unrecognised hosts get a generic link icon: with no icon the thumbnail
+      // cards render an empty anchor, which shows up as a gap between icons.
+      return { icon: host ? GENERIC_LINK_ICON : null, label: "Download", host };
   }
 };
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.231] - 2026-10-14
+- Thumbnails: download links to unrecognised sites (YouTube, DeviantArt, personal pages) now show a generic link icon instead of rendering as an empty anchor that left a gap between the store icons.
+
 ## [1.0.230] - 2026-10-14
 - Game page: SubscribeStar download links (`subscribestar.com` / `subscribestar.adult`) now show the SubscribeStar icon and label instead of the generic "Download (host)".
 

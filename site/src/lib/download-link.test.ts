@@ -102,6 +102,11 @@ describe("URL platform and metadata", () => {
       label: "GOG",
       host: "gog.com",
     });
+    expect(getUrlLinkMeta("https://www.youtube.com/@creator")).toEqual({
+      icon: "/icons/link.svg",
+      label: "Download",
+      host: "youtube.com",
+    });
     expect(getUrlLinkMeta("bad url")).toEqual({
       icon: null,
       label: "Download",
