@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
-import { downloadLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
+import { downloadLinks, otherLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
 import { effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
 import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, isSectionCategoryComplete, isSectionComplete, orderedSections, pluralizeNoun, sectionNoun, sectionProgressSummary } from "../../lib/game-sections";
@@ -293,6 +293,14 @@ const downloadEntries = downloadLinks(game.links).map((link) => {
       : `Download from ${linkMeta.label}`,
   };
 });
+const otherEntries = otherLinks(game.links).map((link) => {
+  const linkMeta = getLinkMeta(link);
+  return {
+    url: link.url,
+    linkMeta,
+    linkText: link.label || (linkMeta.label !== "Download" ? linkMeta.label : linkMeta.host) || link.url,
+  };
+});
 const walkthroughEntries = walkthroughLinks(game.links).map((link) => {
   const linkMeta = getLinkMeta(link);
   return {
@@ -444,7 +452,7 @@ const coverStackStyle = [
         </div>
         <div>
           <h1 data-pagefind-meta="title">{game.title}</h1>
-          {downloadEntries.length > 0 || gslLink ? (
+          {downloadEntries.length > 0 || gslLink || otherEntries.length > 0 ? (
             <div class="meta">
               {downloadEntries.map((entry) => (
                 <div>
@@ -464,6 +472,16 @@ const coverStackStyle = [
                   </a>
                 </div>
               ) : null}
+              {otherEntries.map((entry) => (
+                <div>
+                  <a class="download-link" href={entry.url} rel="noopener noreferrer" target="_blank">
+                    {entry.linkMeta.icon ? (
+                      <img class="platform-icon" src={entry.linkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
+                    ) : null}
+                    <span>{entry.linkText}</span>
+                  </a>
+                </div>
+              ))}
             </div>
           ) : null}
         </div>

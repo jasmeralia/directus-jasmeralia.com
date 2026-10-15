@@ -22,6 +22,12 @@ export const downloadLinks = (links: GameLink[] | null | undefined): GameLink[] 
   return links.filter((l) => l.kind === "download").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));
 };
 
+// Contextual non-download links (social pages, support pages, boards, ...).
+export const otherLinks = (links: GameLink[] | null | undefined): GameLink[] => {
+  if (!links?.length) return [];
+  return links.filter((l) => l.kind === "other").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));
+};
+
 export const primaryDownloadLink = (links: GameLink[] | null | undefined): GameLink | null =>
   downloadLinks(links)[0] ?? null;
 

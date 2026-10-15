@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.232] - 2026-10-14
+- Game page: show a game's "other" links (social pages, support pages, boards) below the download and GameStoryLog links.
+
 ## [1.0.231] - 2026-10-14
 - Thumbnails: download links to unrecognised sites (YouTube, DeviantArt, personal pages) now show a generic link icon instead of rendering as an empty anchor that left a gap between the store icons.
 

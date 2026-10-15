@@ -7,6 +7,7 @@ import {
   getUrlLinkMeta,
   getUrlPlatform,
   isMissingDownloadLink,
+  otherLinks,
   primaryDownloadLink,
   walkthroughLinks,
   walkthroughTextNotes,
@@ -21,6 +22,19 @@ const links: GameLink[] = [
   { url: "https://example.test/unsorted", kind: "download", sort: null },
   { url: "https://example.test/first", kind: "download", sort: 2 },
 ];
+
+describe("other links", () => {
+  it("selects only other-kind links, sorted with null sort values last", () => {
+    expect(
+      otherLinks([
+        { url: "https://x.test/dl", kind: "download", sort: 1 },
+        { url: "https://x.test/b", kind: "other", sort: null },
+        { url: "https://x.test/a", kind: "other", sort: 2 },
+      ]).map(({ url }) => url),
+    ).toEqual(["https://x.test/a", "https://x.test/b"]);
+    expect(otherLinks(undefined)).toEqual([]);
+  });
+});
 
 describe("game link selection", () => {
   it("filters and sorts download links with null sort values last", () => {
