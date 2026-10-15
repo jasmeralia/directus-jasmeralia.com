@@ -120,6 +120,7 @@ export async function getStaticPaths() {
     allTierCreateActivities,
     allLinkActivities,
     allLinkRevisions,
+    allGenreActivities,
     genresByGame,
     allGameVersions,
   ] = await Promise.all([
@@ -149,6 +150,7 @@ export async function getStaticPaths() {
     fetchActivity('tier_list_games', 'create', -1),
     fetchActivity('games_links', ['create', 'update'], -1),
     fetchRevisions('games_links', -1),
+    fetchActivity('games_genres', 'create', -1),
     fetchAllGameGenres(),
     directusFetchItems('game_versions', {
       fields: ['id', 'games_id', 'source', 'reported_version', 'comparison_override', 'override_reason', 'source_reference', 'installation_key', 'release_date', 'recorded_at', 'is_current'],
@@ -202,6 +204,10 @@ export async function getStaticPaths() {
         allTierRevisions,
         allLinkActivities,
         allLinkRevisions,
+        allGenreActivities,
+        genreLinks: (game.genres ?? [])
+          .filter((entry) => entry?.id && entry?.genres_id?.name)
+          .map((entry) => ({ id: entry.id, name: entry.genres_id.name })),
         allBundleMemberRevisions,
       });
 

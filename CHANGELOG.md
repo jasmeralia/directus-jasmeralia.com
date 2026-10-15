@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.235] - 2026-10-15
+- History: genres added to a game after it was created now show as "Genre Added" events (with a link to the genre page), and "Game Added" lists only the genres it was created with. Genre removals are still not shown: Directus keeps no data on removed junction rows, so they can't be tied to a game.
+
 ## [1.0.234] - 2026-10-15
 - History: link events are now titled "Download Link Added/Updated" (likewise Walkthrough, Other and GameStoryLog), and every update names the link it is about, so a kind or label change is no longer ambiguous when a game has several links.
 

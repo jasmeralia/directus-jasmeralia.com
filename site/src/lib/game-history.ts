@@ -78,7 +78,7 @@ function deltaLineToHtml(line: string, genreSlugs: Record<string, string>): stri
     `<a href="${escapeHtml(href)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ""}>${escapeHtml(text)}</a>`;
   let render: ((shown: string) => string) | null = null;
   let separator = " \u2192 ";
-  if (label === "Genres") {
+  if (label === "Genres" || label === "Genre") {
     separator = ", ";
     render = (name) => (genreSlugs[name] ? link(`/genres/${genreSlugs[name]}/index.html`, name) : escapeHtml(name));
   } else if (URL_LABELS.has(label)) {
@@ -149,6 +149,10 @@ function recordTitle(value: unknown): string {
   return typeof value === "string" && value.trim() ? value : "Untitled";
 }
 
+// Genres whose junction row was created within this long of the game itself
+// belong to the "Game Added" entry rather than being separate events.
+const GENRE_CREATION_WINDOW_MS = 5 * 60 * 1000;
+
 const LINK_KIND_LABELS: Record<string, string> = {
   download: "Download",
   walkthrough: "Walkthrough",
@@ -215,8 +219,15 @@ export function buildGameHistory(params: {
   bundleMembers: BundleMember[];
   sections?: GameSection[] | null;
   genres: string[];
-  // Genre name -> slug, so the new-game entry's genre list can link to genre pages.
+  // Genre name -> slug, so genre names in History can link to genre pages.
   genreSlugs?: Record<string, string>;
+  // The game's current games_genres rows (join id + genre name) and every
+  // games_genres create activity. Genres added shortly after the game was
+  // created stay in "Game Added"; later ones become "Genre Added" events.
+  // Directus keeps no data on junction revisions, so removals can't be
+  // attributed to a game and are not shown.
+  genreLinks?: { id: number; name: string }[];
+  allGenreActivities?: Activity[];
   // Collection-wide revisions/activity, fetched once by the caller and
   // reused across every game (see scopedRevisions/scopedActivity above).
   allGameRevisions: Revision[];
@@ -239,9 +250,37 @@ export function buildGameHistory(params: {
   const tierRevisions = scopedRevisions(params.allTierRevisions, tierEntryIds);
   const linkActivities = scopedActivity(params.allLinkActivities, linkIds);
   const bundleMemberRevisions = scopedRevisions(params.allBundleMemberRevisions, bundleMemberIds);
-  const genres = params.genres;
+  // Lenient on purpose: a missing/invalid timestamp is reported, with context,
+  // by the per-revision loop below.
+  const firstTimestamp = gameRevisions[gameRevisions.length - 1]?.activity?.timestamp;
+  const createdAtValue = firstTimestamp ? new Date(firstTimestamp) : null;
+  const createdAt = createdAtValue && !Number.isNaN(createdAtValue.getTime()) ? createdAtValue : null;
+  const genreActivities = new Map(
+    scopedActivity(params.allGenreActivities ?? [], (params.genreLinks ?? []).map((g) => g.id)).map(
+      (activity) => [Number(activity.item), activity],
+    ),
+  );
+  const initialGenres: string[] = [];
+  const addedGenres: { name: string; date: Date }[] = [];
+  for (const genre of params.genreLinks ?? []) {
+    const activity = genreActivities.get(genre.id);
+    const when = activity ? requireHistoryDate(activity.timestamp, `games_genres activity ${activity.id}`) : null;
+    if (!when || !createdAt || when.getTime() - createdAt.getTime() <= GENRE_CREATION_WINDOW_MS) {
+      initialGenres.push(genre.name);
+    } else {
+      addedGenres.push({ name: genre.name, date: when });
+    }
+  }
+  const genres = params.genreLinks ? initialGenres : params.genres;
 
   const entries: HistoryEntry[] = [];
+  for (const genre of addedGenres) {
+    entries.push({
+      date: genre.date,
+      title: "Genre Added",
+      bodyHtml: deltaLinesToHtml(`**Genre**: ${genre.name}`, params.genreSlugs),
+    });
+  }
 
   for (const [index, revision] of gameRevisions.entries()) {
     const prevData = gameRevisions[index + 1]?.data ?? null;

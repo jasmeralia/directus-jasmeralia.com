@@ -452,6 +452,52 @@ describe("link history with sparse revision data", () => {
   });
 });
 
+describe("genre history", () => {
+  const revision = (timestamp: string, action: string, data: Record<string, unknown>) => ({
+    id: 1, item: "7", collection: "games", data, delta: data, activity: { id: 1, action, timestamp },
+  });
+  const genreActivity = (id: number, item: string, timestamp: string) => ({
+    id, item, action: "create", collection: "games_genres", timestamp,
+  });
+  const base = {
+    ...emptyHistoryInputs(),
+    gameId: 7,
+    reviews: [],
+    tierEntries: [],
+    links: [],
+    bundleMembers: [],
+    genreSlugs: { Adventure: "adventure", AVN: "avn" },
+    allGameRevisions: [revision("2026-10-10T23:03:02.487Z", "create", { title: "G" })],
+  };
+
+  it("keeps genres added with the game in Game Added and lists later ones as Genre Added", () => {
+    const entries = buildGameHistory({
+      ...base,
+      genres: [],
+      genreLinks: [{ id: 1, name: "Adventure" }, { id: 2, name: "AVN" }],
+      allGenreActivities: [
+        genreActivity(10, "1", "2026-10-10T23:03:02.614Z"),
+        genreActivity(11, "2", "2026-10-15T13:13:41.517Z"),
+        genreActivity(12, "99", "2026-10-15T13:13:41.517Z"), // another game's genre
+      ],
+    });
+    expect(entries.map(({ title }) => title)).toEqual(["Genre Added", "Game Added"]);
+    expect(entries[0].bodyHtml).toBe(
+      '<ul class="history-changes"><li><strong>Genre</strong>: <a href="/genres/avn/index.html">AVN</a></li></ul>',
+    );
+    expect(entries[1].bodyHtml).toContain('<a href="/genres/adventure/index.html">Adventure</a>');
+    expect(entries[1].bodyHtml).not.toContain("AVN");
+  });
+
+  it("keeps a genre with no recorded activity in Game Added, and falls back to genres without genreLinks", () => {
+    const withLink = buildGameHistory({ ...base, genres: [], genreLinks: [{ id: 1, name: "Adventure" }] });
+    expect(withLink.map(({ title }) => title)).toEqual(["Game Added"]);
+    expect(withLink[0].bodyHtml).toContain("Adventure");
+    const legacy = buildGameHistory({ ...base, genres: ["Mystery"] });
+    expect(legacy[0].bodyHtml).toContain("Mystery");
+  });
+});
+
 describe("deltaLinesToHtml", () => {
   it("links play status, release status, section style, and year values", () => {
     expect(deltaLinesToHtml("**Play Status**: In Progress \u2192 Waiting for Update")).toBe(
