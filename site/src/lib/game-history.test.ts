@@ -185,8 +185,8 @@ describe("buildGameHistory", () => {
       "Included Game Updated - Current Member",
       "Added to Tier List — Favorites (B)",
       "Tier Changed — Favorites (A → B)",
-      "Walkthrough Added",
-      "Download Updated",
+      "Walkthrough Link Added",
+      "Download Link Updated",
       "Included Game Added - Current Member",
       "Game Added",
     ]);
@@ -341,8 +341,8 @@ describe("link history details", () => {
 
     expect(entries.map(({ title }) => title)).toEqual([
       "Other Link Updated",
-      "Download Updated",
-      "Download Added",
+      "Download Link Updated",
+      "Download Link Added",
     ]);
     expect(entries[2].bodyHtml).toBe(
       '<ul class="history-changes"><li><strong>URL</strong>: '
@@ -353,7 +353,102 @@ describe("link history details", () => {
       '<a href="https://a.test/old" target="_blank" rel="noopener noreferrer">https://a.test/old</a>'
         + ' \u2192 <a href="https://b.test/new" target="_blank" rel="noopener noreferrer">https://b.test/new</a>',
     );
-    expect(entries[0].bodyHtml).toContain("<strong>Kind</strong>: \u2014 \u2192 Other link");
+    // A kind-only change still names the link it is about.
+    expect(entries[0].bodyHtml).toBe(
+      '<ul class="history-changes"><li><strong>URL</strong>: '
+        + '<a href="https://youtube.com/@x" target="_blank" rel="noopener noreferrer">https://youtube.com/@x</a></li>'
+        + "<li><strong>Kind</strong>: \u2014 \u2192 Other link</li></ul>",
+    );
+  });
+});
+
+describe("link history identity", () => {
+  it("names the link on a label-only or kind-only update when earlier revisions exist", () => {
+    const rev = (id: number, activityId: number, action: string, data: Record<string, unknown>, delta: Record<string, unknown>) => ({
+      id, item: "40", collection: "games_links", data, delta,
+      activity: { id: activityId, action, timestamp: `2026-07-0${activityId}T00:00:00Z` },
+    });
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [{ id: 40, kind: "other", url: "https://bsky.app/profile/x" }],
+      bundleMembers: [],
+      allLinkActivities: [
+        { id: 1, item: "40", action: "create", collection: "games_links", timestamp: "2026-07-01T00:00:00Z" },
+        { id: 2, item: "40", action: "update", collection: "games_links", timestamp: "2026-07-02T00:00:00Z" },
+        { id: 3, item: "40", action: "update", collection: "games_links", timestamp: "2026-07-03T00:00:00Z" },
+      ],
+      allLinkRevisions: [
+        rev(1, 1, "create", { url: "https://bsky.app/profile/x", kind: "download", label: null }, {}),
+        rev(2, 2, "update", { url: "https://bsky.app/profile/x", kind: "other", label: null }, { kind: "other" }),
+        rev(3, 3, "update", { url: "https://bsky.app/profile/x", kind: "other", label: "Bluesky" }, { label: "Bluesky" }),
+      ],
+    });
+    const link = '<li><strong>URL</strong>: <a href="https://bsky.app/profile/x" target="_blank" rel="noopener noreferrer">https://bsky.app/profile/x</a></li>';
+    expect(entries.map(({ title }) => title)).toEqual(["Other Link Updated", "Other Link Updated", "Other Link Added"]);
+    expect(entries[0].bodyHtml).toBe(`<ul class="history-changes">${link}<li><strong>Label</strong>: \u2014 \u2192 Bluesky</li></ul>`);
+    expect(entries[1].bodyHtml).toBe(`<ul class="history-changes">${link}<li><strong>Kind</strong>: Download \u2192 Other link</li></ul>`);
+  });
+});
+
+describe("link history with sparse revision data", () => {
+  const act = (id: number, item: string, action: string, day: number) => ({
+    id, item, action, collection: "games_links", timestamp: `2026-07-${String(day).padStart(2, "0")}T00:00:00Z`,
+  });
+  const rev = (
+    id: number, item: string, activityId: number, action: string, day: number,
+    data: Record<string, unknown> | null, delta: Record<string, unknown> | null,
+  ) => ({ id, item, collection: "games_links", data, delta, activity: { id: activityId, action, timestamp: act(activityId, item, action, day).timestamp } });
+
+  const entries = buildGameHistory({
+    ...emptyHistoryInputs(),
+    gameId: 7,
+    reviews: [],
+    tierEntries: [],
+    links: [
+      { id: 50 },
+      { id: 51, kind: "mystery", url: "https://m.test/x" },
+      { id: 52, kind: "other", url: "https://n.test" },
+    ],
+    bundleMembers: [],
+    allLinkActivities: [
+      act(1, "51", "create", 1), act(2, "51", "update", 2), act(3, "51", "update", 3), act(4, "51", "update", 4),
+      act(6, "52", "create", 6), act(7, "52", "update", 7),
+      act(8, "50", "update", 8), act(9, "50", "update", 9),
+      act(10, "99", "create", 10), // link since deleted
+    ],
+    allLinkRevisions: [
+      rev(1, "51", 1, "create", 1, null, { url: "https://m.test/x", kind: "mystery" }),
+      rev(2, "51", 2, "update", 2, null, null),
+      rev(3, "51", 3, "update", 3, null, { url: "https://m.test/y" }),
+      rev(4, "51", 4, "update", 4, null, { kind: "download" }),
+      rev(6, "52", 6, "create", 6, { url: "https://n.test", kind: "other", label: "Old" }, {}),
+      rev(7, "52", 7, "update", 7, { url: "https://n.test", kind: "other", label: null }, { label: null }),
+      rev(9, "50", 9, "update", 9, null, { kind: "other" }),
+    ],
+  });
+  const body = (day: number) =>
+    entries.find(({ date }) => date.getUTCDate() === day)?.bodyHtml ?? "(missing)";
+  const link = (url: string) => `<strong>URL</strong>: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+
+  it("falls back to the revision delta, shows unknown kinds raw, and skips empty updates", () => {
+    expect(body(1)).toBe(`<ul class="history-changes"><li>${link("https://m.test/x")}</li><li><strong>Kind</strong>: mystery</li></ul>`);
+    expect(body(2)).toBe("(missing)");
+  });
+
+  it("shows a URL change with no earlier value, and falls back to the link's current URL", () => {
+    expect(body(3)).toBe(`<ul class="history-changes"><li><strong>URL</strong>: \u2014 \u2192 <a href="https://m.test/y" target="_blank" rel="noopener noreferrer">https://m.test/y</a></li></ul>`);
+    expect(body(4)).toBe(`<ul class="history-changes"><li>${link("https://m.test/x")}</li><li><strong>Kind</strong>: \u2014 \u2192 Download</li></ul>`);
+  });
+
+  it("shows a cleared label, and handles links with no URL or kind", () => {
+    expect(body(7)).toBe(`<ul class="history-changes"><li>${link("https://n.test")}</li><li><strong>Label</strong>: Old \u2192 \u2014</li></ul>`);
+    expect(body(8)).toBe("");
+    expect(body(9)).toBe('<ul class="history-changes"><li><strong>Kind</strong>: \u2014 \u2192 Other link</li></ul>');
+    expect(entries.find(({ date }) => date.getUTCDate() === 8)?.title).toBe("Download Link Updated");
+    expect(body(10)).toBe("(missing)");
   });
 });
 
