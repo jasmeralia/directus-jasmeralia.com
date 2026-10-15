@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.234] - 2026-10-15
+- History: link events are now titled "Download Link Added/Updated" (likewise Walkthrough, Other and GameStoryLog), and every update names the link it is about, so a kind or label change is no longer ambiguous when a game has several links.
+
 ## [1.0.233] - 2026-10-15
 - History: download, walkthrough and other-link events now show the link's URL (clickable), kind and label when added, and the old to new values when changed, instead of just "Download Updated". Sort-only edits no longer produce an entry, and other/GameStoryLog links get their own event titles.
 - Game page: "other" links read "Visit YouTube", "Visit Bluesky", "Visit X (Twitter)" and so on (the link's own label if it has one, else "Visit <host>") instead of the bare hostname.

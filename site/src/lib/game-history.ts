@@ -158,40 +158,53 @@ const LINK_KIND_LABELS: Record<string, string> = {
 };
 
 const LINK_EVENT_TITLES: Record<string, string> = {
-  walkthrough: "Walkthrough",
-  "text-note": "Walkthrough",
+  walkthrough: "Walkthrough Link",
+  "text-note": "Walkthrough Link",
   other: "Other Link",
   gamestorylog: "GameStoryLog Link",
 };
 
-// Describe a games_links revision: every populated field for a new link, or
-// the changed fields (old -> new) for an update. Sort-only edits yield "".
+// Describe a games_links revision. A new link lists its URL, kind and label.
+// An update always leads with the URL (old -> new if the URL itself changed) so
+// the entry names which link it is about, then any changed kind/label. Returns
+// "" for an update that changed nothing displayable (e.g. only the sort order).
 function fmtLinkDelta(
   delta: Record<string, unknown>,
   prev: Record<string, unknown> | null,
   data: Record<string, unknown> | null,
   isCreate: boolean,
+  currentUrl: string | undefined,
 ): string {
-  const source = isCreate ? (data ?? delta) : delta;
   const show = (field: string, value: unknown) =>
     field === "kind" && typeof value === "string" ? (LINK_KIND_LABELS[value] ?? value) : String(value);
+  const dash = "\u2014";
   const lines: string[] = [];
-  for (const [field, label] of [["url", "URL"], ["kind", "Kind"], ["label", "Label"]] as const) {
-    if (!(field in source)) continue;
-    const next = source[field];
-    const before = isCreate ? null : (prev?.[field] ?? null);
-    if (next === before || (next === null && before === null)) continue;
-    if (isCreate) {
-      if (next !== null && next !== undefined && next !== "") lines.push(`**${label}**: ${show(field, next)}`);
-    } else {
-      lines.push(
-        `**${label}**: ${before === null ? "\u2014" : show(field, before)} \u2192 ${
-          next === null ? "\u2014" : show(field, next)
-        }`,
-      );
+  if (isCreate) {
+    const source = data ?? delta;
+    for (const [field, label] of [["url", "URL"], ["kind", "Kind"], ["label", "Label"]] as const) {
+      const value = source[field];
+      if (value !== null && value !== undefined && value !== "") lines.push(`**${label}**: ${show(field, value)}`);
     }
+    return lines.join("\n");
   }
-  return lines.join("\n");
+  const changes: string[] = [];
+  for (const [field, label] of [["kind", "Kind"], ["label", "Label"]] as const) {
+    if (!(field in delta) || delta[field] === (prev?.[field] ?? null)) continue;
+    const before = prev?.[field] ?? null;
+    const next = delta[field] ?? null;
+    changes.push(
+      `**${label}**: ${before === null ? dash : show(field, before)} \u2192 ${next === null ? dash : show(field, next)}`,
+    );
+  }
+  const urlChanged = "url" in delta && delta.url !== (prev?.url ?? null);
+  if (!urlChanged && !changes.length) return "";
+  const url = (data?.url ?? currentUrl) as string | undefined;
+  const urlLine = urlChanged
+    ? `**URL**: ${prev?.url ? String(prev.url) : dash} \u2192 ${String(delta.url)}`
+    : url
+      ? `**URL**: ${url}`
+      : "";
+  return [urlLine, ...changes].filter(Boolean).join("\n");
 }
 
 export function buildGameHistory(params: {
@@ -377,7 +390,7 @@ export function buildGameHistory(params: {
   for (const activity of linkActivities) {
     const link = linkMap.get(Number(activity.item));
     if (!link) continue;
-    const kindLabel = LINK_EVENT_TITLES[link.kind ?? ""] ?? "Download";
+    const kindLabel = LINK_EVENT_TITLES[link.kind ?? ""] ?? "Download Link";
     const isCreate = activity.action !== "update";
     const itemRevisions = linkRevisionsByItem.get(String(activity.item)) ?? [];
     const revisionIndex = itemRevisions.findIndex((rev) => rev.activity?.id === activity.id);
@@ -389,6 +402,7 @@ export function buildGameHistory(params: {
         itemRevisions[revisionIndex + 1]?.data ?? null,
         revision.data ?? null,
         isCreate,
+        link.url,
       );
       // Nothing displayable changed (e.g. only the sort order): not an event.
       if (!isCreate && !body) continue;

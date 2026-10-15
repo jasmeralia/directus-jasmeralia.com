@@ -185,8 +185,8 @@ describe("buildGameHistory", () => {
       "Included Game Updated - Current Member",
       "Added to Tier List — Favorites (B)",
       "Tier Changed — Favorites (A → B)",
-      "Walkthrough Added",
-      "Download Updated",
+      "Walkthrough Link Added",
+      "Download Link Updated",
       "Included Game Added - Current Member",
       "Game Added",
     ]);
@@ -341,8 +341,8 @@ describe("link history details", () => {
 
     expect(entries.map(({ title }) => title)).toEqual([
       "Other Link Updated",
-      "Download Updated",
-      "Download Added",
+      "Download Link Updated",
+      "Download Link Added",
     ]);
     expect(entries[2].bodyHtml).toBe(
       '<ul class="history-changes"><li><strong>URL</strong>: '
@@ -353,7 +353,43 @@ describe("link history details", () => {
       '<a href="https://a.test/old" target="_blank" rel="noopener noreferrer">https://a.test/old</a>'
         + ' \u2192 <a href="https://b.test/new" target="_blank" rel="noopener noreferrer">https://b.test/new</a>',
     );
-    expect(entries[0].bodyHtml).toContain("<strong>Kind</strong>: \u2014 \u2192 Other link");
+    // A kind-only change still names the link it is about.
+    expect(entries[0].bodyHtml).toBe(
+      '<ul class="history-changes"><li><strong>URL</strong>: '
+        + '<a href="https://youtube.com/@x" target="_blank" rel="noopener noreferrer">https://youtube.com/@x</a></li>'
+        + "<li><strong>Kind</strong>: \u2014 \u2192 Other link</li></ul>",
+    );
+  });
+});
+
+describe("link history identity", () => {
+  it("names the link on a label-only or kind-only update when earlier revisions exist", () => {
+    const rev = (id: number, activityId: number, action: string, data: Record<string, unknown>, delta: Record<string, unknown>) => ({
+      id, item: "40", collection: "games_links", data, delta,
+      activity: { id: activityId, action, timestamp: `2026-07-0${activityId}T00:00:00Z` },
+    });
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [{ id: 40, kind: "other", url: "https://bsky.app/profile/x" }],
+      bundleMembers: [],
+      allLinkActivities: [
+        { id: 1, item: "40", action: "create", collection: "games_links", timestamp: "2026-07-01T00:00:00Z" },
+        { id: 2, item: "40", action: "update", collection: "games_links", timestamp: "2026-07-02T00:00:00Z" },
+        { id: 3, item: "40", action: "update", collection: "games_links", timestamp: "2026-07-03T00:00:00Z" },
+      ],
+      allLinkRevisions: [
+        rev(1, 1, "create", { url: "https://bsky.app/profile/x", kind: "download", label: null }, {}),
+        rev(2, 2, "update", { url: "https://bsky.app/profile/x", kind: "other", label: null }, { kind: "other" }),
+        rev(3, 3, "update", { url: "https://bsky.app/profile/x", kind: "other", label: "Bluesky" }, { label: "Bluesky" }),
+      ],
+    });
+    const link = '<li><strong>URL</strong>: <a href="https://bsky.app/profile/x" target="_blank" rel="noopener noreferrer">https://bsky.app/profile/x</a></li>';
+    expect(entries.map(({ title }) => title)).toEqual(["Other Link Updated", "Other Link Updated", "Other Link Added"]);
+    expect(entries[0].bodyHtml).toBe(`<ul class="history-changes">${link}<li><strong>Label</strong>: \u2014 \u2192 Bluesky</li></ul>`);
+    expect(entries[1].bodyHtml).toBe(`<ul class="history-changes">${link}<li><strong>Kind</strong>: Download \u2192 Other link</li></ul>`);
   });
 });
 
