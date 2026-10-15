@@ -134,6 +134,8 @@ Use `https://directus.jasmer.tools` (public URL) — `truenas.local` is not reac
 
 **After triggering a rebuild, always monitor it to completion via OpenSearch.** Record the exact trigger time before firing, then poll until a `Build/publish completed successfully.` or `Build/publish FAILED` line appears with a timestamp **strictly after** the trigger time. Never match the most-recent completed line without verifying its timestamp is newer than the trigger — the previous build's completion line will otherwise cause a false early exit. Notify the user of the result. Use the query from the "Checking build logs" section above, filtered to the last few `Build/publish` and `Starting build` lines.
 
+**Report a change summary to the user BEFORE starting any multi-minute wait on a build, deploy, or publish.** Before a rebuild-monitor loop, `gh run watch`, `truenas-app` redeploy watch, or similar, first post a plain-text summary of what changed and what is being waited on: which files/records were touched, how many rows were written or updated, and any data fixes made along the way. The user needs that detail up front to tell whether the work matches what they wanted and to steer early, rather than having to interrupt a long-running tool call just to find out what was done. Do not put the summary only in the final message after the wait finishes.
+
 ## Typography rules
 
 **Never use smart quotes, em-dashes, or en-dashes in source code, labels, or content strings.** Use only ASCII equivalents: straight quotes (`'` and `"`), hyphens (`-`). Smart punctuation (`"`, `"`, `'`, `'`, `—`, `–`) causes rendering inconsistencies and sorting anomalies.
@@ -194,6 +196,8 @@ Both files must be updated in the same commit as the site changes. Never batch m
 **Never make schema changes (field creation/deletion, relation changes, collection modifications) without explicit user confirmation — even if the user has discussed or approved the plan.** Discussion is not authorization. Wait for a clear "go ahead" directed at the specific schema change before touching `/fields`, `/relations`, or `/collections` endpoints.
 
 **Always take a full-database `pg_dump` before any delete or schema change — no exceptions, no minimum size threshold, and never scoped to just the table(s) you think are affected.** This includes single-record deletes, game merges, link cleanup, junction sweeps, field creation/deletion, and collection modifications. Schema changes routinely touch Directus system tables you wouldn't think to check (`directus_fields`, `directus_relations`, `directus_permissions`, `directus_presets`, `directus_flows`/`directus_operations`, `directus_revisions`, `directus_activity`, etc.) — a `pg_dump -t <table>` scoped to only the "obviously affected" tables is not an acceptable substitute and can leave a restore inconsistent. Always dump the whole `directus` database. Use `pg_dump` via the `cms-db` container on TrueNAS; it produces a complete, binary-compatible dump that restores in seconds.
+
+**Purely additive data writes do not need a backup.** Creating new rows (e.g. adding `games_links`/`developers_links` entries) or updating field values on existing rows, without deleting anything or touching the schema, is not covered by this rule - skip the dump.
 
 ```bash
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
