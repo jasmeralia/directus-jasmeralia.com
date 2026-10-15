@@ -3,177 +3,98 @@ import { describe, expect, it, vi } from "vitest";
 import { mockDirectusFetch } from "../test/directus-mock";
 import { fetchRecentUpdates, formatUpdateTimestamp } from "./recentUpdates";
 
-const baseRoutes = (gameRevisions: unknown[]) => [
-  { match: "/revisions?filter[collection][_eq]=games", data: gameRevisions },
-  { match: "/revisions?filter[collection][_eq]=reviews", data: [] },
-  { match: "/revisions?filter[collection][_eq]=game_bundle_members", data: [] },
-  { match: "/activity?filter[collection][_eq]=tier_list_games", data: [] },
-  { match: "/revisions?filter[collection][_eq]=tier_lists", data: [] },
-];
+type FeedFixture = {
+  games?: unknown[];
+  reviews?: unknown[];
+  tierLists?: unknown[];
+  bundleMembers?: unknown[];
+  sections?: unknown[];
+  links?: unknown[];
+  tierActivities?: unknown[];
+  linkActivities?: unknown[];
+  genreActivities?: unknown[];
+  gameRows?: unknown[];
+  reviewRows?: unknown[];
+  tierListRows?: unknown[];
+  bundleMemberRows?: unknown[];
+  sectionRows?: unknown[];
+  linkRows?: unknown[];
+  genreRows?: unknown[];
+  tierGameRows?: unknown[];
+};
+
+function mockFeed(fixture: FeedFixture = {}) {
+  mockDirectusFetch([
+    { match: /\/revisions\?.*collection\]\[_eq\]=games(?:&|$)/, data: fixture.games ?? [] },
+    { match: /\/revisions\?.*collection\]\[_eq\]=reviews(?:&|$)/, data: fixture.reviews ?? [] },
+    { match: /\/revisions\?.*collection\]\[_eq\]=tier_lists(?:&|$)/, data: fixture.tierLists ?? [] },
+    { match: /\/revisions\?.*collection\]\[_eq\]=game_bundle_members(?:&|$)/, data: fixture.bundleMembers ?? [] },
+    { match: /\/revisions\?.*collection\]\[_eq\]=game_sections(?:&|$)/, data: fixture.sections ?? [] },
+    { match: /\/revisions\?.*collection\]\[_eq\]=games_links(?:&|$)/, data: fixture.links ?? [] },
+    { match: /\/activity\?.*tier_list_games(?:&|$)/, data: fixture.tierActivities ?? [] },
+    { match: /\/activity\?.*games_links(?:&|$)/, data: fixture.linkActivities ?? [] },
+    { match: /\/activity\?.*games_genres(?:&|$)/, data: fixture.genreActivities ?? [] },
+    { match: /\/items\/tier_list_games\?/, data: fixture.tierGameRows ?? [] },
+    { match: /\/items\/games_links\?/, data: fixture.linkRows ?? [] },
+    { match: /\/items\/reviews\?/, data: fixture.reviewRows ?? [] },
+    { match: /\/items\/tier_lists\?/, data: fixture.tierListRows ?? [] },
+    { match: /\/items\/game_bundle_members\?/, data: fixture.bundleMemberRows ?? [] },
+    { match: /\/items\/games\?/, data: fixture.gameRows ?? [] },
+    { match: /\/items\/game_sections\?/, data: fixture.sectionRows ?? [] },
+    { match: /\/items\/games_genres\?/, data: fixture.genreRows ?? [] },
+  ]);
+}
+
+const rev = (id: number, item: number, data: Record<string, unknown>, delta: Record<string, unknown> | null, action: string, timestamp: string) => ({
+  id,
+  item: String(item),
+  collection: "games",
+  data,
+  delta,
+  activity: { id: id + 1000, action, timestamp },
+});
 
 describe("fetchRecentUpdates", () => {
-  it("builds each update kind and filters invalid or incomplete source rows", async () => {
-    mockDirectusFetch([
-      {
-        match: "/revisions?filter[collection][_eq]=games",
-        data: [
-          {
-            item: "1",
-            data: { title: "Added Game", slug: "stale-slug" },
-            delta: null,
-            activity: { action: "create", timestamp: "2026-08-10T12:00:00Z" },
-          },
-          {
-            item: "2",
-            data: { title: "Updated Game", slug: "snapshot-slug" },
-            delta: { player_status: "completed" },
-            activity: { action: "update", timestamp: "2026-08-09T12:00:00Z" },
-          },
-          {
-            item: "3",
-            data: { title: "Metadata Only", slug: "metadata-only" },
-            delta: {
-              slug: "metadata-only",
-              engines: [],
-              version_orion: "0.2",
-              version_typhoon: "0.3",
-              version_gsl: "0.4",
-            },
-            activity: { action: "update", timestamp: "2026-08-08T12:00:00Z" },
-          },
-          {
-            item: "4",
-            data: { title: "Invalid Date", slug: "invalid-date" },
-            delta: { title: "Invalid Date" },
-            activity: { action: "update", timestamp: "not-a-date" },
-          },
-          {
-            item: "5",
-            data: { slug: "no-title" },
-            delta: { title: "No Title" },
-            activity: { action: "update", timestamp: "2026-08-08T12:00:00Z" },
-          },
-        ],
-      },
-      {
-        match: "/revisions?filter[collection][_eq]=reviews",
-        data: [
-          {
-            item: "40",
-            data: { title: "Published Review", slug: "published-review", status: "published" },
-            delta: {},
-            activity: { action: "update", timestamp: "2026-08-08T12:00:00Z" },
-          },
-          {
-            item: "41",
-            data: { title: "New Review", slug: "new-review", status: "draft" },
-            delta: { status: "published" },
-            activity: { action: "update", timestamp: "2026-08-07T12:00:00Z" },
-          },
-          {
-            item: "42",
-            data: { title: "Draft Review", slug: "draft-review", status: "draft" },
-            delta: { title: "Draft Review" },
-            activity: { action: "update", timestamp: "2026-08-06T12:00:00Z" },
-          },
-        ],
-      },
-      {
-        match: "/revisions?filter[collection][_eq]=game_bundle_members",
-        data: [
-          {
-            item: "10",
-            data: { title: "Snapshot Member" },
-            delta: null,
-            activity: { action: "create", timestamp: "2026-08-06T12:00:00Z" },
-          },
-          {
-            item: "11",
-            data: { title: "Updated Member" },
-            delta: { current_section: 2 },
-            activity: { action: "update", timestamp: "2026-08-05T12:00:00Z" },
-          },
-          {
-            item: "12",
-            data: { title: "Orphan Member" },
-            delta: null,
-            activity: { action: "create", timestamp: "2026-08-04T12:00:00Z" },
-          },
-          {
-            item: "13",
-            data: { title: "Metadata Member" },
-            delta: { updated_at: "today" },
-            activity: { action: "update", timestamp: "2026-08-03T12:00:00Z" },
-          },
-        ],
-      },
-      {
-        match: "/activity?filter[collection][_eq]=tier_list_games",
-        data: [
-          { item: "20", timestamp: "2026-08-04T12:00:00Z" },
-          { item: "21", timestamp: "2026-08-03T12:00:00Z" },
-          { item: "22", timestamp: "bad-date" },
-        ],
-      },
-      {
-        match: "/revisions?filter[collection][_eq]=tier_lists",
-        data: [
-          {
-            item: "30",
-            data: { title: "Fresh Tier List", slug: "fresh-tier-list" },
-            delta: null,
-            activity: { action: "create", timestamp: "2026-08-03T18:00:00Z" },
-          },
-          {
-            item: "31",
-            data: { title: "Edited Tier List", slug: "edited-tier-list" },
-            delta: { title: "Edited Tier List" },
-            activity: { action: "update", timestamp: "2026-08-03T17:00:00Z" },
-          },
-          {
-            item: "32",
-            data: { title: "Missing Slug" },
-            delta: null,
-            activity: { action: "create", timestamp: "2026-08-03T16:00:00Z" },
-          },
-        ],
-      },
-      {
-        match: "/items/games?filter[id][_in]=1,2,3,4,5",
-        data: [
-          { id: 1, slug: "live-slug", genres: [{ genres_id: { nsfw: true } }] },
-          { id: 2, slug: "snapshot-slug", nsfw: false },
-        ],
-      },
-      {
-        match: "/items/reviews?filter[id][_in]=40,41,42",
-        data: [
-          { id: 40, game: { id: 1, nsfw: true } },
-          { id: 41, game: { id: 2, nsfw: false } },
-        ],
-      },
-      {
-        match: "/items/tier_lists?filter[id][_in]=30,31,32",
-        data: [{ id: 30, nsfw: true }],
-      },
-      {
-        match: "/items/game_bundle_members?filter[id][_in]=10,11,12,13",
-        data: [
-          { id: 10, title: "First Member", games_id: { id: 50, title: "Collection", slug: "collection", nsfw: true } },
-          { id: 11, title: "Second Member", games_id: { title: "Collection", slug: "collection" } },
-          { id: 12, title: "Orphan Member", games_id: null },
-          { id: 13, title: "Metadata Member", games_id: { title: "Collection", slug: "collection" } },
-        ],
-      },
-      {
-        match: "/items/tier_list_games?filter[id][_in]=20,21,22",
-        data: [
-          { id: 20, tier_list_id: { title: "Favorites", slug: "favorites", nsfw: true } },
-          { id: 21, tier_list_id: { title: "Incomplete", slug: "" } },
-          { id: 22, tier_list_id: { title: "Bad Date", slug: "bad-date" } },
-        ],
-      },
-    ]);
+  it("adapts game, review, included-game, and tier events and filters metadata-only or incomplete rows", async () => {
+    mockFeed({
+      games: [
+        rev(1, 1, { title: "Added Game", slug: "stale-slug" }, null, "create", "2026-08-10T12:00:00Z"),
+        rev(2, 2, { title: "Updated Game", slug: "snapshot-slug" }, { player_status: "completed" }, "update", "2026-08-09T12:00:00Z"),
+        rev(3, 3, { title: "Metadata Only", slug: "metadata-only" }, { slug: "metadata-only", engines: [], version_orion: "0.2" }, "update", "2026-08-08T12:00:00Z"),
+        rev(4, 4, { slug: "no-title" }, { title: "No Title" }, "update", "2026-08-07T12:00:00Z"),
+      ],
+      reviews: [
+        rev(40, 40, { title: "Published Review", slug: "published-review", status: "published", rating: 8 }, { status: "published" }, "update", "2026-08-08T12:00:00Z"),
+        rev(41, 41, { title: "New Review", slug: "new-review", status: "draft" }, { status: "published" }, "update", "2026-08-07T12:00:00Z"),
+        rev(42, 42, { title: "Draft Review", slug: "draft-review", status: "draft" }, { title: "Draft" }, "update", "2026-08-06T12:00:00Z"),
+      ],
+      bundleMembers: [
+        rev(10, 10, { title: "First Member", games_id: 50, release_year: 2020 }, null, "create", "2026-08-06T12:00:00Z"),
+        rev(11, 11, { title: "Second Member", games_id: 50 }, { current_section: 2 }, "update", "2026-08-05T12:00:00Z"),
+        rev(12, 12, { title: "Orphan Member" }, null, "create", "2026-08-04T12:00:00Z"),
+      ],
+      tierActivities: [{ id: 20, item: "20", timestamp: "2026-08-04T12:00:00Z" }],
+      tierLists: [rev(30, 30, { title: "Fresh Tier List", slug: "fresh-tier-list" }, null, "create", "2026-08-03T18:00:00Z")],
+      gameRows: [
+        { id: 1, title: "Added Game", slug: "live-slug", genres: [{ genres_id: { nsfw: true } }] },
+        { id: 2, title: "Updated Game", slug: "snapshot-slug" },
+        { id: 3, title: "Metadata Only", slug: "metadata-only" },
+        { id: 50, title: "Collection", slug: "collection", nsfw: true },
+      ],
+      reviewRows: [
+        { id: 40, title: "Published Review", slug: "published-review", game: { id: 1, title: "Added Game", nsfw: true } },
+        { id: 41, title: "New Review", slug: "new-review", game: { id: 2, title: "Updated Game", nsfw: false } },
+      ],
+      bundleMemberRows: [
+        { id: 10, title: "First Member", games_id: 50 },
+        { id: 11, title: "Second Member", games_id: 50 },
+      ],
+      tierGameRows: [{ id: 20, tier_list_id: 31, game_id: 1, rating: "S" }],
+      tierListRows: [
+        { id: 30, title: "Fresh Tier List", slug: "fresh-tier-list", nsfw: true },
+        { id: 31, title: "Favorites", slug: "favorites", nsfw: true },
+      ],
+    });
 
     const entries = await fetchRecentUpdates(20);
 
@@ -203,194 +124,149 @@ describe("fetchRecentUpdates", () => {
     );
   });
 
-  it("falls back to the revision item for a slug and applies the requested limit", async () => {
-    mockDirectusFetch([
-      ...baseRoutes([
-        {
-          item: "101",
-          data: { title: "Newest" },
-          delta: null,
-          activity: { action: "create", timestamp: "2026-08-03T12:00:00Z" },
-        },
-        {
-          item: "102",
-          data: { title: "Middle", slug: "middle" },
-          delta: null,
-          activity: { action: "create", timestamp: "2026-08-02T12:00:00Z" },
-        },
-        {
-          item: "103",
-          data: { title: "Oldest", slug: "oldest" },
-          delta: null,
-          activity: { action: "create", timestamp: "2026-08-01T12:00:00Z" },
-        },
-      ]),
-      { match: "/items/games?filter[id][_in]=101,102,103", data: [] },
-    ]);
+  it("uses the revision item as the slug fallback and applies the requested limit", async () => {
+    mockFeed({
+      games: [
+        rev(101, 101, { title: "Newest" }, null, "create", "2026-08-03T12:00:00Z"),
+        rev(102, 102, { title: "Middle", slug: "middle" }, null, "create", "2026-08-02T12:00:00Z"),
+        rev(103, 103, { title: "Oldest", slug: "oldest" }, null, "create", "2026-08-01T12:00:00Z"),
+      ],
+    });
 
     const entries = await fetchRecentUpdates(2);
-
     expect(entries.map(({ subject }) => subject)).toEqual(["Newest", "Middle"]);
     expect(entries[0].link).toBe("https://assets.test/games/101/index.html");
   });
-});
 
-describe("fetchRecentUpdates tier-list burst consolidation", () => {
-  it("collapses same-tier-list additions within 30 minutes into one entry, but not across a gap", async () => {
-    mockDirectusFetch([
-      { match: "/revisions?filter[collection][_eq]=games", data: [] },
-      { match: "/revisions?filter[collection][_eq]=reviews", data: [] },
-      { match: "/revisions?filter[collection][_eq]=game_bundle_members", data: [] },
-      { match: "/revisions?filter[collection][_eq]=tier_lists", data: [] },
-      {
-        match: "/activity?filter[collection][_eq]=tier_list_games",
-        data: [
-          { item: "1", timestamp: "2026-08-10T12:00:00Z" },
-          { item: "2", timestamp: "2026-08-10T12:15:00Z" },
-          { item: "3", timestamp: "2026-08-10T12:29:00Z" },
-          // Outside the 30-minute window anchored at 12:00 -- starts a new burst
-          { item: "4", timestamp: "2026-08-10T12:45:00Z" },
-          // A different tier list entirely -- never grouped with "AVNs"
-          { item: "5", timestamp: "2026-08-10T12:05:00Z" },
-        ],
-      },
-      {
-        match: "/items/tier_list_games?filter[id][_in]=1,2,3,4,5",
-        data: [
-          { id: 1, tier_list_id: { title: "AVNs", slug: "avns", nsfw: true } },
-          { id: 2, tier_list_id: { title: "AVNs", slug: "avns", nsfw: true } },
-          { id: 3, tier_list_id: { title: "AVNs", slug: "avns", nsfw: true } },
-          { id: 4, tier_list_id: { title: "AVNs", slug: "avns", nsfw: true } },
-          { id: 5, tier_list_id: { title: "Isekai", slug: "isekai", nsfw: false } },
-        ],
-      },
-    ]);
-
-    const entries = await fetchRecentUpdates(20);
-
-    expect(entries.map(({ tag, subject, timestamp }) => [tag, subject, timestamp.toISOString()]))
-      .toEqual(
-        expect.arrayContaining([
-          ["tier-updated", "AVNs", "2026-08-10T12:29:00.000Z"],
-          ["tier-updated", "AVNs", "2026-08-10T12:45:00.000Z"],
-          ["tier-updated", "Isekai", "2026-08-10T12:05:00.000Z"],
-        ]),
-      );
-    expect(entries.filter((e) => e.subject === "AVNs")).toHaveLength(2);
-    expect(entries.filter((e) => e.subject === "Isekai")).toHaveLength(1);
-  });
-});
-
-describe("fetchRecentUpdates game update burst consolidation", () => {
-  it("collapses same-game update revisions within 30 minutes into one entry, but not across a gap or across games", async () => {
-    mockDirectusFetch([
-      {
-        match: "/revisions?filter[collection][_eq]=games",
-        data: [
-          {
-            item: "1",
-            data: { title: "Valhalla: Lilith Rising", slug: "valhalla-lilith-rising" },
-            delta: { player_status: "in_progress" },
-            activity: { action: "update", timestamp: "2026-09-22T22:46:00Z" },
-          },
-          {
-            item: "1",
-            data: { title: "Valhalla: Lilith Rising", slug: "valhalla-lilith-rising" },
-            delta: { section_noun: "Level" },
-            activity: { action: "update", timestamp: "2026-09-22T22:51:00Z" },
-          },
-          {
-            item: "1",
-            data: { title: "Valhalla: Lilith Rising", slug: "valhalla-lilith-rising" },
-            delta: { current_section: 1 },
-            activity: { action: "update", timestamp: "2026-09-22T22:52:00Z" },
-          },
-          // Outside the 30-minute window anchored at 22:46 -- starts a new burst
-          {
-            item: "1",
-            data: { title: "Valhalla: Lilith Rising", slug: "valhalla-lilith-rising" },
-            delta: { player_status: "on_hold" },
-            activity: { action: "update", timestamp: "2026-09-22T23:20:00Z" },
-          },
-          // A different game entirely -- never grouped with Valhalla's burst
-          {
-            item: "2",
-            data: { title: "Goddesses' Whim", slug: "goddesses-whim" },
-            delta: { player_status: "in_progress" },
-            activity: { action: "update", timestamp: "2026-09-22T22:50:00Z" },
-          },
-        ],
-      },
-      { match: "/revisions?filter[collection][_eq]=reviews", data: [] },
-      { match: "/revisions?filter[collection][_eq]=game_bundle_members", data: [] },
-      { match: "/activity?filter[collection][_eq]=tier_list_games", data: [] },
-      { match: "/revisions?filter[collection][_eq]=tier_lists", data: [] },
-      {
-        match: "/items/games?filter[id][_in]=1,1,1,1,2",
-        data: [
-          { id: 1, slug: "valhalla-lilith-rising" },
-          { id: 2, slug: "goddesses-whim" },
-        ],
-      },
-    ]);
-
-    const entries = await fetchRecentUpdates(20);
-
-    expect(entries.map(({ tag, subject, timestamp }) => [tag, subject, timestamp.toISOString()]))
-      .toEqual(
-        expect.arrayContaining([
-          ["updated", "Valhalla: Lilith Rising", "2026-09-22T22:52:00.000Z"],
-          ["updated", "Valhalla: Lilith Rising", "2026-09-22T23:20:00.000Z"],
-          ["updated", "Goddesses' Whim", "2026-09-22T22:50:00.000Z"],
-        ]),
-      );
-    expect(entries.filter((e) => e.subject === "Valhalla: Lilith Rising")).toHaveLength(2);
-    expect(entries.filter((e) => e.subject === "Goddesses' Whim")).toHaveLength(1);
+  it("filters incomplete source rows that cannot be resolved to a game", async () => {
+    mockFeed({
+      bundleMembers: [rev(1, 1, { title: "Orphan" }, null, "create", "2026-08-01T12:00:00Z")],
+      bundleMemberRows: [{ id: 1, title: "Orphan", games_id: null }],
+    });
+    expect(await fetchRecentUpdates()).toEqual([]);
   });
 
-  it("collapses same-bundle-member update revisions within 30 minutes into one entry", async () => {
-    mockDirectusFetch([
-      { match: "/revisions?filter[collection][_eq]=games", data: [] },
-      { match: "/revisions?filter[collection][_eq]=reviews", data: [] },
-      {
-        match: "/revisions?filter[collection][_eq]=game_bundle_members",
-        data: [
-          {
-            item: "10",
-            data: { title: "First Member" },
-            delta: { current_section: 1 },
-            activity: { action: "update", timestamp: "2026-09-22T22:00:00Z" },
-          },
-          {
-            item: "10",
-            data: { title: "First Member" },
-            delta: { current_section: 2 },
-            activity: { action: "update", timestamp: "2026-09-22T22:10:00Z" },
-          },
-        ],
-      },
-      { match: "/activity?filter[collection][_eq]=tier_list_games", data: [] },
-      { match: "/revisions?filter[collection][_eq]=tier_lists", data: [] },
-      {
-        match: "/items/game_bundle_members?filter[id][_in]=10,10",
-        data: [
-          { id: 10, title: "First Member", games_id: { title: "Collection", slug: "collection" } },
-        ],
-      },
-    ]);
-
+  it("collapses same-tier-list additions within 30 minutes but keeps a later burst and ORs nsfw", async () => {
+    mockFeed({
+      tierActivities: [
+        { id: 1, item: "1", timestamp: "2026-08-10T12:00:00Z" },
+        { id: 2, item: "2", timestamp: "2026-08-10T12:15:00Z" },
+        { id: 3, item: "3", timestamp: "2026-08-10T12:29:00Z" },
+        { id: 4, item: "4", timestamp: "2026-08-10T12:45:00Z" },
+        { id: 5, item: "5", timestamp: "2026-08-10T12:05:00Z" },
+      ],
+      tierGameRows: [1, 2, 3, 4].map((id) => ({ id, tier_list_id: 7, game_id: id, rating: "A" })).concat([{ id: 5, tier_list_id: 8, game_id: 5, rating: "B" }]),
+      tierListRows: [
+        { id: 7, title: "AVNs", slug: "avns", nsfw: false },
+        { id: 8, title: "Isekai", slug: "isekai", nsfw: false },
+      ],
+      gameRows: [1, 2, 3, 4, 5].map((id) => ({ id, title: `Game ${id}`, slug: `game-${id}`, nsfw: id === 2 })),
+    });
     const entries = await fetchRecentUpdates(20);
+    expect(entries.filter((entry) => entry.subject === "AVNs")).toHaveLength(2);
+    expect(entries.filter((entry) => entry.subject === "AVNs").map(({ timestamp }) => timestamp.toISOString()))
+      .toEqual(["2026-08-10T12:45:00.000Z", "2026-08-10T12:29:00.000Z"]);
+    expect(entries.find((entry) => entry.subject === "AVNs" && entry.timestamp.toISOString() === "2026-08-10T12:29:00.000Z")?.nsfw).toBe(true);
+    expect(entries.filter((entry) => entry.subject === "Isekai")).toHaveLength(1);
+  });
 
+  it("collapses same-game update revisions within 30 minutes, but not across a gap or games", async () => {
+    mockFeed({
+      games: [
+        rev(1, 1, { title: "Valhalla: Lilith Rising", slug: "valhalla" }, { player_status: "in_progress" }, "update", "2026-09-22T22:46:00Z"),
+        rev(2, 1, { title: "Valhalla: Lilith Rising", slug: "valhalla" }, { section_noun: "Level" }, "update", "2026-09-22T22:51:00Z"),
+        rev(3, 1, { title: "Valhalla: Lilith Rising", slug: "valhalla" }, { current_section: 1 }, "update", "2026-09-22T22:52:00Z"),
+        rev(4, 1, { title: "Valhalla: Lilith Rising", slug: "valhalla" }, { player_status: "on_hold" }, "update", "2026-09-22T23:20:00Z"),
+        rev(5, 2, { title: "Goddesses' Whim", slug: "goddesses-whim" }, { player_status: "in_progress" }, "update", "2026-09-22T22:50:00Z"),
+      ],
+      gameRows: [
+        { id: 1, title: "Valhalla: Lilith Rising", slug: "valhalla" },
+        { id: 2, title: "Goddesses' Whim", slug: "goddesses-whim" },
+      ],
+    });
+    const entries = await fetchRecentUpdates(20);
+    expect(entries.map(({ tag, subject, timestamp }) => [tag, subject, timestamp.toISOString()])).toEqual([
+      ["updated", "Valhalla: Lilith Rising", "2026-09-22T23:20:00.000Z"],
+      ["updated", "Valhalla: Lilith Rising", "2026-09-22T22:52:00.000Z"],
+      ["updated", "Goddesses' Whim", "2026-09-22T22:50:00.000Z"],
+    ]);
+  });
+
+  it("collapses same-bundle-member updates and keeps the parent title in the widget subject", async () => {
+    mockFeed({
+      bundleMembers: [
+        rev(1, 10, { title: "First Member", games_id: 50 }, { current_section: 1 }, "update", "2026-09-22T22:00:00Z"),
+        rev(2, 10, { title: "First Member", games_id: 50 }, { current_section: 2 }, "update", "2026-09-22T22:10:00Z"),
+      ],
+      bundleMemberRows: [{ id: 10, title: "First Member", games_id: 50 }],
+      gameRows: [{ id: 50, title: "Collection", slug: "collection" }],
+    });
+    const entries = await fetchRecentUpdates(20);
     expect(entries.map(({ tag, subject, timestamp }) => [tag, subject, timestamp.toISOString()]))
       .toEqual([["updated", "Collection: First Member", "2026-09-22T22:10:00.000Z"]]);
+  });
+
+  it("merges a game creation, genre addition, and link event into one added entry", async () => {
+    mockFeed({
+      games: [rev(1, 1, { title: "Morningstar", slug: "morningstar" }, null, "create", "2026-10-01T10:00:00Z")],
+      genreActivities: [{ id: 2, item: "20", collection: "games_genres", action: "create", timestamp: "2026-10-01T10:10:00Z" }],
+      genreRows: [{ id: 20, games_id: 1, genres_id: { name: "Adventure" } }],
+      linkActivities: [{ id: 3, item: "30", collection: "games_links", action: "create", timestamp: "2026-10-01T10:15:00Z" }],
+      linkRows: [{ id: 30, games_id: 1, url: "https://example.test", kind: "gamestorylog" }],
+      gameRows: [{ id: 1, title: "Morningstar", slug: "morningstar", section_style: "linear", section_noun: "Chapter" }],
+    });
+    const entries = await fetchRecentUpdates(20);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ tag: "added", subject: "Morningstar", link: "https://assets.test/games/morningstar/index.html" });
+  });
+
+  it("shows genre, link, section-count, and included-game changes as updated entries", async () => {
+    mockFeed({
+      games: [rev(1, 1, { title: "Morningstar", slug: "morningstar" }, { slug: "morningstar" }, "update", "2026-10-01T09:00:00Z")],
+      genreActivities: [{ id: 2, item: "20", collection: "games_genres", action: "create", timestamp: "2026-10-01T10:00:00Z" }],
+      genreRows: [{ id: 20, games_id: 1, genres_id: { name: "Adventure" } }],
+      linkActivities: [{ id: 3, item: "30", collection: "games_links", action: "create", timestamp: "2026-10-01T11:00:00Z" }],
+      linkRows: [{ id: 30, games_id: 1, url: "https://example.test", kind: "gamestorylog" }],
+      sections: [
+        { id: 2, item: "2", collection: "game_sections", data: { games_id: 1, number: 2, title: "Chapter 2" }, delta: {}, activity: { action: "create", timestamp: "2026-10-01T12:00:00Z" } },
+        { id: 1, item: "1", collection: "game_sections", data: { games_id: 1, number: 1, title: "Chapter 1" }, delta: {}, activity: { action: "create", timestamp: "2026-10-01T08:00:00Z" } },
+      ],
+      bundleMembers: [rev(10, 10, { title: "Bonus Story", games_id: 2 }, { current_section: 2 }, "update", "2026-10-01T13:00:00Z")],
+      bundleMemberRows: [{ id: 10, title: "Bonus Story", games_id: 2 }],
+      gameRows: [
+        { id: 1, title: "Morningstar", slug: "morningstar", section_style: "linear", section_noun: "Chapter" },
+        { id: 2, title: "Collection", slug: "collection" },
+      ],
+      sectionRows: [
+        { id: 1, games_id: 1, number: 1, title: "Chapter 1" },
+        { id: 2, games_id: 1, number: 2, title: "Chapter 2" },
+      ],
+    });
+    const entries = await fetchRecentUpdates(20);
+    expect(entries.map(({ tag, subject, timestamp }) => [tag, subject, timestamp.toISOString()])).toEqual([
+      ["updated", "Collection: Bonus Story", "2026-10-01T13:00:00.000Z"],
+      ["updated", "Morningstar", "2026-10-01T12:00:00.000Z"],
+      ["updated", "Morningstar", "2026-10-01T11:00:00.000Z"],
+      ["updated", "Morningstar", "2026-10-01T10:00:00.000Z"],
+    ]);
+  });
+
+  it("does not show review updates or tier-list updates in the widget", async () => {
+    mockFeed({
+      reviews: [rev(1, 1, { title: "Review", slug: "review", status: "published" }, { title: "Edited" }, "update", "2026-10-01T10:00:00Z")],
+      tierLists: [rev(2, 2, { title: "Tier List", slug: "tiers" }, { title: "Changed" }, "update", "2026-10-01T09:00:00Z")],
+      reviewRows: [{ id: 1, title: "Review", slug: "review", game: { title: "Game" } }],
+      tierListRows: [{ id: 2, title: "Tier List", slug: "tiers" }],
+    });
+    expect(await fetchRecentUpdates()).toEqual([]);
   });
 });
 
 describe("formatUpdateTimestamp", () => {
   it("formats a fixed timestamp in the configured site timezone", () => {
     vi.stubEnv("SITE_TIMEZONE", "America/Los_Angeles");
-    expect(formatUpdateTimestamp(new Date("2026-08-14T20:05:00Z"))).toBe(
-      "Aug 14, 1:05 PM PDT",
-    );
+    expect(formatUpdateTimestamp(new Date("2026-08-14T20:05:00Z"))).toBe("Aug 14, 1:05 PM PDT");
+    vi.stubEnv("SITE_TIMEZONE", "");
+    expect(formatUpdateTimestamp(new Date("2026-08-14T20:05:00Z"))).toBe("Aug 14, 1:05 PM PDT");
   });
 });

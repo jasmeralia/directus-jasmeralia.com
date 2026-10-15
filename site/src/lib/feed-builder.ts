@@ -184,7 +184,15 @@ export type FeedEntry = {
   completed: boolean;
 };
 
-type Entry = FeedEntry & { gameTitle?: string; added?: boolean };
+export type UpdateTag = "added" | "updated" | "tier-added" | "tier-updated" | "review";
+
+export type SourceEntry = FeedEntry & {
+  widget?: { tag: UpdateTag; subject: string };
+  gameTitle?: string;
+  added?: boolean;
+};
+
+type Entry = SourceEntry;
 
 // ─── entry builders ───────────────────────────────────────────────────────────
 
@@ -210,6 +218,7 @@ function buildGameEntry(
       title: `Game Added: ${data.title}`,
       gameTitle: String(data.title),
       added: true,
+      widget: { tag: "added", subject: String(data.title) },
       link,
       description: fmtNewGame(data, genres),
       pubDate: date,
@@ -226,6 +235,7 @@ function buildGameEntry(
   return {
     title: `Game Updated: ${data.title}`,
     gameTitle: String(data.title),
+    widget: { tag: "updated", subject: String(data.title) },
     link,
     description: desc,
     pubDate: date,
@@ -260,6 +270,7 @@ function buildReviewEntry(
   if (event.type === "review_published") {
     return {
       title: `${event.title}: ${event.subject}`,
+      widget: { tag: "review", subject: String(event.subject) },
       link,
       description: event.body,
       pubDate: date,
@@ -297,6 +308,7 @@ function buildTierListEntry(rev: Revision, tierListItem: DirectusRecord | null):
     if (data.description) lines.push(`**Description**: ${data.description}`);
     return {
       title: `Tier List Published: ${data.title}`,
+      widget: { tag: "tier-added", subject: String(data.title) },
       link,
       description: lines.join("\n"),
       pubDate: date,
@@ -350,6 +362,7 @@ function buildTierListGameEntries(
     const { game, rating } = resolved[0];
     return [{
       title: `Game Added to Tier List: ${game.title}`,
+      widget: { tag: "tier-updated", subject: String(tierList.title) },
       link,
       description: `**${game.title}** added to **${tierList.title}** -- tier **${rating}**`,
       pubDate: date,
@@ -363,6 +376,7 @@ function buildTierListGameEntries(
   const lines = resolved.map(({ game, rating }) => `**${rating}**: ${game.title}`);
   return [{
     title: `Games Added to Tier List: ${tierList.title}`,
+    widget: { tag: "tier-updated", subject: String(tierList.title) },
     link,
     description: lines.join("\n"),
     pubDate: date,
@@ -395,6 +409,7 @@ function buildGameLinkEntry(
   return {
     title: `${event.title}: ${gameItem.title}`,
     gameTitle: String(gameItem.title),
+    widget: { tag: "updated", subject: String(gameItem.title) },
     link,
     description: event.body,
     pubDate: date,
@@ -417,12 +432,20 @@ function mergeGameSession(session: Entry[]): Entry {
     .filter((text) => text.trim().length > 0)
     .join("\n\n");
   const imageUrl = session.map((entry) => entry.imageUrl).find(Boolean);
+  const addedWidgetEntry = session.find((entry) => entry.widget?.tag === "added");
+  const widgetEntry = addedWidgetEntry ?? [...session].reverse().find((entry) => entry.widget);
   const slug = requireGuidPart(last.guid.split(":")[1], "consolidated session slug");
   const anchorMs = session[0].pubDate.getTime();
   return {
     title,
     gameTitle,
     added: Boolean(addedEntry),
+    ...(widgetEntry?.widget
+      ? { widget: {
+        tag: addedWidgetEntry ? "added" : "updated",
+        subject: addedWidgetEntry?.widget?.subject ?? widgetEntry.widget.subject,
+      } as const }
+      : {}),
     link: last.link,
     description,
     pubDate: last.pubDate,
@@ -516,6 +539,10 @@ function buildBundleMemberEntry(
   return {
     title: `Included Game ${actionLabel} - ${title}`,
     gameTitle: title,
+    widget: {
+      tag: isCreate ? "added" : "updated",
+      subject: `${gameItem.title}: ${title}`,
+    },
     link: `${siteBase}/games/${gameSlug}/index.html`,
     description: event.body,
     pubDate: date,
@@ -538,7 +565,7 @@ function buildBundleMemberEntry(
 
 // ─── main handler ─────────────────────────────────────────────────────────────
 
-export async function buildFeedEntries(): Promise<FeedEntry[]> {
+export async function buildSourceEntries(): Promise<SourceEntry[]> {
   // 1. Fetch all revision/activity streams + move log in parallel
   const [
     allGameRevs,
@@ -766,6 +793,7 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     entries.push({
       title: `${described.event.title}: ${title}`,
       gameTitle: title,
+      widget: { tag: "updated", subject: title },
       link: `${siteBase}/games/${slug}/index.html`,
       description: described.event.body,
       pubDate: date,
@@ -820,6 +848,7 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     entries.push({
       title: `${event.title}: ${gameItem.title}`,
       gameTitle: String(gameItem.title),
+      widget: { tag: "updated", subject: String(gameItem.title) },
       link: `${siteBase}/games/${slug}/index.html`,
       description: event.body,
       pubDate: date,
@@ -855,7 +884,12 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
   }).slice(0, 200);
   validateFeedEntries(top);
 
-  return top.map(({ title, link, description, pubDate, imageUrl, guid, nsfw, completed }) => ({
+  return top;
+}
+
+export async function buildFeedEntries(): Promise<FeedEntry[]> {
+  const entries = await buildSourceEntries();
+  return entries.map(({ title, link, description, pubDate, imageUrl, guid, nsfw, completed }) => ({
     title,
     link,
     description,
