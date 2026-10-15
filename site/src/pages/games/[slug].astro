@@ -121,6 +121,7 @@ export async function getStaticPaths() {
     allLinkActivities,
     allLinkRevisions,
     allGenreActivities,
+    allSectionRevisions,
     allGameVersions,
   ] = await Promise.all([
     directusFetchItems('games', {
@@ -150,6 +151,7 @@ export async function getStaticPaths() {
     fetchActivity('games_links', ['create', 'update'], -1),
     fetchRevisions('games_links', -1),
     fetchActivity('games_genres', 'create', -1),
+    fetchRevisions('game_sections', -1),
     directusFetchItems('game_versions', {
       fields: ['id', 'games_id', 'source', 'reported_version', 'comparison_override', 'override_reason', 'source_reference', 'installation_key', 'release_date', 'recorded_at', 'is_current'],
       limit: -1,
@@ -201,6 +203,8 @@ export async function getStaticPaths() {
         allLinkActivities,
         allLinkRevisions,
         allGenreActivities,
+        allSectionRevisions,
+        sectionMeta: { style: game.section_style, noun: game.section_noun },
         genreLinks: (game.genres ?? [])
           .filter((entry) => entry?.id && entry?.genres_id?.name)
           .map((entry) => ({ id: entry.id, name: entry.genres_id.name })),

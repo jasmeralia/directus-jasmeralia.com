@@ -360,6 +360,110 @@ describe("link history details", () => {
         + "<li><strong>Kind</strong>: \u2014 \u2192 Other link</li></ul>",
     );
   });
+
+  it("includes section-count runs for this game and its bundle members only", () => {
+    const sectionRevision = (
+      id: number,
+      item: number,
+      timestamp: string,
+      data: Record<string, unknown>,
+    ) => ({
+      id,
+      item: String(item),
+      collection: "game_sections",
+      data,
+      delta: {},
+      activity: { action: "create", timestamp },
+    });
+    const allSectionRevisions = [
+      sectionRevision(1, 101, "2026-01-01T00:00:00Z", { games_id: 7, completed: false }),
+      sectionRevision(2, 102, "2026-01-01T00:00:00Z", { games_id: 7, completed: false }),
+      sectionRevision(3, 103, "2026-02-01T00:00:00Z", { games_id: 7, completed: false }),
+      sectionRevision(4, 201, "2026-01-01T00:00:00Z", { bundle_member_id: 41, completed: false }),
+      sectionRevision(5, 202, "2026-02-02T00:00:00Z", { bundle_member_id: 41, completed: false }),
+      sectionRevision(6, 301, "2026-01-01T00:00:00Z", { games_id: 8, completed: false }),
+      sectionRevision(7, 302, "2026-02-03T00:00:00Z", { games_id: 8, completed: false }),
+    ];
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [{
+        id: 41,
+        title: "Included Story",
+        sectionNoun: "Episode",
+      }],
+      sections: [
+        { id: 101, number: 1, title: "Chapter 1", completed: false },
+        { id: 102, number: 2, title: "Chapter 2", completed: false },
+        { id: 103, number: 3, title: "Chapter 3", completed: false },
+      ],
+      sectionMeta: { style: "linear", noun: "Chapter" },
+      allSectionRevisions,
+    });
+    expect(entries.filter((entry) => entry.bodyHtml)).toEqual([
+      {
+        date: new Date("2026-02-02T00:00:00Z"),
+        title: "Included Game Updated - Included Story",
+        bodyHtml: '<ul class="history-changes"><li><strong>Episodes</strong>: 1 \u2192 2</li></ul>',
+      },
+      {
+        date: new Date("2026-02-01T00:00:00Z"),
+        title: "Game Updated",
+        bodyHtml: '<ul class="history-changes"><li><strong>Chapters</strong>: 2 \u2192 3</li></ul>',
+      },
+    ]);
+  });
+
+  it("does not add section entries when collection revisions are absent", () => {
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [],
+      sections: [{ id: 1, number: 1, title: "Chapter 1", completed: false }],
+      sectionMeta: { style: "linear", noun: "Chapter" },
+    });
+    expect(entries).toEqual([]);
+  });
+
+  it("uses empty live sections and default metadata when section details are omitted", () => {
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [],
+      allSectionRevisions: [
+        {
+          id: 1,
+          item: "101",
+          collection: "game_sections",
+          data: { games_id: 7, completed: false },
+          delta: {},
+          activity: { action: "create", timestamp: "2026-01-01T00:00:00Z" },
+        },
+        {
+          id: 2,
+          item: "102",
+          collection: "game_sections",
+          data: { games_id: 7, completed: false },
+          delta: {},
+          activity: { action: "create", timestamp: "2026-02-01T00:00:00Z" },
+        },
+      ],
+    });
+    expect(entries).toEqual([{
+      date: new Date("2026-02-01T00:00:00Z"),
+      title: "Game Updated",
+      bodyHtml: '<ul class="history-changes"><li><strong>Chapters</strong>: 1 \u2192 2</li></ul>',
+    }]);
+  });
 });
 
 describe("link history identity", () => {

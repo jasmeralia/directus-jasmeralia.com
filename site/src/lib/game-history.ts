@@ -7,6 +7,7 @@ import {
 } from "./changelog";
 import type { GameSection } from "./game-sections";
 import { describeGenreAdded, describeLinkEvent, partitionGameGenres } from "./game-events";
+import { describeSectionRun, indexSectionRevisions } from "./section-events";
 
 export type HistoryEntry = {
   date: Date;
@@ -37,6 +38,7 @@ type GameLink = {
 type BundleMember = {
   id: number;
   title?: string;
+  sectionNoun?: string | null;
   sections?: GameSection[] | null;
 };
 
@@ -176,6 +178,8 @@ export function buildGameHistory(params: {
   // games_links revisions, so link events can show what was added or changed.
   allLinkRevisions?: Revision[];
   allBundleMemberRevisions: Revision[];
+  allSectionRevisions?: Revision[];
+  sectionMeta?: { style: string | null; noun: string | null };
 }): HistoryEntry[] {
   const reviewIds = params.reviews.map((review) => review.id);
   const tierEntryIds = params.tierEntries.map((entry) => entry.id);
@@ -188,6 +192,7 @@ export function buildGameHistory(params: {
   const tierRevisions = scopedRevisions(params.allTierRevisions, tierEntryIds);
   const linkActivities = scopedActivity(params.allLinkActivities, linkIds);
   const bundleMemberRevisions = scopedRevisions(params.allBundleMemberRevisions, bundleMemberIds);
+  const sectionIndex = indexSectionRevisions(params.allSectionRevisions ?? []);
   // Lenient on purpose: a missing/invalid timestamp is reported, with context,
   // by the per-revision loop below.
   const firstTimestamp = gameRevisions[gameRevisions.length - 1]?.activity?.timestamp;
@@ -206,6 +211,29 @@ export function buildGameHistory(params: {
       date: genre.at,
       title: event.title,
       bodyHtml: deltaLinesToHtml(event.body, params.genreSlugs),
+    });
+  }
+
+  const bundleMemberMap = new Map(
+    params.bundleMembers.map((member) => [member.id, member]),
+  );
+  for (const run of sectionIndex.runs) {
+    const isGameRun = run.parent.kind === "game" && run.parent.id === params.gameId;
+    const member = run.parent.kind === "bundle_member"
+      ? bundleMemberMap.get(run.parent.id)
+      : undefined;
+    if (!isGameRun && !member) continue;
+    const event = describeSectionRun(run, {
+      liveRows: isGameRun ? (params.sections ?? []) : (member?.sections ?? []),
+      timelinesByParent: sectionIndex.timelinesByParent,
+      style: isGameRun ? (params.sectionMeta?.style ?? null) : "linear",
+      noun: isGameRun ? params.sectionMeta?.noun : member?.sectionNoun,
+    });
+    if (!event) continue;
+    entries.push({
+      date: requireHistoryDate(event.at, `game_sections run ${run.key}`),
+      title: isGameRun ? "Game Updated" : `Included Game Updated - ${recordTitle(member?.title)}`,
+      bodyHtml: deltaLinesToHtml(event.event.body),
     });
   }
 
@@ -267,9 +295,6 @@ export function buildGameHistory(params: {
     }
   }
 
-  const bundleMemberMap = new Map(
-    params.bundleMembers.map((member) => [member.id, member]),
-  );
   const memberRevisionGroups = groupRevisionsByItem(bundleMemberRevisions);
   for (const [itemId, revisions] of memberRevisionGroups) {
     const currentMember = bundleMemberMap.get(Number(itemId));
