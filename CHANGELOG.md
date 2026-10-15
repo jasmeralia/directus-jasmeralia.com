@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.237] - 2026-10-15
+- Homepage: the Recent Updates widget now takes its entries from the same pipeline as the RSS feed, so link, genre, section-count and included-game changes show up in it (as "Updated") instead of being invisible there. Game creations still show as "Added", published reviews as "Review", tier-list additions as before; review and tier-list edits stay feed-only. Bursts of edits to one game within 30 minutes still collapse into one entry.
+
 ## [1.0.236] - 2026-10-15
 - Refactor: game History and the RSS/Discord feed now derive link, genre, section-count, review, included-game and tier events from one shared module (`game-events.ts`, `section-events.ts`) instead of two parallel implementations.
 - Feed: link items are titled "Download Link Added: <game>" (Walkthrough / Other / GameStoryLog likewise) with the URL, kind and label, and sort-only link edits no longer produce an item. Existing item GUIDs are unchanged.
