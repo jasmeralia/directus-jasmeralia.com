@@ -6,6 +6,16 @@ import {
   type Revision,
 } from "./changelog";
 import type { GameSection } from "./game-sections";
+import {
+  describeGenreAdded,
+  describeLinkEvent,
+  describeMemberEvent,
+  describeReviewEvent,
+  describeTierEntryAdded,
+  isCreateRevision,
+  partitionGameGenres,
+} from "./game-events";
+import { describeSectionRun, indexSectionRevisions } from "./section-events";
 
 export type HistoryEntry = {
   date: Date;
@@ -36,6 +46,7 @@ type GameLink = {
 type BundleMember = {
   id: number;
   title?: string;
+  sectionNoun?: string | null;
   sections?: GameSection[] | null;
 };
 
@@ -149,68 +160,6 @@ function recordTitle(value: unknown): string {
   return typeof value === "string" && value.trim() ? value : "Untitled";
 }
 
-// Genres whose junction row was created within this long of the game itself
-// belong to the "Game Added" entry rather than being separate events.
-const GENRE_CREATION_WINDOW_MS = 5 * 60 * 1000;
-
-const LINK_KIND_LABELS: Record<string, string> = {
-  download: "Download",
-  walkthrough: "Walkthrough",
-  "text-note": "Walkthrough note",
-  other: "Other link",
-  gamestorylog: "GameStoryLog",
-};
-
-const LINK_EVENT_TITLES: Record<string, string> = {
-  walkthrough: "Walkthrough Link",
-  "text-note": "Walkthrough Link",
-  other: "Other Link",
-  gamestorylog: "GameStoryLog Link",
-};
-
-// Describe a games_links revision. A new link lists its URL, kind and label.
-// An update always leads with the URL (old -> new if the URL itself changed) so
-// the entry names which link it is about, then any changed kind/label. Returns
-// "" for an update that changed nothing displayable (e.g. only the sort order).
-function fmtLinkDelta(
-  delta: Record<string, unknown>,
-  prev: Record<string, unknown> | null,
-  data: Record<string, unknown> | null,
-  isCreate: boolean,
-  currentUrl: string | undefined,
-): string {
-  const show = (field: string, value: unknown) =>
-    field === "kind" ? (LINK_KIND_LABELS[String(value)] ?? String(value)) : String(value);
-  const dash = "\u2014";
-  const lines: string[] = [];
-  if (isCreate) {
-    const source = data ?? delta;
-    for (const [field, label] of [["url", "URL"], ["kind", "Kind"], ["label", "Label"]] as const) {
-      const value = source[field];
-      if (value !== null && value !== undefined && value !== "") lines.push(`**${label}**: ${show(field, value)}`);
-    }
-    return lines.join("\n");
-  }
-  const changes: string[] = [];
-  for (const [field, label] of [["kind", "Kind"], ["label", "Label"]] as const) {
-    if (!(field in delta) || delta[field] === (prev?.[field] ?? null)) continue;
-    const before = prev?.[field] ?? null;
-    const next = delta[field];
-    changes.push(
-      `**${label}**: ${before === null ? dash : show(field, before)} \u2192 ${next === null ? dash : show(field, next)}`,
-    );
-  }
-  const urlChanged = "url" in delta && delta.url !== prev?.url;
-  if (!urlChanged && !changes.length) return "";
-  const url = (data?.url ?? currentUrl) as string | undefined;
-  const urlLine = urlChanged
-    ? `**URL**: ${prev?.url ? String(prev.url) : dash} \u2192 ${String(delta.url)}`
-    : url
-      ? `**URL**: ${url}`
-      : "";
-  return [urlLine, ...changes].filter(Boolean).join("\n");
-}
-
 export function buildGameHistory(params: {
   gameId: number;
   reviews: Review[];
@@ -218,7 +167,6 @@ export function buildGameHistory(params: {
   links: GameLink[];
   bundleMembers: BundleMember[];
   sections?: GameSection[] | null;
-  genres: string[];
   // Genre name -> slug, so genre names in History can link to genre pages.
   genreSlugs?: Record<string, string>;
   // The game's current games_genres rows (join id + genre name) and every
@@ -226,7 +174,7 @@ export function buildGameHistory(params: {
   // created stay in "Game Added"; later ones become "Genre Added" events.
   // Directus keeps no data on junction revisions, so removals can't be
   // attributed to a game and are not shown.
-  genreLinks?: { id: number; name: string }[];
+  genreLinks: { id: number; name: string }[];
   allGenreActivities?: Activity[];
   // Collection-wide revisions/activity, fetched once by the caller and
   // reused across every game (see scopedRevisions/scopedActivity above).
@@ -238,6 +186,8 @@ export function buildGameHistory(params: {
   // games_links revisions, so link events can show what was added or changed.
   allLinkRevisions?: Revision[];
   allBundleMemberRevisions: Revision[];
+  allSectionRevisions?: Revision[];
+  sectionMeta?: { style: string | null; noun: string | null };
 }): HistoryEntry[] {
   const reviewIds = params.reviews.map((review) => review.id);
   const tierEntryIds = params.tierEntries.map((entry) => entry.id);
@@ -250,35 +200,48 @@ export function buildGameHistory(params: {
   const tierRevisions = scopedRevisions(params.allTierRevisions, tierEntryIds);
   const linkActivities = scopedActivity(params.allLinkActivities, linkIds);
   const bundleMemberRevisions = scopedRevisions(params.allBundleMemberRevisions, bundleMemberIds);
+  const sectionIndex = indexSectionRevisions(params.allSectionRevisions ?? []);
   // Lenient on purpose: a missing/invalid timestamp is reported, with context,
   // by the per-revision loop below.
   const firstTimestamp = gameRevisions[gameRevisions.length - 1]?.activity?.timestamp;
   const createdAtValue = firstTimestamp ? new Date(firstTimestamp) : null;
   const createdAt = createdAtValue && !Number.isNaN(createdAtValue.getTime()) ? createdAtValue : null;
-  const genreActivities = new Map(
-    scopedActivity(params.allGenreActivities ?? [], (params.genreLinks ?? []).map((g) => g.id)).map(
-      (activity) => [Number(activity.item), activity],
-    ),
-  );
-  const initialGenres: string[] = [];
-  const addedGenres: { name: string; date: Date }[] = [];
-  for (const genre of params.genreLinks ?? []) {
-    const activity = genreActivities.get(genre.id);
-    const when = activity ? requireHistoryDate(activity.timestamp, `games_genres activity ${activity.id}`) : null;
-    if (!when || !createdAt || when.getTime() - createdAt.getTime() <= GENRE_CREATION_WINDOW_MS) {
-      initialGenres.push(genre.name);
-    } else {
-      addedGenres.push({ name: genre.name, date: when });
-    }
-  }
-  const genres = params.genreLinks ? initialGenres : params.genres;
+  const genrePartition = partitionGameGenres({
+    genreLinks: params.genreLinks,
+    activities: scopedActivity(params.allGenreActivities ?? [], params.genreLinks.map((g) => g.id)),
+    createdAt,
+  });
 
   const entries: HistoryEntry[] = [];
-  for (const genre of addedGenres) {
+  for (const genre of genrePartition.added) {
+    const event = describeGenreAdded(genre.name);
     entries.push({
-      date: genre.date,
-      title: "Genre Added",
-      bodyHtml: deltaLinesToHtml(`**Genre**: ${genre.name}`, params.genreSlugs),
+      date: genre.at,
+      title: event.title,
+      bodyHtml: deltaLinesToHtml(event.body, params.genreSlugs),
+    });
+  }
+
+  const bundleMemberMap = new Map(
+    params.bundleMembers.map((member) => [member.id, member]),
+  );
+  for (const run of sectionIndex.runs) {
+    const isGameRun = run.parent.kind === "game" && run.parent.id === params.gameId;
+    const member = run.parent.kind === "bundle_member"
+      ? bundleMemberMap.get(run.parent.id)
+      : undefined;
+    if (!isGameRun && !member) continue;
+    const event = describeSectionRun(run, {
+      liveRows: isGameRun ? (params.sections ?? []) : (member?.sections ?? []),
+      timelinesByParent: sectionIndex.timelinesByParent,
+      style: isGameRun ? (params.sectionMeta?.style ?? null) : "linear",
+      noun: isGameRun ? params.sectionMeta?.noun : member?.sectionNoun,
+    });
+    if (!event) continue;
+    entries.push({
+      date: requireHistoryDate(event.at, `game_sections run ${run.key}`),
+      title: isGameRun ? "Game Updated" : `Included Game Updated - ${recordTitle(member?.title)}`,
+      bodyHtml: deltaLinesToHtml(event.event.body),
     });
   }
 
@@ -288,14 +251,13 @@ export function buildGameHistory(params: {
       revision.activity?.timestamp,
       `game revision ${revision.id}`,
     );
-    const isCreate = revision.activity?.action === "create"
-      || (index === gameRevisions.length - 1 && prevData === null);
+    const isCreate = isCreateRevision(revision, index === gameRevisions.length - 1 && prevData === null);
 
     if (isCreate) {
       entries.push({
         date,
         title: "Game Added",
-        bodyHtml: deltaLinesToHtml(fmtNewGame(revision.data ?? {}, genres), params.genreSlugs),
+        bodyHtml: deltaLinesToHtml(fmtNewGame(revision.data ?? {}, genrePartition.initial), params.genreSlugs),
       });
       continue;
     }
@@ -311,66 +273,48 @@ export function buildGameHistory(params: {
 
   const reviewGroups = groupRevisionsByItem(reviewRevisions);
   for (const revisions of reviewGroups.values()) {
-    for (const revision of revisions) {
-      const data = revision.data ?? {};
+    for (const [index, revision] of revisions.entries()) {
       const date = requireHistoryDate(
         revision.activity?.timestamp,
         `review revision ${revision.id}`,
       );
-      const title = recordTitle(data.title);
-      if (
-        revision.activity?.action === "create"
-        || revision.delta?.status === "published"
-      ) {
-        entries.push({
-          date,
-          title: `Review Published — ${title}`,
-          bodyHtml: "",
-        });
-        continue;
-      }
-
-      const description = fmtDelta(revision.delta ?? {}, null);
-      if (!description.trim()) continue;
+      const event = describeReviewEvent({
+        revision,
+        previousData: revisions[index + 1]?.data ?? null,
+        includeGame: false,
+      });
+      if (!event) continue;
       entries.push({
         date,
-        title: `Review Updated — ${title}`,
-        bodyHtml: deltaLinesToHtml(description),
+        title: `${event.title} — ${event.subject}`,
+        bodyHtml: deltaLinesToHtml(event.body),
       });
     }
   }
 
-  const bundleMemberMap = new Map(
-    params.bundleMembers.map((member) => [member.id, member]),
-  );
   const memberRevisionGroups = groupRevisionsByItem(bundleMemberRevisions);
   for (const [itemId, revisions] of memberRevisionGroups) {
     const currentMember = bundleMemberMap.get(Number(itemId));
     for (const [index, revision] of revisions.entries()) {
-      const data = revision.data ?? {};
-      const title = recordTitle(currentMember?.title ?? data.title);
       const date = requireHistoryDate(
         revision.activity?.timestamp,
         `bundle member revision ${revision.id}`,
       );
-      const isCreate = revision.activity?.action === "create"
-        || (index === revisions.length - 1 && !revisions[index + 1]);
-      if (isCreate) {
-        entries.push({
-          date,
-          title: `Included Game Added - ${title}`,
-          bodyHtml: "",
-        });
-        continue;
-      }
-
       const previousData = revisions[index + 1]?.data ?? null;
-      const description = fmtDelta(revision.delta ?? {}, previousData, data, currentMember?.sections);
-      if (!description.trim()) continue;
+      const isCreate = isCreateRevision(revision, index === revisions.length - 1 && !revisions[index + 1]);
+      if (revision.activity?.action === "delete") continue;
+      const event = describeMemberEvent({
+        revision,
+        previousData,
+        sections: currentMember?.sections ?? null,
+        isCreate,
+        isDelete: false,
+      });
+      if (!event) continue;
       entries.push({
         date,
-        title: `Included Game Updated - ${title}`,
-        bodyHtml: deltaLinesToHtml(description),
+        title: `${event.title} - ${recordTitle(currentMember?.title ?? event.subject)}`,
+        bodyHtml: deltaLinesToHtml(event.body),
       });
     }
   }
@@ -383,13 +327,14 @@ export function buildGameHistory(params: {
     if (!tierEntry) continue;
     const tierListTitle = tierEntry.tier_list_id?.title ?? "Untitled";
     const rating = tierEntry.rating ?? "";
+    const event = describeTierEntryAdded({ tierListTitle, rating });
     entries.push({
       date: requireHistoryDate(
         activity.timestamp,
         `tier list game activity ${activity.id}`,
       ),
-      title: `Added to Tier List — ${tierListTitle} (${rating})`,
-      bodyHtml: "",
+      title: `${event.title} — ${event.subject} (${rating})`,
+      bodyHtml: deltaLinesToHtml(event.body),
     });
   }
 
@@ -429,32 +374,22 @@ export function buildGameHistory(params: {
   for (const activity of linkActivities) {
     const link = linkMap.get(Number(activity.item));
     if (!link) continue;
-    const kindLabel = LINK_EVENT_TITLES[link.kind ?? ""] ?? "Download Link";
-    const isCreate = activity.action !== "update";
     const itemRevisions = linkRevisionsByItem.get(String(activity.item)) ?? [];
     const revisionIndex = itemRevisions.findIndex((rev) => rev.activity?.id === activity.id);
-    let body = "";
-    if (revisionIndex >= 0) {
-      const revision = itemRevisions[revisionIndex];
-      body = fmtLinkDelta(
-        revision.delta ?? {},
-        itemRevisions[revisionIndex + 1]?.data ?? null,
-        revision.data ?? null,
-        isCreate,
-        link.url,
-      );
-      // Nothing displayable changed (e.g. only the sort order): not an event.
-      if (!isCreate && !body) continue;
-    } else if (link.url) {
-      body = `**URL**: ${link.url}`;
-    }
+    const event = describeLinkEvent({
+      action: activity.action,
+      link,
+      revision: revisionIndex >= 0 ? itemRevisions[revisionIndex] : null,
+      previousData: revisionIndex >= 0 ? itemRevisions[revisionIndex + 1]?.data ?? null : null,
+    });
+    if (!event) continue;
     entries.push({
       date: requireHistoryDate(
         activity.timestamp,
         `games link activity ${activity.id}`,
       ),
-      title: `${kindLabel} ${isCreate ? "Added" : "Updated"}`,
-      bodyHtml: deltaLinesToHtml(body),
+      title: event.title,
+      bodyHtml: deltaLinesToHtml(event.body),
     });
   }
 

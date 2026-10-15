@@ -1,5 +1,6 @@
 import { directusFetchRaw, assetsBaseUrl } from "./directus";
 import { isGameNsfw, isTierListNsfw } from "./nsfw";
+import { SKIP_DELTA } from "./changelog";
 
 const siteBase = (assetsBaseUrl() || "https://jasmeralia.com").replace(/\/$/, "");
 
@@ -61,11 +62,6 @@ export type UpdateEntry = {
   timestamp: Date;
   nsfw: boolean;
 };
-
-const SKIP_DELTA = new Set([
-  "date_updated", "date_created", "sort", "id", "slug", "body", "updated_at",
-  "engines", "version_orion", "version_typhoon", "version_gsl",
-]);
 
 function hasMeaningfulDelta(delta: Record<string, unknown> | null): boolean {
   if (!delta) return false;

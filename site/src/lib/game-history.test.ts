@@ -9,7 +9,7 @@ const emptyHistoryInputs = () => ({
   allTierRevisions: [],
   allLinkActivities: [],
   allBundleMemberRevisions: [],
-  genres: [],
+  genreLinks: [],
 });
 
 describe("buildGameHistory", () => {
@@ -23,7 +23,7 @@ describe("buildGameHistory", () => {
         { id: 32, kind: "download", url: "https://store.test" },
       ],
       bundleMembers: [{ id: 41, title: "Current Member" }],
-      genres: ["Adventure"],
+      genreLinks: [{ id: 1, name: "Adventure" }],
       allGameRevisions: [
         {
           id: 30,
@@ -55,7 +55,7 @@ describe("buildGameHistory", () => {
           id: 42,
           item: "11",
           collection: "reviews",
-          data: { title: "Launch Review" },
+          data: { title: "Launch Review", status: "published", rating: 8, published_at: "2026-07-09T00:00:00Z" },
           delta: {},
           activity: { action: "create", timestamp: "2026-07-09T12:00:00Z" },
         },
@@ -63,7 +63,7 @@ describe("buildGameHistory", () => {
           id: 41,
           item: "11",
           collection: "reviews",
-          data: { title: "Launch Review", rating: 4 },
+          data: { title: "Launch Review", status: "published", rating: 4 },
           delta: { rating: 4 },
           activity: { action: "update", timestamp: "2026-07-08T12:00:00Z" },
         },
@@ -71,7 +71,7 @@ describe("buildGameHistory", () => {
           id: 40,
           item: "12",
           collection: "reviews",
-          data: { title: "" },
+          data: { title: "", status: "published" },
           delta: { status: "published" },
           activity: { action: "update", timestamp: "2026-07-07T12:00:00Z" },
         },
@@ -196,6 +196,13 @@ describe("buildGameHistory", () => {
     expect(entries[0].bodyHtml).toBe(
       '<ul class="history-changes"><li><strong>Title</strong>: Old &lt;Game&gt; → New &amp; &lt;Game&gt;</li></ul>',
     );
+    expect(entries[1].bodyHtml).toBe(
+      '<ul class="history-changes"><li><strong>Rating</strong>: 8/10</li><li><strong>Published</strong>: 2026-07-09</li></ul>',
+    );
+    expect(entries[5].bodyHtml).toBe(
+      '<ul class="history-changes"><li><strong>Tier</strong>: B</li></ul>',
+    );
+    expect(entries[9].bodyHtml).toContain("<strong>Title</strong>: Old Member");
     expect(entries.at(-1)?.bodyHtml).toContain("<strong>Genres</strong>: Adventure");
   });
 
@@ -236,7 +243,7 @@ describe("buildGameHistory", () => {
       reviews: [],
       tierEntries: [],
       links: [],
-      bundleMembers: [{ id: 42, title: "Member Two" }],
+      bundleMembers: [{ id: 42 }],
       ...emptyHistoryInputs(),
       allBundleMemberRevisions: [
         {
@@ -259,6 +266,28 @@ describe("buildGameHistory", () => {
     });
 
     expect(entries.map(({ title }) => title)).toEqual(["Included Game Added - Member Two"]);
+    expect(entries[0].bodyHtml).toContain("<strong>Title</strong>: Member Two");
+  });
+
+  it("keeps removed included games out of History", () => {
+    const entries = buildGameHistory({
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [{ id: 42, title: "Removed Member" }],
+      ...emptyHistoryInputs(),
+      allBundleMemberRevisions: [{
+        id: 601,
+        item: "42",
+        collection: "game_bundle_members",
+        data: { title: "Removed Member" },
+        delta: null,
+        activity: { action: "delete", timestamp: "2026-07-13T12:00:00Z" },
+      }],
+    });
+
+    expect(entries).toEqual([]);
   });
 
   it("rejects a revision without a valid required timestamp", () => {
@@ -360,6 +389,110 @@ describe("link history details", () => {
         + "<li><strong>Kind</strong>: \u2014 \u2192 Other link</li></ul>",
     );
   });
+
+  it("includes section-count runs for this game and its bundle members only", () => {
+    const sectionRevision = (
+      id: number,
+      item: number,
+      timestamp: string,
+      data: Record<string, unknown>,
+    ) => ({
+      id,
+      item: String(item),
+      collection: "game_sections",
+      data,
+      delta: {},
+      activity: { action: "create", timestamp },
+    });
+    const allSectionRevisions = [
+      sectionRevision(1, 101, "2026-01-01T00:00:00Z", { games_id: 7, completed: false }),
+      sectionRevision(2, 102, "2026-01-01T00:00:00Z", { games_id: 7, completed: false }),
+      sectionRevision(3, 103, "2026-02-01T00:00:00Z", { games_id: 7, completed: false }),
+      sectionRevision(4, 201, "2026-01-01T00:00:00Z", { bundle_member_id: 41, completed: false }),
+      sectionRevision(5, 202, "2026-02-02T00:00:00Z", { bundle_member_id: 41, completed: false }),
+      sectionRevision(6, 301, "2026-01-01T00:00:00Z", { games_id: 8, completed: false }),
+      sectionRevision(7, 302, "2026-02-03T00:00:00Z", { games_id: 8, completed: false }),
+    ];
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [{
+        id: 41,
+        title: "Included Story",
+        sectionNoun: "Episode",
+      }],
+      sections: [
+        { id: 101, number: 1, title: "Chapter 1", completed: false },
+        { id: 102, number: 2, title: "Chapter 2", completed: false },
+        { id: 103, number: 3, title: "Chapter 3", completed: false },
+      ],
+      sectionMeta: { style: "linear", noun: "Chapter" },
+      allSectionRevisions,
+    });
+    expect(entries.filter((entry) => entry.bodyHtml)).toEqual([
+      {
+        date: new Date("2026-02-02T00:00:00Z"),
+        title: "Included Game Updated - Included Story",
+        bodyHtml: '<ul class="history-changes"><li><strong>Episodes</strong>: 1 \u2192 2</li></ul>',
+      },
+      {
+        date: new Date("2026-02-01T00:00:00Z"),
+        title: "Game Updated",
+        bodyHtml: '<ul class="history-changes"><li><strong>Chapters</strong>: 2 \u2192 3</li></ul>',
+      },
+    ]);
+  });
+
+  it("does not add section entries when collection revisions are absent", () => {
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [],
+      sections: [{ id: 1, number: 1, title: "Chapter 1", completed: false }],
+      sectionMeta: { style: "linear", noun: "Chapter" },
+    });
+    expect(entries).toEqual([]);
+  });
+
+  it("uses empty live sections and default metadata when section details are omitted", () => {
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [],
+      allSectionRevisions: [
+        {
+          id: 1,
+          item: "101",
+          collection: "game_sections",
+          data: { games_id: 7, completed: false },
+          delta: {},
+          activity: { action: "create", timestamp: "2026-01-01T00:00:00Z" },
+        },
+        {
+          id: 2,
+          item: "102",
+          collection: "game_sections",
+          data: { games_id: 7, completed: false },
+          delta: {},
+          activity: { action: "create", timestamp: "2026-02-01T00:00:00Z" },
+        },
+      ],
+    });
+    expect(entries).toEqual([{
+      date: new Date("2026-02-01T00:00:00Z"),
+      title: "Game Updated",
+      bodyHtml: '<ul class="history-changes"><li><strong>Chapters</strong>: 1 \u2192 2</li></ul>',
+    }]);
+  });
 });
 
 describe("link history identity", () => {
@@ -452,6 +585,46 @@ describe("link history with sparse revision data", () => {
   });
 });
 
+describe("game creation history", () => {
+  it("renders an empty Game Added body when the creation revision carries no data", () => {
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [],
+      allGameRevisions: [{
+        id: 1, item: "7", collection: "games", data: null, delta: null,
+        activity: { id: 1, action: "create", timestamp: "2026-07-01T00:00:00Z" },
+      }],
+    });
+    expect(entries.map(({ title, bodyHtml }) => ({ title, bodyHtml }))).toEqual([{ title: "Game Added", bodyHtml: "" }]);
+  });
+});
+
+describe("review history", () => {
+  it("shows old and new values on a review update", () => {
+    const rev = (id: number, rating: number, action: string, day: number) => ({
+      id, item: "11", collection: "reviews", data: { title: "R", status: "published", rating }, delta: { rating },
+      activity: { id, action, timestamp: `2026-07-0${day}T00:00:00Z` },
+    });
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [{ id: 11 }],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [],
+      allReviewRevisions: [rev(2, 4, "update", 2), rev(1, 3, "update", 1)],
+    });
+    expect(entries.map(({ bodyHtml }) => bodyHtml)).toEqual([
+      '<ul class="history-changes"><li><strong>Rating</strong>: 3 \u2192 4</li></ul>',
+      '<ul class="history-changes"><li><strong>Rating</strong>: 3</li></ul>',
+    ]);
+  });
+});
+
 describe("genre history", () => {
   const revision = (timestamp: string, action: string, data: Record<string, unknown>) => ({
     id: 1, item: "7", collection: "games", data, delta: data, activity: { id: 1, action, timestamp },
@@ -473,7 +646,6 @@ describe("genre history", () => {
   it("keeps genres added with the game in Game Added and lists later ones as Genre Added", () => {
     const entries = buildGameHistory({
       ...base,
-      genres: [],
       genreLinks: [{ id: 1, name: "Adventure" }, { id: 2, name: "AVN" }],
       allGenreActivities: [
         genreActivity(10, "1", "2026-10-10T23:03:02.614Z"),
@@ -489,12 +661,10 @@ describe("genre history", () => {
     expect(entries[1].bodyHtml).not.toContain("AVN");
   });
 
-  it("keeps a genre with no recorded activity in Game Added, and falls back to genres without genreLinks", () => {
-    const withLink = buildGameHistory({ ...base, genres: [], genreLinks: [{ id: 1, name: "Adventure" }] });
+  it("keeps a genre with no recorded activity in Game Added", () => {
+    const withLink = buildGameHistory({ ...base, genreLinks: [{ id: 1, name: "Adventure" }] });
     expect(withLink.map(({ title }) => title)).toEqual(["Game Added"]);
     expect(withLink[0].bodyHtml).toContain("Adventure");
-    const legacy = buildGameHistory({ ...base, genres: ["Mystery"] });
-    expect(legacy[0].bodyHtml).toContain("Mystery");
   });
 });
 

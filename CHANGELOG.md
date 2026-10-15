@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.236] - 2026-10-15
+- Refactor: game History and the RSS/Discord feed now derive link, genre, section-count, review, included-game and tier events from one shared module (`game-events.ts`, `section-events.ts`) instead of two parallel implementations.
+- Feed: link items are titled "Download Link Added: <game>" (Walkthrough / Other / GameStoryLog likewise) with the URL, kind and label, and sort-only link edits no longer produce an item. Existing item GUIDs are unchanged.
+- Feed: genres added after a game was created now appear as "Genre Added: <game>" items, and "Game Added" lists only the genres it was created with. Review updates show old and new values.
+- History: section-count changes (chapters, missions, quests added or completed) now appear for the game and its included games. Review and included-game entries gain the same detail lines the feed shows, tier entries show the tier, and a review is only shown once published.
+- Feed consolidation no longer parses titles by prefix; it uses explicit game metadata.
+
 ## [1.0.235] - 2026-10-15
 - History: genres added to a game after it was created now show as "Genre Added" events (with a link to the genre page), and "Game Added" lists only the genres it was created with. Genre removals are still not shown: Directus keeps no data on removed junction rows, so they can't be tied to a game.
 
