@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.228] - 2026-10-14
+- Game page: move source versions out of the Details panel into a new Versions tab, shown only for games with a GameStoryLog link. GameStoryLog versions are listed by release date (newest first), then Typhoon, then Orion installs by when they were first recorded; redundant legacy placeholder rows are hidden.
+- Game page: the History and Versions tabs now set `#history` / `#versions` in the URL, so the selected tab survives a reload or shared link.
+- Game page: History no longer lists changes to the retired `version_*` fields.
+- Game page: History links Play Status, Release Status, Section Style, and Year values to their listing pages, and shows "Unreleased" / "Abandoned" instead of the raw status values.
+
 ## [1.0.227] - 2026-10-14
 - Filters: the Version Mismatches filter now also skips abandoned games (it already skipped completed and released ones).
 

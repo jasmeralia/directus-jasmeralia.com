@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { effectiveVersion, formatTrackedVersion, hasVersionMismatch } from "./game-versions";
+import {
+  buildVersionsTab,
+  effectiveVersion,
+  formatTrackedVersion,
+  hasVersionMismatch,
+} from "./game-versions";
 
 type Source = "orion" | "typhoon" | "gsl";
 
@@ -117,5 +122,57 @@ describe("tracked game versions", () => {
   it("excludes completed or released games", () => {
     expect(hasVersionMismatch(versionsOf("1.0.0", "1.0.0", "1.0", { player_status: "completed" }))).toBe(false);
     expect(hasVersionMismatch(versionsOf("0.8", null, "0.9", { game_status: "released" }))).toBe(false);
+  });
+});
+
+describe("buildVersionsTab", () => {
+  const row = (source: Source, reported_version: string, extra: Record<string, unknown> = {}) => ({
+    source,
+    reported_version,
+    ...extra,
+  });
+
+  it("orders groups GSL, Typhoon, Orion and omits empty ones", () => {
+    const groups = buildVersionsTab([
+      row("orion", "1.0"),
+      row("gsl", "1.0", { release_date: "2025-01-01" }),
+      row("typhoon", "1.0"),
+    ]);
+    expect(groups.map((group) => group.source)).toEqual(["gsl", "typhoon", "orion"]);
+    expect(buildVersionsTab([row("gsl", "1.0")]).map((group) => group.source)).toEqual(["gsl"]);
+    expect(buildVersionsTab(null)).toEqual([]);
+  });
+
+  it("sorts GSL rows by release date, newest first, undated last", () => {
+    const [gsl] = buildVersionsTab([
+      row("gsl", "0.1", { release_date: "2024-01-25" }),
+      row("gsl", "0.0"),
+      row("gsl", "0.10", { release_date: "2026-09-11" }),
+      row("gsl", "0.2", { release_date: "2024-04-07" }),
+    ]);
+    expect(gsl.rows.map((r) => r.reported_version)).toEqual(["0.10", "0.2", "0.1", "0.0"]);
+  });
+
+  it("sorts installs by recorded_at, then version, newest first", () => {
+    const bulk = "2026-09-25T05:35:15.000Z";
+    const [typhoon] = buildVersionsTab([
+      row("typhoon", "0.9.5", { recorded_at: bulk }),
+      row("typhoon", "0.10.1", { recorded_at: bulk }),
+      row("typhoon", "0.9.21", { recorded_at: "2026-10-12T10:02:54.000Z" }),
+    ]);
+    expect(typhoon.rows.map((r) => r.reported_version)).toEqual(["0.9.21", "0.10.1", "0.9.5"]);
+  });
+
+  it("hides a legacy placeholder only when a real install has the same version", () => {
+    const legacy = "legacy games.version_orion";
+    const [orion] = buildVersionsTab([
+      row("orion", "0.9.5", { source_reference: legacy }),
+      row("orion", "0.9.5", { source_reference: "Eternum-0.9.5-pc" }),
+      row("orion", "0.7", { source_reference: legacy }),
+    ]);
+    expect(orion.rows.map((r) => `${r.reported_version}:${r.source_reference}`).sort()).toEqual([
+      `0.7:${legacy}`,
+      "0.9.5:Eternum-0.9.5-pc",
+    ]);
   });
 });
