@@ -40,16 +40,9 @@ const LIMIT_BUNDLE_MEMBERS = 200;
 // entry in each burst, not a sliding per-gap window.
 const GAME_CONSOLIDATION_WINDOW_MS = 30 * 60 * 1000;
 
-const SKIP_FEED_DELTA = new Set([
-  ...SKIP_DELTA,
-  "version_orion",
-  "version_typhoon",
-  "version_gsl",
-]);
-
 const feedDelta = (delta: Record<string, unknown> | null): Record<string, unknown> =>
   Object.fromEntries(
-    Object.entries(delta ?? {}).filter(([field]) => !SKIP_FEED_DELTA.has(field)),
+    Object.entries(delta ?? {}).filter(([field]) => !SKIP_DELTA.has(field)),
   );
 
 // ─── XML helpers ─────────────────────────────────────────────────────────────
@@ -154,7 +147,7 @@ const itemXml = (e: {
 function gameGuidEvent(rev: Revision): string {
   if (rev.activity?.action === "create") return "created";
   const changedFields = Object.keys(rev.delta ?? {}).filter(
-    (field) => !SKIP_FEED_DELTA.has(field),
+    (field) => !SKIP_DELTA.has(field),
   );
   if (changedFields.length === 1 && changedFields[0] === "player_status") return "play_status";
   if (changedFields.length === 1 && changedFields[0] === "game_status") return "release_status";

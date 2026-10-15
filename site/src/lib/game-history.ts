@@ -1,4 +1,5 @@
 import {
+  ENUM_LABEL,
   fmtDelta,
   fmtNewGame,
   type Activity,
@@ -38,13 +39,49 @@ type BundleMember = {
   sections?: GameSection[] | null;
 };
 
-function deltaLinesToHtml(markdown: string): string {
+const PLAYED_STATUSES = [
+  "not_started", "in_progress", "on_hold", "waiting_for_update", "did_not_finish", "completed",
+];
+const GAME_STATUSES = ["unreleased", "in_development", "abandoned", "released", "on_hiatus"];
+const SECTION_STYLES = ["linear", "nonlinear"];
+
+// Delta-line labels whose values link to a listing page. Each resolves a
+// displayed value (e.g. "Waiting for Update", "2026") to that page's URL.
+const enumHref = (prefix: string, values: string[]) => (shown: string) => {
+  const value = values.find((v) => ENUM_LABEL[v] === shown);
+  return value ? `${prefix}/${value}/index.html` : null;
+};
+const LINKED_LABELS: Record<string, (shown: string) => string | null> = {
+  "Play Status": enumHref("/played_statuses", PLAYED_STATUSES),
+  "Release Status": enumHref("/game_statuses", GAME_STATUSES),
+  "Section Style": enumHref("/filters/section-style", SECTION_STYLES),
+  Year: (shown) => (/^\d{4}$/.test(shown) ? `/releases/${shown}/index.html` : null),
+};
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// Render one "**Label**: value" or "**Label**: old \u2192 new" delta line,
+// linking each value when the label has a listing page.
+function deltaLineToHtml(line: string): string {
+  const match = /^\*\*(.+?)\*\*: (.*)$/.exec(line);
+  const hrefFor = match ? LINKED_LABELS[match[1]] : undefined;
+  if (!match || !hrefFor) {
+    return escapeHtml(line).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  }
+  const values = match[2]
+    .split(" \u2192 ")
+    .map((shown) => {
+      const href = hrefFor(shown);
+      return href ? `<a href="${href}">${escapeHtml(shown)}</a>` : escapeHtml(shown);
+    })
+    .join(" \u2192 ");
+  return `<strong>${escapeHtml(match[1])}</strong>: ${values}`;
+}
+
+export function deltaLinesToHtml(markdown: string): string {
   if (!markdown.trim()) return "";
-  const escape = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const items = markdown
-    .split("\n")
-    .map((line) => `<li>${escape(line).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</li>`);
+  const items = markdown.split("\n").map((line) => `<li>${deltaLineToHtml(line)}</li>`);
   return `<ul class="history-changes">${items.join("")}</ul>`;
 }
 

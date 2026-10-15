@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildGameHistory } from "./game-history";
+import { buildGameHistory, deltaLinesToHtml } from "./game-history";
 
 const emptyHistoryInputs = () => ({
   allGameRevisions: [],
@@ -293,5 +293,31 @@ describe("buildGameHistory", () => {
     });
 
     expect(entries).toEqual([]);
+  });
+});
+
+describe("deltaLinesToHtml", () => {
+  it("links play status, release status, section style, and year values", () => {
+    expect(deltaLinesToHtml("**Play Status**: In Progress \u2192 Waiting for Update")).toBe(
+      '<ul class="history-changes"><li><strong>Play Status</strong>: '
+        + '<a href="/played_statuses/in_progress/index.html">In Progress</a> \u2192 '
+        + '<a href="/played_statuses/waiting_for_update/index.html">Waiting for Update</a></li></ul>',
+    );
+    expect(deltaLinesToHtml("**Release Status**: Abandoned")).toContain(
+      '<a href="/game_statuses/abandoned/index.html">Abandoned</a>',
+    );
+    expect(deltaLinesToHtml("**Section Style**: Nonlinear")).toContain(
+      '<a href="/filters/section-style/nonlinear/index.html">Nonlinear</a>',
+    );
+    expect(deltaLinesToHtml("**Year**: 2024")).toContain('<a href="/releases/2024/index.html">2024</a>');
+  });
+
+  it("leaves unlinked labels and unrecognised values as escaped text", () => {
+    expect(deltaLinesToHtml("**Title**: A <b> \u2192 B")).toBe(
+      '<ul class="history-changes"><li><strong>Title</strong>: A &lt;b&gt; \u2192 B</li></ul>',
+    );
+    expect(deltaLinesToHtml("**Play Status**: \u2014 \u2192 Completed")).toContain(
+      '\u2014 \u2192 <a href="/played_statuses/completed/index.html">Completed</a>',
+    );
   });
 });

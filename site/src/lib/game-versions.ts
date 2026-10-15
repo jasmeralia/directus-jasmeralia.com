@@ -9,6 +9,7 @@ export type GameVersion = {
   installation_key?: string | null;
   is_current?: boolean;
   release_date?: string | null;
+  recorded_at?: string | null;
 };
 
 export type TrackedGameVersions = {
@@ -78,4 +79,73 @@ export function hasVersionMismatch(game: TrackedGameVersions): boolean {
     if (left && right) return compareSemver(left, right) < 0;
     return value.toLocaleLowerCase("en-US") !== gslValue.toLocaleLowerCase("en-US");
   });
+}
+
+export type VersionsTabGroup = {
+  source: GameVersion["source"];
+  label: string;
+  rows: GameVersion[];
+};
+
+const LEGACY_REFERENCE_PREFIX = "legacy games.version_";
+
+function compareVersionStrings(a: string, b: string): number {
+  const left = parseSemver(a);
+  const right = parseSemver(b);
+  if (left && right) return compareSemver(left, right);
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+}
+
+// Orion/Typhoon rows migrated from the retired scalar fields carry a
+// "legacy games.version_*" placeholder reference. Hide one only when a real
+// install row of the same source and version exists, so a placeholder that is
+// the sole record of a version is kept.
+function dropRedundantLegacyRows(rows: GameVersion[]): GameVersion[] {
+  const realVersions = new Set(
+    rows
+      .filter((row) => !row.source_reference?.startsWith(LEGACY_REFERENCE_PREFIX))
+      .map((row) => `${row.source}\u0000${effectiveVersion(row) ?? ""}`),
+  );
+  return rows.filter(
+    (row) =>
+      !row.source_reference?.startsWith(LEGACY_REFERENCE_PREFIX) ||
+      !realVersions.has(`${row.source}\u0000${effectiveVersion(row) ?? ""}`),
+  );
+}
+
+function compareByVersionDesc(a: GameVersion, b: GameVersion): number {
+  return compareVersionStrings(b.reported_version ?? "", a.reported_version ?? "");
+}
+
+// GSL rows have a real release_date (newest first, undated last). Orion and
+// Typhoon rows have none; recorded_at is when the sync first saw the install
+// (bulk-backfilled rows share one migration timestamp), so it orders newest
+// first with the version string breaking ties.
+function compareGsl(a: GameVersion, b: GameVersion): number {
+  if (a.release_date && b.release_date && a.release_date !== b.release_date) {
+    return b.release_date.localeCompare(a.release_date);
+  }
+  if (Boolean(a.release_date) !== Boolean(b.release_date)) return a.release_date ? -1 : 1;
+  return compareByVersionDesc(a, b);
+}
+
+function compareInstall(a: GameVersion, b: GameVersion): number {
+  const byRecorded = (b.recorded_at ?? "").localeCompare(a.recorded_at ?? "");
+  return byRecorded || compareByVersionDesc(a, b);
+}
+
+// Groups for the game detail Versions tab, in display order: GSL, Typhoon,
+// Orion. Empty groups are omitted.
+export function buildVersionsTab(versions: GameVersion[] | null | undefined): VersionsTabGroup[] {
+  const rows = versions ?? [];
+  const gsl = rows.filter((row) => row.source === "gsl").sort(compareGsl);
+  const installs = dropRedundantLegacyRows(rows.filter((row) => row.source !== "gsl"));
+  const typhoon = installs.filter((row) => row.source === "typhoon").sort(compareInstall);
+  const orion = installs.filter((row) => row.source === "orion").sort(compareInstall);
+  const groups: VersionsTabGroup[] = [
+    { source: "gsl", label: "GameStoryLog", rows: gsl },
+    { source: "typhoon", label: "Typhoon", rows: typhoon },
+    { source: "orion", label: "Orion", rows: orion },
+  ];
+  return groups.filter((group) => group.rows.length > 0);
 }

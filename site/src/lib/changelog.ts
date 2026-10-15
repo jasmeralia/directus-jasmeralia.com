@@ -15,6 +15,8 @@ type DirectusRecord = Record<string, unknown>;
 export const SKIP_DELTA = new Set([
   "date_updated", "date_created", "sort", "id", "slug", "body", "updated_at",
   "engines",
+  // Retired scalar version fields: version tracking lives in the Versions tab.
+  "version_orion", "version_typhoon", "version_gsl",
 ]);
 
 // current_section is formatted specially (see fmtDelta) using the game's
@@ -43,6 +45,8 @@ export const ENUM_LABEL: Record<string, string> = {
   did_not_finish: "Did Not Finish",
   waiting_for_update: "Waiting for Update",
   released: "Released",
+  unreleased: "Unreleased",
+  abandoned: "Abandoned",
   in_development: "In Development",
   on_hiatus: "On Hiatus",
   cancelled: "Cancelled",
