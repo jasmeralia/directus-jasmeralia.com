@@ -6,7 +6,7 @@ import { bundleProgressSummary, effectiveSectionStyle } from "../lib/game-bundle
 import { sectionProgressSummary } from "../lib/game-sections";
 import PlaceholderRibbon from "./PlaceholderRibbon.astro";
 
-const { game, reviewed = false, sTier = false } = Astro.props;
+const { game, reviewed = false, sTier = false, tierChips = [] } = Astro.props;
 const labelize = (value) =>
   value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 const completed = game?.player_status === "completed";
@@ -124,6 +124,9 @@ const progress = bundleProgress ?? (directProgress
                     {sectionStyle ? (
                       <a class="tag" href={`/filters/section-style/${sectionStyle}/index.html`}>{labelize(sectionStyle)}</a>
                     ) : null}
+                    {tierChips.map((chip) => (
+                      <a class="tag tag-tier" href={`/tiers/${chip.slug}/index.html`}>{chip.text}</a>
+                    ))}
                     {genres.map((genre) => (
                       <a class="tag" href={`/genres/${genre.slug}/index.html`}>{genre.name}</a>
                     ))}
@@ -172,6 +175,7 @@ const progress = bundleProgress ?? (directProgress
   .platform img{width:.9rem;height:.9rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
   .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:auto;padding-top:.5rem;}
   .tag{font-size:.75rem;padding:.2rem .5rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;opacity:.9;}
+  .tag-tier{overflow-wrap:anywhere;}
   .tag-content-rating{font-weight:700;}
   .tag-sfw{background:#173d24;border-color:#2f7d46;color:#9ae6ad;}
   .tag-nsfw{background:#5c2020;border-color:#8c3535;color:#ffb4b4;}

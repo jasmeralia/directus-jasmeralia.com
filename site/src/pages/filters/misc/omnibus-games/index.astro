@@ -3,7 +3,7 @@ import BaseLayout from "../../../../layouts/BaseLayout.astro";
 import CsvHeader from "../../../../components/CsvHeader.astro";
 import ThumbnailBorderLegend from "../../../../components/ThumbnailBorderLegend.astro";
 import GameThumbCard from "../../../../components/GameThumbCard.astro";
-import { directusFetchItems, getReviewedGameIds, getSTierGameIds } from "../../../../lib/directus";
+import { directusFetchItems, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../../lib/directus";
 import { csvDataUri, omnibusGamesToCsv } from "../../../../lib/csv";
 import { GAME_THUMB_FIELDS } from "../../../../lib/game-fields";
 import { sortByTitle } from "../../../../lib/list-format";
@@ -16,9 +16,10 @@ const games = sortByTitle(
   allGames.filter((game) => (game.bundle_members ?? []).length > 0),
 );
 const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
-const [reviewedGameIds, sTierGameIds] = await Promise.all([
+const [reviewedGameIds, sTierGameIds, tierChipsByGame] = await Promise.all([
   getReviewedGameIds(gameIds),
   getSTierGameIds(gameIds),
+  getTierChipsByGameId(gameIds),
 ]);
 
 const csvName = "omnibus-games.csv";
@@ -50,7 +51,7 @@ const csvHref = csvDataUri(omnibusGamesToCsv(games));
             game={game}
             reviewed={reviewedGameIds.has(game.id)}
             sTier={sTierGameIds.has(game.id)}
-          />
+          tierChips={tierChipsByGame.get(game.id) ?? []} />
         ))}
       </div>
     )}

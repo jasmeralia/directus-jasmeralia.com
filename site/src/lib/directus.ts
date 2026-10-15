@@ -2,6 +2,7 @@ import { getUrlPlatform, primaryDownloadLink, type GameLink } from "./download-l
 import { recordDirectusFetch } from "./build-metrics";
 import type { GameBundleMember } from "./game-bundles";
 import type { GameSection } from "./game-sections";
+import { groupTierChipsByGame, type TierChip, type TierChipEntry } from "./tier-chips";
 
 export type DirectusFile = {
   id: string;
@@ -275,6 +276,20 @@ export async function getSTierGameIds(gameIds: number[]): Promise<Set<number>> {
     if (typeof id === "number" && ids.has(id)) result.add(id);
   }
   return result;
+}
+
+export async function getTierChipsByGameId(gameIds: number[]): Promise<Map<number, TierChip[]>> {
+  const ids = new Set(gameIds.filter((id) => typeof id === "number"));
+  if (!ids.size) return new Map();
+
+  const entries = await directusFetchItems<TierChipEntry>("tier_list_games", {
+    fields: ["rating", "game_id.id", "tier_list_id.slug", "tier_list_id.title"],
+    filter: { tier_list_id: { status: { _eq: "published" } } },
+    limit: -1,
+  });
+
+  const grouped = groupTierChipsByGame(entries ?? []);
+  return new Map([...grouped].filter(([gameId]) => ids.has(gameId)));
 }
 
 export async function getReviewedGameIds(gameIds: number[]): Promise<Set<number>> {

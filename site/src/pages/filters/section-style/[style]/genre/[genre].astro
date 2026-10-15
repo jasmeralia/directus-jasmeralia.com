@@ -3,7 +3,7 @@ import BaseLayout from "../../../../../layouts/BaseLayout.astro";
 import CsvHeader from "../../../../../components/CsvHeader.astro";
 import ThumbnailBorderLegend from "../../../../../components/ThumbnailBorderLegend.astro";
 import GameThumbCard from "../../../../../components/GameThumbCard.astro";
-import { directusFetchItems, getReviewedGameIds, getSTierGameIds } from "../../../../../lib/directus";
+import { directusFetchItems, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../../../lib/directus";
 import { effectiveSectionStyle } from "../../../../../lib/game-bundles";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../../../../lib/genre-supersets";
 import { csvDataUri, gamesToCsv } from "../../../../../lib/csv";
@@ -86,9 +86,10 @@ if (genre === "unknown") {
 games = sortByTitle(games);
 
 const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
-const [reviewedGameIds, sTierGameIds] = await Promise.all([
+const [reviewedGameIds, sTierGameIds, tierChipsByGame] = await Promise.all([
   getReviewedGameIds(gameIds),
   getSTierGameIds(gameIds),
+  getTierChipsByGameId(gameIds),
 ]);
 
 const csvName = `section-style-${style}-genre-${genre}.csv`;
@@ -123,7 +124,7 @@ const csvHref = csvDataUri(gamesToCsv(games));
             game={game}
             reviewed={reviewedGameIds.has(game.id)}
             sTier={sTierGameIds.has(game.id)}
-          />
+          tierChips={tierChipsByGame.get(game.id) ?? []} />
         ))}
       </div>
     )}

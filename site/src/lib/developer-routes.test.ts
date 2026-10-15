@@ -51,8 +51,9 @@ const reviews = [
 ];
 
 const sTierEntries = [
-  { game_id: { id: 2 } },
-  { game_id: { id: null } },
+  { rating: "S", game_id: { id: 2 }, tier_list_id: { slug: "main", title: "Main" } },
+  { rating: "B", game_id: { id: 1 }, tier_list_id: { slug: "main", title: "Main" } },
+  { rating: "S", game_id: { id: null }, tier_list_id: { slug: "main", title: "Main" } },
 ];
 
 describe("developer route build data", () => {
@@ -77,6 +78,12 @@ describe("developer route build data", () => {
     const reviewsUrl = new URL(urls.find((url) => url.includes("/items/reviews?")) ?? "");
     expect(gamesUrl.searchParams.get("limit")).toBe("-1");
     expect(reviewsUrl.searchParams.get("filter[status][_eq]")).toBe("published");
+    const tierUrl = new URL(urls.find((url) => url.includes("/items/tier_list_games?")) ?? "");
+    expect(tierUrl.searchParams.get("fields")).toBe(
+      "rating,game_id.id,tier_list_id.slug,tier_list_id.title",
+    );
+    expect(tierUrl.searchParams.get("filter[tier_list_id][status][_eq]")).toBe("published");
+    expect(tierUrl.searchParams.has("filter[rating][_eq]")).toBe(false);
   });
 
   it("builds detail pages with games sorted by release year and scoped review/tier metadata", () => {
@@ -91,6 +98,10 @@ describe("developer route build data", () => {
     expect(alpha.reviews.map((review) => review.id)).toEqual([11, 10]);
     expect(alpha.reviewedGameIdValues).toEqual([1, 2]);
     expect(alpha.sTierGameIdValues).toEqual([2]);
+    expect(alpha.tierChipEntries).toEqual([
+      [1, [{ slug: "main", text: "Main - B Tier" }]],
+      [2, [{ slug: "main", text: "Main - S Tier" }]],
+    ]);
 
     const unknown = paths[2].props;
     expect(unknown.developer).toBeNull();
@@ -131,6 +142,9 @@ describe("developer route build data", () => {
     expect(gameStatusPaths[0].props.games.map((game) => game.id)).toEqual([2]);
     expect(gameStatusPaths[0].props.reviewedGameIdValues).toEqual([2]);
     expect(gameStatusPaths[0].props.sTierGameIdValues).toEqual([2]);
+    expect(gameStatusPaths[0].props.tierChipEntries).toEqual([
+      [2, [{ slug: "main", text: "Main - S Tier" }]],
+    ]);
 
     const playerStatusPaths = buildDeveloperStatusPaths(
       { developers, games, reviews, sTierEntries },
