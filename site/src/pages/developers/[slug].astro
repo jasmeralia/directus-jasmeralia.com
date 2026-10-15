@@ -26,11 +26,13 @@ const {
   reviews,
   reviewedGameIdValues,
   sTierGameIdValues,
+  tierChipEntries,
 } = Astro.props;
 
 const logo = developer?.logo ? fileUrl(developer.logo) : null;
 const reviewedGameIds = new Set(reviewedGameIdValues);
 const sTierGameIds = new Set(sTierGameIdValues);
+const tierChipsByGame = new Map(tierChipEntries);
 const abandonedGames = games.filter((g) => g.game_status === "abandoned");
 const excludedFields = new Set([
   "id",
@@ -166,7 +168,7 @@ const description = isUnknown
                 const reviewed = reviewedGameIds.has(game.id);
                 const sTier = sTierGameIds.has(game.id);
                 return (
-                  <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} />
+                  <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} tierChips={tierChipsByGame.get(game.id) ?? []} />
                 );
               })}
             </div>

@@ -33,6 +33,8 @@ Copy `.mcp.json.example` to `.mcp.json` at the repo root and fill in all `<VALUE
 | `engines` | id + title + slug. Common AVN engines: **Ren'py** (slug `ren-py`, id 1), **Daz 3D** (slug `daz-3d`, id 4), **Honey Select** (slug `honey-select`, id 3). These are engines, not genres — never tag them as genres. Set via nested update on the game record: `{"engines": [{"engines_id": N}]}`. |
 | `tier_lists` | Curated rating boards. `nsfw` (bool) marks the list entry and treats every member image as NSFW on that tier board only. |
 
+Game thumbnail cards show published S-F tier ratings as neutral linked chips; `site/src/lib/tier-chips.ts` builds them and `GameThumbCard.astro` accepts them through its `tierChips` prop.
+
 ## Key cache files
 
 Cache lives in `mcp/cache/` (gitignored).

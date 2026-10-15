@@ -12,6 +12,7 @@ import {
   getPublishedTierListBySlug,
   getReviewedGameIds,
   getSTierGameIds,
+  getTierChipsByGameId,
   isFamilySharingDisabled,
   listPublishedTierListSlugs,
   siteBaseUrl,
@@ -313,6 +314,33 @@ describe("published tier-list helpers", () => {
     expect(url.searchParams.has("filter[game][_in]")).toBe(false);
     expect(url.searchParams.get("filter[status][_eq]")).toBe("published");
     expect(url.searchParams.get("fields")).toBe("game.id");
+    expect(url.searchParams.get("limit")).toBe("-1");
+  });
+
+  it("gets published tier chips without serializing input IDs and scopes results in JS", async () => {
+    const emptyFetch = mockDirectusFetch([]);
+    await expect(getTierChipsByGameId([])).resolves.toEqual(new Map());
+    expect(emptyFetch).not.toHaveBeenCalled();
+
+    const fetchMock = mockDirectusFetch([{
+      match: "/items/tier_list_games?",
+      data: [
+        { rating: "B", game_id: { id: 1 }, tier_list_id: { slug: "avn", title: "AVNs" } },
+        { rating: "S", game_id: { id: 2 }, tier_list_id: { slug: "other", title: "Other" } },
+        { rating: "U", game_id: { id: 1 }, tier_list_id: { slug: "early", title: "Early" } },
+        { rating: "A", game_id: { id: 4 }, tier_list_id: { slug: "outside", title: "Outside" } },
+      ],
+    }]);
+
+    await expect(getTierChipsByGameId([1, "2" as unknown as number, 3])).resolves.toEqual(
+      new Map([[1, [{ slug: "avn", text: "AVNs - B Tier" }]]]),
+    );
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.has("filter[game_id][_in]")).toBe(false);
+    expect(url.searchParams.get("filter[tier_list_id][status][_eq]")).toBe("published");
+    expect(url.searchParams.get("fields")).toBe(
+      "rating,game_id.id,tier_list_id.slug,tier_list_id.title",
+    );
     expect(url.searchParams.get("limit")).toBe("-1");
   });
 });

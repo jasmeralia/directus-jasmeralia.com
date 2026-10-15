@@ -1,6 +1,7 @@
 import { directusFetchItems } from "./directus";
 import { GAME_THUMB_FIELDS } from "./game-fields";
 import { compareLabels, sortByReleaseYear } from "./list-format";
+import { groupTierChipsByGame, type TierChip, type TierChipEntry } from "./tier-chips";
 
 type Developer = Record<string, unknown> & {
   slug?: string | null;
@@ -27,15 +28,11 @@ type Review = Record<string, unknown> & {
   game?: { id?: number | null } | null;
 };
 
-type TierEntry = {
-  game_id?: { id?: number | null } | null;
-};
-
 type DeveloperRouteSource = {
   developers: Developer[];
   games: Game[];
   reviews: Review[];
-  sTierEntries: TierEntry[];
+  sTierEntries: TierChipEntry[];
 };
 
 type StatusField = "game_status" | "player_status";
@@ -63,10 +60,9 @@ export const fetchDeveloperRouteSource = async (): Promise<DeveloperRouteSource>
       filter: { status: { _eq: "published" } },
       limit: -1,
     }),
-    directusFetchItems<TierEntry>("tier_list_games", {
-      fields: ["game_id.id"],
+    directusFetchItems<TierChipEntry>("tier_list_games", {
+      fields: ["rating", "game_id.id", "tier_list_id.slug", "tier_list_id.title"],
       filter: {
-        rating: { _eq: "S" },
         tier_list_id: { status: { _eq: "published" } },
       },
       limit: -1,
@@ -89,12 +85,21 @@ const reviewedGameIds = (reviews: Review[]): Set<number> =>
       .filter((id): id is number => typeof id === "number"),
   );
 
-const sTierGameIds = (entries: TierEntry[]): Set<number> =>
+const sTierGameIds = (entries: TierChipEntry[]): Set<number> =>
   new Set(
     entries
+      .filter((entry) => entry.rating === "S")
       .map((entry) => entry.game_id?.id)
       .filter((id): id is number => typeof id === "number"),
   );
+
+const tierChipEntriesForGames = (games: Game[], entries: TierChipEntry[]): [number, TierChip[]][] => {
+  const chipsByGame = groupTierChipsByGame(entries);
+  return games
+    .map((game) => game.id)
+    .filter((id): id is number => typeof id === "number" && chipsByGame.has(id))
+    .map((id) => [id, chipsByGame.get(id)!]);
+};
 
 const idsWithin = (games: Game[], ids: Set<number>): number[] =>
   games
@@ -152,6 +157,7 @@ export const buildDeveloperDetailPaths = ({
         reviews: reviewsForGames(reviews, routeGames),
         reviewedGameIdValues: idsWithin(routeGames, reviewedIds),
         sTierGameIdValues: idsWithin(routeGames, sTierIds),
+        tierChipEntries: tierChipEntriesForGames(routeGames, sTierEntries),
       },
     };
   });
@@ -204,6 +210,7 @@ export const buildDeveloperStatusPaths = (
           games: routeGames,
           reviewedGameIdValues: idsWithin(routeGames, reviewedIds),
           sTierGameIdValues: idsWithin(routeGames, sTierIds),
+          tierChipEntries: tierChipEntriesForGames(routeGames, sTierEntries),
         },
       };
     });

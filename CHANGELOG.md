@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.238] - 2026-10-15
+- Game cards: show a neutral chip for each published tier list rating from S through F, linked to that tier page.
+
 ## [1.0.237] - 2026-10-15
 - Homepage: the Recent Updates widget now takes its entries from the same pipeline as the RSS feed, so link, genre, section-count and included-game changes show up in it (as "Updated") instead of being invisible there. Game creations still show as "Added", published reviews as "Review", tier-list additions as before; review and tier-list edits stay feed-only. Bursts of edits to one game within 30 minutes still collapse into one entry.
 

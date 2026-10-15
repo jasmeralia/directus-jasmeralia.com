@@ -19,9 +19,11 @@ const {
   games,
   reviewedGameIdValues,
   sTierGameIdValues,
+  tierChipEntries,
 } = Astro.props;
 const reviewedGameIds = new Set(reviewedGameIdValues);
 const sTierGameIds = new Set(sTierGameIdValues);
+const tierChipsByGame = new Map(tierChipEntries);
 const labelize = (value) =>
   value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 const statusLabel = labelize(status);
@@ -56,7 +58,7 @@ const csvHref = csvDataUri(gamesToCsv(games));
         {games.map((game) => {
           const reviewed = reviewedGameIds.has(game.id);
           const sTier = sTierGameIds.has(game.id);
-          return <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} />;
+          return <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} tierChips={tierChipsByGame.get(game.id) ?? []} />;
         })}
       </div>
     )}

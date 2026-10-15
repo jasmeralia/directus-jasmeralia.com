@@ -3,7 +3,7 @@ import BaseLayout from "../../../../layouts/BaseLayout.astro";
 import CsvHeader from "../../../../components/CsvHeader.astro";
 import ThumbnailBorderLegend from "../../../../components/ThumbnailBorderLegend.astro";
 import GameThumbCard from "../../../../components/GameThumbCard.astro";
-import { directusFetchItems, getReviewedGameIds, getSTierGameIds } from "../../../../lib/directus";
+import { directusFetchItems, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../../lib/directus";
 import { csvDataUri, gamesToCsv } from "../../../../lib/csv";
 import { GAME_THUMB_FIELDS } from "../../../../lib/game-fields";
 import { sortByTitle } from "../../../../lib/list-format";
@@ -110,8 +110,11 @@ const filteredGames = (games ?? []).filter((game) => !inTierGameIds.has(game.id)
 const filteredGameIds = filteredGames
   .map((game) => game.id)
   .filter((id) => typeof id === "number");
-const sTierGameIds = await getSTierGameIds(filteredGameIds);
-const reviewedGameIds = await getReviewedGameIds(filteredGameIds);
+const [sTierGameIds, reviewedGameIds, tierChipsByGame] = await Promise.all([
+  getSTierGameIds(filteredGameIds),
+  getReviewedGameIds(filteredGameIds),
+  getTierChipsByGameId(filteredGameIds),
+]);
 
 const csvName = `${genre}-missing-from-tier-list.csv`;
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
@@ -140,7 +143,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
         {filteredGames.map((game) => {
           const reviewed = reviewedGameIds.has(game.id);
           const sTier = sTierGameIds.has(game.id);
-          return <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} />;
+          return <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} tierChips={tierChipsByGame.get(game.id) ?? []} />;
         })}
       </div>
     )}
