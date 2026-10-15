@@ -28,6 +28,35 @@ export const otherLinks = (links: GameLink[] | null | undefined): GameLink[] => 
   return links.filter((l) => l.kind === "other").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));
 };
 
+const OTHER_SITE_NAMES: [suffix: string, name: string][] = [
+  ["youtube.com", "YouTube"],
+  ["youtu.be", "YouTube"],
+  ["deviantart.com", "DeviantArt"],
+  ["twitter.com", "X (Twitter)"],
+  ["x.com", "X (Twitter)"],
+  ["bsky.app", "Bluesky"],
+  ["buymeacoffee.com", "Buy Me a Coffee"],
+  ["ko-fi.com", "Ko-fi"],
+  ["trello.com", "Trello"],
+  ["discord.gg", "Discord"],
+  ["discord.com", "Discord"],
+  ["facebook.com", "Facebook"],
+  ["instagram.com", "Instagram"],
+  ["reddit.com", "Reddit"],
+  ["tumblr.com", "Tumblr"],
+  ["twitch.tv", "Twitch"],
+  ["github.com", "GitHub"],
+];
+
+/** Text for an "other" link: its own label, else "Visit <site name>" (or the host). */
+export const otherLinkText = (link: GameLink): string => {
+  if (link.label) return link.label;
+  const host = shortHostFromUrl(link.url);
+  if (!host) return link.url;
+  const known = OTHER_SITE_NAMES.find(([suffix]) => host === suffix || host.endsWith(`.${suffix}`));
+  return `Visit ${known ? known[1] : host}`;
+};
+
 export const primaryDownloadLink = (links: GameLink[] | null | undefined): GameLink | null =>
   downloadLinks(links)[0] ?? null;
 

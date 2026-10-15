@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
-import { downloadLinks, otherLinks, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
+import { downloadLinks, otherLinks, otherLinkText, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
 import { effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
 import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, isSectionCategoryComplete, isSectionComplete, orderedSections, pluralizeNoun, sectionNoun, sectionProgressSummary } from "../../lib/game-sections";
@@ -119,6 +119,7 @@ export async function getStaticPaths() {
     allBundleMemberRevisions,
     allTierCreateActivities,
     allLinkActivities,
+    allLinkRevisions,
     genresByGame,
     allGameVersions,
   ] = await Promise.all([
@@ -147,6 +148,7 @@ export async function getStaticPaths() {
     fetchRevisions('game_bundle_members', -1),
     fetchActivity('tier_list_games', 'create', -1),
     fetchActivity('games_links', ['create', 'update'], -1),
+    fetchRevisions('games_links', -1),
     fetchAllGameGenres(),
     directusFetchItems('game_versions', {
       fields: ['id', 'games_id', 'source', 'reported_version', 'comparison_override', 'override_reason', 'source_reference', 'installation_key', 'release_date', 'recorded_at', 'is_current'],
@@ -199,6 +201,7 @@ export async function getStaticPaths() {
         allTierCreateActivities,
         allTierRevisions,
         allLinkActivities,
+        allLinkRevisions,
         allBundleMemberRevisions,
       });
 
@@ -298,7 +301,7 @@ const otherEntries = otherLinks(game.links).map((link) => {
   return {
     url: link.url,
     linkMeta,
-    linkText: link.label || (linkMeta.label !== "Download" ? linkMeta.label : linkMeta.host) || link.url,
+    linkText: otherLinkText(link),
   };
 });
 const walkthroughEntries = walkthroughLinks(game.links).map((link) => {
