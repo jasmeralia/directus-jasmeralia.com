@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.230] - 2026-10-14
+- Game page: SubscribeStar download links (`subscribestar.com` / `subscribestar.adult`) now show the SubscribeStar icon and label instead of the generic "Download (host)".
+
 ## [1.0.229] - 2026-10-14
 - Game page: History links genres to their genre pages, labels the legacy `download_url`, `walkthrough_url` and `gamestorylog_url` changes as "Download URL" / "Walkthrough URL" / "GameStoryLog URL", and makes their URLs clickable.
 - Game page: in the Versions tab, the Typhoon and Orion headings are now links (same colour as the GameStoryLog one) to their shortcut manifests on GitHub.

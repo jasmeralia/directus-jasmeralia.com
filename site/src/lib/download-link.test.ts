@@ -126,10 +126,16 @@ describe("URL platform and metadata", () => {
     });
   });
 
+  it("keeps SubscribeStar out of the platform filters", () => {
+    expect(getUrlPlatform("https://subscribestar.adult/creator")).toBeNull();
+  });
+
   it.each([
     ["https://creator.itch.io/game", "/icons/simple/itchdotio.svg", "itch.io", "creator.itch.io"],
     ["https://store.epicgames.com/p/example", "/icons/simple/epicgames.svg", "Epic Games", "store.epicgames.com"],
     ["https://www.patreon.com/creator", "/icons/simple/patreon.svg", "Patreon", "patreon.com"],
+    ["https://subscribestar.adult/creator", "/icons/simple/subscribestar.svg", "SubscribeStar", "subscribestar.adult"],
+    ["https://www.subscribestar.com/creator", "/icons/simple/subscribestar.svg", "SubscribeStar", "subscribestar.com"],
     ["https://store.playstation.com/product/example", "/icons/simple/playstation.svg", "PlayStation", "store.playstation.com"],
     ["https://www.xbox.com/games/example", "/icons/simple/xbox.svg", "Xbox", "xbox.com"],
     ["https://www.ign.com/wikis/example", "/icons/simple/ign.svg", "IGN", "ign.com"],
