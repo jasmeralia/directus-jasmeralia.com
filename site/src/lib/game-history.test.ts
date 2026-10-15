@@ -9,7 +9,7 @@ const emptyHistoryInputs = () => ({
   allTierRevisions: [],
   allLinkActivities: [],
   allBundleMemberRevisions: [],
-  genres: [],
+  genreLinks: [],
 });
 
 describe("buildGameHistory", () => {
@@ -23,7 +23,7 @@ describe("buildGameHistory", () => {
         { id: 32, kind: "download", url: "https://store.test" },
       ],
       bundleMembers: [{ id: 41, title: "Current Member" }],
-      genres: ["Adventure"],
+      genreLinks: [{ id: 1, name: "Adventure" }],
       allGameRevisions: [
         {
           id: 30,
@@ -473,7 +473,6 @@ describe("genre history", () => {
   it("keeps genres added with the game in Game Added and lists later ones as Genre Added", () => {
     const entries = buildGameHistory({
       ...base,
-      genres: [],
       genreLinks: [{ id: 1, name: "Adventure" }, { id: 2, name: "AVN" }],
       allGenreActivities: [
         genreActivity(10, "1", "2026-10-10T23:03:02.614Z"),
@@ -489,12 +488,10 @@ describe("genre history", () => {
     expect(entries[1].bodyHtml).not.toContain("AVN");
   });
 
-  it("keeps a genre with no recorded activity in Game Added, and falls back to genres without genreLinks", () => {
-    const withLink = buildGameHistory({ ...base, genres: [], genreLinks: [{ id: 1, name: "Adventure" }] });
+  it("keeps a genre with no recorded activity in Game Added", () => {
+    const withLink = buildGameHistory({ ...base, genreLinks: [{ id: 1, name: "Adventure" }] });
     expect(withLink.map(({ title }) => title)).toEqual(["Game Added"]);
     expect(withLink[0].bodyHtml).toContain("Adventure");
-    const legacy = buildGameHistory({ ...base, genres: ["Mystery"] });
-    expect(legacy[0].bodyHtml).toContain("Mystery");
   });
 });
 

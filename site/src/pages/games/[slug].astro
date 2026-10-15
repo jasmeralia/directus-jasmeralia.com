@@ -6,7 +6,7 @@ import { downloadLinks, otherLinks, otherLinkText, walkthroughLinks, walkthrough
 import { buildGameHistory } from "../../lib/game-history";
 import { effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
 import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, isSectionCategoryComplete, isSectionComplete, orderedSections, pluralizeNoun, sectionNoun, sectionProgressSummary } from "../../lib/game-sections";
-import { fetchActivity, fetchAllGameGenres, fetchRevisions } from "../../lib/changelog";
+import { fetchActivity, fetchRevisions } from "../../lib/changelog";
 import { compareLabels } from "../../lib/list-format";
 import { isGameNsfw } from "../../lib/nsfw";
 import GameSectionProgress from "../../components/GameSectionProgress.astro";
@@ -121,7 +121,6 @@ export async function getStaticPaths() {
     allLinkActivities,
     allLinkRevisions,
     allGenreActivities,
-    genresByGame,
     allGameVersions,
   ] = await Promise.all([
     directusFetchItems('games', {
@@ -151,7 +150,6 @@ export async function getStaticPaths() {
     fetchActivity('games_links', ['create', 'update'], -1),
     fetchRevisions('games_links', -1),
     fetchActivity('games_genres', 'create', -1),
-    fetchAllGameGenres(),
     directusFetchItems('game_versions', {
       fields: ['id', 'games_id', 'source', 'reported_version', 'comparison_override', 'override_reason', 'source_reference', 'installation_key', 'release_date', 'recorded_at', 'is_current'],
       limit: -1,
@@ -181,7 +179,6 @@ export async function getStaticPaths() {
         .sort((a, b) => compareLabels(a.tier_list_id?.title ?? "", b.tier_list_id?.title ?? ""));
       const bundleMembers = orderedBundleMembers(game.bundle_members);
       const sections = directGameSections(game.sections);
-      const genres = genresByGame[game.id] ?? [];
       game.versions = versionsByGame.get(game.id) ?? [];
 
       const history = buildGameHistory({
@@ -191,7 +188,6 @@ export async function getStaticPaths() {
         links: game.links ?? [],
         bundleMembers,
         sections,
-        genres,
         genreSlugs: Object.fromEntries(
           (game.genres ?? [])
             .map((entry) => entry?.genres_id)

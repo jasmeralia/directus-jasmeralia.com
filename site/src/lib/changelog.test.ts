@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mockDirectusFetch } from "../test/directus-mock";
 import {
   fetchActivity,
-  fetchAllGameGenres,
+  fetchAllGameGenreLinks,
   fetchGameGenres,
   fetchGameSectionsByBundleMemberIds,
   fetchGameSectionsByGameIds,
@@ -349,25 +349,26 @@ describe("changelog Directus helpers", () => {
     expect(url.searchParams.get("filter[games_id][_eq]")).toBe("42");
   });
 
-  it("groups genre names by games_id, dropping rows with no game or genre name", async () => {
+  it("groups genre links by games_id, dropping rows with no game, id, or genre name", async () => {
     const fetchMock = mockDirectusFetch([{
       match: "/items/games_genres?",
       data: [
-        { games_id: 7, genres_id: { name: "Adventure" } },
-        { games_id: 7, genres_id: { name: "RPG" } },
-        { games_id: 8, genres_id: { name: "Adventure" } },
-        { games_id: null, genres_id: { name: "Orphan" } },
-        { games_id: 9, genres_id: { name: "" } },
-        { games_id: 9, genres_id: null },
+        { id: 71, games_id: 7, genres_id: { name: "Adventure" } },
+        { id: 72, games_id: 7, genres_id: { name: "RPG" } },
+        { id: 81, games_id: 8, genres_id: { name: "Adventure" } },
+        { id: 90, games_id: null, genres_id: { name: "Orphan" } },
+        { id: 91, games_id: 9, genres_id: { name: "" } },
+        { id: 92, games_id: 9, genres_id: null },
+        { id: null, games_id: 10, genres_id: { name: "No ID" } },
       ],
     }]);
 
-    await expect(fetchAllGameGenres()).resolves.toEqual({
-      7: ["Adventure", "RPG"],
-      8: ["Adventure"],
+    await expect(fetchAllGameGenreLinks()).resolves.toEqual({
+      7: [{ id: 71, name: "Adventure" }, { id: 72, name: "RPG" }],
+      8: [{ id: 81, name: "Adventure" }],
     });
     const url = new URL(String(fetchMock.mock.calls[0][0]));
-    expect(url.searchParams.get("fields")).toBe("games_id,genres_id.name");
+    expect(url.searchParams.get("fields")).toBe("id,games_id,genres_id.name");
     expect(url.searchParams.get("limit")).toBe("-1");
   });
 

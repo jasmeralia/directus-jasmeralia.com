@@ -314,7 +314,7 @@ export const fetchGameSectionsByGameIds = (gameIds: number[]): Promise<Record<nu
 export const fetchGameSectionsByBundleMemberIds = (memberIds: number[]): Promise<Record<number, GameSection[]>> =>
   fetchSectionsGroupedBy("bundle_member_id", memberIds);
 
-type GenreJoinRow = { genres_id?: { name?: string } | null };
+type GenreJoinRow = { id?: number; games_id?: number; genres_id?: { name?: string } | null };
 
 // Fetch current genre names for a game (for new-game entries).
 export async function fetchGameGenres(gameId: number): Promise<string[]> {
@@ -333,18 +333,19 @@ export async function fetchGameGenres(gameId: number): Promise<string[]> {
 // group genre names by games_id, for callers building per-game data for
 // many games at once (e.g. games/[slug].astro's getStaticPaths) instead of
 // issuing one filtered request per game.
-export async function fetchAllGameGenres(): Promise<Record<number, string[]>> {
+export async function fetchAllGameGenreLinks(): Promise<Record<number, { id: number; name: string }[]>> {
   const qs = new URLSearchParams({
-    "fields": "games_id,genres_id.name",
+    "fields": "id,games_id,genres_id.name",
     "limit": "-1",
   });
   const res = await directusFetchRaw<{ data: (GenreJoinRow & { games_id?: number })[] }>(`/items/games_genres?${qs.toString()}`);
-  const map: Record<number, string[]> = {};
+  const map: Record<number, { id: number; name: string }[]> = {};
   for (const row of res.data ?? []) {
     const gameId = Number(row.games_id);
+    const id = Number(row.id);
     const name = row.genres_id?.name;
-    if (!gameId || !name) continue;
-    (map[gameId] ??= []).push(name);
+    if (!gameId || !id || !name) continue;
+    (map[gameId] ??= []).push({ id, name });
   }
   return map;
 }

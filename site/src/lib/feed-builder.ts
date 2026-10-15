@@ -4,7 +4,7 @@ import { isGameNsfw, isTierBoardEntryNsfw, isTierListNsfw } from "./nsfw";
 import {
   SKIP_DELTA,
   fetchActivity,
-  fetchAllGameGenres,
+  fetchAllGameGenreLinks,
   fetchGameSectionsByBundleMemberIds,
   fetchGameSectionsByGameIds,
   fetchItemMap,
@@ -17,6 +17,7 @@ import {
   type Revision,
   type SectionCountState,
 } from "./changelog";
+import { describeGenreAdded, describeLinkEvent, partitionGameGenres } from "./game-events";
 
 type DirectusRecord = Record<string, unknown>;
 
@@ -30,6 +31,7 @@ const LIMIT_REVIEWS     = 50;
 const LIMIT_TIER_LISTS  = 50;
 const LIMIT_JUNCTIONS   = 300; // tier_list_games activities
 const LIMIT_LINKS       = 400; // games_links activities (create + update)
+const LIMIT_GENRES      = 300;
 const LIMIT_BUNDLE_MEMBERS = 200;
 
 // Game-related feed entries (direct game revisions, included-game revisions,
@@ -170,7 +172,7 @@ export type FeedEntry = {
   completed: boolean;
 };
 
-type Entry = FeedEntry;
+type Entry = FeedEntry & { gameTitle?: string; added?: boolean };
 
 // ─── entry builders ───────────────────────────────────────────────────────────
 
@@ -193,6 +195,8 @@ function buildGameEntry(
   if (isCreate) {
     return {
       title: `Game Added: ${data.title}`,
+      gameTitle: String(data.title),
+      added: true,
       link,
       description: fmtNewGame(data, genres),
       pubDate: date,
@@ -208,6 +212,7 @@ function buildGameEntry(
 
   return {
     title: `Game Updated: ${data.title}`,
+    gameTitle: String(data.title),
     link,
     description: desc,
     pubDate: date,
@@ -363,6 +368,8 @@ function buildGameLinkEntry(
   act: Activity,
   glinkItem: DirectusRecord | null,
   gameItem: DirectusRecord | null,
+  revision: Revision | null,
+  previousData: Record<string, unknown> | null,
 ): Entry | null {
   if (!glinkItem || !gameItem) return null;
   const date = requireDate(act.timestamp, `games_link activity ${act.id}`);
@@ -370,13 +377,18 @@ function buildGameLinkEntry(
   const link = `${siteBase}/games/${slug}/index.html`;
   const imgUrl = mediaUrl(gameItem.cover_image) ?? undefined;
   const kind: string = String(glinkItem.kind ?? "download");
-  const isWalkthrough = kind === "walkthrough" || kind === "text-note";
-  const isUpdate = act.action === "update";
-  const kindLabel = isWalkthrough ? "Walkthrough" : "Download";
+  const event = describeLinkEvent({
+    action: act.action,
+    link: glinkItem as { url?: string; kind?: string },
+    revision,
+    previousData,
+  });
+  if (!event) return null;
   return {
-    title: `${kindLabel} ${isUpdate ? "Updated" : "Added"}: ${gameItem.title}`,
+    title: `${event.title}: ${gameItem.title}`,
+    gameTitle: String(gameItem.title),
     link,
-    description: `**${kindLabel}**: ${glinkItem.url}`,
+    description: event.body,
     pubDate: date,
     imageUrl: imgUrl,
     guid: rssGuid("game", slug, `link_${act.action}_${kind}_${act.id}`, date, `games_link activity ${act.id}`),
@@ -595,6 +607,7 @@ function buildSectionCountEntry(
   const title = String(metaRecord.title ?? gameItem.title ?? "Untitled");
   return {
     title: `Game Updated: ${title}`,
+    gameTitle: title,
     link: `${siteBase}/games/${slug}/index.html`,
     description,
     pubDate: date,
@@ -607,24 +620,11 @@ function buildSectionCountEntry(
 
 // ─── cross-type consolidation ───────────────────────────────────────────────
 
-const KNOWN_TITLE_PREFIXES = [
-  "Game Added: ", "Game Updated: ",
-  "Download Added: ", "Download Updated: ",
-  "Walkthrough Added: ", "Walkthrough Updated: ",
-  "Included Game Added - ", "Included Game Updated - ", "Included Game Removed - ",
-];
-
-function coreEntryTitle(entryTitle: string): string {
-  for (const prefix of KNOWN_TITLE_PREFIXES) {
-    if (entryTitle.startsWith(prefix)) return entryTitle.slice(prefix.length);
-  }
-  return entryTitle;
-}
-
 function mergeGameSession(session: Entry[]): Entry {
   const last = session[session.length - 1];
-  const addedEntry = session.find((entry) => entry.title.startsWith("Game Added: "));
-  const title = addedEntry ? addedEntry.title : `Game Updated: ${coreEntryTitle(last.title)}`;
+  const addedEntry = session.find((entry) => entry.added);
+  const gameTitle = last.gameTitle ?? "Untitled";
+  const title = addedEntry ? `Game Added: ${addedEntry.gameTitle ?? gameTitle}` : `Game Updated: ${gameTitle}`;
   const description = session
     .map((entry) => entry.description)
     .filter((text) => text.trim().length > 0)
@@ -634,6 +634,8 @@ function mergeGameSession(session: Entry[]): Entry {
   const anchorMs = session[0].pubDate.getTime();
   return {
     title,
+    gameTitle,
+    added: Boolean(addedEntry),
     link: last.link,
     description,
     pubDate: last.pubDate,
@@ -723,6 +725,7 @@ function buildBundleMemberEntry(
   if (!isCreate && !isDelete && !description.trim()) return null;
   return {
     title: `Included Game ${actionLabel} - ${title}`,
+    gameTitle: title,
     link: `${siteBase}/games/${gameSlug}/index.html`,
     description,
     pubDate: date,
@@ -755,6 +758,9 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     tlgActs,
     glinkActs,
     allSectionRevs,
+    allLinkRevs,
+    genreActs,
+    allGenreLinks,
   ] = await Promise.all([
     fetchRevisions("games",       -1),
     fetchRevisions("reviews",     LIMIT_REVIEWS),
@@ -763,6 +769,9 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     fetchCreateActivity("tier_list_games", LIMIT_JUNCTIONS),
     fetchActivity("games_links", ["create", "update"], LIMIT_LINKS),
     fetchRevisions("game_sections", -1),
+    fetchRevisions("games_links", -1),
+    fetchCreateActivity("games_genres", LIMIT_GENRES),
+    fetchAllGameGenreLinks(),
   ]);
   const gameRevs = allGameRevs.slice(0, LIMIT_GAMES);
   const bundleMemberRevs = allBundleMemberRevs.slice(0, LIMIT_BUNDLE_MEMBERS);
@@ -792,6 +801,33 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     ...sectionBundleMemberIds,
   ]));
   const tierListRevisionIds = tierListRevs.map((revision) => Number(revision.item));
+  const genreLinksById = new Map<number, { gameId: number; id: number; name: string }>();
+  for (const [gameIdText, links] of Object.entries(allGenreLinks)) {
+    for (const genreLink of links) {
+      genreLinksById.set(genreLink.id, { gameId: Number(gameIdText), ...genreLink });
+    }
+  }
+  const genrePartitions = new Map<number, ReturnType<typeof partitionGameGenres>>();
+  const genrePartitionForGame = (gameId: number) => {
+    const cached = genrePartitions.get(gameId);
+    if (cached) return cached;
+    const gameRevisions = allGameRevs.filter((revision) => Number(revision.item) === gameId);
+    const firstRevision = gameRevisions.reduce<Revision | null>(
+      (smallest, revision) => !smallest || revision.id < smallest.id ? revision : smallest,
+      null,
+    );
+    const createdAtValue = firstRevision?.activity?.timestamp;
+    const activities = genreActs.filter((activity) =>
+      genreLinksById.get(Number(activity.item))?.gameId === gameId,
+    );
+    const partition = partitionGameGenres({
+      genreLinks: allGenreLinks[gameId] ?? [],
+      activities,
+      createdAt: createdAtValue ? asDate(createdAtValue) : null,
+    });
+    genrePartitions.set(gameId, partition);
+    return partition;
+  };
 
   const [tlgItemMap, glinkItemMap, reviewItemMap, bundleMemberItemMap] = await Promise.all([
     fetchItemMap("tier_list_games", tlgItemIds, "id,game_id,tier_list_id,rating"),
@@ -818,6 +854,11 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
   for (const glink of Object.values(glinkItemMap)) {
     if (glink.games_id) gameIdsForLinks.add(Number(glink.games_id));
   }
+  const gameIdsForGenres = new Set<number>();
+  for (const activity of genreActs) {
+    const genreLink = genreLinksById.get(Number(activity.item));
+    if (genreLink) gameIdsForGenres.add(genreLink.gameId);
+  }
   const gameIdsForBundleMembers = new Set<number>();
   for (const rev of bundleMemberRevs) {
     const liveItem = bundleMemberItemMap[Number(rev.item)];
@@ -833,6 +874,7 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
   const allGameIds = new Set([
     ...gameIdsForTiers,
     ...gameIdsForLinks,
+    ...gameIdsForGenres,
     ...gameIdsForBundleMembers,
     ...gameRevisionIds,
     ...sectionGameIds,
@@ -842,14 +884,12 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     gameMap,
     gameSectionsMap,
     bundleMemberSectionsMap,
-    allGameGenreMap,
   ] = await Promise.all([
     fetchItemMap("tier_lists", Array.from(tierListIdsForAdd), "id,title,slug,nsfw"),
     fetchItemMap("games", Array.from(allGameIds),
       "id,title,slug,cover_image.id,cover_image.filename_disk,nsfw,genres.genres_id.nsfw,section_style,section_noun"),
     fetchGameSectionsByGameIds(Array.from(new Set([...gameRevisionIds, ...sectionGameIds]))),
     fetchGameSectionsByBundleMemberIds(Array.from(new Set(bundleMemberItemIds))),
-    fetchAllGameGenres(),
   ]);
 
   // 4. Process game revisions. Previous snapshots come from the collection-wide
@@ -862,12 +902,20 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
   const newGameIds     = createGameRevs.map((r) => Number(r.item));
   const gamePrevMap = previousRevisionDataMap(allGameRevs, updateGameRevs);
   const newGameGenreMap: Record<number, string[]> = Object.fromEntries(
-    newGameIds.map((id) => [id, allGameGenreMap[id] ?? []]),
+    newGameIds.map((id) => [id, genrePartitionForGame(id).initial]),
   );
   const bundleMemberPrevMap = previousRevisionDataMap(
     allBundleMemberRevs,
     updateBundleMemberRevs,
   );
+  const linkRevisionByActivity = new Map(
+    allLinkRevs.filter((revision) => revision.activity?.id !== undefined)
+      .map((revision) => [revision.activity!.id!, revision]),
+  );
+  const activityLinkRevisions = glinkActs
+    .map((activity) => linkRevisionByActivity.get(activity.id))
+    .filter((revision): revision is Revision => Boolean(revision));
+  const linkPrevMap = previousRevisionDataMap(allLinkRevs, activityLinkRevisions);
 
   // 5. Build all feed entries
   const entries: Entry[] = [];
@@ -931,8 +979,41 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
   for (const act of glinkActs) {
     const glink    = glinkItemMap[Number(act.item)];
     const gameItem = glink ? gameMap[Number(glink.games_id)] : null;
-    const entry    = buildGameLinkEntry(act, glink ?? null, gameItem ?? null);
+    const revision = linkRevisionByActivity.get(act.id) ?? null;
+    const entry    = buildGameLinkEntry(
+      act,
+      glink ?? null,
+      gameItem ?? null,
+      revision,
+      revision ? linkPrevMap[revision.id] ?? null : null,
+    );
     if (entry) entries.push(entry);
+  }
+
+  // Genre additions are derived from junction-row create activities and the
+  // current games_genres rows, since Directus stores no revision data there.
+  for (const activity of genreActs) {
+    const genreLink = genreLinksById.get(Number(activity.item));
+    if (!genreLink) continue;
+    const gameItem = gameMap[genreLink.gameId];
+    if (!gameItem) continue;
+    const partition = genrePartitionForGame(genreLink.gameId);
+    const added = partition.added.find((genre) => genre.activityId === activity.id);
+    if (!added) continue;
+    const date = requireDate(activity.timestamp, `games_genres activity ${activity.id}`);
+    const slug = requireGuidPart(gameItem.slug, `games_genres activity ${activity.id} game slug`);
+    const event = describeGenreAdded(added.name);
+    entries.push({
+      title: `${event.title}: ${gameItem.title}`,
+      gameTitle: String(gameItem.title),
+      link: `${siteBase}/games/${slug}/index.html`,
+      description: event.body,
+      pubDate: date,
+      imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
+      guid: rssGuid("game", slug, `genre_added_${activity.id}`, date, `games_genres activity ${activity.id}`),
+      nsfw: isGameNsfw(gameItem),
+      completed: false,
+    });
   }
 
   // Tier list game additions -- batch by tier_list + minute to avoid flood
@@ -960,7 +1041,16 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
   }).slice(0, 200);
   validateFeedEntries(top);
 
-  return top;
+  return top.map(({ title, link, description, pubDate, imageUrl, guid, nsfw, completed }) => ({
+    title,
+    link,
+    description,
+    pubDate,
+    ...(imageUrl ? { imageUrl } : {}),
+    guid,
+    nsfw,
+    completed,
+  }));
 }
 
 export function renderFeedXml(
