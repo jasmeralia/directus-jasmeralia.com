@@ -312,6 +312,27 @@ describe("deltaLinesToHtml", () => {
     expect(deltaLinesToHtml("**Year**: 2024")).toContain('<a href="/releases/2024/index.html">2024</a>');
   });
 
+  it("links genres by name and leaves unknown genres as text", () => {
+    expect(
+      deltaLinesToHtml("**Genres**: Adventure, Mystery & Co", { Adventure: "adventure" }),
+    ).toBe(
+      '<ul class="history-changes"><li><strong>Genres</strong>: '
+        + '<a href="/genres/adventure/index.html">Adventure</a>, Mystery &amp; Co</li></ul>',
+    );
+  });
+
+  it("labels and links URL fields, escaping anything that is not a plain http(s) URL", () => {
+    expect(
+      deltaLinesToHtml(
+        "**Walkthrough URL**: https://a.test/x?y=1&z=2 \u2192 javascript:alert(1)\"",
+      ),
+    ).toBe(
+      '<ul class="history-changes"><li><strong>Walkthrough URL</strong>: '
+        + '<a href="https://a.test/x?y=1&amp;z=2" target="_blank" rel="noopener noreferrer">'
+        + 'https://a.test/x?y=1&amp;z=2</a> \u2192 javascript:alert(1)&quot;</li></ul>',
+    );
+  });
+
   it("leaves unlinked labels and unrecognised values as escaped text", () => {
     expect(deltaLinesToHtml("**Title**: A <b> \u2192 B")).toBe(
       '<ul class="history-changes"><li><strong>Title</strong>: A &lt;b&gt; \u2192 B</li></ul>',

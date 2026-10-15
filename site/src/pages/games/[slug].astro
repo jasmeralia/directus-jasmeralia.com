@@ -188,6 +188,12 @@ export async function getStaticPaths() {
         bundleMembers,
         sections,
         genres,
+        genreSlugs: Object.fromEntries(
+          (game.genres ?? [])
+            .map((entry) => entry?.genres_id)
+            .filter((genre) => genre?.name && genre?.slug)
+            .map((genre) => [genre.name, genre.slug]),
+        ),
         allGameRevisions,
         allReviewRevisions,
         allTierCreateActivities,
@@ -275,6 +281,7 @@ for (const entry of (tierEntries ?? [])) {
 const tierLists = Array.from(tierListsMap.values())
   .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 const gslLink = (game.links ?? []).find((l) => l.kind === "gamestorylog") ?? null;
+const HOST_MANIFEST_BASE_URL = "https://github.com/jasmeralia/steam-typhoon/blob/master/docs";
 const versionGroups = gslLink ? buildVersionsTab(game.versions) : [];
 const downloadEntries = downloadLinks(game.links).map((link) => {
   const linkMeta = getLinkMeta(link);
@@ -807,7 +814,7 @@ const coverStackStyle = [
             {versionGroups.length ? versionGroups.map((group) => (
               <div class="versions-group">
                 <div class="versions-source">
-                  {group.source === "gsl" ? <a href={gslLink.url} rel="noopener noreferrer" target="_blank">{group.label}</a> : group.label}
+                  <a href={group.source === "gsl" ? gslLink.url : `${HOST_MANIFEST_BASE_URL}/steam_shortcuts_${group.source}.md`} rel="noopener noreferrer" target="_blank">{group.label}</a>
                 </div>
                 <ul class="versions-list">
                   {group.rows.map((row) => (
