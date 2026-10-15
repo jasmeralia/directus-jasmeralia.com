@@ -225,6 +225,13 @@ describe("changelog value formatting", () => {
     expect(fmtDelta({ version_gsl: "0.4" }, { version_gsl: "0.3" })).toBe("");
   });
 
+  it("labels the legacy URL fields", () => {
+    expect(fmtDelta({ walkthrough_url: "https://b.test" }, { walkthrough_url: "https://a.test" })).toBe(
+      `**Walkthrough URL**: https://a.test ${deltaArrow} https://b.test`,
+    );
+    expect(fmtDelta({ download_url: "https://a.test" }, null)).toBe("**Download URL**: https://a.test");
+  });
+
   it("formats a new game and omits absent fields", () => {
     expect(fmtNewGame({
       release_year: 2025,

@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.232] - 2026-10-14
+- Game page: show a game's "other" links (social pages, support pages, boards) below the download and GameStoryLog links.
+
+## [1.0.231] - 2026-10-14
+- Thumbnails: download links to unrecognised sites (YouTube, DeviantArt, personal pages) now show a generic link icon instead of rendering as an empty anchor that left a gap between the store icons.
+
+## [1.0.230] - 2026-10-14
+- Game page: SubscribeStar download links (`subscribestar.com` / `subscribestar.adult`) now show the SubscribeStar icon and label instead of the generic "Download (host)".
+
+## [1.0.229] - 2026-10-14
+- Game page: History links genres to their genre pages, labels the legacy `download_url`, `walkthrough_url` and `gamestorylog_url` changes as "Download URL" / "Walkthrough URL" / "GameStoryLog URL", and makes their URLs clickable.
+- Game page: in the Versions tab, the Typhoon and Orion headings are now links (same colour as the GameStoryLog one) to their shortcut manifests on GitHub.
+
 ## [1.0.228] - 2026-10-14
 - Game page: move source versions out of the Details panel into a new Versions tab, shown only for games with a GameStoryLog link. GameStoryLog versions are listed by release date (newest first), then Typhoon, then Orion installs by when they were first recorded; redundant legacy placeholder rows are hidden.
 - Game page: the History and Versions tabs now set `#history` / `#versions` in the URL, so the selected tab survives a reload or shared link.

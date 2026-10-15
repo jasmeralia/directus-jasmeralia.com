@@ -35,6 +35,9 @@ export const FIELD_LABEL: Record<string, string> = {
   description: "Description",
   rating: "Rating",
   published_at: "Published",
+  download_url: "Download URL",
+  walkthrough_url: "Walkthrough URL",
+  gamestorylog_url: "GameStoryLog URL",
 };
 
 export const ENUM_LABEL: Record<string, string> = {

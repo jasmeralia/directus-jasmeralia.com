@@ -7,6 +7,7 @@ import {
   getUrlLinkMeta,
   getUrlPlatform,
   isMissingDownloadLink,
+  otherLinks,
   primaryDownloadLink,
   walkthroughLinks,
   walkthroughTextNotes,
@@ -21,6 +22,19 @@ const links: GameLink[] = [
   { url: "https://example.test/unsorted", kind: "download", sort: null },
   { url: "https://example.test/first", kind: "download", sort: 2 },
 ];
+
+describe("other links", () => {
+  it("selects only other-kind links, sorted with null sort values last", () => {
+    expect(
+      otherLinks([
+        { url: "https://x.test/dl", kind: "download", sort: 1 },
+        { url: "https://x.test/b", kind: "other", sort: null },
+        { url: "https://x.test/a", kind: "other", sort: 2 },
+      ]).map(({ url }) => url),
+    ).toEqual(["https://x.test/a", "https://x.test/b"]);
+    expect(otherLinks(undefined)).toEqual([]);
+  });
+});
 
 describe("game link selection", () => {
   it("filters and sorts download links with null sort values last", () => {
@@ -102,6 +116,11 @@ describe("URL platform and metadata", () => {
       label: "GOG",
       host: "gog.com",
     });
+    expect(getUrlLinkMeta("https://www.youtube.com/@creator")).toEqual({
+      icon: "/icons/link.svg",
+      label: "Download",
+      host: "youtube.com",
+    });
     expect(getUrlLinkMeta("bad url")).toEqual({
       icon: null,
       label: "Download",
@@ -126,10 +145,16 @@ describe("URL platform and metadata", () => {
     });
   });
 
+  it("keeps SubscribeStar out of the platform filters", () => {
+    expect(getUrlPlatform("https://subscribestar.adult/creator")).toBeNull();
+  });
+
   it.each([
     ["https://creator.itch.io/game", "/icons/simple/itchdotio.svg", "itch.io", "creator.itch.io"],
     ["https://store.epicgames.com/p/example", "/icons/simple/epicgames.svg", "Epic Games", "store.epicgames.com"],
     ["https://www.patreon.com/creator", "/icons/simple/patreon.svg", "Patreon", "patreon.com"],
+    ["https://subscribestar.adult/creator", "/icons/simple/subscribestar.svg", "SubscribeStar", "subscribestar.adult"],
+    ["https://www.subscribestar.com/creator", "/icons/simple/subscribestar.svg", "SubscribeStar", "subscribestar.com"],
     ["https://store.playstation.com/product/example", "/icons/simple/playstation.svg", "PlayStation", "store.playstation.com"],
     ["https://www.xbox.com/games/example", "/icons/simple/xbox.svg", "Xbox", "xbox.com"],
     ["https://www.ign.com/wikis/example", "/icons/simple/ign.svg", "IGN", "ign.com"],

@@ -59,29 +59,51 @@ const LINKED_LABELS: Record<string, (shown: string) => string | null> = {
 };
 
 const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// Delta-line labels whose values are URLs, rendered as clickable links.
+const URL_LABELS = new Set(["Download URL", "Walkthrough URL", "GameStoryLog URL"]);
+const isHttpUrl = (value: string) => /^https?:\/\/\S+$/i.test(value);
 
 // Render one "**Label**: value" or "**Label**: old \u2192 new" delta line,
-// linking each value when the label has a listing page.
-function deltaLineToHtml(line: string): string {
+// linking each value when the label has a listing page or holds URLs.
+// `genreSlugs` maps genre names to slugs for the "Genres" list.
+function deltaLineToHtml(line: string, genreSlugs: Record<string, string>): string {
   const match = /^\*\*(.+?)\*\*: (.*)$/.exec(line);
-  const hrefFor = match ? LINKED_LABELS[match[1]] : undefined;
-  if (!match || !hrefFor) {
+  if (!match) {
     return escapeHtml(line).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   }
-  const values = match[2]
-    .split(" \u2192 ")
-    .map((shown) => {
+  const [, label, rest] = match;
+  const link = (href: string, text: string, external = false) =>
+    `<a href="${escapeHtml(href)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ""}>${escapeHtml(text)}</a>`;
+  let render: ((shown: string) => string) | null = null;
+  let separator = " \u2192 ";
+  if (label === "Genres") {
+    separator = ", ";
+    render = (name) => (genreSlugs[name] ? link(`/genres/${genreSlugs[name]}/index.html`, name) : escapeHtml(name));
+  } else if (URL_LABELS.has(label)) {
+    render = (shown) => (isHttpUrl(shown) ? link(shown, shown, true) : escapeHtml(shown));
+  } else if (LINKED_LABELS[label]) {
+    const hrefFor = LINKED_LABELS[label];
+    render = (shown) => {
       const href = hrefFor(shown);
-      return href ? `<a href="${href}">${escapeHtml(shown)}</a>` : escapeHtml(shown);
-    })
-    .join(" \u2192 ");
-  return `<strong>${escapeHtml(match[1])}</strong>: ${values}`;
+      return href ? link(href, shown) : escapeHtml(shown);
+    };
+  }
+  if (!render) {
+    return escapeHtml(line).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  }
+  return `<strong>${escapeHtml(label)}</strong>: ${rest.split(separator).map(render).join(separator)}`;
 }
 
-export function deltaLinesToHtml(markdown: string): string {
+export function deltaLinesToHtml(
+  markdown: string,
+  genreSlugs: Record<string, string> = {},
+): string {
   if (!markdown.trim()) return "";
-  const items = markdown.split("\n").map((line) => `<li>${deltaLineToHtml(line)}</li>`);
+  const items = markdown
+    .split("\n")
+    .map((line) => `<li>${deltaLineToHtml(line, genreSlugs)}</li>`);
   return `<ul class="history-changes">${items.join("")}</ul>`;
 }
 
@@ -135,6 +157,8 @@ export function buildGameHistory(params: {
   bundleMembers: BundleMember[];
   sections?: GameSection[] | null;
   genres: string[];
+  // Genre name -> slug, so the new-game entry's genre list can link to genre pages.
+  genreSlugs?: Record<string, string>;
   // Collection-wide revisions/activity, fetched once by the caller and
   // reused across every game (see scopedRevisions/scopedActivity above).
   allGameRevisions: Revision[];
@@ -172,7 +196,7 @@ export function buildGameHistory(params: {
       entries.push({
         date,
         title: "Game Added",
-        bodyHtml: deltaLinesToHtml(fmtNewGame(revision.data ?? {}, genres)),
+        bodyHtml: deltaLinesToHtml(fmtNewGame(revision.data ?? {}, genres), params.genreSlugs),
       });
       continue;
     }

@@ -22,6 +22,12 @@ export const downloadLinks = (links: GameLink[] | null | undefined): GameLink[] 
   return links.filter((l) => l.kind === "download").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));
 };
 
+// Contextual non-download links (social pages, support pages, boards, ...).
+export const otherLinks = (links: GameLink[] | null | undefined): GameLink[] => {
+  if (!links?.length) return [];
+  return links.filter((l) => l.kind === "other").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));
+};
+
 export const primaryDownloadLink = (links: GameLink[] | null | undefined): GameLink | null =>
   downloadLinks(links)[0] ?? null;
 
@@ -75,6 +81,11 @@ const hostFromUrl = (value: string): string => {
   }
 };
 
+const GENERIC_LINK_ICON = "/icons/link.svg";
+
+const isSubscribeStarHost = (value: string | null | undefined): boolean =>
+  /(^|\.)subscribestar\.(com|adult)$/.test(hostFromUrl(value ?? ""));
+
 const shortHostFromUrl = (value: string): string | null => {
   const host = hostFromUrl(value).replace(/^www\./, "");
   return host || null;
@@ -98,7 +109,16 @@ export const getUrlLinkMeta = (value: string | null | undefined): UrlLinkMeta =>
     case "trueachievements": return { icon: "/icons/trueachievements.png",   label: "TrueAchievements", host };
     case "stealthoptional": return { icon: "/icons/stealthoptional.png",     label: "Stealth Optional", host };
     case "steam":          return { icon: "/icons/simple/steam.svg",         label: "Steam",            host };
-    default:               return { icon: null,                              label: "Download",         host };
+    // SubscribeStar is deliberately not a UrlPlatform: the platform filters
+    // classify by getUrlPlatform, and adding it there would pull these links
+    // out of the "Unknown" list without a SubscribeStar filter to land in.
+    default:
+      if (isSubscribeStarHost(value)) {
+        return { icon: "/icons/simple/subscribestar.svg", label: "SubscribeStar", host };
+      }
+      // Unrecognised hosts get a generic link icon: with no icon the thumbnail
+      // cards render an empty anchor, which shows up as a gap between icons.
+      return { icon: host ? GENERIC_LINK_ICON : null, label: "Download", host };
   }
 };
 
