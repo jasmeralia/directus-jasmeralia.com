@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { describeGenreAdded, describeLinkEvent, partitionGameGenres } from "./game-events";
+import {
+  describeGenreAdded,
+  describeLinkEvent,
+  describeMemberEvent,
+  describeReviewEvent,
+  describeTierEntryAdded,
+  isCreateRevision,
+  partitionGameGenres,
+} from "./game-events";
 
 const revision = (
   action: string,
@@ -119,5 +127,91 @@ describe("describeGenreAdded", () => {
       title: "Genre Added",
       body: "**Genre**: Mystery",
     });
+  });
+});
+
+describe("review, member, tier, and create events", () => {
+  it("describes published reviews, includes optional game and metadata, and skips drafts or blank updates", () => {
+    const published = {
+      ...revision("create", {}, { title: "Review", status: "published", rating: 8, published_at: "2026-10-01T12:00:00Z" }),
+      collection: "reviews",
+    };
+    expect(describeReviewEvent({ revision: published, includeGame: true, gameTitle: "Game" })).toEqual({
+      type: "review_published",
+      title: "Review Published",
+      subject: "Review",
+      body: "**Game**: Game\n**Rating**: 8/10\n**Published**: 2026-10-01",
+    });
+    expect(describeReviewEvent({ revision: published, includeGame: false })).toEqual({
+      type: "review_published",
+      title: "Review Published",
+      subject: "Review",
+      body: "**Rating**: 8/10\n**Published**: 2026-10-01",
+    });
+    expect(describeReviewEvent({
+      revision: { ...published, activity: { id: 11, action: "update", timestamp: "2026-10-01T00:00:00Z" }, data: { title: "Review", status: "published" }, delta: { rating: 9 } },
+      previousData: { title: "Review", status: "published", rating: 8 },
+      includeGame: false,
+    })?.body).toBe("**Rating**: 8 \u2192 9");
+    expect(describeReviewEvent({
+      revision: { ...published, activity: { id: 13, action: "update", timestamp: "2026-10-01T00:00:00Z" }, data: { title: "Review", status: "published" }, delta: null },
+      includeGame: false,
+    })).toBeNull();
+    expect(describeReviewEvent({
+      revision: { ...published, activity: { id: 14, action: "update", timestamp: "2026-10-01T00:00:00Z" }, data: null, delta: { status: "published" } },
+      includeGame: false,
+    })).toEqual({
+      type: "review_published",
+      title: "Review Published",
+      subject: "Untitled",
+      body: "New review published.",
+    });
+    expect(describeReviewEvent({ revision: { ...published, data: { title: "Draft", status: "draft" } }, includeGame: false })).toBeNull();
+    expect(describeReviewEvent({
+      revision: { ...published, activity: { id: 12, action: "update", timestamp: "2026-10-01T00:00:00Z" }, data: { title: "Review", status: "draft" }, delta: { status: "draft" } },
+      previousData: published.data,
+      includeGame: false,
+    })).toBeNull();
+  });
+
+  it("describes member creation, meaningful updates, and removals", () => {
+    const memberRevision = {
+      ...revision("create", {}, { title: "Member", release_year: 2020, player_status: "not_started" }),
+      collection: "game_bundle_members",
+    };
+    expect(describeMemberEvent({ revision: memberRevision, previousData: null, sections: null, isCreate: true, isDelete: false })).toEqual({
+      type: "member_added",
+      title: "Included Game Added",
+      subject: "Member",
+      body: "**Title**: Member\n**Year**: 2020\n**Play Status**: Not Started",
+    });
+    expect(describeMemberEvent({
+      revision: { ...memberRevision, activity: { id: 11, action: "update", timestamp: "2026-10-01T00:00:00Z" }, data: { title: "Member", player_status: "completed" }, delta: { player_status: "completed" } },
+      previousData: { title: "Member", player_status: "in_progress" },
+      sections: null,
+      isCreate: false,
+      isDelete: false,
+    })?.body).toBe("**Play Status**: In Progress \u2192 Completed");
+    expect(describeMemberEvent({
+      revision: { ...memberRevision, delta: { sort: 2 } }, previousData: null, sections: null, isCreate: false, isDelete: false,
+    })).toBeNull();
+    expect(describeMemberEvent({ revision: { ...memberRevision, data: null }, previousData: null, sections: null, isCreate: false, isDelete: true })).toEqual({
+      type: "member_removed",
+      title: "Included Game Removed",
+      subject: "Untitled",
+      body: "Included game removed.",
+    });
+  });
+
+  it("describes tier additions and distinguishes explicit creates from oldest snapshots", () => {
+    expect(describeTierEntryAdded({ tierListTitle: "Favorites", rating: "S" })).toEqual({
+      type: "tier_entry_added",
+      title: "Added to Tier List",
+      subject: "Favorites",
+      body: "**Tier**: S",
+    });
+    expect(isCreateRevision(revision("create", {}, {}), false)).toBe(true);
+    expect(isCreateRevision(revision("update", {}, {}), true)).toBe(true);
+    expect(isCreateRevision(revision("update", {}, {}), false)).toBe(false);
   });
 });

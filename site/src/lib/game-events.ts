@@ -1,4 +1,5 @@
-import type { Activity, Revision } from "./changelog";
+import { fmtDelta, type Activity, type Revision } from "./changelog";
+import type { GameSection } from "./game-sections";
 
 export type GameEventType =
   | "game_added" | "game_updated"
@@ -124,4 +125,96 @@ export function partitionGameGenres(input: {
 
 export function describeGenreAdded(name: string): GameEvent {
   return { type: "genre_added", title: "Genre Added", body: `**Genre**: ${name}` };
+}
+
+export function isCreateRevision(revision: Revision, isOldestKnownForItem: boolean): boolean {
+  return revision.activity?.action === "create" || isOldestKnownForItem;
+}
+
+export function describeReviewEvent(input: {
+  revision: Revision;
+  previousData?: Record<string, unknown> | null;
+  includeGame: boolean;
+  gameTitle?: string;
+}): GameEvent | null {
+  const { revision, previousData } = input;
+  const data = revision.data ?? {};
+  if (data.status !== "published" && revision.delta?.status !== "published") return null;
+
+  const isPublished = revision.activity?.action === "create" || revision.delta?.status === "published";
+  const subject = typeof data.title === "string" && data.title.trim() ? data.title : "Untitled";
+  if (isPublished) {
+    const lines: string[] = [];
+    if (input.includeGame && input.gameTitle) lines.push(`**Game**: ${input.gameTitle}`);
+    if (data.rating) lines.push(`**Rating**: ${String(data.rating)}/10`);
+    if (data.published_at) lines.push(`**Published**: ${String(data.published_at).slice(0, 10)}`);
+    return {
+      type: "review_published",
+      title: "Review Published",
+      subject,
+      body: lines.join("\n") || "New review published.",
+    };
+  }
+
+  const body = fmtDelta(revision.delta ?? {}, previousData ?? null);
+  if (!body.trim()) return null;
+  return { type: "review_updated", title: "Review Updated", subject, body };
+}
+
+const bundleDelta = (record: Record<string, unknown> | null): Record<string, unknown> => {
+  if (!record) return {};
+  const fields = [
+    "title",
+    "release_year",
+    "cover_image",
+    "player_status",
+    "section_data_status",
+    "section_noun",
+    "current_section",
+  ];
+  return Object.fromEntries(
+    fields
+      .filter((field) => Object.prototype.hasOwnProperty.call(record, field))
+      .map((field) => [field, record[field]]),
+  );
+};
+
+export function describeMemberEvent(input: {
+  revision: Revision;
+  previousData: Record<string, unknown> | null;
+  sections: GameSection[] | null;
+  isCreate: boolean;
+  isDelete: boolean;
+}): GameEvent | null {
+  const { revision, previousData, sections, isCreate, isDelete } = input;
+  const data = revision.data ?? {};
+  const subject = typeof data.title === "string" && data.title.trim() ? data.title : "Untitled";
+  if (isDelete) {
+    return { type: "member_removed", title: "Included Game Removed", subject, body: "Included game removed." };
+  }
+  if (isCreate) {
+    return {
+      type: "member_added",
+      title: "Included Game Added",
+      subject,
+      body: fmtDelta(bundleDelta(data), null, data, sections),
+    };
+  }
+  const body = fmtDelta(
+    bundleDelta(revision.delta),
+    bundleDelta(previousData),
+    data,
+    sections,
+  );
+  if (!body.trim()) return null;
+  return { type: "member_updated", title: "Included Game Updated", subject, body };
+}
+
+export function describeTierEntryAdded(input: { tierListTitle: string; rating: string }): GameEvent {
+  return {
+    type: "tier_entry_added",
+    title: "Added to Tier List",
+    subject: input.tierListTitle,
+    body: `**Tier**: ${input.rating}`,
+  };
 }

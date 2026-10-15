@@ -15,7 +15,14 @@ import {
   type Activity,
   type Revision,
 } from "./changelog";
-import { describeGenreAdded, describeLinkEvent, partitionGameGenres } from "./game-events";
+import {
+  describeGenreAdded,
+  describeLinkEvent,
+  describeMemberEvent,
+  describeReviewEvent,
+  isCreateRevision,
+  partitionGameGenres,
+} from "./game-events";
 import {
   buildRowTimelinesByParent,
   describeSectionRun,
@@ -192,7 +199,8 @@ function buildGameEntry(
   const date = requireDate(rev.activity?.timestamp, `game revision ${rev.id}`);
   if (!data?.title) return null;
 
-  const isCreate = rev.activity?.action === "create";
+  // Keep feed creation limited to explicit create revisions so old games are not re-announced.
+  const isCreate = isCreateRevision(rev, false);
   const slug     = requireGuidPart(gameItem?.slug ?? data.slug ?? rev.item, `game revision ${rev.id} slug`);
   const link     = `${siteBase}/games/${slug}/index.html`;
   const imgUrl   = mediaUrl(gameItem?.cover_image ?? data.cover_image) ?? undefined;
@@ -230,32 +238,30 @@ function buildGameEntry(
 
 function buildReviewEntry(
   rev: Revision,
+  previousData: Record<string, unknown> | null,
   reviewItem: DirectusRecord | null, // live-fetched with game expanded
 ): Entry | null {
   const data = rev.data;
   const date = requireDate(rev.activity?.timestamp, `review revision ${rev.id}`);
   if (!data?.title) return null;
-  if (data.status !== "published" && rev.delta?.status !== "published") return null;
-
-  const isNewlyPublished =
-    rev.activity?.action === "create" ||
-    rev.delta?.status === "published";
-
   const slug   = requireGuidPart(reviewItem?.slug ?? data.slug ?? rev.item, `review revision ${rev.id} slug`);
   const link   = `${siteBase}/reviews/${slug}/index.html`;
   const reviewGame = reviewItem?.game as DirectusRecord | undefined;
   const imgUrl = mediaUrl(reviewGame?.cover_image) ?? undefined;
+  const reviewGameTitle = reviewGame?.title ? String(reviewGame.title) : undefined;
+  const event = describeReviewEvent({
+    revision: rev,
+    previousData,
+    includeGame: true,
+    gameTitle: reviewGameTitle,
+  });
+  if (!event) return null;
 
-  if (isNewlyPublished) {
-    const lines: string[] = [];
-    const game = reviewGame;
-    if (game?.title) lines.push(`**Game**: ${String(game.title)}`);
-    if (data.rating)  lines.push(`**Rating**: ${String(data.rating)}/10`);
-    if (data.published_at) lines.push(`**Published**: ${String(data.published_at).slice(0, 10)}`);
+  if (event.type === "review_published") {
     return {
-      title: `Review Published: ${data.title}`,
+      title: `${event.title}: ${event.subject}`,
       link,
-      description: lines.join("\n") || "New review published.",
+      description: event.body,
       pubDate: date,
       imageUrl: imgUrl,
       guid: rssGuid("review", slug, "published", date, `review revision ${rev.id}`),
@@ -264,13 +270,10 @@ function buildReviewEntry(
     };
   }
 
-  const desc = fmtDelta(rev.delta ?? {}, null);
-  if (!desc.trim()) return null;
-
   return {
-    title: `Review Updated: ${data.title}`,
+    title: `${event.title}: ${event.subject}`,
     link,
-    description: desc,
+    description: event.body,
     pubDate: date,
     imageUrl: imgUrl,
     guid: rssGuid("review", slug, "updated", date, `review revision ${rev.id}`),
@@ -402,24 +405,6 @@ function buildGameLinkEntry(
   };
 }
 
-const bundleDelta = (record: Record<string, unknown> | null): Record<string, unknown> => {
-  if (!record) return {};
-  const fields = [
-    "title",
-    "release_year",
-    "cover_image",
-    "player_status",
-    "section_data_status",
-    "section_noun",
-    "current_section",
-  ];
-  return Object.fromEntries(
-    fields
-      .filter((field) => Object.prototype.hasOwnProperty.call(record, field))
-      .map((field) => [field, record[field]]),
-  );
-};
-
 // ─── cross-type consolidation ───────────────────────────────────────────────
 
 function mergeGameSession(session: Entry[]): Entry {
@@ -510,32 +495,35 @@ function buildBundleMemberEntry(
     `game_bundle_members revision ${rev.id} parent slug`,
   );
   const action = rev.activity?.action;
-  const isCreate = action === "create";
+  // Keep feed creation limited to explicit create revisions so old members are not presented as new.
+  const isCreate = isCreateRevision(rev, false);
   const isDelete = action === "delete";
   const activityId = rev.activity?.id ?? rev.id;
-  const event = isCreate
+  const eventKey = isCreate
     ? `member_created_${memberId}_${rev.id}`
     : isDelete
       ? `member_removed_${memberId}_${activityId}`
       : `member_updated_${memberId}_${rev.id}`;
   const actionLabel = isCreate ? "Added" : isDelete ? "Removed" : "Updated";
-  const description = isDelete
-    ? "Included game removed."
-    : isCreate
-    ? fmtDelta(bundleDelta(data), null, data, sections)
-    : fmtDelta(bundleDelta(rev.delta), bundleDelta(previousData), data, sections);
-  if (!isCreate && !isDelete && !description.trim()) return null;
+  const event = describeMemberEvent({
+    revision: { ...rev, data },
+    previousData,
+    sections,
+    isCreate,
+    isDelete,
+  });
+  if (!event) return null;
   return {
     title: `Included Game ${actionLabel} - ${title}`,
     gameTitle: title,
     link: `${siteBase}/games/${gameSlug}/index.html`,
-    description,
+    description: event.body,
     pubDate: date,
     imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
     guid: rssGuid(
       "game",
       gameSlug,
-      event,
+      eventKey,
       date,
       `game_bundle_members revision ${rev.id}`,
     ),
@@ -710,6 +698,9 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
     allBundleMemberRevs,
     updateBundleMemberRevs,
   );
+  // Previous review snapshots come from the fetched window, so the oldest
+  // review revision in it has none and shows only the new value.
+  const reviewPrevMap = previousRevisionDataMap(reviewRevs, reviewRevs);
   const linkRevisionByActivity = new Map(
     allLinkRevs.filter((revision) => revision.activity?.id !== undefined)
       .map((revision) => [revision.activity!.id!, revision]),
@@ -788,7 +779,7 @@ export async function buildFeedEntries(): Promise<FeedEntry[]> {
   // Reviews
   for (const rev of reviewRevs) {
     const liveItem = reviewItemMap[Number(rev.item)] ?? null;
-    const entry    = buildReviewEntry(rev, liveItem);
+    const entry    = buildReviewEntry(rev, reviewPrevMap[rev.id], liveItem);
     if (entry) entries.push(entry);
   }
 

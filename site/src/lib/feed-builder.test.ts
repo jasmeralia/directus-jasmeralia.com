@@ -172,6 +172,20 @@ describe("buildFeedEntries", () => {
     await expect(buildFeedEntries()).resolves.toEqual([]);
   });
 
+  it("shows old and new values on a review update when the previous revision is in the window", async () => {
+    mockDirectusFetch(feedRoutes({
+      reviewRevisions: [
+        { id: 431, item: "43", collection: "reviews", data: { title: "R", slug: "r", status: "published", rating: 4 }, delta: { rating: 4 }, activity: { id: 4310, action: "update", timestamp: "2026-10-12T00:00:00Z" } },
+        { id: 430, item: "43", collection: "reviews", data: { title: "R", slug: "r", status: "published", rating: 3 }, delta: { rating: 3 }, activity: { id: 4300, action: "update", timestamp: "2026-10-11T00:00:00Z" } },
+      ],
+    }));
+    const entries = await buildFeedEntries();
+    expect(entries.map(({ title, description, guid }) => ({ title, description, guid }))).toEqual([
+      { title: "Review Updated: R", description: "**Rating**: 3 \u2192 4", guid: "review:r:updated:2026-10-12T00:00:00Z" },
+      { title: "Review Updated: R", description: "**Rating**: 3", guid: "review:r:updated:2026-10-11T00:00:00Z" },
+    ]);
+  });
+
   it("emits a genre event and lists only initial genres in a new-game description", async () => {
     mockDirectusFetch(feedRoutes({
       gameRevisions: [{

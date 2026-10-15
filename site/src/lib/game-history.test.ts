@@ -55,7 +55,7 @@ describe("buildGameHistory", () => {
           id: 42,
           item: "11",
           collection: "reviews",
-          data: { title: "Launch Review" },
+          data: { title: "Launch Review", status: "published", rating: 8, published_at: "2026-07-09T00:00:00Z" },
           delta: {},
           activity: { action: "create", timestamp: "2026-07-09T12:00:00Z" },
         },
@@ -63,7 +63,7 @@ describe("buildGameHistory", () => {
           id: 41,
           item: "11",
           collection: "reviews",
-          data: { title: "Launch Review", rating: 4 },
+          data: { title: "Launch Review", status: "published", rating: 4 },
           delta: { rating: 4 },
           activity: { action: "update", timestamp: "2026-07-08T12:00:00Z" },
         },
@@ -71,7 +71,7 @@ describe("buildGameHistory", () => {
           id: 40,
           item: "12",
           collection: "reviews",
-          data: { title: "" },
+          data: { title: "", status: "published" },
           delta: { status: "published" },
           activity: { action: "update", timestamp: "2026-07-07T12:00:00Z" },
         },
@@ -196,6 +196,13 @@ describe("buildGameHistory", () => {
     expect(entries[0].bodyHtml).toBe(
       '<ul class="history-changes"><li><strong>Title</strong>: Old &lt;Game&gt; → New &amp; &lt;Game&gt;</li></ul>',
     );
+    expect(entries[1].bodyHtml).toBe(
+      '<ul class="history-changes"><li><strong>Rating</strong>: 8/10</li><li><strong>Published</strong>: 2026-07-09</li></ul>',
+    );
+    expect(entries[5].bodyHtml).toBe(
+      '<ul class="history-changes"><li><strong>Tier</strong>: B</li></ul>',
+    );
+    expect(entries[9].bodyHtml).toContain("<strong>Title</strong>: Old Member");
     expect(entries.at(-1)?.bodyHtml).toContain("<strong>Genres</strong>: Adventure");
   });
 
@@ -236,7 +243,7 @@ describe("buildGameHistory", () => {
       reviews: [],
       tierEntries: [],
       links: [],
-      bundleMembers: [{ id: 42, title: "Member Two" }],
+      bundleMembers: [{ id: 42 }],
       ...emptyHistoryInputs(),
       allBundleMemberRevisions: [
         {
@@ -259,6 +266,28 @@ describe("buildGameHistory", () => {
     });
 
     expect(entries.map(({ title }) => title)).toEqual(["Included Game Added - Member Two"]);
+    expect(entries[0].bodyHtml).toContain("<strong>Title</strong>: Member Two");
+  });
+
+  it("keeps removed included games out of History", () => {
+    const entries = buildGameHistory({
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [{ id: 42, title: "Removed Member" }],
+      ...emptyHistoryInputs(),
+      allBundleMemberRevisions: [{
+        id: 601,
+        item: "42",
+        collection: "game_bundle_members",
+        data: { title: "Removed Member" },
+        delta: null,
+        activity: { action: "delete", timestamp: "2026-07-13T12:00:00Z" },
+      }],
+    });
+
+    expect(entries).toEqual([]);
   });
 
   it("rejects a revision without a valid required timestamp", () => {
@@ -553,6 +582,28 @@ describe("link history with sparse revision data", () => {
     expect(body(9)).toBe('<ul class="history-changes"><li><strong>Kind</strong>: \u2014 \u2192 Other link</li></ul>');
     expect(entries.find(({ date }) => date.getUTCDate() === 8)?.title).toBe("Download Link Updated");
     expect(body(10)).toBe("(missing)");
+  });
+});
+
+describe("review history", () => {
+  it("shows old and new values on a review update", () => {
+    const rev = (id: number, rating: number, action: string, day: number) => ({
+      id, item: "11", collection: "reviews", data: { title: "R", status: "published", rating }, delta: { rating },
+      activity: { id, action, timestamp: `2026-07-0${day}T00:00:00Z` },
+    });
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [{ id: 11 }],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [],
+      allReviewRevisions: [rev(2, 4, "update", 2), rev(1, 3, "update", 1)],
+    });
+    expect(entries.map(({ bodyHtml }) => bodyHtml)).toEqual([
+      '<ul class="history-changes"><li><strong>Rating</strong>: 3 \u2192 4</li></ul>',
+      '<ul class="history-changes"><li><strong>Rating</strong>: 3</li></ul>',
+    ]);
   });
 });
 

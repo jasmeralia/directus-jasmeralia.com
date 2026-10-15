@@ -6,7 +6,15 @@ import {
   type Revision,
 } from "./changelog";
 import type { GameSection } from "./game-sections";
-import { describeGenreAdded, describeLinkEvent, partitionGameGenres } from "./game-events";
+import {
+  describeGenreAdded,
+  describeLinkEvent,
+  describeMemberEvent,
+  describeReviewEvent,
+  describeTierEntryAdded,
+  isCreateRevision,
+  partitionGameGenres,
+} from "./game-events";
 import { describeSectionRun, indexSectionRevisions } from "./section-events";
 
 export type HistoryEntry = {
@@ -243,8 +251,7 @@ export function buildGameHistory(params: {
       revision.activity?.timestamp,
       `game revision ${revision.id}`,
     );
-    const isCreate = revision.activity?.action === "create"
-      || (index === gameRevisions.length - 1 && prevData === null);
+    const isCreate = isCreateRevision(revision, index === gameRevisions.length - 1 && prevData === null);
 
     if (isCreate) {
       entries.push({
@@ -266,31 +273,21 @@ export function buildGameHistory(params: {
 
   const reviewGroups = groupRevisionsByItem(reviewRevisions);
   for (const revisions of reviewGroups.values()) {
-    for (const revision of revisions) {
-      const data = revision.data ?? {};
+    for (const [index, revision] of revisions.entries()) {
       const date = requireHistoryDate(
         revision.activity?.timestamp,
         `review revision ${revision.id}`,
       );
-      const title = recordTitle(data.title);
-      if (
-        revision.activity?.action === "create"
-        || revision.delta?.status === "published"
-      ) {
-        entries.push({
-          date,
-          title: `Review Published — ${title}`,
-          bodyHtml: "",
-        });
-        continue;
-      }
-
-      const description = fmtDelta(revision.delta ?? {}, null);
-      if (!description.trim()) continue;
+      const event = describeReviewEvent({
+        revision,
+        previousData: revisions[index + 1]?.data ?? null,
+        includeGame: false,
+      });
+      if (!event) continue;
       entries.push({
         date,
-        title: `Review Updated — ${title}`,
-        bodyHtml: deltaLinesToHtml(description),
+        title: `${event.title} — ${event.subject}`,
+        bodyHtml: deltaLinesToHtml(event.body),
       });
     }
   }
@@ -299,30 +296,25 @@ export function buildGameHistory(params: {
   for (const [itemId, revisions] of memberRevisionGroups) {
     const currentMember = bundleMemberMap.get(Number(itemId));
     for (const [index, revision] of revisions.entries()) {
-      const data = revision.data ?? {};
-      const title = recordTitle(currentMember?.title ?? data.title);
       const date = requireHistoryDate(
         revision.activity?.timestamp,
         `bundle member revision ${revision.id}`,
       );
-      const isCreate = revision.activity?.action === "create"
-        || (index === revisions.length - 1 && !revisions[index + 1]);
-      if (isCreate) {
-        entries.push({
-          date,
-          title: `Included Game Added - ${title}`,
-          bodyHtml: "",
-        });
-        continue;
-      }
-
       const previousData = revisions[index + 1]?.data ?? null;
-      const description = fmtDelta(revision.delta ?? {}, previousData, data, currentMember?.sections);
-      if (!description.trim()) continue;
+      const isCreate = isCreateRevision(revision, index === revisions.length - 1 && !revisions[index + 1]);
+      if (revision.activity?.action === "delete") continue;
+      const event = describeMemberEvent({
+        revision,
+        previousData,
+        sections: currentMember?.sections ?? null,
+        isCreate,
+        isDelete: false,
+      });
+      if (!event) continue;
       entries.push({
         date,
-        title: `Included Game Updated - ${title}`,
-        bodyHtml: deltaLinesToHtml(description),
+        title: `${event.title} - ${recordTitle(currentMember?.title ?? event.subject)}`,
+        bodyHtml: deltaLinesToHtml(event.body),
       });
     }
   }
@@ -335,13 +327,14 @@ export function buildGameHistory(params: {
     if (!tierEntry) continue;
     const tierListTitle = tierEntry.tier_list_id?.title ?? "Untitled";
     const rating = tierEntry.rating ?? "";
+    const event = describeTierEntryAdded({ tierListTitle, rating });
     entries.push({
       date: requireHistoryDate(
         activity.timestamp,
         `tier list game activity ${activity.id}`,
       ),
-      title: `Added to Tier List — ${tierListTitle} (${rating})`,
-      bodyHtml: "",
+      title: `${event.title} — ${event.subject} (${rating})`,
+      bodyHtml: deltaLinesToHtml(event.body),
     });
   }
 
