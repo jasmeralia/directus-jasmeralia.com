@@ -585,6 +585,24 @@ describe("link history with sparse revision data", () => {
   });
 });
 
+describe("game creation history", () => {
+  it("renders an empty Game Added body when the creation revision carries no data", () => {
+    const entries = buildGameHistory({
+      ...emptyHistoryInputs(),
+      gameId: 7,
+      reviews: [],
+      tierEntries: [],
+      links: [],
+      bundleMembers: [],
+      allGameRevisions: [{
+        id: 1, item: "7", collection: "games", data: null, delta: null,
+        activity: { id: 1, action: "create", timestamp: "2026-07-01T00:00:00Z" },
+      }],
+    });
+    expect(entries.map(({ title, bodyHtml }) => ({ title, bodyHtml }))).toEqual([{ title: "Game Added", bodyHtml: "" }]);
+  });
+});
+
 describe("review history", () => {
   it("shows old and new values on a review update", () => {
     const rev = (id: number, rating: number, action: string, day: number) => ({
