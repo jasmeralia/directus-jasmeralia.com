@@ -176,7 +176,7 @@ function fmtLinkDelta(
   currentUrl: string | undefined,
 ): string {
   const show = (field: string, value: unknown) =>
-    field === "kind" && typeof value === "string" ? (LINK_KIND_LABELS[value] ?? value) : String(value);
+    field === "kind" ? (LINK_KIND_LABELS[String(value)] ?? String(value)) : String(value);
   const dash = "\u2014";
   const lines: string[] = [];
   if (isCreate) {
@@ -191,12 +191,12 @@ function fmtLinkDelta(
   for (const [field, label] of [["kind", "Kind"], ["label", "Label"]] as const) {
     if (!(field in delta) || delta[field] === (prev?.[field] ?? null)) continue;
     const before = prev?.[field] ?? null;
-    const next = delta[field] ?? null;
+    const next = delta[field];
     changes.push(
       `**${label}**: ${before === null ? dash : show(field, before)} \u2192 ${next === null ? dash : show(field, next)}`,
     );
   }
-  const urlChanged = "url" in delta && delta.url !== (prev?.url ?? null);
+  const urlChanged = "url" in delta && delta.url !== prev?.url;
   if (!urlChanged && !changes.length) return "";
   const url = (data?.url ?? currentUrl) as string | undefined;
   const urlLine = urlChanged

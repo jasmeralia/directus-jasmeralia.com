@@ -393,6 +393,65 @@ describe("link history identity", () => {
   });
 });
 
+describe("link history with sparse revision data", () => {
+  const act = (id: number, item: string, action: string, day: number) => ({
+    id, item, action, collection: "games_links", timestamp: `2026-07-${String(day).padStart(2, "0")}T00:00:00Z`,
+  });
+  const rev = (
+    id: number, item: string, activityId: number, action: string, day: number,
+    data: Record<string, unknown> | null, delta: Record<string, unknown> | null,
+  ) => ({ id, item, collection: "games_links", data, delta, activity: { id: activityId, action, timestamp: act(activityId, item, action, day).timestamp } });
+
+  const entries = buildGameHistory({
+    ...emptyHistoryInputs(),
+    gameId: 7,
+    reviews: [],
+    tierEntries: [],
+    links: [
+      { id: 50 },
+      { id: 51, kind: "mystery", url: "https://m.test/x" },
+      { id: 52, kind: "other", url: "https://n.test" },
+    ],
+    bundleMembers: [],
+    allLinkActivities: [
+      act(1, "51", "create", 1), act(2, "51", "update", 2), act(3, "51", "update", 3), act(4, "51", "update", 4),
+      act(6, "52", "create", 6), act(7, "52", "update", 7),
+      act(8, "50", "update", 8), act(9, "50", "update", 9),
+      act(10, "99", "create", 10), // link since deleted
+    ],
+    allLinkRevisions: [
+      rev(1, "51", 1, "create", 1, null, { url: "https://m.test/x", kind: "mystery" }),
+      rev(2, "51", 2, "update", 2, null, null),
+      rev(3, "51", 3, "update", 3, null, { url: "https://m.test/y" }),
+      rev(4, "51", 4, "update", 4, null, { kind: "download" }),
+      rev(6, "52", 6, "create", 6, { url: "https://n.test", kind: "other", label: "Old" }, {}),
+      rev(7, "52", 7, "update", 7, { url: "https://n.test", kind: "other", label: null }, { label: null }),
+      rev(9, "50", 9, "update", 9, null, { kind: "other" }),
+    ],
+  });
+  const body = (day: number) =>
+    entries.find(({ date }) => date.getUTCDate() === day)?.bodyHtml ?? "(missing)";
+  const link = (url: string) => `<strong>URL</strong>: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+
+  it("falls back to the revision delta, shows unknown kinds raw, and skips empty updates", () => {
+    expect(body(1)).toBe(`<ul class="history-changes"><li>${link("https://m.test/x")}</li><li><strong>Kind</strong>: mystery</li></ul>`);
+    expect(body(2)).toBe("(missing)");
+  });
+
+  it("shows a URL change with no earlier value, and falls back to the link's current URL", () => {
+    expect(body(3)).toBe(`<ul class="history-changes"><li><strong>URL</strong>: \u2014 \u2192 <a href="https://m.test/y" target="_blank" rel="noopener noreferrer">https://m.test/y</a></li></ul>`);
+    expect(body(4)).toBe(`<ul class="history-changes"><li>${link("https://m.test/x")}</li><li><strong>Kind</strong>: \u2014 \u2192 Download</li></ul>`);
+  });
+
+  it("shows a cleared label, and handles links with no URL or kind", () => {
+    expect(body(7)).toBe(`<ul class="history-changes"><li>${link("https://n.test")}</li><li><strong>Label</strong>: Old \u2192 \u2014</li></ul>`);
+    expect(body(8)).toBe("");
+    expect(body(9)).toBe('<ul class="history-changes"><li><strong>Kind</strong>: \u2014 \u2192 Other link</li></ul>');
+    expect(entries.find(({ date }) => date.getUTCDate() === 8)?.title).toBe("Download Link Updated");
+    expect(body(10)).toBe("(missing)");
+  });
+});
+
 describe("deltaLinesToHtml", () => {
   it("links play status, release status, section style, and year values", () => {
     expect(deltaLinesToHtml("**Play Status**: In Progress \u2192 Waiting for Update")).toBe(
