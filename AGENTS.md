@@ -16,6 +16,10 @@ Copy `.mcp.json.example` to `.mcp.json` at the repo root and fill in all `<VALUE
 - **Steam ID**: 76561198124815726
 - **SteamGridDB API key**: in `.mcp.json`
 
+## Game imports and cover art
+
+**Never add a game to Directus without cover art unless Morgan explicitly instructs you to omit it.** Before creating a game record, find and assign a suitable cover from Steam, SteamGridDB, or GameStoryLog. If none of those sources has a suitable cover, ask Morgan to provide one before creating the record. Do not create the game first and leave `cover_image` empty while waiting for art.
+
 ## Key collections (Directus schema)
 
 | Collection | Notes |
