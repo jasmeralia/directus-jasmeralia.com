@@ -77,7 +77,7 @@ The default is a dry run. `--apply` adds missing `developers_links` rows with
 `kind: steam` and does not trigger a site rebuild. Steam metadata and extracted
 developer homepages are cached in
 `mcp/cache/steam_developer_link_backfill.json`. Uncached requests are spaced at
-least five seconds apart. HTTP 429 responses honor `Retry-After` and use
+least two seconds apart. HTTP 429 responses honor `Retry-After` and use
 exponential backoff starting at 60 seconds, capped at 15 minutes; after five
 retries the script aborts instead of continuing to send requests.
 
