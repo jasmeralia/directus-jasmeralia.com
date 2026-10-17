@@ -63,6 +63,7 @@ REQUEST_DELAY_S = 1.5
 SEARCH_URL = "https://store.steampowered.com/api/storesearch/?"
 STEAM_APP_URL = "https://store.steampowered.com/app/{appid}/"
 
+PREFIX_SIM = 0.85  # one title is the other plus a subtitle (never reaches HIGH_SIM)
 REVIEW_SIM = 0.60  # minimum title similarity to consider a candidate at all
 HIGH_SIM = 0.92  # minimum title similarity for an auto-appliable match
 EXACT_SIM = 0.98  # near-identical titles tolerate a later Steam re-release year
@@ -110,6 +111,18 @@ EDITION_WORDS = {
     "the",
     "year",
 }
+# Steam extras that share a game's title but are never the game itself.
+NOISE_WORDS = {
+    "soundtrack",
+    "ost",
+    "artbook",
+    "wallpaper",
+    "wallpapers",
+    "extras",
+    "demo",
+    "playtest",
+}
+_ORDINAL = re.compile(r"^\d+(st|nd|rd|th)$")
 _PUNCT = re.compile(r"[^a-z0-9]+")
 _APOSTROPHES = str.maketrans("", "", "'" + chr(0x2019))
 
@@ -128,8 +141,17 @@ def core_tokens(title: str) -> list[str]:
 
 
 def number_tokens(words: list[str]) -> set[str]:
-    """Return the digit-bearing tokens, used to separate sequels and entries."""
-    return {w for w in words if any(ch.isdigit() for ch in w)}
+    """Return the digit-bearing tokens, used to separate sequels and entries.
+
+    Ordinals ("25th" in "25th Anniversary Edition") name an edition, not a
+    sequel, so they are ignored.
+    """
+    return {w for w in words if any(ch.isdigit() for ch in w) and not _ORDINAL.match(w)}
+
+
+def is_noise(theirs: str, ours: str) -> bool:
+    """Return whether a Steam title is a soundtrack/artbook/demo-style extra."""
+    return bool(NOISE_WORDS & set(tokens(theirs)) - set(tokens(ours)))
 
 
 @dataclass
@@ -139,6 +161,19 @@ class Score:
     similarity: float
     edition_differs: bool = False
     number_mismatch: bool = False
+    subtitle_differs: bool = False
+
+
+def has_subtitle_relation(core_a: list[str], core_b: list[str]) -> bool:
+    """Return whether one title is the other plus a trailing subtitle.
+
+    Requires the shorter title to carry real signal (two tokens or six
+    characters) so a one-word stub like "Pine" does not match everything.
+    """
+    short, long = sorted((core_a, core_b), key=len)
+    if not short or len(short) == len(long):
+        return False
+    return long[: len(short)] == short and (len(short) >= 2 or len(short[0]) >= 6)
 
 
 def title_score(ours: str, theirs: str) -> Score:
@@ -153,10 +188,13 @@ def title_score(ours: str, theirs: str) -> Score:
     )
     edition_differs = full < core
     similarity = max(full, core * 0.97 if edition_differs else core)
+    subtitle_differs = has_subtitle_relation(core_a, core_b)
+    if subtitle_differs:
+        similarity = max(similarity, PREFIX_SIM)
     number_mismatch = number_tokens(full_a) != number_tokens(full_b)
     if number_mismatch:
         similarity *= 0.7
-    return Score(similarity, edition_differs, number_mismatch)
+    return Score(similarity, edition_differs, number_mismatch, subtitle_differs)
 
 
 def search_variants(title: str) -> list[str]:
@@ -327,7 +365,11 @@ def find_match(steam: SteamLookup, title: str, ours_year: int | None) -> dict[st
         apps, err = steam.search(term)
         if apps is None:
             return {"tier": "error", "error": err}
-        scored = [(title_score(title, app["name"]), app) for app in apps]
+        scored = [
+            (title_score(title, app["name"]), app)
+            for app in apps
+            if not is_noise(app["name"], title)
+        ]
         ranked = sorted(
             (pair for pair in scored if pair[0].similarity >= REVIEW_SIM),
             key=lambda pair: -pair[0].similarity,
@@ -359,6 +401,8 @@ def find_match(steam: SteamLookup, title: str, ours_year: int | None) -> dict[st
             continue
         if score.edition_differs:
             cand.notes.append("edition wording differs")
+        if score.subtitle_differs:
+            cand.notes.append("Steam title adds/drops a subtitle")
         if score.number_mismatch:
             cand.notes.append("sequel/number tokens differ")
         candidates.append(cand)
