@@ -7,10 +7,8 @@ storefront link must expand `games.links` with `links.url,links.kind`, filter to
 the canonical `download` kind, and create new acquisition links as
 `games_links` rows. A game may have more than one download destination, so
 Steam-specific work must select its Steam URL rather than assume a scalar link.
-
-`migrate_games_links.py` is the sole historical exception: it intentionally
-reads the former fields only when restoring or replaying a pre-migration
-database snapshot. Do not run it against the current schema.
+The historical field migration has been retired and must not be run against the
+current schema.
 
 ## Steam wishlist imports
 
