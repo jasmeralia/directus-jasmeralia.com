@@ -205,8 +205,24 @@ describe("URL platform and metadata", () => {
       label: "Community",
     });
     expect(getDeveloperLinkMeta({ url: "https://example.com", kind: "website" })).toEqual({
-      icon: null,
+      icon: "/icons/link.svg",
       label: "Website",
+    });
+    expect(getDeveloperLinkMeta({
+      url: "https://example.com/profile",
+      kind: "website",
+      label: "Creator profile",
+    })).toEqual({
+      icon: "/icons/link.svg",
+      label: "Creator profile",
+    });
+    expect(getDeveloperLinkMeta({
+      url: "https://gamestorylog.com/developer/example",
+      kind: "gamestorylog",
+      label: "Website",
+    })).toEqual({
+      icon: "/icons/gamestorylog.png",
+      label: "GameStoryLog",
     });
     expect(getDeveloperLinkMeta({
       url: "https://subscribestar.adult/creator",
