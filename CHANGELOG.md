@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.239] - 2026-10-17
+- Developer pages: render GameStoryLog links with the GameStoryLog icon and label, and regular website links with the generic link icon.
+- Game pages: show the number of games associated with each listed developer.
+
 ## [1.0.238] - 2026-10-15
 - Game cards: show a neutral chip for each published tier list rating from S through F, linked to that tier page.
 

@@ -162,6 +162,17 @@ export async function getStaticPaths() {
   const franchisesByGame = groupBy(allFranchiseEntries, (f) => f.game_id);
   const tierEntriesByGame = groupBy(allTierEntries, (t) => t.game_id);
   const versionsByGame = groupBy(allGameVersions, (row) => typeof row.games_id === 'object' ? row.games_id?.id : row.games_id);
+  const developerGameCounts = new Map();
+  for (const game of games) {
+    const developerIds = new Set(
+      (game.developers ?? [])
+        .map((entry) => entry?.developers_id?.id)
+        .filter((id) => id !== null && id !== undefined),
+    );
+    for (const developerId of developerIds) {
+      developerGameCounts.set(developerId, (developerGameCounts.get(developerId) ?? 0) + 1);
+    }
+  }
 
   return games
     .filter((g) => !!g.slug)
@@ -182,6 +193,13 @@ export async function getStaticPaths() {
       const bundleMembers = orderedBundleMembers(game.bundle_members);
       const sections = directGameSections(game.sections);
       game.versions = versionsByGame.get(game.id) ?? [];
+      const gameDeveloperCounts = Object.fromEntries(
+        [...new Set(
+          (game.developers ?? [])
+            .map((entry) => entry?.developers_id?.id)
+            .filter((id) => id !== null && id !== undefined),
+        )].map((developerId) => [developerId, developerGameCounts.get(developerId) ?? 0]),
+      );
 
       const history = buildGameHistory({
         gameId: game.id,
@@ -213,12 +231,12 @@ export async function getStaticPaths() {
 
       return {
         params: { slug: game.slug },
-        props: { game, reviews: publishedReviews, franchiseEntries, tierEntries, bundleMembers, sections, history },
+        props: { game, reviews: publishedReviews, franchiseEntries, tierEntries, bundleMembers, sections, history, developerGameCounts: gameDeveloperCounts },
       };
     });
 }
 
-const { game, reviews, franchiseEntries, tierEntries, bundleMembers, sections, history } = Astro.props;
+const { game, reviews, franchiseEntries, tierEntries, bundleMembers, sections, history, developerGameCounts } = Astro.props;
 
 const PLAYER_STATUS_PHRASE: Record<string, string> = {
   not_started: "Jasmeralia hasn't started it yet.",
@@ -509,7 +527,7 @@ const coverStackStyle = [
             <li>
               <strong>Developers:</strong> {developers.map((developer, index) => (
                 <span>
-                  <a href={`/developers/${developer.slug}/index.html`}>{developer.name ?? developer.title}</a>
+                  <a href={`/developers/${developer.slug}/index.html`}>{developer.name ?? developer.title}</a> ({developerGameCounts?.[developer.id] ?? 0})
                   {index < developers.length - 1 ? ", " : ""}
                 </span>
               ))}

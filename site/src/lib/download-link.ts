@@ -10,11 +10,11 @@ export type DeveloperLink = {
   id?: number;
   url: string;
   label?: string | null;
-  kind: "website" | "patreon" | "subscribestar" | "discord" | "itch" | "steam" | "other";
+  kind: "website" | "patreon" | "subscribestar" | "discord" | "itch" | "steam" | "gamestorylog" | "other";
 };
 
 export const DEVELOPER_LINK_KINDS: DeveloperLink["kind"][] = [
-  "patreon", "subscribestar", "discord", "itch", "steam", "website",
+  "patreon", "subscribestar", "discord", "itch", "steam", "gamestorylog", "website",
 ];
 
 export const downloadLinks = (links: GameLink[] | null | undefined): GameLink[] => {
@@ -163,6 +163,9 @@ export const getLinkMeta = (link: GameLink): UrlLinkMeta => {
 export type DeveloperLinkMeta = { icon: string | null; label: string };
 
 export const getDeveloperLinkMeta = (link: DeveloperLink): DeveloperLinkMeta => {
+  if (link.kind === "gamestorylog") {
+    return { icon: "/icons/gamestorylog.png", label: "GameStoryLog" };
+  }
   if (link.label) {
     const icon = getDeveloperKindIcon(link.kind, link.url);
     return { icon, label: link.label };
@@ -178,7 +181,7 @@ export const getDeveloperLinkMeta = (link: DeveloperLink): DeveloperLinkMeta => 
         ? { icon: "/icons/simple/steamdb.svg",  label: "SteamDB" }
         : { icon: "/icons/simple/steam.svg",    label: "Steam" };
     }
-    case "website":
+    case "website":     return { icon: GENERIC_LINK_ICON,               label: "Website" };
     case "other":
     default:             return { icon: null,                            label: "Website" };
   }
@@ -193,6 +196,7 @@ function getDeveloperKindIcon(kind: DeveloperLink["kind"], url?: string): string
     case "steam":          return (url ?? "").toLowerCase().includes("steamdb.info")
                              ? "/icons/simple/steamdb.svg"
                              : "/icons/simple/steam.svg";
+    case "website":       return GENERIC_LINK_ICON;
     default:               return null;
   }
 }
