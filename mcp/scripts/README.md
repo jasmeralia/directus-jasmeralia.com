@@ -24,6 +24,12 @@ similarity, sequel-number agreement, and release-year consistency:
   adds these as `games_links` rows with `kind: download`.
 - `review`: weaker title match, year conflict, or a close runner-up. Inspect the
   report, then add chosen ones with `--apply --accept <game id>,<game id>`.
+- Subtitles: a title that is the other plus a trailing subtitle ("The
+  Textorcist" vs "The Textorcist: The Story of Ray Bibbia") scores 0.85, so it
+  is found directly but always goes to `review`. A sequel number that differs
+  ("Hades" vs "Hades II") is penalized instead, and ordinals like "25th" are
+  ignored. Soundtrack/artbook/demo-style Steam extras are skipped so they do not
+  crowd real candidates out of the detail lookups.
 - DLC matches: some old titles exist on Steam only as an itemized DLC of a
   collection page (the Gold Box collections) or of a re-release. When Steam
   search returns such a DLC, the script links the DLC's parent app instead. A
