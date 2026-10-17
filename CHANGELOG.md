@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.240] - 2026-10-17
+- Developer pages: preserve the GameStoryLog icon's original colors and aspect ratio so it no longer appears as a tinted square.
+
 ## [1.0.239] - 2026-10-17
 - Developer pages: render GameStoryLog links with the GameStoryLog icon and label, and regular website links with the generic link icon.
 - Game pages: show the number of games associated with each listed developer.

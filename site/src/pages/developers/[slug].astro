@@ -94,6 +94,7 @@ const description = isUnknown
       .dev-link{display:inline-flex;align-items:center;gap:.4rem;color:#9aa6ff;text-decoration:none;}
       .dev-link:hover{text-decoration:underline;}
       .dev-link img{width:.9rem;height:.9rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
+      .dev-link img.dev-link-icon-gsl{width:auto;height:1.2rem;filter:none;mix-blend-mode:screen;}
       .dev-link-url{font-size:.82rem;color:#5f667a;word-break:break-all;}
     </style>
   </div>
@@ -113,7 +114,7 @@ const description = isUnknown
             return (
               <li>
                 <a class="dev-link" href={link.url} target="_blank" rel="noopener noreferrer">
-                  {meta.icon ? <img src={meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                  {meta.icon ? <img class:list={[link.kind === "gamestorylog" && "dev-link-icon-gsl"]} src={meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
                   <span>{meta.label}</span>
                 </a>
                 {" "}<span class="dev-link-url">{link.url}</span>
