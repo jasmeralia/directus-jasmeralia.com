@@ -67,7 +67,10 @@ REVIEW_SIM = 0.60  # minimum title similarity to consider a candidate at all
 HIGH_SIM = 0.92  # minimum title similarity for an auto-appliable match
 EXACT_SIM = 0.98  # near-identical titles tolerate a later Steam re-release year
 RUNNER_UP_MARGIN = 0.03  # a second candidate this close forces manual review
-MAX_DETAIL_CANDIDATES = 3
+MAX_DETAIL_CANDIDATES = 5
+# A DLC-only Steam match is scaled by this so it always ranks below real game
+# matches and can never reach HIGH_SIM (it is only ever offered for review).
+DLC_PENALTY = 0.75
 TIERS = ("high", "review", "none", "error")
 
 ROMAN = {
@@ -212,10 +215,17 @@ class SteamLookup:
         return apps, None
 
     def details(self, appid: int) -> tuple[dict[str, Any] | None, str | None]:
-        """Return trimmed appdetails (type, name, year, developers) or an error."""
+        """Return trimmed appdetails (type, name, year, developers, DLC parent) or an error."""
         key = f"details:{appid}"
-        if key in self.cache:
-            return self.cache.get(key), None
+        cached = self.cache.get(key)
+        # DLC entries cached before parent tracking lack `fullgame`: refetch them.
+        stale = (
+            cached is not None
+            and cached.get("type") == "dlc"
+            and "fullgame" not in cached
+        )
+        if cached is not None and not stale:
+            return cached, None
         self._pace()
         data, err = fetch_steam_details(appid)
         if data is None:
@@ -235,6 +245,8 @@ class SteamLookup:
             "year": year,
             "developers": data.get("developers") or [],
         }
+        if data.get("type") == "dlc":
+            trimmed["fullgame"] = data.get("fullgame")
         self.cache.set(key, trimmed)
         return trimmed, None
 
@@ -252,11 +264,14 @@ class Candidate:
     year: int | None
     developers: list[str]
     edition_differs: bool = False
+    dlc_name: str | None = None  # set when this is a parent app reached via its DLC
     notes: list[str] = field(default_factory=list)
 
 
 def classify(ours_year: int | None, cand: Candidate) -> str:
     """Return `high` or `review` for a scored candidate, appending reasons."""
+    if cand.dlc_name:
+        return "review"  # the link would point at a parent app, never auto-apply
     if cand.similarity < HIGH_SIM:
         cand.notes.append(f"title similarity {cand.similarity:.2f} < {HIGH_SIM}")
         return "review"
@@ -276,6 +291,33 @@ def classify(ours_year: int | None, cand: Candidate) -> str:
     if delta > 1:
         cand.notes.append(f"later Steam re-release ({cand.year} vs ours {ours_year})")
     return "high"
+
+
+def dlc_candidate(
+    steam: SteamLookup, score: Score, details: dict[str, Any]
+) -> tuple[Candidate | None, str | None]:
+    """Build a penalized candidate for the parent app of a matching Steam DLC.
+
+    Some old titles exist on Steam only as an itemized DLC of a collection page
+    (e.g. the Gold Box collections); the parent app is then the right link.
+    """
+    parent = details["fullgame"]
+    parent_id = int(parent["appid"])
+    parent_details, err = steam.details(parent_id)
+    if parent_details is None:
+        return None, err
+    name = parent_details.get("name") or parent.get("name") or str(parent_id)
+    cand = Candidate(
+        appid=parent_id,
+        name=name,
+        similarity=score.similarity * DLC_PENALTY,
+        year=parent_details.get("year"),
+        developers=parent_details.get("developers", []),
+        edition_differs=score.edition_differs,
+        dlc_name=details.get("name"),
+    )
+    cand.notes.append(f"Steam lists this as DLC {cand.dlc_name!r} of {name!r}")
+    return cand, None
 
 
 def find_match(steam: SteamLookup, title: str, ours_year: int | None) -> dict[str, Any]:
@@ -300,23 +342,36 @@ def find_match(steam: SteamLookup, title: str, ours_year: int | None) -> dict[st
         details, err = steam.details(app["id"])
         if details is None:
             return {"tier": "error", "error": err}
-        if details.get("type") != "game":
+        if details.get("type") == "dlc" and details.get("fullgame"):
+            cand, err = dlc_candidate(steam, score, details)
+            if cand is None:
+                return {"tier": "error", "error": err}
+        elif details.get("type") == "game":
+            cand = Candidate(
+                appid=app["id"],
+                name=details.get("name") or app["name"],
+                similarity=score.similarity,
+                year=details.get("year"),
+                developers=details.get("developers", []),
+                edition_differs=score.edition_differs,
+            )
+        else:
             continue
-        cand = Candidate(
-            appid=app["id"],
-            name=details.get("name") or app["name"],
-            similarity=score.similarity,
-            year=details.get("year"),
-            developers=details.get("developers", []),
-            edition_differs=score.edition_differs,
-        )
         if score.edition_differs:
             cand.notes.append("edition wording differs")
         if score.number_mismatch:
             cand.notes.append("sequel/number tokens differ")
         candidates.append(cand)
+    # Best first; DLC matches are penalized so real games outrank them. Two apps
+    # can resolve to the same parent, so keep only the best per app id.
+    candidates.sort(key=lambda c: -c.similarity)
+    unique: list[Candidate] = []
+    for cand in candidates:
+        if all(cand.appid != kept.appid for kept in unique):
+            unique.append(cand)
+    candidates = unique
     if not candidates:
-        return {"tier": "none", "note": "only non-game results (DLC/demo/etc.)"}
+        return {"tier": "none", "note": "only non-game results (demo/soundtrack/etc.)"}
 
     top = candidates[0]
     tier = classify(ours_year, top)
@@ -335,7 +390,12 @@ def find_match(steam: SteamLookup, title: str, ours_year: int | None) -> dict[st
         "notes": top.notes,
         "url": STEAM_APP_URL.format(appid=top.appid),
         "alternatives": [
-            {"appid": c.appid, "name": c.name, "similarity": round(c.similarity, 3)}
+            {
+                "appid": c.appid,
+                "name": c.name,
+                "similarity": round(c.similarity, 3),
+                "dlc": c.dlc_name,
+            }
             for c in candidates[1:]
         ],
     }
@@ -398,6 +458,13 @@ def render_report(rows: list[dict[str, Any]]) -> str:
             dec = row["decision"]
             devs = ", ".join(dec["developers"]) or "unknown"
             notes = f" - {'; '.join(dec['notes'])}" if dec["notes"] else ""
+            alts = "; ".join(
+                f"{a['name']!r} ({a['appid']}"
+                + (f", via DLC {a['dlc']!r}" if a.get("dlc") else "")
+                + f", sim {a['similarity']})"
+                for a in dec.get("alternatives", [])
+            )
+            notes += f" - other candidates: {alts}" if alts else ""
             lines.append(
                 f"- **{row['id']}** {row['title']!r} ({row['year']}, "
                 f"{'/'.join(row['stores'])}) -> [{dec['steam_name']}]({dec['url']}) "

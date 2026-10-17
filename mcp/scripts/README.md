@@ -24,6 +24,13 @@ similarity, sequel-number agreement, and release-year consistency:
   adds these as `games_links` rows with `kind: download`.
 - `review`: weaker title match, year conflict, or a close runner-up. Inspect the
   report, then add chosen ones with `--apply --accept <game id>,<game id>`.
+- DLC matches: some old titles exist on Steam only as an itemized DLC of a
+  collection page (the Gold Box collections) or of a re-release. When Steam
+  search returns such a DLC, the script links the DLC's parent app instead. A
+  DLC match is scored at 0.75x so real game matches always outrank it (it then
+  appears only as a lower "other candidates" entry in the report), and it is
+  only ever `review`, never `high`, because the link points at a different
+  app than the title searched for.
 - `none`: nothing plausible on Steam. Expected for old GOG-only titles and Epic
   exclusives; Steam's search occasionally misses a real listing (Football
   Manager 2024 returned only its editor), so spot-check any `none` you suspect.
