@@ -55,6 +55,32 @@ alongside other sessions that add Steam links, and triggers a site rebuild for
 the games it changed. The script never writes developer records itself; the
 developer backfill picks the new Steam links up.
 
+## Steam developer links
+
+`backfill_steam_developer_links.py` finds games with Steam download links,
+looks up each unique Steam app once, and proposes official Steam developer
+homepage links for their associated Directus developers. It strips query
+strings from game and developer URLs and ignores Steam search, curator,
+publisher, and community URLs. A developer may receive multiple Steam homepage
+links because Directus sometimes consolidates studios that Steam lists as
+separate divisions. When a game has multiple possible developer associations,
+the script only writes exact normalized name matches; unresolved cases are
+reported for manual review.
+
+```sh
+python3 mcp/scripts/backfill_steam_developer_links.py          # dry run
+python3 mcp/scripts/backfill_steam_developer_links.py --apply  # add links
+python3 mcp/scripts/backfill_steam_developer_links.py --refresh # ignore cache
+```
+
+The default is a dry run. `--apply` adds missing `developers_links` rows with
+`kind: steam` and does not trigger a site rebuild. Steam metadata and extracted
+developer homepages are cached in
+`mcp/cache/steam_developer_link_backfill.json`. Uncached requests are spaced at
+least two seconds apart. HTTP 429 responses honor `Retry-After` and use
+exponential backoff starting at 60 seconds, capped at 15 minutes; after five
+retries the script aborts instead of continuing to send requests.
+
 ## Steam wishlist imports
 
 `wishlist_import.py` reads the Steam wishlist and current Directus catalog to
