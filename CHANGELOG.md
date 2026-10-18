@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.241] - 2026-10-18
+- Filters: add "AVN + Currently Complete" misc filter listing AVNs that are completed or waiting for an update.
+
 ## [1.0.240] - 2026-10-17
 - Developer pages: preserve the GameStoryLog icon's original colors and aspect ratio so it no longer appears as a tinted square.
 
