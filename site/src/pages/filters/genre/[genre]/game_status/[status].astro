@@ -5,7 +5,7 @@ import ThumbnailBorderLegend from "../../../../../components/ThumbnailBorderLege
 import GameThumbCard from "../../../../../components/GameThumbCard.astro";
 import { directusFieldChoiceMap } from "../../../../../lib/directus";
 import { directusFetchItems, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../../../lib/directus";
-import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../../../../lib/genre-supersets";
+import { expandGenreSlugs, hasGenreMembership } from "../../../../../lib/genre-supersets";
 import { csvDataUri, gamesToCsv } from "../../../../../lib/csv";
 import { GAME_THUMB_FIELDS } from "../../../../../lib/game-fields";
 import { sortByTitle } from "../../../../../lib/list-format";
@@ -17,15 +17,12 @@ export async function getStaticPaths() {
   });
 
   const comboCounts = new Map();
-  const distinctCounts = new Map();
   const genreStatusValues = new Map();
   for (const game of games ?? []) {
     if (!game.game_status) continue;
     const genreSlugs =
       (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
-    const distinctGenreSlugs = normalizeGenreSlugs(genreSlugs);
-    const genresForGame = genreSlugs.length ? genreSlugs : ["unknown"];
-    const distinctGenresForGame = distinctGenreSlugs.length ? distinctGenreSlugs : ["unknown"];
+    const genresForGame = genreSlugs.length ? expandGenreSlugs(genreSlugs) : ["unknown"];
     for (const genre of genresForGame) {
       const key = `${genre}::${game.game_status}`;
       comboCounts.set(key, (comboCounts.get(key) || 0) + 1);
@@ -34,21 +31,12 @@ export async function getStaticPaths() {
       }
       genreStatusValues.get(genre).add(game.game_status);
     }
-    for (const genre of distinctGenresForGame) {
-      const key = `${genre}::${game.game_status}`;
-      distinctCounts.set(key, (distinctCounts.get(key) || 0) + 1);
-    }
   }
 
   return Array.from(comboCounts.keys())
     .filter((key) => {
       const [genre] = key.split("::");
       return (genreStatusValues.get(genre)?.size ?? 0) > 1;
-    })
-    .filter((key) => {
-      const [genre] = key.split("::");
-      if (!Object.prototype.hasOwnProperty.call(GENRE_SUPERSETS, genre)) return true;
-      return (distinctCounts.get(key) || 0) > 0;
     })
     .map((key) => {
       const [genre, status] = key.split("::");
@@ -69,19 +57,21 @@ const genreLabel = genre === "unknown" ? "Unknown" : (genres?.[0]?.name ?? genre
 const gameStatusLabels = await directusFieldChoiceMap("games", "game_status");
 const statusLabel = gameStatusLabels.get(status) ?? labelize(status);
 
-const filter = { game_status: { _eq: status } };
-if (genre !== "unknown") {
-  filter.genres = { genres_id: { slug: { _eq: genre } } };
-}
-
 let games = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
-  filter,
+  filter: { game_status: { _eq: status } },
   limit: -1,
 });
 
 if (genre === "unknown") {
   games = games.filter((game) => (game.genres ?? []).length === 0);
+} else {
+  games = games.filter((game) =>
+    hasGenreMembership(
+      (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean),
+      genre,
+    ),
+  );
 }
 games = sortByTitle(games);
 

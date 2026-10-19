@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.244] - 2026-10-19
+- Genres: apply configured superset relationships in genre pages, filter routes, counts, and genre-specific cross-filters without adding Directus genre links.
+- Tests: cover inherited genre membership and keep subset-to-superset matching one-way.
+
 ## [1.0.243] - 2026-10-19
 - Build: keep section-style descriptions inside the imported static-path helper so Astro's hoisted `getStaticPaths` can generate routes from Directus choices.
 - Tests: cover built-in and generated descriptions for section-style choices.

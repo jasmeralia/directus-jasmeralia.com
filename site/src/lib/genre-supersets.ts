@@ -3,6 +3,27 @@ export const GENRE_SUPERSETS: Record<string, string[]> = {
   "rpg": ["arpg", "crpg", "jrpg"],
 };
 
+/** Return each explicitly tagged genre plus every superset it implies. */
+export const expandGenreSlugs = (slugs: string[]): string[] => {
+  const expanded = new Set(slugs);
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    for (const [superset, subsets] of Object.entries(GENRE_SUPERSETS)) {
+      if (expanded.has(superset) || !subsets.some((slug) => expanded.has(slug))) continue;
+      expanded.add(superset);
+      changed = true;
+    }
+  }
+
+  return Array.from(expanded);
+};
+
+/** Check genre membership, including inherited membership in configured supersets. */
+export const hasGenreMembership = (slugs: string[], targetGenre: string): boolean =>
+  expandGenreSlugs(slugs).includes(targetGenre);
+
 export const normalizeGenreSlugs = (slugs: string[]): string[] => {
   const unique = Array.from(new Set(slugs));
   const filtered = new Set(unique);

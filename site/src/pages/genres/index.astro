@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
 import { compareLabels, formatUnknown } from "../../lib/list-format";
-import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
+import { expandGenreSlugs, GENRE_SUPERSETS, normalizeGenreSlugs } from "../../lib/genre-supersets";
 
 const genres = await directusFetchItems("genres", {
   fields: ["id", "name", "slug", "nsfw"],
@@ -26,7 +26,7 @@ for (const game of games) {
     continue;
   }
   const rawSlugs = entries.map((entry) => entry?.genres_id?.slug).filter(Boolean);
-  for (const slug of rawSlugs) {
+  for (const slug of expandGenreSlugs(rawSlugs)) {
     if (!slug) continue;
     totalGenreCounts.set(slug, (totalGenreCounts.get(slug) || 0) + 1);
   }

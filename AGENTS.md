@@ -40,6 +40,8 @@ Copy `.mcp.json.example` to `.mcp.json` at the repo root and fill in all `<VALUE
 
 Game thumbnail cards show published S-F tier ratings as neutral linked chips; `site/src/lib/tier-chips.ts` builds them and `GameThumbCard.astro` accepts them through its `tierChips` prop.
 
+Genre superset relationships are virtual site behavior configured in `site/src/lib/genre-supersets.ts` (currently AVN -> Visual Novel and ARPG/CRPG/JRPG -> RPG). Apply them in code for genre membership, counts, routes, and filters; do not add inherited `games_genres` rows to Directus. Distinct genre displays may continue to suppress a superset label when a more specific subset label is present.
+
 ## Key cache files
 
 Cache lives in `mcp/cache/` (gitignored).
