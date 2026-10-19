@@ -2,10 +2,12 @@ import {
   ENUM_LABEL,
   fmtDelta,
   fmtNewGame,
+  type EnumFieldLabels,
   type Activity,
   type Revision,
 } from "./changelog";
 import type { GameSection } from "./game-sections";
+import type { DirectusFieldChoice } from "./directus";
 import {
   describeGenreAdded,
   describeLinkEvent,
@@ -50,24 +52,21 @@ type BundleMember = {
   sections?: GameSection[] | null;
 };
 
-const PLAYED_STATUSES = [
-  "not_started", "in_progress", "on_hold", "waiting_for_update", "did_not_finish", "completed",
-];
-const GAME_STATUSES = ["unreleased", "in_development", "abandoned", "released", "on_hiatus"];
-const SECTION_STYLES = ["linear", "nonlinear"];
-
 // Delta-line labels whose values link to a listing page. Each resolves a
 // displayed value (e.g. "Waiting for Update", "2026") to that page's URL.
-const enumHref = (prefix: string, values: string[]) => (shown: string) => {
-  const value = values.find((v) => ENUM_LABEL[v] === shown);
-  return value ? `${prefix}/${value}/index.html` : null;
+const ENUM_LINK_FIELDS: Record<string, { field: keyof EnumFieldLabels; prefix: string }> = {
+  "Play Status": { field: "player_status", prefix: "/played_statuses" },
+  "Release Status": { field: "game_status", prefix: "/game_statuses" },
+  "Section Style": { field: "section_style", prefix: "/filters/section-style" },
 };
-const LINKED_LABELS: Record<string, (shown: string) => string | null> = {
-  "Play Status": enumHref("/played_statuses", PLAYED_STATUSES),
-  "Release Status": enumHref("/game_statuses", GAME_STATUSES),
-  "Section Style": enumHref("/filters/section-style", SECTION_STYLES),
-  Year: (shown) => (/^\d{4}$/.test(shown) ? `/releases/${shown}/index.html` : null),
-};
+
+const enumChoiceLabels = (
+  choices: Partial<Record<keyof EnumFieldLabels, DirectusFieldChoice[]>> = {},
+): EnumFieldLabels => ({
+  game_status: Object.fromEntries((choices.game_status ?? []).map(({ value, label }) => [value, label])),
+  player_status: Object.fromEntries((choices.player_status ?? []).map(({ value, label }) => [value, label])),
+  section_style: Object.fromEntries((choices.section_style ?? []).map(({ value, label }) => [value, label])),
+});
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -79,7 +78,11 @@ const isHttpUrl = (value: string) => /^https?:\/\/\S+$/i.test(value);
 // Render one "**Label**: value" or "**Label**: old \u2192 new" delta line,
 // linking each value when the label has a listing page or holds URLs.
 // `genreSlugs` maps genre names to slugs for the "Genres" list.
-function deltaLineToHtml(line: string, genreSlugs: Record<string, string>): string {
+function deltaLineToHtml(
+  line: string,
+  genreSlugs: Record<string, string>,
+  enumChoices: Partial<Record<keyof EnumFieldLabels, DirectusFieldChoice[]>>,
+): string {
   const match = /^\*\*(.+?)\*\*: (.*)$/.exec(line);
   if (!match) {
     return escapeHtml(line).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
@@ -94,12 +97,18 @@ function deltaLineToHtml(line: string, genreSlugs: Record<string, string>): stri
     render = (name) => (genreSlugs[name] ? link(`/genres/${genreSlugs[name]}/index.html`, name) : escapeHtml(name));
   } else if (URL_LABELS.has(label)) {
     render = (shown) => (isHttpUrl(shown) ? link(shown, shown, true) : escapeHtml(shown));
-  } else if (LINKED_LABELS[label]) {
-    const hrefFor = LINKED_LABELS[label];
+  } else if (ENUM_LINK_FIELDS[label]) {
+    const { field, prefix } = ENUM_LINK_FIELDS[label];
     render = (shown) => {
-      const href = hrefFor(shown);
-      return href ? link(href, shown) : escapeHtml(shown);
+      const choice = (enumChoices[field] ?? []).find(({ value, label: choiceLabel }) =>
+        choiceLabel === shown || ENUM_LABEL[value] === shown,
+      );
+      return choice ? link(`${prefix}/${choice.value}/index.html`, shown) : escapeHtml(shown);
     };
+  } else if (label === "Year") {
+    render = (shown) => (/^\d{4}$/.test(shown)
+      ? link(`/releases/${shown}/index.html`, shown)
+      : escapeHtml(shown));
   }
   if (!render) {
     return escapeHtml(line).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
@@ -110,11 +119,12 @@ function deltaLineToHtml(line: string, genreSlugs: Record<string, string>): stri
 export function deltaLinesToHtml(
   markdown: string,
   genreSlugs: Record<string, string> = {},
+  enumChoices: Partial<Record<keyof EnumFieldLabels, DirectusFieldChoice[]>> = {},
 ): string {
   if (!markdown.trim()) return "";
   const items = markdown
     .split("\n")
-    .map((line) => `<li>${deltaLineToHtml(line, genreSlugs)}</li>`);
+    .map((line) => `<li>${deltaLineToHtml(line, genreSlugs, enumChoices)}</li>`);
   return `<ul class="history-changes">${items.join("")}</ul>`;
 }
 
@@ -188,6 +198,7 @@ export function buildGameHistory(params: {
   allBundleMemberRevisions: Revision[];
   allSectionRevisions?: Revision[];
   sectionMeta?: { style: string | null; noun: string | null };
+  enumChoices?: Partial<Record<keyof EnumFieldLabels, DirectusFieldChoice[]>>;
 }): HistoryEntry[] {
   const reviewIds = params.reviews.map((review) => review.id);
   const tierEntryIds = params.tierEntries.map((entry) => entry.id);
@@ -218,7 +229,7 @@ export function buildGameHistory(params: {
     entries.push({
       date: genre.at,
       title: event.title,
-      bodyHtml: deltaLinesToHtml(event.body, params.genreSlugs),
+      bodyHtml: deltaLinesToHtml(event.body, params.genreSlugs, params.enumChoices),
     });
   }
 
@@ -241,7 +252,7 @@ export function buildGameHistory(params: {
     entries.push({
       date: requireHistoryDate(event.at, `game_sections run ${run.key}`),
       title: isGameRun ? "Game Updated" : `Included Game Updated - ${recordTitle(member?.title)}`,
-      bodyHtml: deltaLinesToHtml(event.event.body),
+      bodyHtml: deltaLinesToHtml(event.event.body, {}, params.enumChoices),
     });
   }
 
@@ -257,17 +268,27 @@ export function buildGameHistory(params: {
       entries.push({
         date,
         title: "Game Added",
-        bodyHtml: deltaLinesToHtml(fmtNewGame(revision.data ?? {}, genrePartition.initial), params.genreSlugs),
+        bodyHtml: deltaLinesToHtml(
+          fmtNewGame(revision.data ?? {}, genrePartition.initial, enumChoiceLabels(params.enumChoices)),
+          params.genreSlugs,
+          params.enumChoices,
+        ),
       });
       continue;
     }
 
-    const description = fmtDelta(revision.delta ?? {}, prevData, revision.data ?? null, params.sections);
+    const description = fmtDelta(
+      revision.delta ?? {},
+      prevData,
+      revision.data ?? null,
+      params.sections,
+      enumChoiceLabels(params.enumChoices),
+    );
     if (!description.trim()) continue;
     entries.push({
       date,
       title: "Game Updated",
-      bodyHtml: deltaLinesToHtml(description),
+      bodyHtml: deltaLinesToHtml(description, {}, params.enumChoices),
     });
   }
 

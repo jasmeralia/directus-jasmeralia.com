@@ -1,14 +1,8 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { directusFetchItems } from "../../lib/directus";
+import { directusFetchItems, directusFieldChoices } from "../../lib/directus";
 
-const statuses = [
-  { value: "unreleased", label: "Unreleased" },
-  { value: "in_development", label: "In Development" },
-  { value: "abandoned", label: "Abandoned" },
-  { value: "released", label: "Released" },
-  { value: "on_hiatus", label: "On Hiatus" },
-];
+const statuses = await directusFieldChoices("games", "game_status");
 const games = await directusFetchItems("games", {
   fields: ["id", "game_status"],
   limit: -1,
@@ -21,9 +15,9 @@ for (const game of games) {
 }
 
 const palette = ["#3f76ff", "#24c2a0", "#f2b04f", "#e36b6b", "#9b7bff", "#6fb1ff"];
-const segments = statuses.map((status, index) => ({
-  label: status.label,
-  value: statusCounts.get(status.value) || 0,
+const segments = statuses.map(({ value, label }, index) => ({
+  label,
+  value: statusCounts.get(value) || 0,
   color: palette[index % palette.length],
 }));
 const total = segments.reduce((sum, segment) => sum + segment.value, 0);

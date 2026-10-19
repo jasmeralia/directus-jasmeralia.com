@@ -670,18 +670,34 @@ describe("genre history", () => {
 
 describe("deltaLinesToHtml", () => {
   it("links play status, release status, section style, and year values", () => {
-    expect(deltaLinesToHtml("**Play Status**: In Progress \u2192 Waiting for Update")).toBe(
+    const enumChoices = {
+      player_status: [
+        { value: "in_progress", label: "In Progress" },
+        { value: "waiting_for_update", label: "Waiting for Update" },
+      ],
+      game_status: [{ value: "abandoned", label: "Abandoned" }],
+      section_style: [{ value: "nonlinear", label: "Nonlinear" }],
+    };
+    expect(deltaLinesToHtml("**Play Status**: In Progress \u2192 Waiting for Update", {}, enumChoices)).toBe(
       '<ul class="history-changes"><li><strong>Play Status</strong>: '
         + '<a href="/played_statuses/in_progress/index.html">In Progress</a> \u2192 '
         + '<a href="/played_statuses/waiting_for_update/index.html">Waiting for Update</a></li></ul>',
     );
-    expect(deltaLinesToHtml("**Release Status**: Abandoned")).toContain(
+    expect(deltaLinesToHtml("**Release Status**: Abandoned", {}, enumChoices)).toContain(
       '<a href="/game_statuses/abandoned/index.html">Abandoned</a>',
     );
-    expect(deltaLinesToHtml("**Section Style**: Nonlinear")).toContain(
+    expect(deltaLinesToHtml("**Section Style**: Nonlinear", {}, enumChoices)).toContain(
       '<a href="/filters/section-style/nonlinear/index.html">Nonlinear</a>',
     );
     expect(deltaLinesToHtml("**Year**: 2024")).toContain('<a href="/releases/2024/index.html">2024</a>');
+  });
+
+  it("uses Directus choice labels and values for newly configured enum options", () => {
+    const html = deltaLinesToHtml("**Play Status**: Playing Now", {}, {
+      player_status: [{ value: "playing_now", label: "Playing Now" }],
+    });
+
+    expect(html).toContain('<a href="/played_statuses/playing_now/index.html">Playing Now</a>');
   });
 
   it("links genres by name and leaves unknown genres as text", () => {
@@ -709,7 +725,9 @@ describe("deltaLinesToHtml", () => {
     expect(deltaLinesToHtml("**Title**: A <b> \u2192 B")).toBe(
       '<ul class="history-changes"><li><strong>Title</strong>: A &lt;b&gt; \u2192 B</li></ul>',
     );
-    expect(deltaLinesToHtml("**Play Status**: \u2014 \u2192 Completed")).toContain(
+    expect(deltaLinesToHtml("**Play Status**: \u2014 \u2192 Completed", {}, {
+      player_status: [{ value: "completed", label: "Completed" }],
+    })).toContain(
       '\u2014 \u2192 <a href="/played_statuses/completed/index.html">Completed</a>',
     );
   });

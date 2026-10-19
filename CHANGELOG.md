@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.242] - 2026-10-19
+- Filters: read game status, played status, section style, and developer link kind choices and labels from Directus metadata. Status and style counts still come from game records, section-style counts still require section data, and composite routes still require matching records.
+- Developer link filters: generate routes and index links from configured Directus kinds that have data, including GameStoryLog and Other when used.
+- History: use Directus enum labels and values for game status, played status, and section-style changes.
+- Tests: cover Directus field choice parsing/caching, generated choice routes, and history links for a newly configured enum choice.
+
 ## [1.0.241] - 2026-10-18
 - Filters: add "AVN + Currently Complete" misc filter listing AVNs that are completed or waiting for an update.
 

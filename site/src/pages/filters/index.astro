@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { directusFetchItems, isFamilySharingDisabled } from "../../lib/directus";
+import { directusFetchItems, directusFieldChoiceMap, directusFieldChoices, isFamilySharingDisabled } from "../../lib/directus";
 import { getUrlPlatform, downloadLinks, isMissingDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
 import { bundleProgressSummary, effectiveSectionStyle, sectionDataState } from "../../lib/game-bundles";
 import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
@@ -31,6 +31,13 @@ const tierLists = await directusFetchItems("tier_lists", {
   fields: ["id", "title", "status"],
   limit: -1,
 });
+const [gameStatusLabels, playerStatusLabels, sectionStyleLabels] = await Promise.all([
+  directusFieldChoiceMap("games", "game_status"),
+  directusFieldChoiceMap("games", "player_status"),
+  directusFieldChoiceMap("games", "section_style"),
+]);
+const gameStatusLabel = (value) => gameStatusLabels.get(value) ?? labelize(value);
+const playerStatusLabel = (value) => playerStatusLabels.get(value) ?? labelize(value);
 const games = await directusFetchItems("games", {
   fields: [
     "id",
@@ -257,7 +264,7 @@ const engineStatusEntries = Array.from(engineStatusCounts.entries())
       status,
       count,
       engineLabel: engineLabel.get(engine) ?? formatUnknown(engine, "Engine"),
-      statusLabel: labelize(status),
+      statusLabel: gameStatusLabel(status),
     };
   })
   .filter((entry) => (engineStatusValues.get(entry.engine)?.size ?? 0) > 1)
@@ -274,7 +281,7 @@ const developerStatusEntries = Array.from(developerStatusCounts.entries())
       status,
       count,
       developerLabel: developerLabel.get(developer) ?? formatUnknown(developer, "Developer"),
-      statusLabel: labelize(status),
+      statusLabel: gameStatusLabel(status),
     };
   })
   .filter((entry) => (developerStatusValues.get(entry.developer)?.size ?? 0) > 1)
@@ -292,7 +299,7 @@ const genreStatusEntries = Array.from(genreStatusTotalCounts.entries())
       count: genreStatusCounts.get(key) || 0,
       totalCount,
       genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
-      statusLabel: labelize(status),
+      statusLabel: gameStatusLabel(status),
     };
   })
   .filter((entry) => (genreStatusValues.get(entry.genre)?.size ?? 0) > 1)
@@ -310,7 +317,7 @@ const enginePlayedEntries = Array.from(enginePlayedCounts.entries())
       status,
       count,
       engineLabel: engineLabel.get(engine) ?? formatUnknown(engine, "Engine"),
-      statusLabel: labelize(status),
+      statusLabel: playerStatusLabel(status),
     };
   })
   .filter((entry) => (enginePlayedValues.get(entry.engine)?.size ?? 0) > 1)
@@ -327,7 +334,7 @@ const developerPlayedEntries = Array.from(developerPlayedCounts.entries())
       status,
       count,
       developerLabel: developerLabel.get(developer) ?? formatUnknown(developer, "Developer"),
-      statusLabel: labelize(status),
+      statusLabel: playerStatusLabel(status),
     };
   })
   .filter((entry) => (developerPlayedValues.get(entry.developer)?.size ?? 0) > 1)
@@ -345,7 +352,7 @@ const genrePlayedEntries = Array.from(genrePlayedTotalCounts.entries())
       count: genrePlayedCounts.get(key) || 0,
       totalCount,
       genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
-      statusLabel: labelize(status),
+      statusLabel: playerStatusLabel(status),
     };
   })
   .filter((entry) => (genrePlayedValues.get(entry.genre)?.size ?? 0) > 1)
@@ -363,7 +370,7 @@ const sectionDataPlayedEntries = Array.from(sectionDataPlayedCounts.entries())
       status,
       count,
       stateLabel: labelize(state),
-      statusLabel: labelize(status),
+      statusLabel: playerStatusLabel(status),
     };
   })
   .sort((a, b) =>
@@ -378,7 +385,7 @@ const contentRatingPlayedEntries = Array.from(contentRatingPlayedCounts.entries(
       status,
       count,
       ratingLabel: CONTENT_RATING_META[rating]?.label ?? rating,
-      statusLabel: labelize(status),
+      statusLabel: playerStatusLabel(status),
     };
   })
   .sort((a, b) =>
@@ -405,13 +412,17 @@ const contentRatingEntries = [
   { rating: "nsfw", label: "NSFW", count: nsfwCount },
 ];
 
-const linearCount = (games ?? []).filter((game) => effectiveSectionStyle(game) === "linear").length;
-const nonlinearCount = (games ?? []).filter((game) => effectiveSectionStyle(game) === "nonlinear").length;
-const sectionStyleEntries = [
-  { style: "linear", label: "Linear", count: linearCount },
-  { style: "nonlinear", label: "Nonlinear", count: nonlinearCount },
-];
-const STYLE_LABEL = { linear: "Linear", nonlinear: "Nonlinear" };
+const sectionStyleChoices = await directusFieldChoices("games", "section_style");
+const sectionStyleCounts = new Map();
+for (const game of games ?? []) {
+  const style = effectiveSectionStyle(game);
+  if (style) sectionStyleCounts.set(style, (sectionStyleCounts.get(style) ?? 0) + 1);
+}
+const sectionStyleEntries = sectionStyleChoices.map(({ value: style, label }) => ({
+  style,
+  label,
+  count: sectionStyleCounts.get(style) ?? 0,
+}));
 
 const contentRatingSectionStyleEntries = Array.from(contentRatingSectionStyleCounts.entries())
   .map(([key, count]) => {
@@ -421,7 +432,7 @@ const contentRatingSectionStyleEntries = Array.from(contentRatingSectionStyleCou
       style,
       count,
       ratingLabel: CONTENT_RATING_META[rating]?.label ?? rating,
-      styleLabel: STYLE_LABEL[style] ?? style,
+      styleLabel: sectionStyleLabels.get(style) ?? style,
     };
   })
   .sort((a, b) =>
@@ -436,7 +447,7 @@ const contentRatingGameStatusEntries = Array.from(contentRatingGameStatusCounts.
       status,
       count,
       ratingLabel: CONTENT_RATING_META[rating]?.label ?? rating,
-      statusLabel: labelize(status),
+      statusLabel: gameStatusLabel(status),
     };
   })
   .sort((a, b) =>
@@ -451,7 +462,7 @@ const sectionStyleGenreEntries = Array.from(sectionStyleGenreTotalCounts.entries
       genre,
       count: sectionStyleGenreCounts.get(key) || 0,
       totalCount,
-      styleLabel: STYLE_LABEL[style] ?? style,
+      styleLabel: sectionStyleLabels.get(style) ?? style,
       genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
     };
   })
@@ -808,13 +819,15 @@ const nonStandardCoverCount = (coverArtGames ?? []).filter((game) => {
   if (!w || !h) return false;
   return Math.abs(w / h - COVER_TARGET_RATIO) > COVER_RATIO_TOLERANCE;
 }).length;
-const devLinkRows = await directusFetchItems("developers_links", {
+const [devLinkRows, devLinkKindChoices] = await Promise.all([directusFetchItems("developers_links", {
   fields: ["developers_id", "kind"],
   limit: -1,
-});
+}), directusFieldChoices("developers_links", "kind")]);
 const devsWithAnyLink = new Set<number>();
 const devLinkKindSeen = new Map<string, Set<number>>();
-const devLinkKindCounts: Record<string, number> = { patreon: 0, subscribestar: 0, discord: 0, itch: 0, steam: 0, website: 0, other: 0 };
+const devLinkKindCounts: Record<string, number> = Object.fromEntries(
+  devLinkKindChoices.map(({ value }) => [value, 0]),
+);
 for (const row of devLinkRows ?? []) {
   const id = row.developers_id;
   if (typeof id !== "number") continue;
@@ -905,13 +918,14 @@ const miscFilterEntries = [
   { label: "Cover Art - Missing", href: "/filters/misc/missing-cover-art/index.html", count: missingCoverArtCount },
   { label: "Download Link - Missing", href: "/filters/misc/missing-download-link/index.html", count: missingDownloadLinkCount },
   { label: "Cover Art - Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
-  { label: "Developer Links + Discord", href: "/filters/misc/developer-links/discord/index.html", count: devLinkKindCounts.discord },
-  { label: "Developer Links + itch.io", href: "/filters/misc/developer-links/itch/index.html", count: devLinkKindCounts.itch },
   { label: "Developer + Missing Links", href: "/filters/misc/developer-missing-links/index.html", count: developerMissingLinksCount },
-  { label: "Developer Links + Patreon", href: "/filters/misc/developer-links/patreon/index.html", count: devLinkKindCounts.patreon },
-  { label: "Developer Links + Steam", href: "/filters/misc/developer-links/steam/index.html", count: devLinkKindCounts.steam },
-  { label: "Developer Links + SubscribeStar", href: "/filters/misc/developer-links/subscribestar/index.html", count: devLinkKindCounts.subscribestar },
-  { label: "Developer Links + Website", href: "/filters/misc/developer-links/website/index.html", count: devLinkKindCounts.website },
+  ...devLinkKindChoices
+    .filter(({ value }) => (devLinkKindCounts[value] ?? 0) > 0)
+    .map(({ value, label }) => ({
+      label: `Developer Links + ${label}`,
+      href: `/filters/misc/developer-links/${value}/index.html`,
+      count: devLinkKindCounts[value],
+    })),
   { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Omnibus Games", href: "/filters/misc/omnibus-games/index.html", count: omnibusGamesCount },
   { label: "Progress - Partial (By Percent)", href: "/filters/misc/partial-progress/index.html", count: partialProgressCount },
