@@ -9,6 +9,8 @@ import {
 
 type DirectusRecord = Record<string, unknown>;
 
+export type EnumFieldLabels = Partial<Record<"game_status" | "player_status" | "section_style", Record<string, string>>>;
+
 // ─── field / enum labels ─────────────────────────────────────────────────────
 
 // Fields skipped when building delta descriptions
@@ -64,11 +66,11 @@ export const ENUM_LABEL: Record<string, string> = {
 
 // ─── value formatting ─────────────────────────────────────────────────────────
 
-export function humanVal(field: string, val: unknown): string {
+export function humanVal(field: string, val: unknown, enumLabels?: EnumFieldLabels): string {
   if (val === null || val === undefined) return "—";
   if (field === "cover_image") return val ? "[image]" : "—";
   if (typeof val === "boolean") return val ? "Yes" : "No";
-  if (typeof val === "string") return ENUM_LABEL[val] ?? val;
+  if (typeof val === "string") return enumLabels?.[field as keyof EnumFieldLabels]?.[val] ?? ENUM_LABEL[val] ?? val;
   return String(val);
 }
 
@@ -83,6 +85,7 @@ export function fmtDelta(
   prev: Record<string, unknown> | null,
   currentData?: Record<string, unknown> | null,
   sections?: GameSection[] | null,
+  enumLabels?: EnumFieldLabels,
 ): string {
   const lines: string[] = [];
   for (const [f, newVal] of Object.entries(delta)) {
@@ -130,12 +133,12 @@ export function fmtDelta(
     const label  = FIELD_LABEL[f] ?? f;
     const oldVal = prev?.[f] ?? null;
     if (oldVal !== null && oldVal !== undefined) {
-      const fromLabel = humanVal(f, oldVal);
-      const toLabel   = humanVal(f, newVal);
+      const fromLabel = humanVal(f, oldVal, enumLabels);
+      const toLabel   = humanVal(f, newVal, enumLabels);
       if (fromLabel === toLabel) continue; // no-op write (e.g. re-saved unchanged)
       lines.push(`**${label}**: ${fromLabel} → ${toLabel}`);
     } else {
-      lines.push(`**${label}**: ${humanVal(f, newVal)}`);
+      lines.push(`**${label}**: ${humanVal(f, newVal, enumLabels)}`);
     }
   }
   return lines.join("\n");
@@ -171,7 +174,7 @@ export function fmtSectionCountDelta(
 }
 
 // Build description for a newly added game (creation snapshot).
-export function fmtNewGame(data: Record<string, unknown>, genres: string[]): string {
+export function fmtNewGame(data: Record<string, unknown>, genres: string[], enumLabels?: EnumFieldLabels): string {
   const lines: string[] = [];
   const fields: [string, string][] = [
     ["release_year", "Year"],
@@ -181,7 +184,7 @@ export function fmtNewGame(data: Record<string, unknown>, genres: string[]): str
   ];
   for (const [f, label] of fields) {
     const v = data[f];
-    if (v !== null && v !== undefined) lines.push(`**${label}**: ${humanVal(f, v)}`);
+    if (v !== null && v !== undefined) lines.push(`**${label}**: ${humanVal(f, v, enumLabels)}`);
   }
   if (genres.length) lines.push(`**Genres**: ${genres.join(", ")}`);
   return lines.join("\n");

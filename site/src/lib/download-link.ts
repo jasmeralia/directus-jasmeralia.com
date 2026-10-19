@@ -13,10 +13,6 @@ export type DeveloperLink = {
   kind: "website" | "patreon" | "subscribestar" | "discord" | "itch" | "steam" | "gamestorylog" | "other";
 };
 
-export const DEVELOPER_LINK_KINDS: DeveloperLink["kind"][] = [
-  "patreon", "subscribestar", "discord", "itch", "steam", "gamestorylog", "website",
-];
-
 export const downloadLinks = (links: GameLink[] | null | undefined): GameLink[] => {
   if (!links?.length) return [];
   return links.filter((l) => l.kind === "download").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));

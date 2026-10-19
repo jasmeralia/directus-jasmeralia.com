@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { directusFetchItems, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
+import { directusFetchItems, directusFieldChoices, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
 import { downloadLinks, otherLinks, otherLinkText, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
@@ -123,6 +123,9 @@ export async function getStaticPaths() {
     allGenreActivities,
     allSectionRevisions,
     allGameVersions,
+    gameStatusChoices,
+    playerStatusChoices,
+    sectionStyleChoices,
   ] = await Promise.all([
     directusFetchItems('games', {
       fields: GAME_FIELDS,
@@ -156,7 +159,15 @@ export async function getStaticPaths() {
       fields: ['id', 'games_id', 'source', 'reported_version', 'comparison_override', 'override_reason', 'source_reference', 'installation_key', 'release_date', 'recorded_at', 'is_current'],
       limit: -1,
     }),
+    directusFieldChoices("games", "game_status"),
+    directusFieldChoices("games", "player_status"),
+    directusFieldChoices("games", "section_style"),
   ]);
+  const enumChoices = {
+    game_status: gameStatusChoices,
+    player_status: playerStatusChoices,
+    section_style: sectionStyleChoices,
+  };
 
   const reviewsByGame = groupBy(allReviews, (r) => r.game);
   const franchisesByGame = groupBy(allFranchiseEntries, (f) => f.game_id);
@@ -227,6 +238,7 @@ export async function getStaticPaths() {
           .filter((entry) => entry?.id && entry?.genres_id?.name)
           .map((entry) => ({ id: entry.id, name: entry.genres_id.name })),
         allBundleMemberRevisions,
+        enumChoices,
       });
 
       return {

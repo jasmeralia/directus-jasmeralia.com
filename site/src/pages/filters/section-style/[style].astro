@@ -3,33 +3,31 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import CsvHeader from "../../../components/CsvHeader.astro";
 import ThumbnailBorderLegend from "../../../components/ThumbnailBorderLegend.astro";
 import GameThumbCard from "../../../components/GameThumbCard.astro";
-import { directusFetchItems, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../lib/directus";
+import { directusFetchItems, directusFieldChoices, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../lib/directus";
 import { csvDataUri, gamesToCsv } from "../../../lib/csv";
 import { effectiveSectionStyle } from "../../../lib/game-bundles";
 import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../../lib/genre-supersets";
 import { compareLabels, sortByTitle } from "../../../lib/list-format";
 
-const styleMeta = {
-  linear: {
-    label: "Linear",
-    description: "Games tracked with an ordered chapter/act/episode model.",
-  },
-  nonlinear: {
-    label: "Nonlinear",
-    description: "Games tracked with a quest/mission pool.",
-  },
+const styleDescriptions: Record<string, string> = {
+  linear: "Games tracked with an ordered chapter/act/episode model.",
+  nonlinear: "Games tracked with a quest/mission pool.",
 };
 
 export async function getStaticPaths() {
-  return ["linear", "nonlinear"].map((style) => ({ params: { style } }));
+  const choices = await directusFieldChoices("games", "section_style");
+  return choices.map(({ value: style, label }) => ({
+    params: { style },
+    props: {
+      label,
+      description: styleDescriptions[style] ?? `Games tracked with the ${label.toLowerCase()} section model.`,
+    },
+  }));
 }
 
 const { style } = Astro.params;
-if (!style || !(style in styleMeta)) {
-  throw new Error(`Unsupported section style filter: ${style}`);
-}
-const meta = styleMeta[style as keyof typeof styleMeta];
+const { label, description } = Astro.props;
 
 const candidates = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
@@ -84,7 +82,7 @@ const genreEntries = Array.from(genreTotalCounts.entries())
   .sort((a, b) => compareLabels(a.genreLabel, b.genreLabel));
 ---
 
-<BaseLayout title={`Filters | Section Style + ${meta.label}`}>
+<BaseLayout title={`Filters | Section Style + ${label}`}>
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -98,8 +96,8 @@ const genreEntries = Array.from(genreTotalCounts.entries())
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title={`Section Style + ${meta.label}`} count={games.length} csvHref={csvHref} csvName={csvName} />
-      <p>{meta.description}</p>
+      <CsvHeader title={`Section Style + ${label}`} count={games.length} csvHref={csvHref} csvName={csvName} />
+      <p>{description}</p>
     </div>
     {genreEntries.length > 0 ? (
       <div class="panel">
@@ -107,7 +105,7 @@ const genreEntries = Array.from(genreTotalCounts.entries())
         <ul class="combos">
           {genreEntries.map((entry) => (
             <li>
-              <a href={`/filters/section-style/${style}/genre/${entry.genre}/index.html`}>{meta.label} + {entry.genreLabel}</a>
+              <a href={`/filters/section-style/${style}/genre/${entry.genre}/index.html`}>{label} + {entry.genreLabel}</a>
               {isSupersetGenre(entry.genre) ? (
                 <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
               ) : (
@@ -120,7 +118,7 @@ const genreEntries = Array.from(genreTotalCounts.entries())
     ) : null}
     <ThumbnailBorderLegend />
     {games.length === 0 ? (
-      <p>No {meta.label} games found.</p>
+      <p>No {label} games found.</p>
     ) : (
       <div class="grid">
         {games.map((game) => (

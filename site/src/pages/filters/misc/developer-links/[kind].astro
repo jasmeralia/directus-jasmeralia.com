@@ -1,26 +1,17 @@
 ---
 import BaseLayout from "../../../../layouts/BaseLayout.astro";
-import { directusFetchItems } from "../../../../lib/directus";
+import { directusFetchItems, directusFieldChoices } from "../../../../lib/directus";
+import { fieldChoiceStaticPaths } from "../../../../lib/field-options";
 import { compareLabels } from "../../../../lib/list-format";
-import { getDeveloperLinkMeta, DEVELOPER_LINK_KINDS, type DeveloperLink } from "../../../../lib/download-link";
-
-const KIND_LABEL: Record<string, string> = {
-  patreon: "Patreon",
-  subscribestar: "SubscribeStar",
-  discord: "Discord",
-  itch: "itch.io",
-  steam: "Steam",
-  website: "Website",
-};
+import { getDeveloperLinkMeta, type DeveloperLink } from "../../../../lib/download-link";
 
 export async function getStaticPaths() {
-  return DEVELOPER_LINK_KINDS.map((kind) => ({ params: { kind } }));
+  const choices = await directusFieldChoices("developers_links", "kind");
+  return fieldChoiceStaticPaths(choices, "kind");
 }
 
 const { kind } = Astro.params as { kind: DeveloperLink["kind"] };
-if (!DEVELOPER_LINK_KINDS.includes(kind)) {
-  throw new Error(`Unsupported developer link kind: ${kind}`);
-}
+const { label: kindLabel } = Astro.props;
 
 const linkRows = await directusFetchItems("developers_links", {
   fields: ["developers_id", "url", "label", "kind"],
@@ -47,7 +38,6 @@ const developers = devIds.length
     )
   : [];
 
-const kindLabel = KIND_LABEL[kind] ?? kind;
 ---
 
 <BaseLayout title={`Filters | Developer Links + ${kindLabel}`}>

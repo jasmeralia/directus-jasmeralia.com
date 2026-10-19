@@ -3,6 +3,7 @@ import BaseLayout from "../../../../../layouts/BaseLayout.astro";
 import CsvHeader from "../../../../../components/CsvHeader.astro";
 import ThumbnailBorderLegend from "../../../../../components/ThumbnailBorderLegend.astro";
 import GameThumbCard from "../../../../../components/GameThumbCard.astro";
+import { directusFieldChoiceMap } from "../../../../../lib/directus";
 import { csvDataUri, gamesToCsv } from "../../../../../lib/csv";
 import {
   buildDeveloperStatusPaths,
@@ -26,7 +27,8 @@ const sTierGameIds = new Set(sTierGameIdValues);
 const tierChipsByGame = new Map(tierChipEntries);
 const labelize = (value) =>
   value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
-const statusLabel = labelize(status);
+const playerStatusLabels = await directusFieldChoiceMap("games", "player_status");
+const statusLabel = playerStatusLabels.get(status) ?? labelize(status);
 
 const csvName = `developer-${developer}-played-status-${status}.csv`;
 const csvHref = csvDataUri(gamesToCsv(games));

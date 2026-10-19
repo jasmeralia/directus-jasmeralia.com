@@ -5,6 +5,8 @@ import { mockDirectusFetch } from "../test/directus-mock";
 import {
   assetsBaseUrl,
   directusBaseUrl,
+  directusFieldChoices,
+  directusFieldChoiceMap,
   directusFetchItems,
   directusFetchRaw,
   directusToken,
@@ -99,6 +101,46 @@ describe("Directus configuration helpers", () => {
 });
 
 describe("Directus fetch helpers", () => {
+  it("loads and caches field choices with their configured labels", async () => {
+    const fetchMock = mockDirectusFetch([{
+      match: "/fields/test_collection/status",
+      data: {
+        meta: {
+          options: {
+            choices: [
+              { text: "Ready to Play", value: "ready" },
+              { value: "on_hold" },
+              { text: "Invalid", value: 7 },
+              null,
+            ],
+          },
+        },
+      },
+    }]);
+
+    const choices = await directusFieldChoices("test_collection", "status");
+    const labels = await directusFieldChoiceMap("test_collection", "status");
+
+    expect(choices).toEqual([
+      { value: "ready", label: "Ready to Play" },
+      { value: "on_hold", label: "on_hold" },
+    ]);
+    expect(labels.get("ready")).toBe("Ready to Play");
+    expect(labels.get("on_hold")).toBe("on_hold");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails clearly when a requested Directus field has no configured choices", async () => {
+    mockDirectusFetch([{
+      match: "/fields/test_collection/no_choices",
+      data: { meta: { options: {} } },
+    }]);
+
+    await expect(directusFieldChoices("test_collection", "no_choices")).rejects.toThrow(
+      "Directus field test_collection.no_choices does not expose choice options",
+    );
+  });
+
   it("builds fields, sort, limit, nested filter, and deep query parameters", async () => {
     const fetchMock = mockDirectusFetch([{
       match: "/items/games?",

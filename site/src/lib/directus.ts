@@ -130,6 +130,48 @@ export async function directusFetchRaw<T = Record<string, unknown>>(path: string
   return directusFetch<T>(path);
 }
 
+export type DirectusFieldChoice = { value: string; label: string };
+
+const fieldChoiceCache = new Map<string, Promise<DirectusFieldChoice[]>>();
+
+export function directusFieldChoices(
+  collection: string,
+  field: string,
+): Promise<DirectusFieldChoice[]> {
+  const key = `${collection}.${field}`;
+  const cached = fieldChoiceCache.get(key);
+  if (cached) return cached;
+
+  const request = directusFetchRaw<{
+    data?: { meta?: { options?: { choices?: unknown } } };
+  }>(`/fields/${encodeURIComponent(collection)}/${encodeURIComponent(field)}`)
+    .then((response) => {
+      const choices = response.data?.meta?.options?.choices;
+      if (!Array.isArray(choices)) {
+        throw new Error(`Directus field ${collection}.${field} does not expose choice options`);
+      }
+      return choices.flatMap((choice): DirectusFieldChoice[] => {
+        if (!choice || typeof choice !== "object") return [];
+        const option = choice as { text?: unknown; value?: unknown };
+        if (typeof option.value !== "string" || !option.value) return [];
+        const label = typeof option.text === "string" && option.text.trim()
+          ? option.text.trim()
+          : option.value;
+        return [{ value: option.value, label }];
+      });
+    });
+  fieldChoiceCache.set(key, request);
+  return request;
+}
+
+export async function directusFieldChoiceMap(
+  collection: string,
+  field: string,
+): Promise<Map<string, string>> {
+  const choices = await directusFieldChoices(collection, field);
+  return new Map(choices.map(({ value, label }) => [value, label]));
+}
+
 async function directusFetch<T>(path: string): Promise<T> {
   const url = `${directusBaseUrl()}${path}`;
   const token = directusToken();
