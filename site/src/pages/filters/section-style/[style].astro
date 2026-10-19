@@ -9,21 +9,11 @@ import { effectiveSectionStyle } from "../../../lib/game-bundles";
 import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
 import { GENRE_SUPERSETS, normalizeGenreSlugs } from "../../../lib/genre-supersets";
 import { compareLabels, sortByTitle } from "../../../lib/list-format";
-
-const styleDescriptions: Record<string, string> = {
-  linear: "Games tracked with an ordered chapter/act/episode model.",
-  nonlinear: "Games tracked with a quest/mission pool.",
-};
+import { sectionStyleStaticPaths } from "../../../lib/field-options";
 
 export async function getStaticPaths() {
   const choices = await directusFieldChoices("games", "section_style");
-  return choices.map(({ value: style, label }) => ({
-    params: { style },
-    props: {
-      label,
-      description: styleDescriptions[style] ?? `Games tracked with the ${label.toLowerCase()} section model.`,
-    },
-  }));
+  return sectionStyleStaticPaths(choices);
 }
 
 const { style } = Astro.params;

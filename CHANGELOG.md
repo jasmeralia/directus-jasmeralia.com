@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.243] - 2026-10-19
+- Build: keep section-style descriptions inside the imported static-path helper so Astro's hoisted `getStaticPaths` can generate routes from Directus choices.
+- Tests: cover built-in and generated descriptions for section-style choices.
+
 ## [1.0.242] - 2026-10-19
 - Filters: read game status, played status, section style, and developer link kind choices and labels from Directus metadata. Status and style counts still come from game records, section-style counts still require section data, and composite routes still require matching records.
 - Developer link filters: generate routes and index links from configured Directus kinds that have data, including GameStoryLog and Other when used.
