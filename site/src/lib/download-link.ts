@@ -151,6 +151,9 @@ export const getUrlLinkMeta = (value: string | null | undefined): UrlLinkMeta =>
 export const getDownloadLinkMeta = getUrlLinkMeta;
 
 export const getLinkMeta = (link: GameLink): UrlLinkMeta => {
+  if (link.kind === "gamestorylog") {
+    return { icon: "/icons/gamestorylog.png", label: "GameStoryLog", host: shortHostFromUrl(link.url) };
+  }
   const meta = getUrlLinkMeta(link.url);
   if (link.label) return { ...meta, label: link.label };
   return meta;
