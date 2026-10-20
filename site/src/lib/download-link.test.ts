@@ -162,6 +162,14 @@ describe("URL platform and metadata", () => {
       label: "itch.io",
       host: "creator.itch.io",
     });
+    expect(getLinkMeta({
+      url: "https://gamestorylog.com/games/example",
+      kind: "gamestorylog",
+    })).toEqual({
+      icon: "/icons/gamestorylog.png",
+      label: "GameStoryLog",
+      host: "gamestorylog.com",
+    });
   });
 
   it("keeps SubscribeStar out of the platform filters", () => {
