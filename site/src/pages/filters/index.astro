@@ -530,6 +530,17 @@ const hasVnEngine = (game) =>
 const vnMissingEngineCount = (games ?? []).filter(
   (game) => hasVnGenre(game) && game?.game_status !== "unreleased" && !hasVnEngine(game),
 ).length;
+const RENDERING_ENGINE_SLUGS = new Set(
+  (engines ?? []).filter((e) => e?.engine_type === "rendering").map((e) => e.slug),
+);
+const hasRenderingEngine = (game) =>
+  (game?.engines ?? []).some((entry) => RENDERING_ENGINE_SLUGS.has(entry?.engines_id?.slug));
+const avnMissingGameEngineCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && game?.game_status !== "unreleased" && !hasVnEngine(game),
+).length;
+const avnMissingRenderingEngineCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && game?.game_status !== "unreleased" && !hasRenderingEngine(game),
+).length;
 const hasRpgGenre = (game) => hasGenreMembership(getGameGenreSlugs(game), "rpg");
 const vnRpgCount = (games ?? []).filter(
   (game) => hasVnGenre(game) && hasRpgGenre(game),
@@ -907,6 +918,8 @@ const miscFilterEntries = [
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
   { label: "AVN + Not Harem", href: "/filters/misc/avn-not-harem/index.html", count: avnNotHaremCount },
   { label: "AVN + Download Platform Steam", href: "/filters/misc/avn-steam/index.html", count: avnSteamCount },
+  { label: "AVN + Missing Game Engine", href: "/filters/misc/avn-missing-game-engine/index.html", count: avnMissingGameEngineCount },
+  { label: "AVN + Missing Rendering Engine", href: "/filters/misc/avn-missing-rendering-engine/index.html", count: avnMissingRenderingEngineCount },
   { label: "NSFW + Not AVN", href: "/filters/misc/nsfw-not-avn/index.html", count: nsfwNotAvnCount },
   { label: "VN + Missing Engine", href: "/filters/misc/vn-missing-engine/index.html", count: vnMissingEngineCount },
   { label: "VN + RPG", href: "/filters/misc/vn-rpg/index.html", count: vnRpgCount },
