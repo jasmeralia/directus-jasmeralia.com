@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.245] - 2026-10-19
+- Filters: add misc AVN filters for missing gaming engines and missing rendering engines; both exclude unreleased games.
+
 ## [1.0.244] - 2026-10-19
 - Genres: apply configured superset relationships in genre pages, filter routes, counts, and genre-specific cross-filters without adding Directus genre links.
 - Tests: cover inherited genre membership and keep subset-to-superset matching one-way.
