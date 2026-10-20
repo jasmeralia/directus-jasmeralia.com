@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.246] - 2026-10-19
+- Game cards: show the GameStoryLog icon as a link alongside download icons.
+
 ## [1.0.245] - 2026-10-19
 - Filters: add misc AVN filters for missing gaming engines and missing rendering engines; both exclude unreleased games.
 
