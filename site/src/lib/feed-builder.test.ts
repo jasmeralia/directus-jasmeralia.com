@@ -9,6 +9,8 @@ type FeedRouteConfig = {
   tierListRevisions?: unknown[];
   bundleMemberRevisions?: unknown[];
   sectionRevisions?: unknown[];
+  musicListRevisions?: unknown[];
+  musicTrackRevisions?: unknown[];
   linkRevisions?: unknown[];
   tlgActivities?: unknown[];
   linkActivities?: unknown[];
@@ -19,6 +21,8 @@ type FeedRouteConfig = {
   tierLists?: unknown[];
   tlgItems?: unknown[];
   linkItems?: unknown[];
+  musicLists?: unknown[];
+  musicLists?: unknown[];
   genreRows?: unknown[];
 };
 
@@ -28,6 +32,12 @@ const feedRoutes = (config: FeedRouteConfig) => [
   { match: /\/revisions\?.*collection\]\[_eq\]=tier_lists(?:&|$)/, data: config.tierListRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=game_bundle_members(?:&|$)/, data: config.bundleMemberRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=game_sections(?:&|$)/, data: config.sectionRevisions ?? [] },
+  { match: /\/revisions\?.*collection\]\[_eq\]=games_music_lists(?:&|$)/, data: config.musicListRevisions ?? [] },
+  { match: /\/revisions\?.*collection\]\[_eq\]=games_tracks(?:&|$)/, data: config.musicTrackRevisions ?? [] },
+  { match: /\/revisions\?.*collection\]\[_eq\]=games_music_lists(?:&|$)/, data: config.musicListRevisions ?? [] },
+  { match: /\/revisions\?.*collection\]\[_eq\]=games_tracks(?:&|$)/, data: config.musicTrackRevisions ?? [] },
+  { match: /\/revisions\?.*collection\]\[_eq\]=games_music_lists(?:&|$)/, data: config.musicListRevisions ?? [] },
+  { match: /\/revisions\?.*collection\]\[_eq\]=games_tracks(?:&|$)/, data: config.musicTrackRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=games_links(?:&|$)/, data: config.linkRevisions ?? [] },
   { match: /\/activity\?.*tier_list_games(?:&|$)/, data: config.tlgActivities ?? [] },
   { match: /\/activity\?.*games_links(?:&|$)/, data: config.linkActivities ?? [] },
@@ -39,6 +49,9 @@ const feedRoutes = (config: FeedRouteConfig) => [
   { match: "/items/game_bundle_members?", data: config.bundleMembers ?? [] },
   { match: "/items/games?", data: config.games ?? [] },
   { match: "/items/game_sections?", data: config.sectionRows ?? [] },
+  { match: "/items/games_music_lists?", data: config.musicLists ?? [] },
+  { match: "/items/games_music_lists?", data: config.musicLists ?? [] },
+  { match: "/items/games_music_lists?", data: config.musicLists ?? [] },
   { match: "/items/games_genres?", data: config.genreRows ?? [] },
 ];
 
@@ -271,6 +284,58 @@ describe("buildFeedEntries", () => {
     expect(entries[0].description).toBe("**Play Status**: Completed");
     expect(entries[0].description).not.toContain("version_orion");
     expect(entries[0].guid).toContain(":play_status:");
+  });
+
+  it("adds music list and batched track feed entries with stable game links and no track metadata", async () => {
+    const timestamp = "2026-10-04T01:02:03Z";
+    mockDirectusFetch(feedRoutes({
+      musicListRevisions: [
+        { id: 70, item: "70", collection: "games_music_lists", data: { games_id: 7, title: "Soundtrack", url: "https://music.test" }, delta: null, activity: { id: 700, action: "create", timestamp } },
+      ],
+      musicTrackRevisions: Array.from({ length: 30 }, (_, index) => ({
+        id: 80 + index, item: String(80 + index), collection: "games_tracks",
+        data: { games_music_lists_id: 70, title: `secret track ${index}`, artist: "secret artist", url: "https://secret.track", scene: "secret scene", characters: ["secret character"], note: "secret note" },
+        delta: null, activity: { id: 800 + index, action: "create", timestamp },
+      })),
+      musicLists: [{ id: 70, games_id: 7, title: "Soundtrack", url: "https://music.test" }],
+      games: [{ id: 7, title: "Music Game", slug: "music-game", nsfw: true }],
+    }));
+    const entries = await buildFeedEntries();
+    expect(entries).toHaveLength(1); // Same-game events consolidate into one feed item.
+    expect(entries[0]).toMatchObject({
+      title: "Game Updated: Music Game",
+      link: "https://assets.test/games/music-game/index.html",
+      nsfw: true,
+      guid: expect.stringMatching(/^game:music-game:consolidated_/),
+    });
+    expect(entries[0].description).toContain("30 added");
+    expect(entries[0].description).not.toMatch(/secret track|secret artist|secret\.track|secret scene|secret character|secret note/);
+  });
+
+  it("adds music list and batched track feed entries with stable game links and no track metadata", async () => {
+    const timestamp = "2026-10-04T01:02:03Z";
+    mockDirectusFetch(feedRoutes({
+      musicListRevisions: [
+        { id: 70, item: "70", collection: "games_music_lists", data: { games_id: 7, title: "Soundtrack", url: "https://music.test" }, delta: null, activity: { id: 700, action: "create", timestamp } },
+      ],
+      musicTrackRevisions: Array.from({ length: 30 }, (_, index) => ({
+        id: 80 + index, item: String(80 + index), collection: "games_tracks",
+        data: { games_music_lists_id: 70, title: `secret track ${index}`, artist: "secret artist", url: "https://secret.track", scene: "secret scene", characters: ["secret character"], note: "secret note" },
+        delta: null, activity: { id: 800 + index, action: "create", timestamp },
+      })),
+      musicLists: [{ id: 70, games_id: 7, title: "Soundtrack", url: "https://music.test" }],
+      games: [{ id: 7, title: "Music Game", slug: "music-game", nsfw: true }],
+    }));
+    const entries = await buildFeedEntries();
+    expect(entries).toHaveLength(1); // Same-game events consolidate into one feed item.
+    expect(entries[0]).toMatchObject({
+      title: "Game Updated: Music Game",
+      link: "https://assets.test/games/music-game/index.html",
+      nsfw: true,
+      guid: expect.stringMatching(/^game:music-game:consolidated_/),
+    });
+    expect(entries[0].description).toContain("30 added");
+    expect(entries[0].description).not.toMatch(/secret track|secret artist|secret\.track|secret scene|secret character|secret note/);
   });
 
   describe("section count/completion tracking", () => {

@@ -6,6 +6,7 @@ export type GameEventType =
   | "link_added" | "link_updated"
   | "genre_added"
   | "sections_changed"
+  | "music_list_added" | "music_list_updated" | "music_tracks_changed"
   | "review_published" | "review_updated"
   | "member_added" | "member_updated" | "member_removed"
   | "tier_entry_added";

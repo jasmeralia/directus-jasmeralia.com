@@ -12,6 +12,8 @@ import { isGameNsfw } from "../../lib/nsfw";
 import GameSectionProgress from "../../components/GameSectionProgress.astro";
 import PlaceholderRibbon from "../../components/PlaceholderRibbon.astro";
 import { buildVersionsTab, effectiveVersion } from "../../lib/game-versions";
+import MusicLists from "../../components/MusicLists.astro";
+import { hasMusic } from "../../lib/game-music";
 
 export async function getStaticPaths() {
   // Every game page used to independently re-fetch its own game record,
@@ -67,6 +69,20 @@ export async function getStaticPaths() {
     'sections.is_ending',
     'sections.is_active',
     'sections.bundle_member_id',
+    'music_lists.id',
+    'music_lists.sort',
+    'music_lists.title',
+    'music_lists.description',
+    'music_lists.url',
+    'music_lists.tracks.id',
+    'music_lists.tracks.sort',
+    'music_lists.tracks.title',
+    'music_lists.tracks.artist',
+    'music_lists.tracks.url',
+    'music_lists.tracks.category',
+    'music_lists.tracks.scene',
+    'music_lists.tracks.characters',
+    'music_lists.tracks.note',
     'bundle_members.id',
     'bundle_members.sort',
     'bundle_members.slug',
@@ -122,6 +138,8 @@ export async function getStaticPaths() {
     allLinkRevisions,
     allGenreActivities,
     allSectionRevisions,
+    allMusicListRevisions,
+    allMusicTrackRevisions,
     allGameVersions,
     gameStatusChoices,
     playerStatusChoices,
@@ -155,6 +173,8 @@ export async function getStaticPaths() {
     fetchRevisions('games_links', -1),
     fetchActivity('games_genres', 'create', -1),
     fetchRevisions('game_sections', -1),
+    fetchRevisions('games_music_lists', -1),
+    fetchRevisions('games_tracks', -1),
     directusFetchItems('game_versions', {
       fields: ['id', 'games_id', 'source', 'reported_version', 'comparison_override', 'override_reason', 'source_reference', 'installation_key', 'release_date', 'recorded_at', 'is_current'],
       limit: -1,
@@ -219,6 +239,7 @@ export async function getStaticPaths() {
         links: game.links ?? [],
         bundleMembers,
         sections,
+        musicLists: game.music_lists ?? [],
         genreSlugs: Object.fromEntries(
           (game.genres ?? [])
             .map((entry) => entry?.genres_id)
@@ -233,6 +254,8 @@ export async function getStaticPaths() {
         allLinkRevisions,
         allGenreActivities,
         allSectionRevisions,
+        allMusicListRevisions,
+        allMusicTrackRevisions,
         sectionMeta: { style: game.section_style, noun: game.section_noun },
         genreLinks: (game.genres ?? [])
           .filter((entry) => entry?.id && entry?.genres_id?.name)
@@ -243,12 +266,12 @@ export async function getStaticPaths() {
 
       return {
         params: { slug: game.slug },
-        props: { game, reviews: publishedReviews, franchiseEntries, tierEntries, bundleMembers, sections, history, developerGameCounts: gameDeveloperCounts },
+        props: { game, reviews: publishedReviews, franchiseEntries, tierEntries, bundleMembers, sections, history, developerGameCounts: gameDeveloperCounts, musicLists: game.music_lists ?? [] },
       };
     });
 }
 
-const { game, reviews, franchiseEntries, tierEntries, bundleMembers, sections, history, developerGameCounts } = Astro.props;
+const { game, reviews, franchiseEntries, tierEntries, bundleMembers, sections, history, developerGameCounts, musicLists } = Astro.props;
 
 const PLAYER_STATUS_PHRASE: Record<string, string> = {
   not_started: "Jasmeralia hasn't started it yet.",
@@ -529,6 +552,7 @@ const coverStackStyle = [
       <div class="tabs" role="tablist">
         <button type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-details" id="tab-details-btn">Details</button>
         {gslLink ? <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-versions" id="tab-versions-btn" data-hash="versions">Versions</button> : null}
+        {hasMusic({ music_lists: musicLists }) ? <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-music" id="tab-music-btn" data-hash="music">Music</button> : null}
         <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-history" id="tab-history-btn" data-hash="history">History</button>
       </div>
       <div id="tab-details" role="tabpanel" aria-labelledby="tab-details-btn">
@@ -886,6 +910,14 @@ const coverStackStyle = [
                 </ul>
               </div>
             )) : <p>No recorded versions yet.</p>}
+          </div>
+        </div>
+      ) : null}
+      {hasMusic({ music_lists: musicLists }) ? (
+        <div id="tab-music" role="tabpanel" aria-labelledby="tab-music-btn" hidden>
+          <div class="section panel">
+            <div class="label">Music</div>
+            <MusicLists lists={musicLists} nsfw={gameNsfw} />
           </div>
         </div>
       ) : null}

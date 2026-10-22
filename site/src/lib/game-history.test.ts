@@ -13,6 +13,24 @@ const emptyHistoryInputs = () => ({
 });
 
 describe("buildGameHistory", () => {
+  it("includes music list and track runs without exposing track metadata", () => {
+    const entries = buildGameHistory({
+      gameId: 7,
+      reviews: [], tierEntries: [], links: [], bundleMembers: [], genreLinks: [],
+      musicLists: [{ id: 90, games_id: 7, title: "Soundtrack" }],
+      ...emptyHistoryInputs(),
+      allMusicListRevisions: [
+        { id: 1, item: "90", collection: "games_music_lists", data: { games_id: 7, title: "Soundtrack", url: "https://music.test" }, delta: null, activity: { action: "create", timestamp: "2026-10-01T12:00:00Z" } },
+      ],
+      allMusicTrackRevisions: [
+        { id: 2, item: "100", collection: "games_tracks", data: { games_music_lists_id: 90, title: "track secret", artist: "artist secret", url: "https://track.secret", scene: "scene secret", characters: ["character secret"], note: "note secret" }, delta: null, activity: { action: "create", timestamp: "2026-10-01T12:01:00Z" } },
+      ],
+    });
+    expect(entries.map(({ title }) => title)).toEqual(["Tracks Added - Soundtrack", "Music List Added - Soundtrack"]);
+    expect(entries[0].bodyHtml).toContain("1 added");
+    expect(entries[0].bodyHtml).not.toMatch(/track secret|artist secret|track\.secret|scene secret|character secret|note secret/);
+  });
+
   it("combines meaningful game, review, bundle, tier, and link events newest first", () => {
     const entries = buildGameHistory({
       gameId: 7,
