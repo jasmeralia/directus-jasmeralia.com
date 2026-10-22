@@ -161,6 +161,7 @@ GAME_JUNCTIONS: tuple[tuple[str, str], ...] = (
     ("games_genres", "games_id"),
     ("games_developers", "games_id"),
     ("games_links", "games_id"),
+    ("games_music_lists", "games_id"),
 )
 
 REBUILD_FLOW_PATH = "/flows/trigger/e3aa03ad-3352-4ade-8156-22d53f107907"
@@ -183,6 +184,13 @@ def delete_game_junctions(client: DirectusClient, game_id: int) -> None:
             {"source_game_id": None},
         )
 
+    # games_tracks hangs off games_music_lists (no games_id of its own), so its
+    # rows must go before the lists in GAME_JUNCTIONS are deleted.
+    tracks = client.fetch_all(
+        f"/items/games_tracks?fields=id&filter[games_music_lists_id][games_id][_eq]={game_id}"
+    )
+    for track in tracks:
+        client.delete(f"/items/games_tracks/{track['id']}")
     for collection, fk in GAME_JUNCTIONS:
         rows = client.fetch_all(
             f"/items/{collection}?fields=id&filter[{fk}][_eq]={game_id}"

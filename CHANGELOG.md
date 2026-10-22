@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.247] - 2026-10-22
+- Games: add a Music tab with Spotify/YouTube embeds for per-game soundtrack and playlist lists, with optional track lists.
+
 ## [1.0.246] - 2026-10-19
 - Game cards: show the GameStoryLog icon as a link alongside download icons.
 

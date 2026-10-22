@@ -1,0 +1,113 @@
+---
+import { groupTracksByCategory, normalizeCharacters, orderedMusicLists, type MusicList } from "../lib/game-music";
+import { resolveMusicEmbed, safeHttpUrl } from "../lib/music-embed";
+
+type Props = { lists: MusicList[]; nsfw: boolean };
+const { lists, nsfw } = Astro.props;
+const orderedLists = orderedMusicLists(lists);
+
+function hostname(value: string): string {
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return value;
+  }
+}
+---
+
+<div class="music-lists">
+  {orderedLists.map((list) => {
+    const listEmbed = resolveMusicEmbed(list.url);
+    const trackGroups = groupTracksByCategory(list.tracks);
+    return (
+      <article class="music-list">
+        <h2>{list.title}</h2>
+        {list.description?.trim() ? <p class="music-description">{list.description}</p> : null}
+        {safeHttpUrl(list.url) ? listEmbed ? (
+          <div class="music-player">
+            <iframe
+              src={listEmbed.embedUrl}
+              loading="lazy"
+              referrerpolicy="strict-origin-when-cross-origin"
+              title={`${listEmbed.label} player: ${list.title}`}
+              width="100%"
+              height={listEmbed.height}
+              frameborder="0"
+              allow={listEmbed.provider === "spotify"
+                ? "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"}
+              allowfullscreen
+            />
+            <a href={listEmbed.openUrl} target="_blank" rel="noopener noreferrer">Open on {listEmbed.label}</a>
+          </div>
+        ) : (
+          <p><a href={safeHttpUrl(list.url) ?? undefined} target="_blank" rel="noopener noreferrer">{hostname(list.url ?? "")}</a></p>
+        ) : null}
+
+        {trackGroups.length ? (
+          <div class="track-groups">
+            {trackGroups.map((group) => (
+              <section class="track-group">
+                {group.category !== null ? <h3>{group.category}</h3> : null}
+                <ol>
+                  {group.tracks.map((track) => {
+                    const embed = resolveMusicEmbed(track.url);
+                    const characters = nsfw ? normalizeCharacters(track.characters) : [];
+                    return (
+                      <li>
+                        <div class="track-heading">
+                          <span>{track.title}{track.artist?.trim() ? ` - ${track.artist.trim()}` : ""}</span>
+                          {safeHttpUrl(track.url) ? <a href={safeHttpUrl(track.url) ?? undefined} target="_blank" rel="noopener noreferrer">Open track</a> : null}
+                        </div>
+                        {track.note?.trim() ? <p class="track-note">{track.note}</p> : null}
+                        {nsfw && track.scene?.trim() ? <p class="track-detail">Scene: {track.scene}</p> : null}
+                        {characters.length ? <p class="track-detail">Characters: {characters.join(", ")}</p> : null}
+                        {embed ? (
+                          <details class="track-player">
+                            <summary>Play</summary>
+                            <iframe
+                              src={embed.embedUrl}
+                              loading="lazy"
+                              referrerpolicy="strict-origin-when-cross-origin"
+                              title={`${embed.label} player: ${track.title}`}
+                              width="100%"
+                              height={embed.height}
+                              frameborder="0"
+                              allow={embed.provider === "spotify"
+                                ? "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                                : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"}
+                              allowfullscreen
+                            />
+                          </details>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            ))}
+          </div>
+        ) : null}
+      </article>
+    );
+  })}
+</div>
+
+<style>
+  .music-lists{display:flex;flex-direction:column;gap:1rem;}
+  .music-list{background:#0b0b0b;border:1px solid #222;border-radius:10px;padding:1rem;}
+  .music-list h2{margin:.1rem 0 .5rem;font-size:1.15rem;}
+  .music-description{white-space:pre-wrap;}
+  .music-player{display:flex;flex-direction:column;gap:.4rem;max-width:700px;margin:.75rem 0;}
+  .music-player iframe,.track-player iframe{display:block;max-width:100%;border:0;border-radius:10px;}
+  .track-group{margin-top:.8rem;}
+  .track-group h3{margin:0 0 .3rem;font-size:.95rem;opacity:.85;}
+  .track-group ol{margin:.2rem 0;padding-left:1.5rem;}
+  .track-group li{padding:.45rem 0;border-bottom:1px solid #222;}
+  .track-group li:last-child{border-bottom:0;}
+  .track-heading{display:flex;flex-wrap:wrap;gap:.25rem .75rem;align-items:baseline;}
+  .track-heading a,.music-player a{color:#9aa6ff;}
+  .track-note,.track-detail{margin:.2rem 0 0;font-size:.9rem;opacity:.8;white-space:pre-wrap;}
+  .track-player{margin-top:.4rem;}
+  .track-player summary{cursor:pointer;color:#9aa6ff;}
+</style>
