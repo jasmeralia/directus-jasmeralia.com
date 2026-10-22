@@ -138,6 +138,8 @@ export async function getStaticPaths() {
     allLinkRevisions,
     allGenreActivities,
     allSectionRevisions,
+    allMusicListRevisions,
+    allMusicTrackRevisions,
     allGameVersions,
     gameStatusChoices,
     playerStatusChoices,
@@ -171,6 +173,8 @@ export async function getStaticPaths() {
     fetchRevisions('games_links', -1),
     fetchActivity('games_genres', 'create', -1),
     fetchRevisions('game_sections', -1),
+    fetchRevisions('games_music_lists', -1),
+    fetchRevisions('games_tracks', -1),
     directusFetchItems('game_versions', {
       fields: ['id', 'games_id', 'source', 'reported_version', 'comparison_override', 'override_reason', 'source_reference', 'installation_key', 'release_date', 'recorded_at', 'is_current'],
       limit: -1,
@@ -235,6 +239,7 @@ export async function getStaticPaths() {
         links: game.links ?? [],
         bundleMembers,
         sections,
+        musicLists: game.music_lists ?? [],
         genreSlugs: Object.fromEntries(
           (game.genres ?? [])
             .map((entry) => entry?.genres_id)
@@ -249,6 +254,8 @@ export async function getStaticPaths() {
         allLinkRevisions,
         allGenreActivities,
         allSectionRevisions,
+        allMusicListRevisions,
+        allMusicTrackRevisions,
         sectionMeta: { style: game.section_style, noun: game.section_noun },
         genreLinks: (game.genres ?? [])
           .filter((entry) => entry?.id && entry?.genres_id?.name)

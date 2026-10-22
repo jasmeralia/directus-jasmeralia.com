@@ -18,6 +18,13 @@ import {
   partitionGameGenres,
 } from "./game-events";
 import { describeSectionRun, indexSectionRevisions } from "./section-events";
+import {
+  describeMusicListEvent,
+  describeMusicTrackRun,
+  groupMusicTrackRuns,
+  resolveMusicListGames,
+  type MusicList,
+} from "./music-events";
 
 export type HistoryEntry = {
   date: Date;
@@ -177,6 +184,7 @@ export function buildGameHistory(params: {
   links: GameLink[];
   bundleMembers: BundleMember[];
   sections?: GameSection[] | null;
+  musicLists?: MusicList[];
   // Genre name -> slug, so genre names in History can link to genre pages.
   genreSlugs?: Record<string, string>;
   // The game's current games_genres rows (join id + genre name) and every
@@ -197,6 +205,8 @@ export function buildGameHistory(params: {
   allLinkRevisions?: Revision[];
   allBundleMemberRevisions: Revision[];
   allSectionRevisions?: Revision[];
+  allMusicListRevisions?: Revision[];
+  allMusicTrackRevisions?: Revision[];
   sectionMeta?: { style: string | null; noun: string | null };
   enumChoices?: Partial<Record<keyof EnumFieldLabels, DirectusFieldChoice[]>>;
 }): HistoryEntry[] {
@@ -212,6 +222,9 @@ export function buildGameHistory(params: {
   const linkActivities = scopedActivity(params.allLinkActivities, linkIds);
   const bundleMemberRevisions = scopedRevisions(params.allBundleMemberRevisions, bundleMemberIds);
   const sectionIndex = indexSectionRevisions(params.allSectionRevisions ?? []);
+  const musicListRevisions = params.allMusicListRevisions ?? [];
+  const musicTrackRevisions = params.allMusicTrackRevisions ?? [];
+  const listGames = resolveMusicListGames(musicListRevisions, params.musicLists ?? [], params.gameId);
   // Lenient on purpose: a missing/invalid timestamp is reported, with context,
   // by the per-revision loop below.
   const firstTimestamp = gameRevisions[gameRevisions.length - 1]?.activity?.timestamp;
@@ -411,6 +424,36 @@ export function buildGameHistory(params: {
       ),
       title: event.title,
       bodyHtml: deltaLinesToHtml(event.body),
+    });
+  }
+
+  const musicListById = new Map((params.musicLists ?? []).map((list) => [list.id, list]));
+  const musicListGroups = groupRevisionsByItem(
+    musicListRevisions.filter((revision) => listGames.get(Number(revision.item)) === params.gameId),
+  );
+  for (const revisions of musicListGroups.values()) {
+    for (const [index, revision] of revisions.entries()) {
+      const event = describeMusicListEvent({ revision, previousData: revisions[index + 1]?.data ?? null });
+      if (!event) continue;
+      entries.push({
+        date: requireHistoryDate(revision.activity?.timestamp, `music list revision ${revision.id}`),
+        title: `${event.title} - ${recordTitle(event.subject)}`,
+        bodyHtml: deltaLinesToHtml(event.body),
+      });
+    }
+  }
+  const musicTrackRuns = groupMusicTrackRuns(musicTrackRevisions);
+  for (const run of musicTrackRuns) {
+    if (listGames.get(run.listId) !== params.gameId) continue;
+    const list = musicListById.get(run.listId);
+    const revisions = musicListGroups.get(String(run.listId)) ?? [];
+    const title = list?.title ?? revisions.find((revision) => revision.data?.title)?.data?.title;
+    const described = describeMusicTrackRun(run, recordTitle(title));
+    if (!described) continue;
+    entries.push({
+      date: requireHistoryDate(described.at, `music tracks run ${run.key}`),
+      title: `${described.event.title} - ${recordTitle(title)}`,
+      bodyHtml: deltaLinesToHtml(described.event.body),
     });
   }
 

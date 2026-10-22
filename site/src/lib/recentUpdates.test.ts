@@ -9,6 +9,8 @@ type FeedFixture = {
   tierLists?: unknown[];
   bundleMembers?: unknown[];
   sections?: unknown[];
+  musicLists?: unknown[];
+  musicTracks?: unknown[];
   links?: unknown[];
   tierActivities?: unknown[];
   linkActivities?: unknown[];
@@ -18,6 +20,7 @@ type FeedFixture = {
   tierListRows?: unknown[];
   bundleMemberRows?: unknown[];
   sectionRows?: unknown[];
+  musicListRows?: unknown[];
   linkRows?: unknown[];
   genreRows?: unknown[];
   tierGameRows?: unknown[];
@@ -30,6 +33,8 @@ function mockFeed(fixture: FeedFixture = {}) {
     { match: /\/revisions\?.*collection\]\[_eq\]=tier_lists(?:&|$)/, data: fixture.tierLists ?? [] },
     { match: /\/revisions\?.*collection\]\[_eq\]=game_bundle_members(?:&|$)/, data: fixture.bundleMembers ?? [] },
     { match: /\/revisions\?.*collection\]\[_eq\]=game_sections(?:&|$)/, data: fixture.sections ?? [] },
+    { match: /\/revisions\?.*collection\]\[_eq\]=games_music_lists(?:&|$)/, data: fixture.musicLists ?? [] },
+    { match: /\/revisions\?.*collection\]\[_eq\]=games_tracks(?:&|$)/, data: fixture.musicTracks ?? [] },
     { match: /\/revisions\?.*collection\]\[_eq\]=games_links(?:&|$)/, data: fixture.links ?? [] },
     { match: /\/activity\?.*tier_list_games(?:&|$)/, data: fixture.tierActivities ?? [] },
     { match: /\/activity\?.*games_links(?:&|$)/, data: fixture.linkActivities ?? [] },
@@ -41,6 +46,7 @@ function mockFeed(fixture: FeedFixture = {}) {
     { match: /\/items\/game_bundle_members\?/, data: fixture.bundleMemberRows ?? [] },
     { match: /\/items\/games\?/, data: fixture.gameRows ?? [] },
     { match: /\/items\/game_sections\?/, data: fixture.sectionRows ?? [] },
+    { match: /\/items\/games_music_lists\?/, data: fixture.musicListRows ?? [] },
     { match: /\/items\/games_genres\?/, data: fixture.genreRows ?? [] },
   ]);
 }
@@ -55,6 +61,20 @@ const rev = (id: number, item: number, data: Record<string, unknown>, delta: Rec
 });
 
 describe("fetchRecentUpdates", () => {
+  it("ignores feed-only music events", async () => {
+    mockFeed({
+      musicLists: [
+        { id: 1, item: "1", collection: "games_music_lists", data: { games_id: 7, title: "Soundtrack", url: "https://music.test" }, delta: null, activity: { id: 101, action: "create", timestamp: "2026-10-04T01:02:03Z" } },
+      ],
+      musicTracks: [
+        { id: 2, item: "2", collection: "games_tracks", data: { games_music_lists_id: 1, title: "secret track", scene: "secret scene" }, delta: null, activity: { id: 102, action: "create", timestamp: "2026-10-04T01:02:04Z" } },
+      ],
+      musicListRows: [{ id: 1, games_id: 7, title: "Soundtrack" }],
+      gameRows: [{ id: 7, title: "Music Game", slug: "music-game" }],
+    });
+    expect(await fetchRecentUpdates()).toEqual([]);
+  });
+
   it("adapts game, review, included-game, and tier events and filters metadata-only or incomplete rows", async () => {
     mockFeed({
       games: [

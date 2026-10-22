@@ -30,6 +30,7 @@ import {
   relationId,
   resolveRowParents,
 } from "./section-events";
+import { describeMusicListEvent, describeMusicTrackRun, groupMusicTrackRuns } from "./music-events";
 
 type DirectusRecord = Record<string, unknown>;
 
@@ -575,6 +576,8 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     tlgActs,
     glinkActs,
     allSectionRevs,
+    allMusicListRevs,
+    allMusicTrackRevs,
     allLinkRevs,
     genreActs,
     allGenreLinks,
@@ -586,6 +589,8 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     fetchCreateActivity("tier_list_games", LIMIT_JUNCTIONS),
     fetchActivity("games_links", ["create", "update"], LIMIT_LINKS),
     fetchRevisions("game_sections", -1),
+    fetchRevisions("games_music_lists", -1),
+    fetchRevisions("games_tracks", -1),
     fetchRevisions("games_links", -1),
     fetchCreateActivity("games_genres", LIMIT_GENRES),
     fetchAllGameGenreLinks(),
@@ -618,6 +623,10 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     ...sectionBundleMemberIds,
   ]));
   const tierListRevisionIds = tierListRevs.map((revision) => Number(revision.item));
+  const musicListIds = new Set<number>([
+    ...allMusicListRevs.map((revision) => Number(revision.item)),
+    ...allMusicTrackRevs.map((revision) => relationId(revision.data?.games_music_lists_id) ?? -1),
+  ].filter((id) => id > 0));
   const genreLinksById = new Map<number, { gameId: number; id: number; name: string }>();
   for (const [gameIdText, links] of Object.entries(allGenreLinks)) {
     for (const genreLink of links) {
@@ -646,7 +655,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     return partition;
   };
 
-  const [tlgItemMap, glinkItemMap, reviewItemMap, bundleMemberItemMap] = await Promise.all([
+  const [tlgItemMap, glinkItemMap, reviewItemMap, bundleMemberItemMap, musicListItemMap] = await Promise.all([
     fetchItemMap("tier_list_games", tlgItemIds, "id,game_id,tier_list_id,rating"),
     fetchItemMap("games_links",     glinkItemIds, "id,games_id,url,kind"),
     fetchItemMap("reviews", reviewItemIds,
@@ -656,6 +665,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
       bundleMemberItemIds,
       "id,games_id,title,player_status,section_data_status,section_noun,current_section",
     ),
+    fetchItemMap("games_music_lists", Array.from(musicListIds), "id,games_id,title,sort,description,url"),
   ]);
 
   // Collect game IDs and tier_list IDs from tier additions
@@ -676,6 +686,15 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     const genreLink = genreLinksById.get(Number(activity.item));
     if (genreLink) gameIdsForGenres.add(genreLink.gameId);
   }
+  const gameIdsForMusic = new Set<number>();
+  for (const revision of allMusicListRevs) {
+    const gameId = relationId(musicListItemMap[Number(revision.item)]?.games_id ?? revision.data?.games_id);
+    if (gameId) gameIdsForMusic.add(gameId);
+  }
+  for (const list of Object.values(musicListItemMap)) {
+    const gameId = relationId(list.games_id);
+    if (gameId) gameIdsForMusic.add(gameId);
+  }
   const gameIdsForBundleMembers = new Set<number>();
   for (const rev of bundleMemberRevs) {
     const liveItem = bundleMemberItemMap[Number(rev.item)];
@@ -692,6 +711,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     ...gameIdsForTiers,
     ...gameIdsForLinks,
     ...gameIdsForGenres,
+    ...gameIdsForMusic,
     ...gameIdsForBundleMembers,
     ...gameRevisionIds,
     ...sectionGameIds,
@@ -736,6 +756,22 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     .map((activity) => linkRevisionByActivity.get(activity.id))
     .filter((revision): revision is Revision => Boolean(revision));
   const linkPrevMap = previousRevisionDataMap(allLinkRevs, activityLinkRevisions);
+  const musicListPrevMap = previousRevisionDataMap(allMusicListRevs, allMusicListRevs);
+  const musicListGames = new Map<number, number>();
+  const musicListTitles = new Map<number, string>();
+  for (const revision of allMusicListRevs) {
+    const listId = Number(revision.item);
+    const gameId = relationId(musicListItemMap[listId]?.games_id ?? revision.data?.games_id);
+    if (listId && gameId && !musicListGames.has(listId)) musicListGames.set(listId, gameId);
+    if (listId && typeof revision.data?.title === "string" && !musicListTitles.has(listId)) {
+      musicListTitles.set(listId, revision.data.title);
+    }
+  }
+  for (const [listIdText, list] of Object.entries(musicListItemMap)) {
+    const gameId = relationId(list.games_id);
+    if (gameId) musicListGames.set(Number(listIdText), gameId);
+    if (typeof list.title === "string") musicListTitles.set(Number(listIdText), list.title);
+  }
 
   // 5. Build all feed entries
   const entries: Entry[] = [];
@@ -830,6 +866,53 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
       revision ? linkPrevMap[revision.id] ?? null : null,
     );
     if (entry) entries.push(entry);
+  }
+
+  // Music list and track changes are feed-only. Track text and adult scene
+  // metadata never enter the event body; only per-run counts are exposed.
+  for (const revision of allMusicListRevs) {
+    const listId = Number(revision.item);
+    const gameId = musicListGames.get(listId);
+    const gameItem = gameId ? gameMap[gameId] : null;
+    if (!gameItem) continue;
+    const event = describeMusicListEvent({ revision, previousData: musicListPrevMap[revision.id] ?? null });
+    if (!event) continue;
+    const date = requireDate(revision.activity?.timestamp, `games_music_lists revision ${revision.id}`);
+    const slug = requireGuidPart(gameItem.slug, `games_music_lists revision ${revision.id} game slug`);
+    entries.push({
+      title: `${event.title}: ${gameItem.title} - ${event.subject}`,
+      gameTitle: String(gameItem.title ?? "Untitled"),
+      link: `${siteBase}/games/${slug}/index.html`,
+      description: event.body,
+      pubDate: date,
+      imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
+      guid: rssGuid("game", slug, `music_list_${revision.id}`, date, `games_music_lists revision ${revision.id}`),
+      nsfw: isGameNsfw(gameItem),
+      completed: false,
+    });
+  }
+  const musicTrackRuns = groupMusicTrackRuns(allMusicTrackRevs);
+  for (const run of musicTrackRuns) {
+    const gameId = musicListGames.get(run.listId);
+    const gameItem = gameId ? gameMap[gameId] : null;
+    const list = musicListItemMap[run.listId];
+    const listName = String(list?.title ?? musicListTitles.get(run.listId) ?? "Untitled");
+    if (!gameItem) continue;
+    const described = describeMusicTrackRun(run, listName);
+    if (!described) continue;
+    const date = requireDate(described.at, `games_tracks run ${run.key}`);
+    const slug = requireGuidPart(gameItem.slug, `games_tracks run ${run.key} game slug`);
+    entries.push({
+      title: `${described.event.title}: ${gameItem.title} - ${listName}`,
+      gameTitle: String(gameItem.title ?? "Untitled"),
+      link: `${siteBase}/games/${slug}/index.html`,
+      description: described.event.body,
+      pubDate: date,
+      imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
+      guid: rssGuid("game", slug, `music_tracks_${gameId}_${run.listId}_${run.key.split("_").at(-1)}`, date, `games_tracks run ${run.key}`),
+      nsfw: isGameNsfw(gameItem),
+      completed: false,
+    });
   }
 
   // Genre additions are derived from junction-row create activities and the

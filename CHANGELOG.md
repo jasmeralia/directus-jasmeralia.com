@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.248] - 2026-10-22
+- Music list and track changes now appear in Game History and the RSS/Discord feed.
+
 ## [1.0.247] - 2026-10-22
 - Games: add a Music tab with Spotify/YouTube embeds for per-game soundtrack and playlist lists, with optional track lists.
 
