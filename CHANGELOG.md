@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.254] - 2026-10-22
+- Game cards now show a small list icon next to the year when the game has section data (chapters, acts, quests, or tracked included games), whether or not a current section is set. Hover it for the tracked count; it is dimmed when only some included games of an omnibus are tracked.
+
 ## [1.0.253] - 2026-10-22
 - The AVN incomplete filters (per-genre pages and their counts on the filters index) now exclude unreleased and abandoned games.
 

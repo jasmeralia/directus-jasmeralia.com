@@ -1,6 +1,6 @@
 import type { DirectusFile } from "./directus";
 import type { GameSection } from "./game-sections";
-import { sectionProgressPercent } from "./game-sections";
+import { directGameSections, pluralizeNoun, sectionNoun, sectionProgressPercent } from "./game-sections";
 import { compareLabels } from "./list-format";
 
 export type BundleSectionDataStatus = "unknown" | "not_applicable" | "tracked";
@@ -66,6 +66,32 @@ export const sectionDataState = (
   if (states.some((state) => state === "unknown")) return "partial";
   if (states.every((state) => state === "not_applicable")) return "not_applicable";
   return "present";
+};
+
+export type SectionDataIndicator = { partial: boolean; title: string };
+
+// Whether a game card should flag that section data exists. This is about the
+// data, not the player's progress, so it ignores current_section entirely and
+// uses the same "present"/"partial" definition as the section-data filters.
+export const sectionDataIndicator = (
+  game: (BundleAwareGame & { section_noun?: string | null }) | null | undefined,
+): SectionDataIndicator | null => {
+  const state = sectionDataState(game);
+  if (state !== "present" && state !== "partial") return null;
+
+  if (hasBundleMembers(game)) {
+    return state === "partial"
+      ? { partial: true, title: "Section data tracked for some included games" }
+      : { partial: false, title: "Section data tracked for included games" };
+  }
+
+  const count = directGameSections(game?.sections).length;
+  const noun = sectionNoun(game?.section_noun);
+  const label = count === 1 ? noun : pluralizeNoun(noun);
+  return {
+    partial: false,
+    title: count > 0 ? `${count} ${label} tracked` : "Section data tracked",
+  };
 };
 
 export type SectionStyleAwareGame = BundleAwareGame & {

@@ -2,7 +2,7 @@
 import { fileUrl, isFamilySharingDisabled } from "../lib/directus";
 import { isGameNsfw } from "../lib/nsfw";
 import { downloadLinks, walkthroughLinks, getLinkMeta } from "../lib/download-link";
-import { bundleProgressSummary, effectiveSectionStyle } from "../lib/game-bundles";
+import { bundleProgressSummary, effectiveSectionStyle, sectionDataIndicator } from "../lib/game-bundles";
 import { sectionProgressSummary } from "../lib/game-sections";
 import PlaceholderRibbon from "./PlaceholderRibbon.astro";
 
@@ -57,6 +57,7 @@ const engines = (game?.engines ?? [])
   .map((engine) => engine?.engines_id)
   .filter((engine) => engine?.title && engine?.slug);
 const sectionStyle = effectiveSectionStyle(game);
+const sectionData = sectionDataIndicator(game);
 const bundleProgress = bundleProgressSummary(game);
 const directProgress = sectionProgressSummary(game);
 const progress = bundleProgress ?? (directProgress
@@ -86,7 +87,21 @@ const progress = bundleProgress ?? (directProgress
                   <div class="title">
                     <a class="game-link" href={`/games/${game.slug}/index.html`}>{game.title}</a>
                   </div>
-                  {game.release_year ? <div class="year">{game.release_year}</div> : null}
+                  {game.release_year || sectionData ? (
+                    <div class="subline">
+                      {game.release_year ? <span class="year">{game.release_year}</span> : null}
+                      {sectionData ? (
+                        <span class:list={["section-data", sectionData.partial && "section-data-partial"]} title={sectionData.title} role="img" aria-label={sectionData.title}>
+                          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                            <circle cx="2.5" cy="3.5" r=".6" fill="currentColor" />
+                            <circle cx="2.5" cy="8" r=".6" fill="currentColor" />
+                            <circle cx="2.5" cy="12.5" r=".6" fill="currentColor" />
+                            <path d="M6 3.5h8M6 8h8M6 12.5h8" />
+                          </svg>
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {progress ? (
                     <div class="progress" title={progress.title}>
                       {progress.percent !== null ? (
@@ -165,7 +180,10 @@ const progress = bundleProgress ?? (directProgress
   .thumb img{width:100%;height:100%;object-fit:contain;display:block;}
   .meta{padding:.75rem 1rem;display:flex;flex-direction:column;flex:1;}
   .title{font-weight:700;}
+  .subline{display:flex;align-items:center;gap:.4rem;}
   .year{opacity:.75;font-size:.9rem;}
+  .section-data{display:inline-flex;align-items:center;color:#70b7ff;opacity:.85;cursor:help;}
+  .section-data-partial{opacity:.5;}
   .progress{margin-top:.35rem;}
   .progress-bar{height:4px;border-radius:2px;background:#222;overflow:hidden;}
   .progress-fill{height:100%;background:#70b7ff;}

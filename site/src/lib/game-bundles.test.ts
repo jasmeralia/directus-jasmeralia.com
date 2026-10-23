@@ -6,6 +6,7 @@ import {
   effectiveSectionStyle,
   hasBundleMembers,
   orderedBundleMembers,
+  sectionDataIndicator,
   sectionDataState,
   type GameBundleMember,
 } from "./game-bundles";
@@ -205,5 +206,56 @@ describe("bundleProgressSummary", () => {
       title: "2 of 3 included games completed",
       percent: 67,
     });
+  });
+});
+
+describe("sectionDataIndicator", () => {
+  it("flags a game that has sections, even with no current_section", () => {
+    expect(
+      sectionDataIndicator({
+        sections: [
+          { number: 1, title: "Prologue" },
+          { number: 2, title: "Act I" },
+        ],
+        section_noun: "Act",
+      }),
+    ).toEqual({ partial: false, title: "2 Acts tracked" });
+    expect(
+      sectionDataIndicator({ sections: [{ number: 1, title: "Chapter 1" }] }),
+    ).toEqual({ partial: false, title: "1 Chapter tracked" });
+  });
+
+  it("shows nothing when there is no section data", () => {
+    expect(sectionDataIndicator({ sections: [] })).toBeNull();
+    expect(sectionDataIndicator(null)).toBeNull();
+    expect(
+      sectionDataIndicator({
+        bundle_members: [member(1, { section_data_status: "not_applicable" })],
+      }),
+    ).toBeNull();
+    expect(
+      sectionDataIndicator({
+        bundle_members: [member(1, { section_data_status: "unknown" })],
+      }),
+    ).toBeNull();
+  });
+
+  it("describes omnibus games and marks partial coverage", () => {
+    expect(
+      sectionDataIndicator({
+        bundle_members: [
+          member(1, { section_data_status: "tracked" }),
+          member(2, { section_data_status: "not_applicable" }),
+        ],
+      }),
+    ).toEqual({ partial: false, title: "Section data tracked for included games" });
+    expect(
+      sectionDataIndicator({
+        bundle_members: [
+          member(1, { section_data_status: "tracked" }),
+          member(2, { section_data_status: "unknown" }),
+        ],
+      }),
+    ).toEqual({ partial: true, title: "Section data tracked for some included games" });
   });
 });
