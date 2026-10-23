@@ -83,7 +83,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   <main>
     <div class="panel">
       <CsvHeader title={`AVN + ${genreLabel} + Incomplete`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
-      <p>AVN games tagged as <strong>{genreLabel}</strong> with an incomplete played status (not started, in progress, on hold, or waiting for update).</p>
+      <p>AVN games tagged as <strong>{genreLabel}</strong> with an incomplete played status (not started, plan to play, in progress, on hold, or waiting for update).</p>
     </div>
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (
