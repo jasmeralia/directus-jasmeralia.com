@@ -94,6 +94,31 @@ export const sectionDataIndicator = (
   };
 };
 
+// "Section Data Present + No Progress": the game has section data but nothing
+// records the player's progress through it yet.
+// - nonlinear (quest pool): no section is marked complete
+// - linear: current_section is not set
+// - omnibus: none of the tracked included games has a current_section
+export const isSectionDataPresentNoProgress = (
+  game:
+    | (BundleAwareGame & { section_style?: string | null; current_section?: number | null })
+    | null
+    | undefined,
+): boolean => {
+  if (sectionDataState(game) !== "present") return false;
+
+  const members = game?.bundle_members ?? [];
+  if (members.length) {
+    return members
+      .filter((member) => member.section_data_status === "tracked")
+      .every((member) => typeof member.current_section !== "number");
+  }
+  if (game?.section_style === "nonlinear") {
+    return !directGameSections(game.sections).some((section) => section.completed);
+  }
+  return typeof game?.current_section !== "number";
+};
+
 export type SectionStyleAwareGame = BundleAwareGame & {
   section_style?: string | null;
 };

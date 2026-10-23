@@ -5,6 +5,7 @@ import {
   bundleProgressSummary,
   effectiveSectionStyle,
   hasBundleMembers,
+  isSectionDataPresentNoProgress,
   orderedBundleMembers,
   sectionDataIndicator,
   sectionDataState,
@@ -257,5 +258,61 @@ describe("sectionDataIndicator", () => {
         ],
       }),
     ).toEqual({ partial: true, title: "Section data tracked for some included games" });
+  });
+});
+
+describe("isSectionDataPresentNoProgress", () => {
+  const sections = [
+    { number: 1, title: "One" },
+    { number: 2, title: "Two", completed: false },
+  ];
+
+  it("linear games need a current_section", () => {
+    expect(isSectionDataPresentNoProgress({ section_style: "linear", sections })).toBe(true);
+    expect(isSectionDataPresentNoProgress({ section_style: "linear", sections, current_section: null })).toBe(true);
+    expect(isSectionDataPresentNoProgress({ sections })).toBe(true);
+    expect(isSectionDataPresentNoProgress({ section_style: "linear", sections, current_section: 1 })).toBe(false);
+  });
+
+  it("nonlinear games need at least one completed section", () => {
+    expect(isSectionDataPresentNoProgress({ section_style: "nonlinear", sections })).toBe(true);
+    expect(
+      isSectionDataPresentNoProgress({
+        section_style: "nonlinear",
+        sections: [...sections, { number: 3, title: "Three", completed: true }],
+      }),
+    ).toBe(false);
+    // a stray current_section does not count as progress for a quest pool
+    expect(
+      isSectionDataPresentNoProgress({ section_style: "nonlinear", sections, current_section: 2 }),
+    ).toBe(true);
+  });
+
+  it("is false without section data", () => {
+    expect(isSectionDataPresentNoProgress({ sections: [] })).toBe(false);
+    expect(isSectionDataPresentNoProgress(null)).toBe(false);
+    expect(
+      isSectionDataPresentNoProgress({ bundle_members: [member(1, { section_data_status: "unknown" })] }),
+    ).toBe(false);
+  });
+
+  it("omnibus games look at their tracked included games", () => {
+    expect(
+      isSectionDataPresentNoProgress({
+        bundle_members: [
+          member(1, { section_data_status: "tracked" }),
+          member(2, { section_data_status: "tracked", current_section: null }),
+          member(3, { section_data_status: "not_applicable", current_section: 4 }),
+        ],
+      }),
+    ).toBe(true);
+    expect(
+      isSectionDataPresentNoProgress({
+        bundle_members: [
+          member(1, { section_data_status: "tracked", current_section: 2 }),
+          member(2, { section_data_status: "tracked" }),
+        ],
+      }),
+    ).toBe(false);
   });
 });

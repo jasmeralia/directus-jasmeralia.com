@@ -1,0 +1,57 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import CsvHeader from "../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../components/ThumbnailBorderLegend.astro";
+import GameThumbCard from "../../../components/GameThumbCard.astro";
+import { directusFetchItems, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../lib/directus";
+import { csvDataUri, gamesToCsv } from "../../../lib/csv";
+import { isSectionDataPresentNoProgress } from "../../../lib/game-bundles";
+import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
+import { sortByTitle } from "../../../lib/list-format";
+
+const candidates = await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  limit: -1,
+});
+const games = sortByTitle((candidates ?? []).filter(isSectionDataPresentNoProgress));
+
+const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
+const [reviewedGameIds, sTierGameIds, tierChipsByGame] = await Promise.all([
+  getReviewedGameIds(gameIds),
+  getSTierGameIds(gameIds),
+  getTierChipsByGameId(gameIds),
+]);
+
+const csvName = "section-data-present-no-progress.csv";
+const csvHref = csvDataUri(gamesToCsv(games));
+---
+
+<BaseLayout title="Filters | Section Data Present + No Progress">
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <CsvHeader title="Section Data Present + No Progress" count={games.length} csvHref={csvHref} csvName={csvName} />
+      <p>Games with section data but no recorded progress: linear games with no current section, nonlinear games with no sections marked complete, and omnibus games where none of the tracked included games has a current section.</p>
+    </div>
+    <ThumbnailBorderLegend />
+    {games.length === 0 ? (
+      <p>No games match.</p>
+    ) : (
+      <div class="grid">
+        {games.map((game) => {
+          const reviewed = reviewedGameIds.has(game.id);
+          const sTier = sTierGameIds.has(game.id);
+          return <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} tierChips={tierChipsByGame.get(game.id) ?? []} />;
+        })}
+      </div>
+    )}
+  </main>
+</BaseLayout>

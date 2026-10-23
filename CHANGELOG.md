@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.256] - 2026-10-22
+- Added a Section Data Present + No Progress filter to the Section Style category: games with section data but no recorded progress (linear games with no current section, nonlinear games with no sections marked complete, omnibus games where no tracked included game has a current section), with CSV export.
+
 ## [1.0.255] - 2026-10-22
 - Added two misc filters, AVN + Missing Section Data + Incomplete (excluding unreleased and abandoned games) and AVN + Missing Section Data + Currently Complete, linked from the filters index with CSV export.
 
