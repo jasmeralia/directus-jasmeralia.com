@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.258] - 2026-10-22
+- Moved the Progress - Partial (By Percent) filter into the Section Style category and renamed it Section Data Present + Incomplete Progress (By Percent). Its page is now at /filters/section-style/incomplete-progress/ (was /filters/misc/partial-progress/).
+
 ## [1.0.257] - 2026-10-22
 - The filter categories on the Filters page, and the Jump to Section list, are now sorted alphabetically by category name, with the Charts section kept last.
 
