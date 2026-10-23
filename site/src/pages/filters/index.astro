@@ -2,7 +2,8 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, directusFieldChoiceMap, directusFieldChoices, isFamilySharingDisabled } from "../../lib/directus";
 import { getUrlPlatform, downloadLinks, isMissingDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
-import { bundleProgressSummary, effectiveSectionStyle, sectionDataState } from "../../lib/game-bundles";
+import { hasMissingSectionData, isCurrentlyCompleteGame, isIncompleteGame } from "../../lib/avn-filters";
+import { bundleProgressSummary, effectiveSectionStyle, isSectionDataPresentNoProgress, sectionDataState } from "../../lib/game-bundles";
 import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
 import { sectionProgressSummary } from "../../lib/game-sections";
 import { hasVersionMismatch } from "../../lib/game-versions";
@@ -397,9 +398,11 @@ const contentRatingPlayedEntries = Array.from(contentRatingPlayedCounts.entries(
     compareLabels(a.statusLabel, b.statusLabel));
 
 const INCOMPLETE_STATUSES = new Set(["not_started", "plan_to_play", "in_progress", "on_hold", "waiting_for_update"]);
+const INCOMPLETE_EXCLUDED_GAME_STATUSES = new Set(["unreleased", "abandoned"]);
 const avnIncompleteByGenre = new Map<string, number>();
 for (const game of games ?? []) {
   if (!game.player_status || !INCOMPLETE_STATUSES.has(game.player_status)) continue;
+  if (INCOMPLETE_EXCLUDED_GAME_STATUSES.has(game.game_status)) continue;
   const slugs = (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
   if (!slugs.includes("avn")) continue;
   for (const slug of slugs) {
@@ -515,6 +518,12 @@ const avnBacklogCount = (games ?? []).filter(
 const AVN_CURRENTLY_COMPLETE_PLAYER_STATUSES = new Set(["completed", "waiting_for_update"]);
 const avnCurrentlyCompleteCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && AVN_CURRENTLY_COMPLETE_PLAYER_STATUSES.has(game?.player_status),
+).length;
+const avnMissingSectionIncompleteCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && isIncompleteGame(game) && hasMissingSectionData(game),
+).length;
+const avnMissingSectionCurrentlyCompleteCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && isCurrentlyCompleteGame(game) && hasMissingSectionData(game),
 ).length;
 const getGameGenreSlugs = (game) =>
   (game?.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
@@ -814,6 +823,7 @@ const progressGames = await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
   limit: -1,
 });
+const sectionNoProgressCount = (progressGames ?? []).filter(isSectionDataPresentNoProgress).length;
 const partialProgressCount = (progressGames ?? []).filter((game) => {
   if (game.player_status === "waiting_for_update") return false;
   const percent = (bundleProgressSummary(game) ?? sectionProgressSummary(game))?.percent;
@@ -913,6 +923,8 @@ const miscFilterEntries = [
   { label: "AVN + Sandbox", href: "/filters/misc/avn-sandbox/index.html", count: avnSandboxCount },
   { label: "AVN + Backlog", href: "/filters/misc/avn-backlog/index.html", count: avnBacklogCount },
   { label: "AVN + Currently Complete", href: "/filters/misc/avn-currently-complete/index.html", count: avnCurrentlyCompleteCount },
+  { label: "AVN + Missing Section Data + Incomplete", href: "/filters/misc/avn-missing-section-data-incomplete/index.html", count: avnMissingSectionIncompleteCount },
+  { label: "AVN + Missing Section Data + Currently Complete", href: "/filters/misc/avn-missing-section-data-currently-complete/index.html", count: avnMissingSectionCurrentlyCompleteCount },
   { label: "AVN + Missing GameStoryLog URL", href: "/filters/misc/avn-missing-gamestorylog/index.html", count: avnMissingGamestorylogCount },
   { label: "Not AVN + Has GameStoryLog URL", href: "/filters/misc/non-avn-with-gamestorylog/index.html", count: nonAvnWithGamestorylogCount },
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
@@ -970,7 +982,7 @@ const contentRatingSectionTotal =
   contentRatingSectionStyleEntries.length +
   contentRatingGameStatusEntries.length +
   contentRatingPlayedEntries.length;
-const sectionStyleSectionTotal = sectionStyleEntries.length + sectionStyleGenreEntries.length;
+const sectionStyleSectionTotal = sectionStyleEntries.length + 1 + sectionStyleGenreEntries.length;
 const chartCount = [
   platformPieSegments,
   platformExclusivePieSegments,
@@ -1006,7 +1018,6 @@ const chartCount = [
       <h2>Jump to Section</h2>
       <ul>
         <li><a href="#content-rating">Content Rating ({contentRatingSectionTotal})</a></li>
-        <li><a href="#section-style">Section Style ({sectionStyleSectionTotal})</a></li>
         <li><a href="#developer-game-status">Developer + Game Status ({developerStatusEntries.length})</a></li>
         <li><a href="#developer-played-status">Developer + Played Status ({developerPlayedEntries.length})</a></li>
         <li><a href="#engine-game-status">Engine + Game Status ({engineStatusEntries.length})</a></li>
@@ -1014,8 +1025,9 @@ const chartCount = [
         <li><a href="#engine-played-status">Engine + Played Status ({enginePlayedEntries.length})</a></li>
         <li><a href="#genre-game-status">Genre + Game Status ({genreStatusEntries.length})</a></li>
         <li><a href="#genre-played-status">Genre + Played Status ({genrePlayedEntries.length})</a></li>
-        <li><a href="#section-data-played-status">Section Data + Played Status ({sectionDataPlayedEntries.length})</a></li>
         <li><a href="#misc">Misc ({miscCount})</a></li>
+        <li><a href="#section-data-played-status">Section Data + Played Status ({sectionDataPlayedEntries.length})</a></li>
+        <li><a href="#section-style">Section Style ({sectionStyleSectionTotal})</a></li>
         <li><a href="#charts">Charts ({chartCount})</a></li>
       </ul>
     </div>
@@ -1065,36 +1077,6 @@ const chartCount = [
             <li>
               <a href={`/filters/content-rating/${entry.rating}/played_status/${entry.status}/index.html`}>{entry.ratingLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
-    </div>
-    <div class="panel" id="section-style">
-      <h2>Section Style ({sectionStyleEntries.length} filters)</h2>
-      <ul>
-        {sectionStyleEntries.map((entry) => (
-          <li>
-            <a href={`/filters/section-style/${entry.style}/index.html`}>{entry.label}</a>
-            <span style="opacity:.7;"> ({entry.count})</span>
-          </li>
-        ))}
-      </ul>
-      <h3>Section Style + Genre ({sectionStyleGenreEntries.length} combinations)</h3>
-      <p style="opacity:.7;margin-top:-8px;">Superset genres with zero distinct matches are hidden.</p>
-      {sectionStyleGenreEntries.length === 0 ? (
-        <p>No combinations yet.</p>
-      ) : (
-        <ul>
-          {sectionStyleGenreEntries.map((entry) => (
-            <li>
-              <a href={`/filters/section-style/${entry.style}/genre/${entry.genre}/index.html`}>{entry.styleLabel} + {entry.genreLabel}</a>
-              {isSupersetGenre(entry.genre) ? (
-                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
-              ) : (
-                <span style="opacity:.7;"> ({entry.count})</span>
-              )}
             </li>
           ))}
         </ul>
@@ -1232,6 +1214,21 @@ const chartCount = [
       )}
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
+    <div class="panel" id="misc">
+      <h2>Misc ({miscCount} combinations)</h2>
+      <ul>
+        {miscFilterEntries.map((entry) => (
+          <li>
+            <a href={entry.href}>{entry.label}</a>
+            {"exclusiveCount" in entry
+              ? <span style="opacity:.7;"> ({entry.count} total, {entry.exclusiveCount} exclusive)</span>
+              : <span style="opacity:.7;"> ({entry.count})</span>
+            }
+          </li>
+        ))}
+      </ul>
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
+    </div>
     <div class="panel" id="section-data-played-status">
       <h2>Section Data + Played Status ({sectionDataPlayedEntries.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Whether a game has any chapter/act/episode/mission data recorded, crossed with played status.</p>
@@ -1249,19 +1246,38 @@ const chartCount = [
       )}
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
-    <div class="panel" id="misc">
-      <h2>Misc ({miscCount} combinations)</h2>
+    <div class="panel" id="section-style">
+      <h2>Section Style ({sectionStyleEntries.length + 1} filters)</h2>
       <ul>
-        {miscFilterEntries.map((entry) => (
+        {sectionStyleEntries.map((entry) => (
           <li>
-            <a href={entry.href}>{entry.label}</a>
-            {"exclusiveCount" in entry
-              ? <span style="opacity:.7;"> ({entry.count} total, {entry.exclusiveCount} exclusive)</span>
-              : <span style="opacity:.7;"> ({entry.count})</span>
-            }
+            <a href={`/filters/section-style/${entry.style}/index.html`}>{entry.label}</a>
+            <span style="opacity:.7;"> ({entry.count})</span>
           </li>
         ))}
+        <li>
+          <a href="/filters/section-style/no-progress/index.html">Section Data Present + No Progress</a>
+          <span style="opacity:.7;"> ({sectionNoProgressCount})</span>
+        </li>
       </ul>
+      <h3>Section Style + Genre ({sectionStyleGenreEntries.length} combinations)</h3>
+      <p style="opacity:.7;margin-top:-8px;">Superset genres with zero distinct matches are hidden.</p>
+      {sectionStyleGenreEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {sectionStyleGenreEntries.map((entry) => (
+            <li>
+              <a href={`/filters/section-style/${entry.style}/genre/${entry.genre}/index.html`}>{entry.styleLabel} + {entry.genreLabel}</a>
+              {isSupersetGenre(entry.genre) ? (
+                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
+              ) : (
+                <span style="opacity:.7;"> ({entry.count})</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="charts">
