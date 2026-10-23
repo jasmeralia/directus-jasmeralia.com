@@ -46,7 +46,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   <main>
     <div class="panel">
       <CsvHeader title="AVN + Backlog" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
-      <p>AVN games that are not abandoned and whose played status is not did not finish, completed, in progress, or waiting for update (i.e. not started, on hold, or no played status set).</p>
+      <p>AVN games that are not abandoned and whose played status is not did not finish, completed, in progress, or waiting for update (i.e. not started, plan to play, on hold, or no played status set).</p>
     </div>
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (

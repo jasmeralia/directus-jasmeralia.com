@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.252] - 2026-10-22
+- The AVN incomplete and AVN backlog filter descriptions now mention Plan to Play, which those filters already include.
+
 ## [1.0.251] - 2026-10-22
 - Fixed the Played Statuses pie chart: Plan to Play now has its own color instead of reusing Completed's, and neighboring slice labels no longer overlap.
 
