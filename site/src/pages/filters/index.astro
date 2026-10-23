@@ -1018,7 +1018,6 @@ const chartCount = [
       <h2>Jump to Section</h2>
       <ul>
         <li><a href="#content-rating">Content Rating ({contentRatingSectionTotal})</a></li>
-        <li><a href="#section-style">Section Style ({sectionStyleSectionTotal})</a></li>
         <li><a href="#developer-game-status">Developer + Game Status ({developerStatusEntries.length})</a></li>
         <li><a href="#developer-played-status">Developer + Played Status ({developerPlayedEntries.length})</a></li>
         <li><a href="#engine-game-status">Engine + Game Status ({engineStatusEntries.length})</a></li>
@@ -1026,8 +1025,9 @@ const chartCount = [
         <li><a href="#engine-played-status">Engine + Played Status ({enginePlayedEntries.length})</a></li>
         <li><a href="#genre-game-status">Genre + Game Status ({genreStatusEntries.length})</a></li>
         <li><a href="#genre-played-status">Genre + Played Status ({genrePlayedEntries.length})</a></li>
-        <li><a href="#section-data-played-status">Section Data + Played Status ({sectionDataPlayedEntries.length})</a></li>
         <li><a href="#misc">Misc ({miscCount})</a></li>
+        <li><a href="#section-data-played-status">Section Data + Played Status ({sectionDataPlayedEntries.length})</a></li>
+        <li><a href="#section-style">Section Style ({sectionStyleSectionTotal})</a></li>
         <li><a href="#charts">Charts ({chartCount})</a></li>
       </ul>
     </div>
@@ -1077,40 +1077,6 @@ const chartCount = [
             <li>
               <a href={`/filters/content-rating/${entry.rating}/played_status/${entry.status}/index.html`}>{entry.ratingLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
-    </div>
-    <div class="panel" id="section-style">
-      <h2>Section Style ({sectionStyleEntries.length + 1} filters)</h2>
-      <ul>
-        {sectionStyleEntries.map((entry) => (
-          <li>
-            <a href={`/filters/section-style/${entry.style}/index.html`}>{entry.label}</a>
-            <span style="opacity:.7;"> ({entry.count})</span>
-          </li>
-        ))}
-        <li>
-          <a href="/filters/section-style/no-progress/index.html">Section Data Present + No Progress</a>
-          <span style="opacity:.7;"> ({sectionNoProgressCount})</span>
-        </li>
-      </ul>
-      <h3>Section Style + Genre ({sectionStyleGenreEntries.length} combinations)</h3>
-      <p style="opacity:.7;margin-top:-8px;">Superset genres with zero distinct matches are hidden.</p>
-      {sectionStyleGenreEntries.length === 0 ? (
-        <p>No combinations yet.</p>
-      ) : (
-        <ul>
-          {sectionStyleGenreEntries.map((entry) => (
-            <li>
-              <a href={`/filters/section-style/${entry.style}/genre/${entry.genre}/index.html`}>{entry.styleLabel} + {entry.genreLabel}</a>
-              {isSupersetGenre(entry.genre) ? (
-                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
-              ) : (
-                <span style="opacity:.7;"> ({entry.count})</span>
-              )}
             </li>
           ))}
         </ul>
@@ -1248,6 +1214,21 @@ const chartCount = [
       )}
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
+    <div class="panel" id="misc">
+      <h2>Misc ({miscCount} combinations)</h2>
+      <ul>
+        {miscFilterEntries.map((entry) => (
+          <li>
+            <a href={entry.href}>{entry.label}</a>
+            {"exclusiveCount" in entry
+              ? <span style="opacity:.7;"> ({entry.count} total, {entry.exclusiveCount} exclusive)</span>
+              : <span style="opacity:.7;"> ({entry.count})</span>
+            }
+          </li>
+        ))}
+      </ul>
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
+    </div>
     <div class="panel" id="section-data-played-status">
       <h2>Section Data + Played Status ({sectionDataPlayedEntries.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Whether a game has any chapter/act/episode/mission data recorded, crossed with played status.</p>
@@ -1265,19 +1246,38 @@ const chartCount = [
       )}
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
-    <div class="panel" id="misc">
-      <h2>Misc ({miscCount} combinations)</h2>
+    <div class="panel" id="section-style">
+      <h2>Section Style ({sectionStyleEntries.length + 1} filters)</h2>
       <ul>
-        {miscFilterEntries.map((entry) => (
+        {sectionStyleEntries.map((entry) => (
           <li>
-            <a href={entry.href}>{entry.label}</a>
-            {"exclusiveCount" in entry
-              ? <span style="opacity:.7;"> ({entry.count} total, {entry.exclusiveCount} exclusive)</span>
-              : <span style="opacity:.7;"> ({entry.count})</span>
-            }
+            <a href={`/filters/section-style/${entry.style}/index.html`}>{entry.label}</a>
+            <span style="opacity:.7;"> ({entry.count})</span>
           </li>
         ))}
+        <li>
+          <a href="/filters/section-style/no-progress/index.html">Section Data Present + No Progress</a>
+          <span style="opacity:.7;"> ({sectionNoProgressCount})</span>
+        </li>
       </ul>
+      <h3>Section Style + Genre ({sectionStyleGenreEntries.length} combinations)</h3>
+      <p style="opacity:.7;margin-top:-8px;">Superset genres with zero distinct matches are hidden.</p>
+      {sectionStyleGenreEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {sectionStyleGenreEntries.map((entry) => (
+            <li>
+              <a href={`/filters/section-style/${entry.style}/genre/${entry.genre}/index.html`}>{entry.styleLabel} + {entry.genreLabel}</a>
+              {isSupersetGenre(entry.genre) ? (
+                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
+              ) : (
+                <span style="opacity:.7;"> ({entry.count})</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="charts">

@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.257] - 2026-10-22
+- The filter categories on the Filters page, and the Jump to Section list, are now sorted alphabetically by category name, with the Charts section kept last.
+
 ## [1.0.256] - 2026-10-22
 - Added a Section Data Present + No Progress filter to the Section Style category: games with section data but no recorded progress (linear games with no current section, nonlinear games with no sections marked complete, omnibus games where no tracked included game has a current section), with CSV export.
 
