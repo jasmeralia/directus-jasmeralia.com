@@ -51,7 +51,6 @@ function hostname(value: string): string {
                 {group.category !== null ? <h3>{group.category}</h3> : null}
                 <ol>
                   {group.tracks.map((track) => {
-                    const embed = resolveMusicEmbed(track.url);
                     const characters = nsfw ? normalizeCharacters(track.characters) : [];
                     return (
                       <li>
@@ -62,24 +61,6 @@ function hostname(value: string): string {
                         {track.note?.trim() ? <p class="track-note">{track.note}</p> : null}
                         {nsfw && track.scene?.trim() ? <p class="track-detail">Scene: {track.scene}</p> : null}
                         {characters.length ? <p class="track-detail">Characters: {characters.join(", ")}</p> : null}
-                        {embed ? (
-                          <details class="track-player">
-                            <summary>Play</summary>
-                            <iframe
-                              src={embed.embedUrl}
-                              loading="lazy"
-                              referrerpolicy="strict-origin-when-cross-origin"
-                              title={`${embed.label} player: ${track.title}`}
-                              width="100%"
-                              height={embed.height}
-                              frameborder="0"
-                              allow={embed.provider === "spotify"
-                                ? "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                                : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"}
-                              allowfullscreen
-                            />
-                          </details>
-                        ) : null}
                       </li>
                     );
                   })}
@@ -99,7 +80,7 @@ function hostname(value: string): string {
   .music-list h2{margin:.1rem 0 .5rem;font-size:1.15rem;}
   .music-description{white-space:pre-wrap;}
   .music-player{display:flex;flex-direction:column;gap:.4rem;max-width:700px;margin:.75rem 0;}
-  .music-player iframe,.track-player iframe{display:block;max-width:100%;border:0;border-radius:10px;}
+  .music-player iframe{display:block;max-width:100%;border:0;border-radius:10px;}
   .track-group{margin-top:.8rem;}
   .track-group h3{margin:0 0 .3rem;font-size:.95rem;opacity:.85;}
   .track-group ol{margin:.2rem 0;padding-left:1.5rem;}
@@ -108,6 +89,4 @@ function hostname(value: string): string {
   .track-heading{display:flex;flex-wrap:wrap;gap:.25rem .75rem;align-items:baseline;}
   .track-heading a,.music-player a{color:#9aa6ff;}
   .track-note,.track-detail{margin:.2rem 0 0;font-size:.9rem;opacity:.8;white-space:pre-wrap;}
-  .track-player{margin-top:.4rem;}
-  .track-player summary{cursor:pointer;color:#9aa6ff;}
 </style>

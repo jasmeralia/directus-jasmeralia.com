@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.259] - 2026-10-23
+- Music tab: tracks are now links only; only a list's own Spotify/YouTube URL renders an embedded player.
+
 ## [1.0.258] - 2026-10-22
 - Moved the Progress - Partial (By Percent) filter into the Section Style category and renamed it Section Data Present + Incomplete Progress (By Percent). Its page is now at /filters/section-style/incomplete-progress/ (was /filters/misc/partial-progress/).
 
