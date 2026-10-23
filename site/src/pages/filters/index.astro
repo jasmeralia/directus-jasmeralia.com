@@ -396,7 +396,7 @@ const contentRatingPlayedEntries = Array.from(contentRatingPlayedCounts.entries(
     compareLabels(a.ratingLabel, b.ratingLabel) ||
     compareLabels(a.statusLabel, b.statusLabel));
 
-const INCOMPLETE_STATUSES = new Set(["not_started", "in_progress", "on_hold", "waiting_for_update"]);
+const INCOMPLETE_STATUSES = new Set(["not_started", "plan_to_play", "in_progress", "on_hold", "waiting_for_update"]);
 const avnIncompleteByGenre = new Map<string, number>();
 for (const game of games ?? []) {
   if (!game.player_status || !INCOMPLETE_STATUSES.has(game.player_status)) continue;

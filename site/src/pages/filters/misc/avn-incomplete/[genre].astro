@@ -9,7 +9,7 @@ import { expandGenreSlugs, hasGenreMembership } from "../../../../lib/genre-supe
 import { GAME_THUMB_FIELDS } from "../../../../lib/game-fields";
 import { sortByTitle } from "../../../../lib/list-format";
 
-const INCOMPLETE_STATUSES = ["not_started", "in_progress", "on_hold", "waiting_for_update"];
+const INCOMPLETE_STATUSES = ["not_started", "plan_to_play", "in_progress", "on_hold", "waiting_for_update"];
 
 export async function getStaticPaths() {
   const games = await directusFetchItems("games", {
@@ -19,7 +19,7 @@ export async function getStaticPaths() {
 
   const genreSlugs = new Set<string>();
   for (const game of games ?? []) {
-    if (!game.player_status || !new Set(["not_started", "in_progress", "on_hold", "waiting_for_update"]).has(game.player_status)) continue;
+    if (!game.player_status || !INCOMPLETE_STATUSES.includes(game.player_status)) continue;
     const slugs = ((game.genres ?? []) as Array<{ genres_id?: { slug?: string } }>)
       .map((entry) => entry?.genres_id?.slug)
       .filter(Boolean) as string[];
