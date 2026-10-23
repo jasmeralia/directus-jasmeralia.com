@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.251] - 2026-10-22
+- Fixed the Played Statuses pie chart: Plan to Play now has its own color instead of reusing Completed's, and neighboring slice labels no longer overlap.
+
 ## [1.0.250] - 2026-10-22
 - Fixed the 1.0.249 build failure on the AVN incomplete filter pages (`INCOMPLETE_STATUSES is not defined` inside `getStaticPaths`).
 
