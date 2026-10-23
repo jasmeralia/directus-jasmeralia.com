@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, directusFieldChoiceMap, directusFieldChoices, isFamilySharingDisabled } from "../../lib/directus";
 import { getUrlPlatform, downloadLinks, isMissingDownloadLink, walkthroughLinks, walkthroughTextNotes } from "../../lib/download-link";
+import { hasMissingSectionData, isCurrentlyCompleteGame, isIncompleteGame } from "../../lib/avn-filters";
 import { bundleProgressSummary, effectiveSectionStyle, sectionDataState } from "../../lib/game-bundles";
 import { GAME_THUMB_FIELDS } from "../../lib/game-fields";
 import { sectionProgressSummary } from "../../lib/game-sections";
@@ -518,6 +519,12 @@ const AVN_CURRENTLY_COMPLETE_PLAYER_STATUSES = new Set(["completed", "waiting_fo
 const avnCurrentlyCompleteCount = (games ?? []).filter(
   (game) => hasAvnGenre(game) && AVN_CURRENTLY_COMPLETE_PLAYER_STATUSES.has(game?.player_status),
 ).length;
+const avnMissingSectionIncompleteCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && isIncompleteGame(game) && hasMissingSectionData(game),
+).length;
+const avnMissingSectionCurrentlyCompleteCount = (games ?? []).filter(
+  (game) => hasAvnGenre(game) && isCurrentlyCompleteGame(game) && hasMissingSectionData(game),
+).length;
 const getGameGenreSlugs = (game) =>
   (game?.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
 const hasVnGenre = (game) => hasGenreMembership(getGameGenreSlugs(game), "visual-novel");
@@ -915,6 +922,8 @@ const miscFilterEntries = [
   { label: "AVN + Sandbox", href: "/filters/misc/avn-sandbox/index.html", count: avnSandboxCount },
   { label: "AVN + Backlog", href: "/filters/misc/avn-backlog/index.html", count: avnBacklogCount },
   { label: "AVN + Currently Complete", href: "/filters/misc/avn-currently-complete/index.html", count: avnCurrentlyCompleteCount },
+  { label: "AVN + Missing Section Data + Incomplete", href: "/filters/misc/avn-missing-section-data-incomplete/index.html", count: avnMissingSectionIncompleteCount },
+  { label: "AVN + Missing Section Data + Currently Complete", href: "/filters/misc/avn-missing-section-data-currently-complete/index.html", count: avnMissingSectionCurrentlyCompleteCount },
   { label: "AVN + Missing GameStoryLog URL", href: "/filters/misc/avn-missing-gamestorylog/index.html", count: avnMissingGamestorylogCount },
   { label: "Not AVN + Has GameStoryLog URL", href: "/filters/misc/non-avn-with-gamestorylog/index.html", count: nonAvnWithGamestorylogCount },
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
