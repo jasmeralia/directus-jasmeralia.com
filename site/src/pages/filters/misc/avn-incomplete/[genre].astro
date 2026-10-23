@@ -10,18 +10,22 @@ import { GAME_THUMB_FIELDS } from "../../../../lib/game-fields";
 import { sortByTitle } from "../../../../lib/list-format";
 
 const INCOMPLETE_STATUSES = ["not_started", "plan_to_play", "in_progress", "on_hold", "waiting_for_update"];
+// Games that are not out yet or are dead are never "incomplete" to play.
+const EXCLUDED_GAME_STATUSES = ["unreleased", "abandoned"];
 
 // getStaticPaths is hoisted out of this page's scope, so it cannot see the
-// INCOMPLETE_STATUSES constant above; keep its status list inline and in sync.
+// INCOMPLETE_STATUSES / EXCLUDED_GAME_STATUSES constants above; keep its lists
+// inline and in sync.
 export async function getStaticPaths() {
   const games = await directusFetchItems("games", {
-    fields: ["id", "player_status", "genres.genres_id.slug"],
+    fields: ["id", "player_status", "game_status", "genres.genres_id.slug"],
     limit: -1,
   });
 
   const genreSlugs = new Set<string>();
   for (const game of games ?? []) {
     if (!game.player_status || !new Set(["not_started", "plan_to_play", "in_progress", "on_hold", "waiting_for_update"]).has(game.player_status)) continue;
+    if (["unreleased", "abandoned"].includes(game.game_status)) continue;
     const slugs = ((game.genres ?? []) as Array<{ genres_id?: { slug?: string } }>)
       .map((entry) => entry?.genres_id?.slug)
       .filter(Boolean) as string[];
@@ -53,7 +57,7 @@ const avnIncompleteGames = sortByTitle(await directusFetchItems("games", {
 }));
 
 const filteredGames = (avnIncompleteGames ?? []).filter(
-  (game) => hasGenreMembership(
+  (game) => !EXCLUDED_GAME_STATUSES.includes(game?.game_status) && hasGenreMembership(
     (game?.genres ?? []).map((entry: { genres_id?: { slug?: string } }) => entry?.genres_id?.slug).filter(Boolean),
     genre,
   ),
@@ -83,7 +87,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   <main>
     <div class="panel">
       <CsvHeader title={`AVN + ${genreLabel} + Incomplete`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
-      <p>AVN games tagged as <strong>{genreLabel}</strong> with an incomplete played status (not started, plan to play, in progress, on hold, or waiting for update).</p>
+      <p>AVN games tagged as <strong>{genreLabel}</strong> with an incomplete played status (not started, plan to play, in progress, on hold, or waiting for update), excluding unreleased and abandoned games.</p>
     </div>
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (

@@ -397,9 +397,11 @@ const contentRatingPlayedEntries = Array.from(contentRatingPlayedCounts.entries(
     compareLabels(a.statusLabel, b.statusLabel));
 
 const INCOMPLETE_STATUSES = new Set(["not_started", "plan_to_play", "in_progress", "on_hold", "waiting_for_update"]);
+const INCOMPLETE_EXCLUDED_GAME_STATUSES = new Set(["unreleased", "abandoned"]);
 const avnIncompleteByGenre = new Map<string, number>();
 for (const game of games ?? []) {
   if (!game.player_status || !INCOMPLETE_STATUSES.has(game.player_status)) continue;
+  if (INCOMPLETE_EXCLUDED_GAME_STATUSES.has(game.game_status)) continue;
   const slugs = (game.genres ?? []).map((entry) => entry?.genres_id?.slug).filter(Boolean);
   if (!slugs.includes("avn")) continue;
   for (const slug of slugs) {
