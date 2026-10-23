@@ -13,6 +13,7 @@ import {
   fmtNewGame,
   fmtSectionCountDelta,
   humanVal,
+  isPlanningStatusChange,
   previousRevisionDataMap,
   SKIP_DELTA,
 } from "./changelog";
@@ -223,6 +224,30 @@ describe("changelog value formatting", () => {
 
     expect(result).toBe("**Play Status**: Completed");
     expect(fmtDelta({ version_gsl: "0.4" }, { version_gsl: "0.3" })).toBe("");
+  });
+
+  it("labels plan_to_play", () => {
+    expect(humanVal("player_status", "plan_to_play")).toBe("Plan to Play");
+    expect(
+      fmtDelta({ player_status: "in_progress" }, { player_status: "plan_to_play" }),
+    ).toBe(`**Play Status**: Plan to Play ${deltaArrow} In Progress`);
+  });
+
+  it("keeps moves between not_started and plan_to_play out of the change feed", () => {
+    expect(isPlanningStatusChange("not_started", "plan_to_play")).toBe(true);
+    expect(isPlanningStatusChange("plan_to_play", "not_started")).toBe(true);
+    expect(isPlanningStatusChange("not_started", "in_progress")).toBe(false);
+    expect(isPlanningStatusChange("plan_to_play", "completed")).toBe(false);
+    expect(isPlanningStatusChange(null, "plan_to_play")).toBe(false);
+
+    expect(fmtDelta({ player_status: "plan_to_play" }, { player_status: "not_started" })).toBe("");
+    expect(fmtDelta({ player_status: "not_started" }, { player_status: "plan_to_play" })).toBe("");
+    expect(
+      fmtDelta(
+        { player_status: "plan_to_play", release_year: 2024 },
+        { player_status: "not_started" },
+      ),
+    ).toBe("**Year**: 2024");
   });
 
   it("labels the legacy URL fields", () => {

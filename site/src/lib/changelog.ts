@@ -44,6 +44,7 @@ export const FIELD_LABEL: Record<string, string> = {
 
 export const ENUM_LABEL: Record<string, string> = {
   not_started: "Not Started",
+  plan_to_play: "Plan to Play",
   in_progress: "In Progress",
   on_hold: "On Hold",
   completed: "Completed",
@@ -63,6 +64,19 @@ export const ENUM_LABEL: Record<string, string> = {
   linear: "Linear",
   nonlinear: "Nonlinear",
 };
+
+// not_started (unknown intent) and plan_to_play (intends to play) are both
+// "not started yet" states. Moving a game between them is curation of the
+// library, not a play event, so it stays out of History, the RSS/Discord feed
+// and the Recent Updates widget (a bulk triage would otherwise flood them).
+const PLANNING_STATUSES = new Set(["not_started", "plan_to_play"]);
+
+export function isPlanningStatusChange(oldVal: unknown, newVal: unknown): boolean {
+  return (
+    typeof oldVal === "string" && typeof newVal === "string"
+    && PLANNING_STATUSES.has(oldVal) && PLANNING_STATUSES.has(newVal)
+  );
+}
 
 // ─── value formatting ─────────────────────────────────────────────────────────
 
@@ -132,6 +146,7 @@ export function fmtDelta(
     }
     const label  = FIELD_LABEL[f] ?? f;
     const oldVal = prev?.[f] ?? null;
+    if (f === "player_status" && isPlanningStatusChange(oldVal, newVal)) continue;
     if (oldVal !== null && oldVal !== undefined) {
       const fromLabel = humanVal(f, oldVal, enumLabels);
       const toLabel   = humanVal(f, newVal, enumLabels);
