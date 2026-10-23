@@ -15,7 +15,9 @@ for (const game of games) {
 }
 
 const statuses = await directusFieldChoices("games", "player_status");
-const palette = ["#3f76ff", "#24c2a0", "#f2b04f", "#e36b6b", "#9b7bff", "#6fb1ff"];
+// One distinct color per status; keep at least as many entries as the field has
+// choices, or the extras wrap around and reuse an earlier status color.
+const palette = ["#3f76ff", "#24c2a0", "#f2b04f", "#e36b6b", "#9b7bff", "#6fb1ff", "#ff7ac6"];
 const segments = statuses.map(({ value, label }, index) => ({
   label,
   value: statusCounts.get(value) || 0,
@@ -83,6 +85,16 @@ const labeledArcs = arcSegments
     const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
     return { ...seg, lx: pos.x, ly: pos.y, anchor, pct };
   });
+// Keep neighboring labels from overlapping: walk each side of the pie from the
+// top down and push a label below the previous one when they would collide.
+const LABEL_MIN_GAP = 24;
+for (const side of [(seg) => seg.lx >= cx, (seg) => seg.lx < cx]) {
+  const sideLabels = labeledArcs.filter(side);
+  sideLabels.sort((a, b) => a.ly - b.ly);
+  for (let i = 1; i < sideLabels.length; i += 1) {
+    sideLabels[i].ly = Math.max(sideLabels[i].ly, sideLabels[i - 1].ly + LABEL_MIN_GAP);
+  }
+}
 const description = "Jasmeralia's list of games by played status.";
 ---
 
