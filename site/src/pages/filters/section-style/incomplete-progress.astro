@@ -34,11 +34,11 @@ const [reviewedGameIds, sTierGameIds, tierChipsByGame] = await Promise.all([
   getTierChipsByGameId(gameIds),
 ]);
 
-const csvName = "partial-progress.csv";
+const csvName = "section-data-present-incomplete-progress.csv";
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title="Filters | Progress - Partial (By Percent)">
+<BaseLayout title="Filters | Section Data Present + Incomplete Progress (By Percent)">
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -50,7 +50,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title="Progress - Partial (By Percent)" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title="Section Data Present + Incomplete Progress (By Percent)" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>Games with a tracked progress percentage above 0% and below 100%, sorted by percent complete (highest first). Excludes games with a Waiting for Update played status.</p>
     </div>
     <ThumbnailBorderLegend />

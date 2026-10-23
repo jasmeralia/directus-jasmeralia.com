@@ -956,7 +956,6 @@ const miscFilterEntries = [
     })),
   { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Omnibus Games", href: "/filters/misc/omnibus-games/index.html", count: omnibusGamesCount },
-  { label: "Progress - Partial (By Percent)", href: "/filters/misc/partial-progress/index.html", count: partialProgressCount },
   { label: "Placeholder Covers", href: "/filters/misc/placeholder-covers/index.html", count: placeholderCoverCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
   { label: "Version Mismatches", href: "/filters/misc/version-mismatches/index.html", count: versionMismatchCount },
@@ -982,7 +981,7 @@ const contentRatingSectionTotal =
   contentRatingSectionStyleEntries.length +
   contentRatingGameStatusEntries.length +
   contentRatingPlayedEntries.length;
-const sectionStyleSectionTotal = sectionStyleEntries.length + 1 + sectionStyleGenreEntries.length;
+const sectionStyleSectionTotal = sectionStyleEntries.length + 2 + sectionStyleGenreEntries.length;
 const chartCount = [
   platformPieSegments,
   platformExclusivePieSegments,
@@ -1247,7 +1246,7 @@ const chartCount = [
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="section-style">
-      <h2>Section Style ({sectionStyleEntries.length + 1} filters)</h2>
+      <h2>Section Style ({sectionStyleEntries.length + 2} filters)</h2>
       <ul>
         {sectionStyleEntries.map((entry) => (
           <li>
@@ -1255,6 +1254,10 @@ const chartCount = [
             <span style="opacity:.7;"> ({entry.count})</span>
           </li>
         ))}
+        <li>
+          <a href="/filters/section-style/incomplete-progress/index.html">Section Data Present + Incomplete Progress (By Percent)</a>
+          <span style="opacity:.7;"> ({partialProgressCount})</span>
+        </li>
         <li>
           <a href="/filters/section-style/no-progress/index.html">Section Data Present + No Progress</a>
           <span style="opacity:.7;"> ({sectionNoProgressCount})</span>
