@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.250] - 2026-10-22
+- Fixed the 1.0.249 build failure on the AVN incomplete filter pages (`INCOMPLETE_STATUSES is not defined` inside `getStaticPaths`).
+
 ## [1.0.249] - 2026-10-22
 - Added a Plan to Play play status for games not started yet but of interest, separate from Not Started (unknown intent), so filters can leave out filler. It gets its own per-status filter pages, counts as incomplete in the AVN incomplete filters, and moving a game between Not Started and Plan to Play is kept out of History, the feed and Recent Updates.
 

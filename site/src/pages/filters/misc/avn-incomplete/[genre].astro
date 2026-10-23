@@ -11,6 +11,8 @@ import { sortByTitle } from "../../../../lib/list-format";
 
 const INCOMPLETE_STATUSES = ["not_started", "plan_to_play", "in_progress", "on_hold", "waiting_for_update"];
 
+// getStaticPaths is hoisted out of this page's scope, so it cannot see the
+// INCOMPLETE_STATUSES constant above; keep its status list inline and in sync.
 export async function getStaticPaths() {
   const games = await directusFetchItems("games", {
     fields: ["id", "player_status", "genres.genres_id.slug"],
@@ -19,7 +21,7 @@ export async function getStaticPaths() {
 
   const genreSlugs = new Set<string>();
   for (const game of games ?? []) {
-    if (!game.player_status || !INCOMPLETE_STATUSES.includes(game.player_status)) continue;
+    if (!game.player_status || !new Set(["not_started", "plan_to_play", "in_progress", "on_hold", "waiting_for_update"]).has(game.player_status)) continue;
     const slugs = ((game.genres ?? []) as Array<{ genres_id?: { slug?: string } }>)
       .map((entry) => entry?.genres_id?.slug)
       .filter(Boolean) as string[];
