@@ -1,7 +1,7 @@
 ---
 import { fileUrl, isFamilySharingDisabled } from "../lib/directus";
 import { isGameNsfw } from "../lib/nsfw";
-import { downloadLinks, walkthroughLinks, getLinkMeta, steamDbAppUrl } from "../lib/download-link";
+import { downloadLinks, walkthroughLinks, getLinkMeta, steamDbAppUrl, steamDbSearchUrl, steamGridDbSearchUrl, hasSteamDownloadLink } from "../lib/download-link";
 import { bundleProgressSummary, effectiveSectionStyle, sectionDataIndicator } from "../lib/game-bundles";
 import { sectionProgressSummary } from "../lib/game-sections";
 import PlaceholderRibbon from "./PlaceholderRibbon.astro";
@@ -45,6 +45,7 @@ const stackStyle = [
 
 const img = game?.cover_image ? fileUrl(game.cover_image) : null;
 const nsfw = isGameNsfw(game);
+const hasSteamLink = hasSteamDownloadLink(allDownloadLinks);
 const platformEntries = [
   ...allDownloadLinks.flatMap((link) => {
     const entry = { url: link.url, kind: link.kind, meta: getLinkMeta(link) };
@@ -56,6 +57,16 @@ const platformEntries = [
   ...(game?.links ?? [])
     .filter((link) => link.kind === "gamestorylog")
     .map((link) => ({ url: link.url, kind: link.kind, meta: getLinkMeta(link) })),
+  {
+    url: steamGridDbSearchUrl(game.title),
+    kind: "steamgriddb",
+    meta: { icon: "/icons/steamgriddb.svg", label: "Search on SteamGridDB", host: "steamgriddb.com" },
+  },
+  ...(!hasSteamLink ? [{
+    url: steamDbSearchUrl(game.title),
+    kind: "steamdb-search",
+    meta: { icon: "/icons/simple/steamdb.svg", label: "Search on SteamDB", host: "steamdb.info" },
+  }] : []),
   {
     url: `https://directus.jasmer.tools/admin/content/games/${game.id}`,
     kind: "directus",
