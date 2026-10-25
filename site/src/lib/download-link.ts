@@ -227,5 +227,14 @@ export const steamDbAppUrl = (value: string): string | null => {
   return match ? `https://steamdb.info/app/${match[1]}/` : null;
 };
 
+export const steamDbSearchUrl = (title: string): string =>
+  `https://steamdb.info/search/?${new URLSearchParams({ a: "all", q: title })}`;
+
+export const steamGridDbSearchUrl = (title: string): string =>
+  `https://www.steamgriddb.com/search/grids?${new URLSearchParams({ term: title })}`;
+
+export const hasSteamDownloadLink = (links: GameLink[] | null | undefined): boolean =>
+  downloadLinks(links).some((link) => getUrlPlatform(link.url) === "steam");
+
 /** @deprecated Use getUrlPlatform */
 export const getDownloadPlatform = getUrlPlatform;

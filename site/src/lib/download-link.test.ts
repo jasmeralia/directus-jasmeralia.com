@@ -6,11 +6,14 @@ import {
   getLinkMeta,
   getUrlLinkMeta,
   getUrlPlatform,
+  hasSteamDownloadLink,
   isMissingDownloadLink,
   otherLinks,
   otherLinkText,
   primaryDownloadLink,
   steamDbAppUrl,
+  steamDbSearchUrl,
+  steamGridDbSearchUrl,
   walkthroughLinks,
   walkthroughTextNotes,
   type DeveloperLink,
@@ -139,6 +142,24 @@ describe("URL platform and metadata", () => {
     );
     expect(steamDbAppUrl("https://store.steampowered.com/agecheck/app/12345/")).toBeNull();
     expect(steamDbAppUrl("https://steamdb.info/app/12345/")).toBeNull();
+  });
+
+  it("builds encoded SteamGridDB and SteamDB title searches", () => {
+    expect(steamGridDbSearchUrl("The witcher 4")).toBe(
+      "https://www.steamgriddb.com/search/grids?term=The+witcher+4",
+    );
+    expect(steamDbSearchUrl("The witcher 4")).toBe(
+      "https://steamdb.info/search/?a=all&q=The+witcher+4",
+    );
+    expect(steamGridDbSearchUrl("A & B")).toBe(
+      "https://www.steamgriddb.com/search/grids?term=A+%26+B",
+    );
+  });
+
+  it("detects whether any download link points to Steam", () => {
+    expect(hasSteamDownloadLink([{ url: "https://store.steampowered.com/app/1/name/", kind: "download" }])).toBe(true);
+    expect(hasSteamDownloadLink([{ url: "https://gog.com/game/name", kind: "download" }])).toBe(false);
+    expect(hasSteamDownloadLink([])).toBe(false);
   });
 
   it("resolves URL metadata and allows a game-link label override", () => {

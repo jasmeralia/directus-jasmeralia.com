@@ -5,12 +5,13 @@ import ThumbnailBorderLegend from "../../../../components/ThumbnailBorderLegend.
 import GameThumbCard from "../../../../components/GameThumbCard.astro";
 import { directusFetchItems, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../../lib/directus";
 import { csvDataUri, gamesToCsv } from "../../../../lib/csv";
-import { downloadLinks, getUrlPlatform } from "../../../../lib/download-link";
+import { downloadLinks, getUrlPlatform, hasSteamDownloadLink } from "../../../../lib/download-link";
 import { GAME_THUMB_FIELDS } from "../../../../lib/game-fields";
 import { sortByTitle } from "../../../../lib/list-format";
 
 const platformMeta = {
   steam: { label: "Steam" },
+  "not-steam": { label: "Not Steam" },
   itch: { label: "itch.io" },
   gog: { label: "GOG" },
   epic: { label: "Epic Games" },
@@ -21,7 +22,7 @@ const platformMeta = {
 };
 
 export async function getStaticPaths() {
-  return ["steam", "itch", "gog", "epic", "patreon", "playstation", "xbox", "unknown"].map((platform) => ({ params: { platform } }));
+  return ["steam", "not-steam", "itch", "gog", "epic", "patreon", "playstation", "xbox", "unknown"].map((platform) => ({ params: { platform } }));
 }
 
 const { platform } = Astro.params;
@@ -38,6 +39,9 @@ const filteredGames = games.filter((game) => {
   if (platform === "unknown") {
     return links.length > 0 && links.some((link) => getUrlPlatform(link.url) === null);
   }
+  if (platform === "not-steam") {
+    return links.length > 0 && !hasSteamDownloadLink(links);
+  }
   return links.some((link) => getUrlPlatform(link.url) === platform);
 });
 
@@ -51,11 +55,12 @@ const [reviewedGameIds, sTierGameIds, tierChipsByGame] = await Promise.all([
 ]);
 
 const platformLabel = platformMeta[platform].label;
+const pageTitle = platform === "not-steam" ? "Download Platform - Not Steam" : `Download Platform + ${platformLabel}`;
 const csvName = `download-platform-${platform}.csv`;
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title={`Filters | Download Platform + ${platformLabel}`}>
+<BaseLayout title={`Filters | ${pageTitle}`}>
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -67,9 +72,11 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title={`Download Platform + ${platformLabel}`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title={pageTitle} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>{platform === "unknown"
         ? "Games with at least one download link whose platform could not be detected. Games with no download link at all belong on the Download Link - Missing filter instead."
+        : platform === "not-steam"
+          ? "Games with at least one download link and no download link pointing to Steam. Games with no download links are listed under Download Link - Missing."
         : `Games with download links detected as ${platformLabel}.`}</p>
     </div>
     <ThumbnailBorderLegend />
