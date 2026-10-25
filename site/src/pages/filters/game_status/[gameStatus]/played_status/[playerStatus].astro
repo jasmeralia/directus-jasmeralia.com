@@ -1,0 +1,94 @@
+---
+import BaseLayout from "../../../../../layouts/BaseLayout.astro";
+import CsvHeader from "../../../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../../../components/ThumbnailBorderLegend.astro";
+import GameThumbCard from "../../../../../components/GameThumbCard.astro";
+import { directusFetchItems, directusFieldChoiceMap, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../../../lib/directus";
+import { csvDataUri, gamesToCsv } from "../../../../../lib/csv";
+import { GAME_THUMB_FIELDS } from "../../../../../lib/game-fields";
+import { sortByTitle } from "../../../../../lib/list-format";
+
+export async function getStaticPaths() {
+  const games = await directusFetchItems("games", {
+    fields: ["game_status", "player_status"],
+    limit: -1,
+  });
+
+  const combinations = new Set();
+  for (const game of games ?? []) {
+    if (!game.game_status || !game.player_status) continue;
+    combinations.add(`${game.game_status}::${game.player_status}`);
+  }
+
+  return Array.from(combinations).map((key) => {
+    const [gameStatus, playerStatus] = key.split("::");
+    return { params: { gameStatus, playerStatus } };
+  });
+}
+
+const { gameStatus, playerStatus } = Astro.params;
+const labelize = (value) =>
+  value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
+const [gameStatusLabels, playerStatusLabels] = await Promise.all([
+  directusFieldChoiceMap("games", "game_status"),
+  directusFieldChoiceMap("games", "player_status"),
+]);
+const gameStatusLabel = gameStatusLabels.get(gameStatus) ?? labelize(gameStatus);
+const playerStatusLabel = playerStatusLabels.get(playerStatus) ?? labelize(playerStatus);
+
+const gamesForCombination = await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  filter: {
+    game_status: { _eq: gameStatus },
+    player_status: { _eq: playerStatus },
+  },
+  limit: -1,
+});
+const games = sortByTitle(gamesForCombination ?? []);
+
+const gameIds = games.map((game) => game.id).filter((id) => typeof id === "number");
+const [reviewedGameIds, sTierGameIds, tierChipsByGame] = await Promise.all([
+  getReviewedGameIds(gameIds),
+  getSTierGameIds(gameIds),
+  getTierChipsByGameId(gameIds),
+]);
+
+const csvName = `game-status-${gameStatus}-played-status-${playerStatus}.csv`;
+const csvHref = csvDataUri(gamesToCsv(games));
+---
+
+<BaseLayout title={`Filters | ${gameStatusLabel} + ${playerStatusLabel}`}>
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <CsvHeader title={`${gameStatusLabel} + ${playerStatusLabel}`} count={games.length} csvHref={csvHref} csvName={csvName} />
+      <p>
+        Game status: <strong><a href={`/game_statuses/${gameStatus}/index.html`}>{gameStatusLabel}</a></strong> &nbsp;|&nbsp;
+        Played status: <strong><a href={`/played_statuses/${playerStatus}/index.html`}>{playerStatusLabel}</a></strong>
+      </p>
+    </div>
+    <ThumbnailBorderLegend />
+    {games.length === 0 ? (
+      <p>No games found for this combination.</p>
+    ) : (
+      <div class="grid">
+        {games.map((game) => (
+          <GameThumbCard
+            game={game}
+            reviewed={reviewedGameIds.has(game.id)}
+            sTier={sTierGameIds.has(game.id)}
+            tierChips={tierChipsByGame.get(game.id) ?? []}
+          />
+        ))}
+      </div>
+    )}
+  </main>
+</BaseLayout>
