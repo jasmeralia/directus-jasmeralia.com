@@ -31,7 +31,7 @@ const csvName = "avn-harem.csv";
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title="Filters | AVN + Harem">
+<BaseLayout title="Filters | AVN + Genre: Harem">
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -43,7 +43,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title="AVN + Harem" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title="AVN + Genre: Harem" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>Games tagged as both AVN and Harem.</p>
     </div>
     <ThumbnailBorderLegend />

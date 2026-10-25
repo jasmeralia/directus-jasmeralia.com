@@ -95,7 +95,7 @@ const csvName = `engine-${engine}-genre-${genre}.csv`;
 const csvHref = csvDataUri(gamesToCsv(games));
 ---
 
-<BaseLayout title={`Filters | ${engineLabel} + ${genreLabel}`}>
+<BaseLayout title={`Filters | ${engineLabel} + Genre: ${genreLabel}`}>
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -107,7 +107,7 @@ const csvHref = csvDataUri(gamesToCsv(games));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title={`${engineLabel} + ${genreLabel}`} count={games.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title={`${engineLabel} + Genre: ${genreLabel}`} count={games.length} csvHref={csvHref} csvName={csvName} />
       <p>
         Engine: <strong>{engineLabel}</strong> &nbsp;|&nbsp;
         Genre: <strong>{genreLabel}</strong>

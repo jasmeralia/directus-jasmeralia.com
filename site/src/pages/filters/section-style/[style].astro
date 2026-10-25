@@ -94,7 +94,7 @@ const genreEntries = Array.from(genreTotalCounts.entries())
         <ul class="combos">
           {genreEntries.map((entry) => (
             <li>
-              <a href={`/filters/section-style/${style}/genre/${entry.genre}/index.html`}>{label} + {entry.genreLabel}</a>
+              <a href={`/filters/section-style/${style}/genre/${entry.genre}/index.html`}>{label} + Genre: {entry.genreLabel}</a>
               {isSupersetGenre(entry.genre) ? (
                 <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
               ) : (

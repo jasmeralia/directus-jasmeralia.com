@@ -67,7 +67,7 @@ const csvName = `section-data-${state}-genre-${genre}.csv`;
 const csvHref = csvDataUri(gamesToCsv(games));
 ---
 
-<BaseLayout title={`Filters | Section Data ${stateLabel} + ${genreLabel}`}>
+<BaseLayout title={`Filters | Section Data ${stateLabel} + Genre: ${genreLabel}`}>
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -79,7 +79,7 @@ const csvHref = csvDataUri(gamesToCsv(games));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title={`Section Data: ${stateLabel} + ${genreLabel}`} count={games.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title={`Section Data: ${stateLabel} + Genre: ${genreLabel}`} count={games.length} csvHref={csvHref} csvName={csvName} />
       <p>
         Section data: <strong>{stateLabel}</strong> &nbsp;|&nbsp;
         Genre: <strong>{genreLabel}</strong>
