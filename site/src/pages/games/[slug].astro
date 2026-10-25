@@ -449,6 +449,7 @@ const coverStackStyle = [
       .download-link-row{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;}
       .steamdb-pair{display:inline-flex;align-items:center;gap:.2rem;}
       .download-link img{width:1rem;height:1rem;display:block;}
+      .download-link .edit-icon{width:1rem;height:1rem;display:block;}
       .download-link .platform-icon{filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
       .download-link .gsl-icon{filter:none;}
       .sections-summary{margin:.5rem 0;}
@@ -518,8 +519,7 @@ const coverStackStyle = [
         </div>
         <div>
           <h1 data-pagefind-meta="title">{game.title}</h1>
-          {downloadEntries.length > 0 || gslLink || otherEntries.length > 0 ? (
-            <div class="meta">
+          <div class="meta">
               {downloadEntries.map((entry) => (
                 <div class="download-link-row">
                   <a class="download-link" href={entry.url} rel="noopener noreferrer" target="_blank">
@@ -556,8 +556,13 @@ const coverStackStyle = [
                   </a>
                 </div>
               ))}
+            <div>
+              <a class="download-link" href={`https://directus.jasmer.tools/admin/content/games/${game.id}`} rel="noopener noreferrer" target="_blank">
+                <img class="edit-icon" src="/icons/pencil.svg" alt="" aria-hidden="true" loading="lazy" />
+                <span>Update in Directus</span>
+              </a>
             </div>
-          ) : null}
+          </div>
         </div>
       </section>
 

@@ -1,7 +1,7 @@
 ---
 import { fileUrl, isFamilySharingDisabled } from "../lib/directus";
 import { isGameNsfw } from "../lib/nsfw";
-import { downloadLinks, walkthroughLinks, getLinkMeta } from "../lib/download-link";
+import { downloadLinks, walkthroughLinks, getLinkMeta, steamDbAppUrl } from "../lib/download-link";
 import { bundleProgressSummary, effectiveSectionStyle, sectionDataIndicator } from "../lib/game-bundles";
 import { sectionProgressSummary } from "../lib/game-sections";
 import PlaceholderRibbon from "./PlaceholderRibbon.astro";
@@ -45,11 +45,24 @@ const stackStyle = [
 
 const img = game?.cover_image ? fileUrl(game.cover_image) : null;
 const nsfw = isGameNsfw(game);
-const platformEntries = [...allDownloadLinks, ...(game?.links ?? []).filter((link) => link.kind === "gamestorylog")]
-  .map((link) => ({ url: link.url, kind: link.kind, meta: getLinkMeta(link) }))
+const platformEntries = [
+  ...allDownloadLinks.flatMap((link) => {
+    const entry = { url: link.url, kind: link.kind, meta: getLinkMeta(link) };
+    const steamDbUrl = steamDbAppUrl(link.url);
+    return steamDbUrl
+      ? [entry, { url: steamDbUrl, kind: "download", meta: { icon: "/icons/simple/steamdb.svg", label: "SteamDB", host: "steamdb.info" } }]
+      : [entry];
+  }),
+  ...(game?.links ?? [])
+    .filter((link) => link.kind === "gamestorylog")
+    .map((link) => ({ url: link.url, kind: link.kind, meta: getLinkMeta(link) })),
+  {
+    url: `https://directus.jasmer.tools/admin/content/games/${game.id}`,
+    kind: "directus",
+    meta: { icon: "/icons/pencil.svg", label: "Update in Directus", host: "directus.jasmer.tools" },
+  },
+]
   .filter((e) => e.meta.label !== "Download" || Boolean(e.meta.host));
-const showPlatforms = platformEntries.length > 0;
-const singlePlatform = platformEntries.length === 1;
 const genres = (game?.genres ?? [])
   .map((genre) => genre?.genres_id)
   .filter((genre) => genre?.name && genre?.slug);
@@ -110,16 +123,13 @@ const progress = bundleProgress ?? (directProgress
                       <div class="progress-label">{progress.label}</div>
                     </div>
                   ) : null}
-                  {showPlatforms ? (
-                    <div class="platform">
-                      {platformEntries.map((entry) => (
-                        <a class="platform-link" href={entry.url} target="_blank" rel="noopener noreferrer" aria-label={entry.meta.label} title={entry.meta.label}>
-                          {entry.meta.icon ? <img class:list={[entry.kind === "gamestorylog" && "gsl-icon"]} src={entry.meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
-                          {singlePlatform ? <span>{entry.meta.label === "Download" && entry.meta.host ? `Download (${entry.meta.host})` : entry.meta.label}</span> : null}
-                        </a>
-                      ))}
-                    </div>
-                  ) : null}
+                  <div class="platform">
+                    {platformEntries.map((entry) => (
+                      <a class="platform-link" href={entry.url} target="_blank" rel="noopener noreferrer" aria-label={entry.meta.label === "Download" && entry.meta.host ? `Download (${entry.meta.host})` : entry.meta.label} title={entry.meta.label === "Download" && entry.meta.host ? `Download (${entry.meta.host})` : entry.meta.label}>
+                        {entry.meta.icon ? <img class:list={[entry.kind === "gamestorylog" && "gsl-icon", entry.kind === "directus" && "edit-icon"]} src={entry.meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                      </a>
+                    ))}
+                  </div>
                   <div class="tags">
                     <a
                       class={`tag tag-content-rating ${nsfw ? "tag-nsfw" : "tag-sfw"}`}
@@ -192,6 +202,7 @@ const progress = bundleProgress ?? (directProgress
   .platform-link{display:flex;align-items:center;gap:.35rem;}
   .platform img{width:.9rem;height:.9rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
   .platform img.gsl-icon{width:auto;height:1rem;filter:none;mix-blend-mode:screen;}
+  .platform img.edit-icon{filter:none;}
   .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:auto;padding-top:.5rem;}
   .tag{font-size:.75rem;padding:.2rem .5rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;opacity:.9;}
   .tag-tier{overflow-wrap:anywhere;}
