@@ -74,7 +74,7 @@ const csvName = `avn-incomplete-${genre}.csv`;
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title={`Filters | AVN + ${genreLabel} + Incomplete`}>
+<BaseLayout title={`Filters | AVN + Genre: ${genreLabel} + Incomplete`}>
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -86,7 +86,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title={`AVN + ${genreLabel} + Incomplete`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title={`AVN + Genre: ${genreLabel} + Incomplete`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>AVN games tagged as <strong>{genreLabel}</strong> with an incomplete played status (not started, plan to play, in progress, on hold, or waiting for update), excluding unreleased and abandoned games.</p>
     </div>
     <ThumbnailBorderLegend />

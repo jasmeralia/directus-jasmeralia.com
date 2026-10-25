@@ -969,8 +969,8 @@ const nsfwLabeledArcs = nsfwPieArcs
   });
 const miscFilterEntries = [
   { label: "AVN + Has GameStoryLog URL", href: "/filters/misc/avn-with-gamestorylog/index.html", count: avnWithGamestorylogCount },
-  { label: "AVN + Harem", href: "/filters/misc/avn-harem/index.html", count: avnHaremCount },
-  { label: "AVN + Sandbox", href: "/filters/misc/avn-sandbox/index.html", count: avnSandboxCount },
+  { label: "AVN + Genre: Harem", href: "/filters/misc/avn-harem/index.html", count: avnHaremCount },
+  { label: "AVN + Genre: Sandbox", href: "/filters/misc/avn-sandbox/index.html", count: avnSandboxCount },
   { label: "AVN + Backlog", href: "/filters/misc/avn-backlog/index.html", count: avnBacklogCount },
   { label: "AVN + Currently Complete", href: "/filters/misc/avn-currently-complete/index.html", count: avnCurrentlyCompleteCount },
   { label: "AVN + Missing Section Data + Incomplete", href: "/filters/misc/avn-missing-section-data-incomplete/index.html", count: avnMissingSectionIncompleteCount },
@@ -978,11 +978,11 @@ const miscFilterEntries = [
   { label: "AVN + Missing GameStoryLog URL", href: "/filters/misc/avn-missing-gamestorylog/index.html", count: avnMissingGamestorylogCount },
   { label: "Not AVN + Has GameStoryLog URL", href: "/filters/misc/non-avn-with-gamestorylog/index.html", count: nonAvnWithGamestorylogCount },
   { label: "AVN + Missing Walkthrough URL", href: "/filters/misc/avn-missing-walkthrough/index.html", count: avnMissingWalkthroughCount },
-  { label: "AVN + Not Harem", href: "/filters/misc/avn-not-harem/index.html", count: avnNotHaremCount },
+  { label: "AVN + Genre: Not Harem", href: "/filters/misc/avn-not-harem/index.html", count: avnNotHaremCount },
   { label: "AVN + Download Platform Steam", href: "/filters/misc/avn-steam/index.html", count: avnSteamCount },
   { label: "AVN + Missing Game Engine", href: "/filters/misc/avn-missing-game-engine/index.html", count: avnMissingGameEngineCount },
   { label: "AVN + Missing Rendering Engine", href: "/filters/misc/avn-missing-rendering-engine/index.html", count: avnMissingRenderingEngineCount },
-  { label: "NSFW + Not AVN", href: "/filters/misc/nsfw-not-avn/index.html", count: nsfwNotAvnCount },
+  { label: "NSFW + Genre: Not AVN", href: "/filters/misc/nsfw-not-avn/index.html", count: nsfwNotAvnCount },
   { label: "VN + Missing Engine", href: "/filters/misc/vn-missing-engine/index.html", count: vnMissingEngineCount },
   { label: "VN + RPG", href: "/filters/misc/vn-rpg/index.html", count: vnRpgCount },
   { label: "Download Platform + Epic Games",    href: "/filters/misc/platform/epic/index.html",         count: platformCounts.epic,         exclusiveCount: platformCounts.epicExclusive },
@@ -1016,12 +1016,12 @@ const miscFilterEntries = [
     count: entry.count,
   })),
   ...genreTierCoverageEntries.map((entry) => ({
-    label: `Missing from ${entry.tierListTitle} Tier List + ${entry.genreName}`,
+    label: `Missing from ${entry.tierListTitle} Tier List + Genre: ${entry.genreName}`,
     href: `/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`,
     count: entry.missingCount,
   })),
   ...Array.from(avnIncompleteByGenre.entries()).map(([genreSlug, count]) => ({
-    label: `AVN + ${genreLabel.get(genreSlug) ?? genreSlug} + Incomplete`,
+    label: `AVN + Genre: ${genreLabel.get(genreSlug) ?? genreSlug} + Incomplete`,
     href: `/filters/misc/avn-incomplete/${genreSlug}/index.html`,
     count,
   })),
@@ -1034,7 +1034,7 @@ const dataCurationMiscLabels = new Set([
   "AVN + Missing GameStoryLog URL",
   "Not AVN + Has GameStoryLog URL",
   "AVN + Missing Walkthrough URL",
-  "NSFW + Not AVN",
+  "NSFW + Genre: Not AVN",
   "Download Platform + Unknown",
   "Download Platform - Not Steam",
   "Cover Art - Missing",
@@ -1071,7 +1071,7 @@ const dataCurationFilterEntries = [
   ...engineGenreEntries
     .filter((entry) => entry.engine === "unknown" || entry.genre === "unknown")
     .map((entry) => ({
-      label: `${entry.engine === "unknown" ? "Unknown Engine" : entry.engineLabel} + ${entry.genre === "unknown" ? "Unknown Genre" : entry.genreLabel}`,
+      label: `${entry.engine === "unknown" ? "Unknown Engine" : entry.engineLabel} + Genre: ${entry.genre === "unknown" ? "Unknown" : entry.genreLabel}`,
       href: `/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`,
       count: entry.count,
     })),
@@ -1099,21 +1099,21 @@ const dataCurationFilterEntries = [
   ...sectionDataGenreEntries
     .filter((entry) => entry.genre === "unknown")
     .map((entry) => ({
-      label: `Section Data ${entry.stateLabel} + Unknown Genre`,
+      label: `Section Data ${entry.stateLabel} + Genre: Unknown`,
       href: `/filters/section-data/${entry.state}/genre/unknown/index.html`,
       count: entry.count,
     })),
   ...sectionStyleGenreEntries
     .filter((entry) => entry.genre === "unknown")
     .map((entry) => ({
-      label: `${entry.styleLabel} + Unknown Genre`,
+      label: `${entry.styleLabel} + Genre: Unknown`,
       href: `/filters/section-style/${entry.style}/genre/unknown/index.html`,
       count: entry.count,
     })),
   { label: "Section Data Present + Incomplete Progress (By Percent)", href: "/filters/section-style/incomplete-progress/index.html", count: partialProgressCount },
   { label: "Section Data Present + No Progress", href: "/filters/section-style/no-progress/index.html", count: sectionNoProgressCount },
   ...genreTierCoverageEntries.map((entry) => ({
-    label: `Missing from ${entry.tierListTitle} Tier List + ${entry.genreName}`,
+    label: `Missing from ${entry.tierListTitle} Tier List + Genre: ${entry.genreName}`,
     href: `/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`,
     count: entry.missingCount,
   })),
@@ -1299,7 +1299,7 @@ const chartCount = [
         <ul>
           {engineGenreEntriesForDisplay.map((entry) => (
             <li>
-              <a href={`/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`}>{entry.engineLabel} + {entry.genreLabel}</a>
+              <a href={`/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`}>{entry.engineLabel} + Genre: {entry.genreLabel}</a>
               {isSupersetGenre(entry.genre) ? (
                 <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
               ) : (
@@ -1427,7 +1427,7 @@ const chartCount = [
         <ul>
           {sectionDataGenreEntriesForDisplay.map((entry) => (
             <li>
-              <a href={`/filters/section-data/${entry.state}/genre/${entry.genre}/index.html`}>Section Data {entry.stateLabel} + {entry.genreLabel}</a>
+              <a href={`/filters/section-data/${entry.state}/genre/${entry.genre}/index.html`}>Section Data {entry.stateLabel} + Genre: {entry.genreLabel}</a>
               {isSupersetGenre(entry.genre) ? (
                 <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
               ) : (
@@ -1457,7 +1457,7 @@ const chartCount = [
         <ul>
           {sectionStyleGenreEntriesForDisplay.map((entry) => (
             <li>
-              <a href={`/filters/section-style/${entry.style}/genre/${entry.genre}/index.html`}>{entry.styleLabel} + {entry.genreLabel}</a>
+              <a href={`/filters/section-style/${entry.style}/genre/${entry.genre}/index.html`}>{entry.styleLabel} + Genre: {entry.genreLabel}</a>
               {isSupersetGenre(entry.genre) ? (
                 <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
               ) : (

@@ -27,7 +27,7 @@ const csvName = "nsfw-not-avn.csv";
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title="Filters | NSFW + Not AVN">
+<BaseLayout title="Filters | NSFW + Genre: Not AVN">
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -39,7 +39,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title="NSFW + Not AVN" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title="NSFW + Genre: Not AVN" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>NSFW games that are not tagged as AVNs.</p>
     </div>
     <ThumbnailBorderLegend />

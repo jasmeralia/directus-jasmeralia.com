@@ -31,7 +31,7 @@ const csvName = "avn-sandbox.csv";
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title="Filters | AVN + Sandbox">
+<BaseLayout title="Filters | AVN + Genre: Sandbox">
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -43,7 +43,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title="AVN + Sandbox" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title="AVN + Genre: Sandbox" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>Games tagged as both AVN and Sandbox.</p>
     </div>
     <ThumbnailBorderLegend />
