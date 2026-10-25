@@ -627,8 +627,7 @@ const unknownPlatformCount = (games ?? []).filter((game) => {
   return links.length > 0 && links.some((l) => getUrlPlatform(l.url) === null);
 }).length;
 const notSteamPlatformCount = (games ?? []).filter((game) => {
-  const links = downloadLinks(game?.links);
-  return links.length > 0 && !hasSteamDownloadLink(links);
+  return !hasSteamDownloadLink(game?.links);
 }).length;
 const platformPieSegments = [
   { label: "Steam", value: platformCounts.steam, color: "#4aa3ff" },

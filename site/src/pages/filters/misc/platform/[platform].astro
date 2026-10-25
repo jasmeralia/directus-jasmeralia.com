@@ -40,7 +40,7 @@ const filteredGames = games.filter((game) => {
     return links.length > 0 && links.some((link) => getUrlPlatform(link.url) === null);
   }
   if (platform === "not-steam") {
-    return links.length > 0 && !hasSteamDownloadLink(links);
+    return !hasSteamDownloadLink(links);
   }
   return links.some((link) => getUrlPlatform(link.url) === platform);
 });
@@ -76,7 +76,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
       <p>{platform === "unknown"
         ? "Games with at least one download link whose platform could not be detected. Games with no download link at all belong on the Download Link - Missing filter instead."
         : platform === "not-steam"
-          ? "Games with at least one download link and no download link pointing to Steam. Games with no download links are listed under Download Link - Missing."
+          ? "Games with no download link pointing to Steam, including games with no download links."
         : `Games with download links detected as ${platformLabel}.`}</p>
     </div>
     <ThumbnailBorderLegend />
