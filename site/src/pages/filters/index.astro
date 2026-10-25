@@ -1066,7 +1066,7 @@ const dataCurationFilterEntries = [
   ...engineGenreEntries
     .filter((entry) => entry.engine === "unknown" || entry.genre === "unknown")
     .map((entry) => ({
-      label: `${entry.engineLabel} + ${entry.genreLabel}`,
+      label: `${entry.engine === "unknown" ? "Unknown Engine" : entry.engineLabel} + ${entry.genre === "unknown" ? "Unknown Genre" : entry.genreLabel}`,
       href: `/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`,
       count: entry.count,
     })),
