@@ -1001,7 +1001,7 @@ const miscFilterEntries = [
       href: `/filters/misc/developer-links/${value}/index.html`,
       count: devLinkKindCounts[value],
     })),
-  { label: "Missing from ~Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
+  { label: "Missing from Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Omnibus Games", href: "/filters/misc/omnibus-games/index.html", count: omnibusGamesCount },
   { label: "Placeholder Covers", href: "/filters/misc/placeholder-covers/index.html", count: placeholderCoverCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
@@ -1022,13 +1022,115 @@ const miscFilterEntries = [
     count,
   })),
 ].sort((a, b) => compareLabels(a.label, b.label));
-const miscCount = miscFilterEntries.length;
+const dataCurationMiscLabels = new Set([
+  "AVN + Missing Game Engine",
+  "AVN + Missing Rendering Engine",
+  "AVN + Missing Section Data + Incomplete",
+  "AVN + Missing Section Data + Currently Complete",
+  "AVN + Missing GameStoryLog URL",
+  "Not AVN + Has GameStoryLog URL",
+  "AVN + Missing Walkthrough URL",
+  "NSFW + Not AVN",
+  "Download Platform + Unknown",
+  "Cover Art - Missing",
+  "Download Link - Missing",
+  "Cover Art - Non-Standard Aspect Ratio",
+  "Developer + Missing Links",
+  "Missing from Completed Games Tier List + Completed Player Status",
+  "Placeholder Covers",
+  "Version Mismatches",
+]);
+const dataCurationFilterEntries = [
+  ...miscFilterEntries.filter((entry) => dataCurationMiscLabels.has(entry.label)),
+  ...developerStatusEntries
+    .filter((entry) => entry.developer === "unknown")
+    .map((entry) => ({
+      label: `Unknown Developer + Game Status: ${entry.statusLabel}`,
+      href: `/filters/developer/unknown/game_status/${entry.status}/index.html`,
+      count: entry.count,
+    })),
+  ...developerPlayedEntries
+    .filter((entry) => entry.developer === "unknown")
+    .map((entry) => ({
+      label: `Unknown Developer + Played Status: ${entry.statusLabel}`,
+      href: `/filters/developer/unknown/played_status/${entry.status}/index.html`,
+      count: entry.count,
+    })),
+  ...engineStatusEntries
+    .filter((entry) => entry.engine === "unknown")
+    .map((entry) => ({
+      label: `Unknown Engine + Game Status: ${entry.statusLabel}`,
+      href: `/filters/engine/unknown/game_status/${entry.status}/index.html`,
+      count: entry.count,
+    })),
+  ...engineGenreEntries
+    .filter((entry) => entry.engine === "unknown" || entry.genre === "unknown")
+    .map((entry) => ({
+      label: `${entry.engine === "unknown" ? "Unknown Engine" : entry.engineLabel} + ${entry.genre === "unknown" ? "Unknown Genre" : entry.genreLabel}`,
+      href: `/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`,
+      count: entry.count,
+    })),
+  ...enginePlayedEntries
+    .filter((entry) => entry.engine === "unknown")
+    .map((entry) => ({
+      label: `Unknown Engine + Played Status: ${entry.statusLabel}`,
+      href: `/filters/engine/unknown/played_status/${entry.status}/index.html`,
+      count: entry.count,
+    })),
+  ...genreStatusEntries
+    .filter((entry) => entry.genre === "unknown")
+    .map((entry) => ({
+      label: `Unknown Genre + Game Status: ${entry.statusLabel}`,
+      href: `/filters/genre/unknown/game_status/${entry.status}/index.html`,
+      count: entry.count,
+    })),
+  ...genrePlayedEntries
+    .filter((entry) => entry.genre === "unknown")
+    .map((entry) => ({
+      label: `Unknown Genre + Played Status: ${entry.statusLabel}`,
+      href: `/filters/genre/unknown/played_status/${entry.status}/index.html`,
+      count: entry.count,
+    })),
+  ...sectionDataGenreEntries
+    .filter((entry) => entry.genre === "unknown")
+    .map((entry) => ({
+      label: `Section Data ${entry.stateLabel} + Unknown Genre`,
+      href: `/filters/section-data/${entry.state}/genre/unknown/index.html`,
+      count: entry.count,
+    })),
+  ...sectionStyleGenreEntries
+    .filter((entry) => entry.genre === "unknown")
+    .map((entry) => ({
+      label: `${entry.styleLabel} + Unknown Genre`,
+      href: `/filters/section-style/${entry.style}/genre/unknown/index.html`,
+      count: entry.count,
+    })),
+  { label: "Section Data Present + Incomplete Progress (By Percent)", href: "/filters/section-style/incomplete-progress/index.html", count: partialProgressCount },
+  { label: "Section Data Present + No Progress", href: "/filters/section-style/no-progress/index.html", count: sectionNoProgressCount },
+  ...genreTierCoverageEntries.map((entry) => ({
+    label: `Missing from ${entry.tierListTitle} Tier List + ${entry.genreName}`,
+    href: `/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`,
+    count: entry.missingCount,
+  })),
+].sort((a, b) => compareLabels(a.label, b.label) || compareLabels(a.href, b.href));
+const miscFilterEntriesForDisplay = miscFilterEntries.filter((entry) => !dataCurationMiscLabels.has(entry.label));
+const developerStatusEntriesForDisplay = developerStatusEntries.filter((entry) => entry.developer !== "unknown");
+const developerPlayedEntriesForDisplay = developerPlayedEntries.filter((entry) => entry.developer !== "unknown");
+const engineStatusEntriesForDisplay = engineStatusEntries.filter((entry) => entry.engine !== "unknown");
+const engineGenreEntriesForDisplay = engineGenreEntries.filter((entry) => entry.engine !== "unknown" && entry.genre !== "unknown");
+const enginePlayedEntriesForDisplay = enginePlayedEntries.filter((entry) => entry.engine !== "unknown");
+const genreStatusEntriesForDisplay = genreStatusEntries.filter((entry) => entry.genre !== "unknown");
+const genrePlayedEntriesForDisplay = genrePlayedEntries.filter((entry) => entry.genre !== "unknown");
+const sectionDataGenreEntriesForDisplay = sectionDataGenreEntries.filter((entry) => entry.genre !== "unknown");
+const sectionStyleGenreEntriesForDisplay = sectionStyleGenreEntries.filter((entry) => entry.genre !== "unknown");
+const dataCurationCount = dataCurationFilterEntries.length;
+const miscCount = miscFilterEntriesForDisplay.length;
 const contentRatingSectionTotal =
   contentRatingEntries.length +
   contentRatingSectionStyleEntries.length +
   contentRatingGameStatusEntries.length +
   contentRatingPlayedEntries.length;
-const sectionStyleSectionTotal = sectionStyleEntries.length + 2 + sectionStyleGenreEntries.length;
+const sectionStyleSectionTotal = sectionStyleEntries.length + sectionStyleGenreEntriesForDisplay.length;
 const chartCount = [
   platformPieSegments,
   platformExclusivePieSegments,
@@ -1064,18 +1166,19 @@ const chartCount = [
       <h2>Jump to Section</h2>
       <ul>
         <li><a href="#content-rating">Content Rating ({contentRatingSectionTotal})</a></li>
-        <li><a href="#developer-game-status">Developer + Game Status ({developerStatusEntries.length})</a></li>
-        <li><a href="#developer-played-status">Developer + Played Status ({developerPlayedEntries.length})</a></li>
-        <li><a href="#engine-game-status">Engine + Game Status ({engineStatusEntries.length})</a></li>
-        <li><a href="#engine-genre">Engine + Genre ({engineGenreEntries.length})</a></li>
-        <li><a href="#engine-played-status">Engine + Played Status ({enginePlayedEntries.length})</a></li>
+        <li><a href="#developer-game-status">Developer + Game Status ({developerStatusEntriesForDisplay.length})</a></li>
+        <li><a href="#developer-played-status">Developer + Played Status ({developerPlayedEntriesForDisplay.length})</a></li>
+        <li><a href="#engine-game-status">Engine + Game Status ({engineStatusEntriesForDisplay.length})</a></li>
+        <li><a href="#engine-genre">Engine + Genre ({engineGenreEntriesForDisplay.length})</a></li>
+        <li><a href="#engine-played-status">Engine + Played Status ({enginePlayedEntriesForDisplay.length})</a></li>
         <li><a href="#game-status-played-status">Game Status + Played Status ({gameStatusPlayedEntries.length})</a></li>
-        <li><a href="#genre-game-status">Genre + Game Status ({genreStatusEntries.length})</a></li>
-        <li><a href="#genre-played-status">Genre + Played Status ({genrePlayedEntries.length})</a></li>
+        <li><a href="#genre-game-status">Genre + Game Status ({genreStatusEntriesForDisplay.length})</a></li>
+        <li><a href="#genre-played-status">Genre + Played Status ({genrePlayedEntriesForDisplay.length})</a></li>
         <li><a href="#misc">Misc ({miscCount})</a></li>
-        <li><a href="#section-data-genre">Section Data + Genre ({sectionDataGenreEntries.length})</a></li>
+        <li><a href="#section-data-genre">Section Data + Genre ({sectionDataGenreEntriesForDisplay.length})</a></li>
         <li><a href="#section-data-played-status">Section Data + Played Status ({sectionDataPlayedEntries.length})</a></li>
         <li><a href="#section-style">Section Style ({sectionStyleSectionTotal})</a></li>
+        <li><a href="#data-curation-review">Data Curation Review ({dataCurationCount})</a></li>
         <li><a href="#charts">Charts ({chartCount})</a></li>
       </ul>
     </div>
@@ -1132,13 +1235,13 @@ const chartCount = [
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="developer-game-status">
-      <h2>Developer + Game Status ({developerStatusEntries.length} combinations)</h2>
+      <h2>Developer + Game Status ({developerStatusEntriesForDisplay.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per developer are hidden.</p>
-      {developerStatusEntries.length === 0 ? (
+      {developerStatusEntriesForDisplay.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
         <ul>
-          {developerStatusEntries.map((entry) => (
+          {developerStatusEntriesForDisplay.map((entry) => (
             <li>
               <a href={`/filters/developer/${entry.developer}/game_status/${entry.status}/index.html`}>{entry.developerLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
@@ -1149,13 +1252,13 @@ const chartCount = [
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="developer-played-status">
-      <h2>Developer + Played Status ({developerPlayedEntries.length} combinations)</h2>
+      <h2>Developer + Played Status ({developerPlayedEntriesForDisplay.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per developer are hidden.</p>
-      {developerPlayedEntries.length === 0 ? (
+      {developerPlayedEntriesForDisplay.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
         <ul>
-          {developerPlayedEntries.map((entry) => (
+          {developerPlayedEntriesForDisplay.map((entry) => (
             <li>
               <a href={`/filters/developer/${entry.developer}/played_status/${entry.status}/index.html`}>{entry.developerLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
@@ -1166,13 +1269,13 @@ const chartCount = [
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="engine-game-status">
-      <h2>Engine + Game Status ({engineStatusEntries.length} combinations)</h2>
+      <h2>Engine + Game Status ({engineStatusEntriesForDisplay.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per engine are hidden.</p>
-      {engineStatusEntries.length === 0 ? (
+      {engineStatusEntriesForDisplay.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
         <ul>
-          {engineStatusEntries.map((entry) => (
+          {engineStatusEntriesForDisplay.map((entry) => (
             <li>
               <a href={`/filters/engine/${entry.engine}/game_status/${entry.status}/index.html`}>{entry.engineLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
@@ -1183,13 +1286,13 @@ const chartCount = [
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="engine-genre">
-      <h2>Engine + Genre ({engineGenreEntries.length} combinations)</h2>
+      <h2>Engine + Genre ({engineGenreEntriesForDisplay.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Superset genres with zero distinct matches are hidden.</p>
-      {engineGenreEntries.length === 0 ? (
+      {engineGenreEntriesForDisplay.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
         <ul>
-          {engineGenreEntries.map((entry) => (
+          {engineGenreEntriesForDisplay.map((entry) => (
             <li>
               <a href={`/filters/engine/${entry.engine}/genre/${entry.genre}/index.html`}>{entry.engineLabel} + {entry.genreLabel}</a>
               {isSupersetGenre(entry.genre) ? (
@@ -1204,13 +1307,13 @@ const chartCount = [
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="engine-played-status">
-      <h2>Engine + Played Status ({enginePlayedEntries.length} combinations)</h2>
+      <h2>Engine + Played Status ({enginePlayedEntriesForDisplay.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per engine are hidden.</p>
-      {enginePlayedEntries.length === 0 ? (
+      {enginePlayedEntriesForDisplay.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
         <ul>
-          {enginePlayedEntries.map((entry) => (
+          {enginePlayedEntriesForDisplay.map((entry) => (
             <li>
               <a href={`/filters/engine/${entry.engine}/played_status/${entry.status}/index.html`}>{entry.engineLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
@@ -1237,13 +1340,13 @@ const chartCount = [
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="genre-game-status">
-      <h2>Genre + Game Status ({genreStatusEntries.length} combinations)</h2>
+      <h2>Genre + Game Status ({genreStatusEntriesForDisplay.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per genre are hidden. Superset genres with zero distinct matches are hidden.</p>
-      {genreStatusEntries.length === 0 ? (
+      {genreStatusEntriesForDisplay.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
         <ul>
-          {genreStatusEntries.map((entry) => (
+          {genreStatusEntriesForDisplay.map((entry) => (
             <li>
               <a href={`/filters/genre/${entry.genre}/game_status/${entry.status}/index.html`}>{entry.genreLabel} + {entry.statusLabel}</a>
               {isSupersetGenre(entry.genre) ? (
@@ -1258,13 +1361,13 @@ const chartCount = [
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="genre-played-status">
-      <h2>Genre + Played Status ({genrePlayedEntries.length} combinations)</h2>
+      <h2>Genre + Played Status ({genrePlayedEntriesForDisplay.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Combinations with only one status per genre are hidden. Superset genres with zero distinct matches are hidden.</p>
-      {genrePlayedEntries.length === 0 ? (
+      {genrePlayedEntriesForDisplay.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
         <ul>
-          {genrePlayedEntries.map((entry) => (
+          {genrePlayedEntriesForDisplay.map((entry) => (
             <li>
               <a href={`/filters/genre/${entry.genre}/played_status/${entry.status}/index.html`}>{entry.genreLabel} + {entry.statusLabel}</a>
               {isSupersetGenre(entry.genre) ? (
@@ -1281,7 +1384,7 @@ const chartCount = [
     <div class="panel" id="misc">
       <h2>Misc ({miscCount} combinations)</h2>
       <ul>
-        {miscFilterEntries.map((entry) => (
+        {miscFilterEntriesForDisplay.map((entry) => (
           <li>
             <a href={entry.href}>{entry.label}</a>
             {"exclusiveCount" in entry
@@ -1311,13 +1414,13 @@ const chartCount = [
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="section-data-genre">
-      <h2>Section Data + Genre ({sectionDataGenreEntries.length} combinations)</h2>
+      <h2>Section Data + Genre ({sectionDataGenreEntriesForDisplay.length} combinations)</h2>
       <p style="opacity:.7;margin-top:-8px;">Whether a game has any chapter/act/episode/mission data recorded, crossed with genre. Superset genres may include games from more specific genres.</p>
-      {sectionDataGenreEntries.length === 0 ? (
+      {sectionDataGenreEntriesForDisplay.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
         <ul>
-          {sectionDataGenreEntries.map((entry) => (
+          {sectionDataGenreEntriesForDisplay.map((entry) => (
             <li>
               <a href={`/filters/section-data/${entry.state}/genre/${entry.genre}/index.html`}>Section Data {entry.stateLabel} + {entry.genreLabel}</a>
               {isSupersetGenre(entry.genre) ? (
@@ -1332,7 +1435,7 @@ const chartCount = [
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
     </div>
     <div class="panel" id="section-style">
-      <h2>Section Style ({sectionStyleEntries.length + 2} filters)</h2>
+      <h2>Section Style ({sectionStyleSectionTotal} filters)</h2>
       <ul>
         {sectionStyleEntries.map((entry) => (
           <li>
@@ -1340,22 +1443,14 @@ const chartCount = [
             <span style="opacity:.7;"> ({entry.count})</span>
           </li>
         ))}
-        <li>
-          <a href="/filters/section-style/incomplete-progress/index.html">Section Data Present + Incomplete Progress (By Percent)</a>
-          <span style="opacity:.7;"> ({partialProgressCount})</span>
-        </li>
-        <li>
-          <a href="/filters/section-style/no-progress/index.html">Section Data Present + No Progress</a>
-          <span style="opacity:.7;"> ({sectionNoProgressCount})</span>
-        </li>
       </ul>
-      <h3>Section Style + Genre ({sectionStyleGenreEntries.length} combinations)</h3>
+      <h3>Section Style + Genre ({sectionStyleGenreEntriesForDisplay.length} combinations)</h3>
       <p style="opacity:.7;margin-top:-8px;">Superset genres with zero distinct matches are hidden.</p>
-      {sectionStyleGenreEntries.length === 0 ? (
+      {sectionStyleGenreEntriesForDisplay.length === 0 ? (
         <p>No combinations yet.</p>
       ) : (
         <ul>
-          {sectionStyleGenreEntries.map((entry) => (
+          {sectionStyleGenreEntriesForDisplay.map((entry) => (
             <li>
               <a href={`/filters/section-style/${entry.style}/genre/${entry.genre}/index.html`}>{entry.styleLabel} + {entry.genreLabel}</a>
               {isSupersetGenre(entry.genre) ? (
@@ -1363,6 +1458,23 @@ const chartCount = [
               ) : (
                 <span style="opacity:.7;"> ({entry.count})</span>
               )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
+    </div>
+    <div class="panel" id="data-curation-review">
+      <h2>Data Curation Review ({dataCurationCount} filters)</h2>
+      <p style="opacity:.7;margin-top:-8px;">Filters for missing, unknown, inconsistent, or incomplete game and developer data.</p>
+      {dataCurationFilterEntries.length === 0 ? (
+        <p>No review filters yet.</p>
+      ) : (
+        <ul>
+          {dataCurationFilterEntries.map((entry) => (
+            <li>
+              <a href={entry.href}>{entry.label}</a>
+              <span style="opacity:.7;"> ({entry.count})</span>
             </li>
           ))}
         </ul>
