@@ -136,7 +136,11 @@ const progress = bundleProgress ?? (directProgress
                   ) : null}
                   <div class="platform">
                     {platformEntries.map((entry) => (
-                      <a class="platform-link" href={entry.url} target="_blank" rel="noopener noreferrer" aria-label={entry.meta.label === "Download" && entry.meta.host ? `Download (${entry.meta.host})` : entry.meta.label} title={entry.meta.label === "Download" && entry.meta.host ? `Download (${entry.meta.host})` : entry.meta.label}>
+                      <a class:list={[
+                        "platform-link",
+                        entry.kind === "directus" && "platform-link-edit",
+                        entry.kind === "steamgriddb" && !hasSteamLink && "platform-link-search-start",
+                      ]} href={entry.url} target="_blank" rel="noopener noreferrer" aria-label={entry.meta.label === "Download" && entry.meta.host ? `Download (${entry.meta.host})` : entry.meta.label} title={entry.meta.label === "Download" && entry.meta.host ? `Download (${entry.meta.host})` : entry.meta.label}>
                         {entry.meta.icon ? <img class:list={[entry.kind === "gamestorylog" && "gsl-icon", entry.kind === "directus" && "edit-icon"]} src={entry.meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
                       </a>
                     ))}
@@ -211,6 +215,7 @@ const progress = bundleProgress ?? (directProgress
   .progress-label{margin-top:.2rem;font-size:.7rem;opacity:.75;}
   .platform{display:flex;align-items:center;gap:.35rem;opacity:.85;font-size:.85rem;margin-top:.3rem;}
   .platform-link{display:flex;align-items:center;gap:.35rem;}
+  .platform-link-edit,.platform-link-search-start{margin-left:.9rem;}
   .platform img{width:.9rem;height:.9rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
   .platform img.gsl-icon{width:auto;height:1rem;filter:none;mix-blend-mode:screen;}
   .platform img.edit-icon{filter:none;}
