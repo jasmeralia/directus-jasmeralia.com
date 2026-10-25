@@ -10,6 +10,7 @@ import {
   otherLinks,
   otherLinkText,
   primaryDownloadLink,
+  steamDbAppUrl,
   walkthroughLinks,
   walkthroughTextNotes,
   type DeveloperLink,
@@ -127,6 +128,17 @@ describe("URL platform and metadata", () => {
     expect(getUrlPlatform("not a url")).toBeNull();
     expect(getUrlPlatform("https://example.com/file.zip")).toBeNull();
     expect(getUrlPlatform(null)).toBeNull();
+  });
+
+  it("derives SteamDB app URLs from Steam Store app IDs only", () => {
+    expect(steamDbAppUrl("https://store.steampowered.com/app/4354570/FINAL_FANTASY_VII_REVELATION/")).toBe(
+      "https://steamdb.info/app/4354570/",
+    );
+    expect(steamDbAppUrl("https://www.store.steampowered.com/app/12345?utm_source=steam")).toBe(
+      "https://steamdb.info/app/12345/",
+    );
+    expect(steamDbAppUrl("https://store.steampowered.com/agecheck/app/12345/")).toBeNull();
+    expect(steamDbAppUrl("https://steamdb.info/app/12345/")).toBeNull();
   });
 
   it("resolves URL metadata and allows a game-link label override", () => {
