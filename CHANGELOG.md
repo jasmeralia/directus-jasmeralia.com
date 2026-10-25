@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.261] - 2026-10-24
+- Filters: add Game Status + Played Status combinations with CSV export.
+
+## [1.0.260] - 2026-10-24
+- Filters: add Section Data + Genre combinations with CSV export.
+
 ## [1.0.259] - 2026-10-23
 - Music tab: tracks are now links only; only a list's own Spotify/YouTube URL renders an embedded player.
 

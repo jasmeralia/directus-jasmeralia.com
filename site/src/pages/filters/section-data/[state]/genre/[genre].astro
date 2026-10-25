@@ -12,13 +12,7 @@ import { sortByTitle } from "../../../../../lib/list-format";
 
 export async function getStaticPaths() {
   const games = await directusFetchItems("games", {
-    fields: [
-      "id",
-      "sections.id",
-      "bundle_members.id",
-      "bundle_members.section_data_status",
-      "genres.genres_id.slug",
-    ],
+    fields: GAME_THUMB_FIELDS,
     limit: -1,
   });
 
@@ -33,11 +27,12 @@ export async function getStaticPaths() {
 
   return Array.from(combinations).map((key) => {
     const [state, genre] = key.split("::");
-    return { params: { state, genre } };
+    return { params: { state, genre }, props: { games } };
   });
 }
 
 const { state, genre } = Astro.params;
+const { games: allGames } = Astro.props;
 const labelize = (value) =>
   value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 const stateLabel = labelize(state);
@@ -48,11 +43,7 @@ const genres = await directusFetchItems("genres", {
 });
 const genreLabel = genre === "unknown" ? "Unknown" : (genres?.[0]?.name ?? genre);
 
-let games = await directusFetchItems("games", {
-  fields: GAME_THUMB_FIELDS,
-  limit: -1,
-});
-games = (games ?? []).filter((game) => sectionDataState(game) === state);
+let games = (allGames ?? []).filter((game) => sectionDataState(game) === state);
 if (genre === "unknown") {
   games = games.filter((game) => (game.genres ?? []).length === 0);
 } else {
