@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, directusFieldChoices, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
-import { downloadLinks, otherLinks, otherLinkText, walkthroughLinks, walkthroughTextNotes, getLinkMeta } from "../../lib/download-link";
+import { downloadLinks, otherLinks, otherLinkText, walkthroughLinks, walkthroughTextNotes, getLinkMeta, steamDbAppUrl } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
 import { effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
 import { directGameSections, directGameSectionsByPosition, groupSectionsByCategory, isSectionCategoryComplete, isSectionComplete, orderedSections, pluralizeNoun, sectionNoun, sectionProgressSummary } from "../../lib/game-sections";
@@ -350,6 +350,7 @@ const downloadEntries = downloadLinks(game.links).map((link) => {
   const linkMeta = getLinkMeta(link);
   return {
     url: link.url,
+    steamDbUrl: steamDbAppUrl(link.url),
     linkMeta,
     linkText: linkMeta.label === "Download"
       ? linkMeta.host ? `Download (${linkMeta.host})` : "Download"
@@ -445,7 +446,10 @@ const coverStackStyle = [
       .meta a{color:#9aa6ff;}
       .meta a:visited{color:#9aa6ff;}
       .download-link{display:inline-flex;align-items:center;gap:.45rem;}
+      .download-link-row{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;}
+      .steamdb-pair{display:inline-flex;align-items:center;gap:.2rem;}
       .download-link img{width:1rem;height:1rem;display:block;}
+      .download-link .edit-icon{width:1rem;height:1rem;display:block;}
       .download-link .platform-icon{filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
       .download-link .gsl-icon{filter:none;}
       .sections-summary{margin:.5rem 0;}
@@ -515,16 +519,23 @@ const coverStackStyle = [
         </div>
         <div>
           <h1 data-pagefind-meta="title">{game.title}</h1>
-          {downloadEntries.length > 0 || gslLink || otherEntries.length > 0 ? (
-            <div class="meta">
+          <div class="meta">
               {downloadEntries.map((entry) => (
-                <div>
+                <div class="download-link-row">
                   <a class="download-link" href={entry.url} rel="noopener noreferrer" target="_blank">
                     {entry.linkMeta.icon ? (
                       <img class="platform-icon" src={entry.linkMeta.icon} alt="" aria-hidden="true" loading="lazy" />
                     ) : null}
                     <span>{entry.linkText}</span>
                   </a>
+                  {entry.steamDbUrl ? (
+                    <span class="steamdb-pair">
+                      (<a class="download-link" href={entry.steamDbUrl} rel="noopener noreferrer" target="_blank">
+                        <img class="platform-icon" src="/icons/simple/steamdb.svg" alt="" aria-hidden="true" loading="lazy" />
+                        <span>SteamDB</span>
+                      </a>)
+                    </span>
+                  ) : null}
                 </div>
               ))}
               {gslLink ? (
@@ -545,8 +556,13 @@ const coverStackStyle = [
                   </a>
                 </div>
               ))}
+            <div>
+              <a class="download-link" href={`https://directus.jasmer.tools/admin/content/games/${game.id}`} rel="noopener noreferrer" target="_blank">
+                <img class="edit-icon" src="/icons/pencil.svg" alt="" aria-hidden="true" loading="lazy" />
+                <span>Update in Directus</span>
+              </a>
             </div>
-          ) : null}
+          </div>
         </div>
       </section>
 

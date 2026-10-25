@@ -221,5 +221,11 @@ export const getUrlPlatform = (value: string | null | undefined): UrlPlatform | 
   return null;
 };
 
+/** Return the SteamDB app page for a Steam Store app URL, if it has an app ID. */
+export const steamDbAppUrl = (value: string): string | null => {
+  const match = value.match(/^https?:\/\/(?:www\.)?store\.steampowered\.com\/app\/(\d+)(?:\/|[?#]|$)/i);
+  return match ? `https://steamdb.info/app/${match[1]}/` : null;
+};
+
 /** @deprecated Use getUrlPlatform */
 export const getDownloadPlatform = getUrlPlatform;
