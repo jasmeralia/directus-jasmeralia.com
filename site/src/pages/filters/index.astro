@@ -109,6 +109,8 @@ const genrePlayedCounts = new Map();
 const genrePlayedTotalCounts = new Map();
 const genrePlayedValues = new Map();
 const sectionDataPlayedCounts = new Map();
+const sectionDataGenreCounts = new Map();
+const sectionDataGenreTotalCounts = new Map();
 const contentRatingPlayedCounts = new Map();
 const contentRatingGameStatusCounts = new Map();
 const contentRatingSectionStyleCounts = new Map();
@@ -129,6 +131,15 @@ for (const game of games ?? []) {
   const totalGenresForGame = expandedGenreSlugs.length ? expandedGenreSlugs : ["unknown"];
   const distinctGenresForGame = distinctGenreSlugs.length ? distinctGenreSlugs : ["unknown"];
   const developersForGame = developerSlugs.length ? developerSlugs : ["unknown"];
+  const sectionState = sectionDataState(game);
+
+  for (const genre of totalGenresForGame) {
+    const key = `${sectionState}::${genre}`;
+    if (distinctGenresForGame.includes(genre)) {
+      sectionDataGenreCounts.set(key, (sectionDataGenreCounts.get(key) || 0) + 1);
+    }
+    sectionDataGenreTotalCounts.set(key, (sectionDataGenreTotalCounts.get(key) || 0) + 1);
+  }
 
   for (const engine of enginesForGame) {
     for (const genre of distinctGenresForGame) {
@@ -225,7 +236,6 @@ for (const game of games ?? []) {
       const key = `${genre}::${game.player_status}`;
       genrePlayedTotalCounts.set(key, (genrePlayedTotalCounts.get(key) || 0) + 1);
     }
-    const sectionState = sectionDataState(game);
     const sectionKey = `${sectionState}::${game.player_status}`;
     sectionDataPlayedCounts.set(sectionKey, (sectionDataPlayedCounts.get(sectionKey) || 0) + 1);
     const ratingKey = `${contentRating(game)}::${game.player_status}`;
@@ -381,6 +391,23 @@ const sectionDataPlayedEntries = Array.from(sectionDataPlayedCounts.entries())
   .sort((a, b) =>
     compareLabels(a.stateLabel, b.stateLabel) ||
     compareLabels(a.statusLabel, b.statusLabel));
+
+const sectionDataGenreEntries = Array.from(sectionDataGenreTotalCounts.entries())
+  .map(([key, totalCount]) => {
+    const [state, genre] = key.split("::");
+    return {
+      state,
+      genre,
+      count: sectionDataGenreCounts.get(key) || 0,
+      totalCount,
+      stateLabel: labelize(state),
+      genreLabel: genreLabel.get(genre) ?? formatUnknown(genre, "Genre"),
+    };
+  })
+  .sort((a, b) =>
+    compareLabels(a.stateLabel, b.stateLabel) ||
+    unknownLast(a, b, "genreLabel") ||
+    compareLabels(a.genreLabel, b.genreLabel));
 
 const contentRatingPlayedEntries = Array.from(contentRatingPlayedCounts.entries())
   .map(([key, count]) => {
@@ -1025,6 +1052,7 @@ const chartCount = [
         <li><a href="#genre-game-status">Genre + Game Status ({genreStatusEntries.length})</a></li>
         <li><a href="#genre-played-status">Genre + Played Status ({genrePlayedEntries.length})</a></li>
         <li><a href="#misc">Misc ({miscCount})</a></li>
+        <li><a href="#section-data-genre">Section Data + Genre ({sectionDataGenreEntries.length})</a></li>
         <li><a href="#section-data-played-status">Section Data + Played Status ({sectionDataPlayedEntries.length})</a></li>
         <li><a href="#section-style">Section Style ({sectionStyleSectionTotal})</a></li>
         <li><a href="#charts">Charts ({chartCount})</a></li>
@@ -1239,6 +1267,27 @@ const chartCount = [
             <li>
               <a href={`/filters/section-data/${entry.state}/played_status/${entry.status}/index.html`}>Section Data {entry.stateLabel} + {entry.statusLabel}</a>
               <span style="opacity:.7;"> ({entry.count})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
+    </div>
+    <div class="panel" id="section-data-genre">
+      <h2>Section Data + Genre ({sectionDataGenreEntries.length} combinations)</h2>
+      <p style="opacity:.7;margin-top:-8px;">Whether a game has any chapter/act/episode/mission data recorded, crossed with genre. Superset genres may include games from more specific genres.</p>
+      {sectionDataGenreEntries.length === 0 ? (
+        <p>No combinations yet.</p>
+      ) : (
+        <ul>
+          {sectionDataGenreEntries.map((entry) => (
+            <li>
+              <a href={`/filters/section-data/${entry.state}/genre/${entry.genre}/index.html`}>Section Data {entry.stateLabel} + {entry.genreLabel}</a>
+              {isSupersetGenre(entry.genre) ? (
+                <span style="opacity:.7;"> ({entry.count} distinct, {entry.totalCount} total)</span>
+              ) : (
+                <span style="opacity:.7;"> ({entry.count})</span>
+              )}
             </li>
           ))}
         </ul>
