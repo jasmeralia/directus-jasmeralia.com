@@ -11,7 +11,7 @@ import { sortByTitle } from "../../../../lib/list-format";
 
 const platformMeta = {
   steam: { label: "Steam" },
-  "not-steam": { label: "Not Steam" },
+  "not-steam": { label: "Steam Link - Missing (No itch.io or GameStoryLog)" },
   itch: { label: "itch.io" },
   gog: { label: "GOG" },
   epic: { label: "Epic Games" },
@@ -40,7 +40,9 @@ const filteredGames = games.filter((game) => {
     return links.length > 0 && links.some((link) => getUrlPlatform(link.url) === null);
   }
   if (platform === "not-steam") {
-    return !hasSteamDownloadLink(links);
+    const hasItchDownload = links.some((link) => getUrlPlatform(link.url) === "itch");
+    const hasGameStoryLogLink = (game?.links ?? []).some((link) => link.kind === "gamestorylog");
+    return !hasSteamDownloadLink(links) && !hasItchDownload && !hasGameStoryLogLink;
   }
   return links.some((link) => getUrlPlatform(link.url) === platform);
 });
@@ -55,7 +57,7 @@ const [reviewedGameIds, sTierGameIds, tierChipsByGame] = await Promise.all([
 ]);
 
 const platformLabel = platformMeta[platform].label;
-const pageTitle = platform === "not-steam" ? "Download Platform - Not Steam" : `Download Platform + ${platformLabel}`;
+const pageTitle = platform === "not-steam" ? platformLabel : `Download Platform + ${platformLabel}`;
 const csvName = `download-platform-${platform}.csv`;
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
@@ -76,12 +78,12 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
       <p>{platform === "unknown"
         ? "Games with at least one download link whose platform could not be detected. Games with no download link at all belong on the Download Link - Missing filter instead."
         : platform === "not-steam"
-          ? "Games with no download link pointing to Steam, including games with no download links."
+          ? "Games with no Steam download link, no itch.io download link, and no GameStoryLog link. Includes games with no links at all."
         : `Games with download links detected as ${platformLabel}.`}</p>
     </div>
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (
-      <p>No games found for this download platform.</p>
+      <p>{platform === "not-steam" ? "No games match this filter." : "No games found for this download platform."}</p>
     ) : (
       <div class="grid">
         {filteredGames.map((game) => {
