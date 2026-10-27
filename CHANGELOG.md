@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.269] - 2026-10-26
+- Filters: add a Developer Link Platform chart (developers per link kind) before the SFW / NSFW chart.
 ## [1.0.268] - 2026-10-26
 - Filters: rename Download Link - Missing, Developer + Missing Links, and Steam Link - Missing to Missing Link - Download / Developer / Platform: Steam, and Placeholder Covers to Cover Art - Placeholder Image, so related filters group together (index links and page titles).
 ## [1.0.267] - 2026-10-26

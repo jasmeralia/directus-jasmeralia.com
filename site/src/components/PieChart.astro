@@ -1,0 +1,67 @@
+---
+type Segment = { label: string; value: number; color: string };
+interface Props {
+  title: string;
+  ariaLabel: string;
+  segments: Segment[];
+}
+
+const { title, ariaLabel, segments } = Astro.props;
+
+const size = 220;
+const radius = 95;
+const center = size / 2;
+const labelRadius = 130;
+const minLabelSweep = 8;
+
+const polarToCartesian = (angleInDegrees: number, r: number) => {
+  const angleInRadians = (angleInDegrees - 90) * (Math.PI / 180.0);
+  return { x: center + r * Math.cos(angleInRadians), y: center + r * Math.sin(angleInRadians) };
+};
+const describeArc = (startAngle: number, endAngle: number) => {
+  const start = polarToCartesian(endAngle, radius);
+  const end = polarToCartesian(startAngle, radius);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y} L ${center} ${center} Z`;
+};
+
+const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+let current = 0;
+const arcs = segments.map((segment) => {
+  const start = current;
+  current += total > 0 ? (segment.value / total) * 360 : 0;
+  return { ...segment, start, end: current };
+});
+const labeledArcs = arcs
+  .filter((arc) => arc.end - arc.start >= minLabelSweep)
+  .map((arc) => {
+    const pos = polarToCartesian((arc.start + arc.end) / 2, labelRadius);
+    const anchor = pos.x < center - 5 ? "end" : pos.x > center + 5 ? "start" : "middle";
+    return { ...arc, lx: pos.x, ly: pos.y, anchor, pct: Math.round((arc.value / total) * 100) };
+  });
+---
+
+<div class="pie-panel">
+  <h3>{title}</h3>
+  <div class="pie-wrap">
+    <svg class="pie" viewBox={`0 0 ${size} ${size}`} overflow="visible" role="img" aria-label={ariaLabel}>
+      {arcs.length === 1 ? (
+        <circle cx={center} cy={center} r={radius} fill={arcs[0].color}>
+          <title>{arcs[0].label} ({arcs[0].value})</title>
+        </circle>
+      ) : (
+        arcs.map((arc) => (
+          <path d={describeArc(arc.start, arc.end)} fill={arc.color}>
+            <title>{arc.label} ({arc.value})</title>
+          </path>
+        ))
+      )}
+      {labeledArcs.map((arc) => (
+        <g>
+          <text x={arc.lx} y={arc.ly - 7} text-anchor={arc.anchor} dominant-baseline="middle" fill="#ddd" font-size="11">{arc.label}</text>
+          <text x={arc.lx} y={arc.ly + 7} text-anchor={arc.anchor} dominant-baseline="middle" fill="#aaa" font-size="9.5">{arc.value} · {arc.pct}%</text>
+        </g>
+      ))}
+    </svg>
+  </div>
+</div>
