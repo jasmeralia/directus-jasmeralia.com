@@ -63,34 +63,21 @@ export function artTabFields(prefix = ""): string[] {
   ];
 }
 
-function compareNullableStrings(a: string | null, b: string | null): number {
-  if (a === null && b === null) return 0;
-  if (a === null) return 1;
-  if (b === null) return -1;
-  return a.localeCompare(b, undefined, { sensitivity: "base" });
-}
-
 type SortableArtTabItem = { item: ArtTabItem; sort: number | null };
 
+const languageRank = (language: string | null) => (language === "en" ? 0 : 1);
+const scaleRank = (scale: string | null) => (scale === "2x" ? 0 : scale === "1x" ? 1 : 2);
+const sortRank = (sort: number | null) => sort ?? Number.MAX_SAFE_INTEGER;
+
+// English first, then other languages alphabetically; 2x before 1x; then the
+// row's own `sort` ascending with unsorted rows last.
 function compareArtItems(a: SortableArtTabItem, b: SortableArtTabItem): number {
-  const languageOrder = (language: string | null) => language === "en" ? 0 : 1;
-  const languageDifference = languageOrder(a.item.language) - languageOrder(b.item.language);
-  if (languageDifference !== 0) return languageDifference;
-  const languageComparison = compareNullableStrings(a.item.language, b.item.language);
-  if (languageComparison !== 0) return languageComparison;
-
-  const scaleOrder = (scale: string | null) => scale === "2x" ? 0 : scale === "1x" ? 1 : 2;
-  const scaleDifference = scaleOrder(a.item.scale) - scaleOrder(b.item.scale);
-  if (scaleDifference !== 0) return scaleDifference;
-  if (scaleOrder(a.item.scale) === 2) {
-    const scaleComparison = compareNullableStrings(a.item.scale, b.item.scale);
-    if (scaleComparison !== 0) return scaleComparison;
-  }
-
-  if (a.sort === null && b.sort !== null) return 1;
-  if (a.sort !== null && b.sort === null) return -1;
-  if (a.sort !== null && b.sort !== null && a.sort !== b.sort) return a.sort - b.sort;
-  return 0;
+  return (
+    languageRank(a.item.language) - languageRank(b.item.language) ||
+    (a.item.language ?? "").localeCompare(b.item.language ?? "") ||
+    scaleRank(a.item.scale) - scaleRank(b.item.scale) ||
+    sortRank(a.sort) - sortRank(b.sort)
+  );
 }
 
 export function buildArtTab(entity: HasArt | null | undefined): ArtTabGroup[] {

@@ -69,6 +69,70 @@ describe("game art tab", () => {
     ]);
   });
 
+  it("breaks ties between equal rows by language name, scale and sort", () => {
+    const urls = (rows: GameArtRow[]) => buildArtTab({ art: rows })[0].items.map((item) => item.url);
+    expect(urls([
+      art("hero", "hero-fr", { language: "fr", scale: "2x" }),
+      art("hero", "hero-de", { language: "de", scale: "2x" }),
+    ])).toEqual([
+      "https://assets.test/media/hero-de.png",
+      "https://assets.test/media/hero-fr.png",
+    ]);
+    expect(urls([
+      art("hero", "hero-odd", { language: "en", scale: "3x" }),
+      art("hero", "hero-none", { language: "en" }),
+      art("hero", "hero-1x", { language: "en", scale: "1x" }),
+    ])).toEqual([
+      "https://assets.test/media/hero-1x.png",
+      "https://assets.test/media/hero-odd.png",
+      "https://assets.test/media/hero-none.png",
+    ]);
+    expect(urls([
+      art("hero", "hero-a"),
+      art("hero", "hero-b"),
+    ])).toEqual([
+      "https://assets.test/media/hero-a.png",
+      "https://assets.test/media/hero-b.png",
+    ]);
+    expect(urls([
+      art("hero", "hero-sort-1", { language: "en", scale: "2x", sort: 1 }),
+      art("hero", "hero-unsorted", { language: "en", scale: "2x" }),
+      art("hero", "hero-sort-0", { language: "en", scale: "2x", sort: 0 }),
+    ])).toEqual([
+      "https://assets.test/media/hero-sort-0.png",
+      "https://assets.test/media/hero-sort-1.png",
+      "https://assets.test/media/hero-unsorted.png",
+    ]);
+  });
+
+  it("carries language, scale and pixel size, and accepts a bare file id", () => {
+    const [group] = buildArtTab({ art: [
+      art("logo", "sized", { language: "en", scale: "2x", width: 1280, height: 720 }),
+      { kind: "logo", file: "bare-id" },
+      { kind: "screenshot", file: { id: "ignored", filename_disk: "ignored.png" } },
+    ] });
+    expect(group.items).toEqual([
+      {
+        kind: "logo",
+        label: "Logo",
+        url: "https://assets.test/media/sized.png",
+        language: "en",
+        scale: "2x",
+        width: 1280,
+        height: 720,
+      },
+      {
+        kind: "logo",
+        label: "Logo",
+        url: "https://assets.test/media/bare-id",
+        language: null,
+        scale: null,
+        width: null,
+        height: null,
+      },
+    ]);
+  });
+
   it("drops rows without files or a public file URL", () => {
     expect(buildArtTab({ art: [
       { kind: "hero" },
