@@ -56,12 +56,14 @@ function currentVersions(game: TrackedGameVersions): GameVersion[] {
 // "close" is a one-off difference: an install exactly one step behind GSL
 // (0.8.15 vs 0.8.16, or 0.19.1 vs 0.20, but not 0.5 vs 0.6.9, which skips
 // patch releases), or the same version with a different build or qualifier
-// suffix (0.8.15r1 vs 0.8.15). Anything further behind is "behind", as is a
-// major-version difference or any value that cannot be parsed well enough to
-// compare (those fall back to plain match / no match).
+// suffix (0.8.15r1 vs 0.8.15). An install that exactly matches the previous
+// GSL release is also "close", however far apart the two numbers are. Anything
+// further behind is "behind", as is a major-version difference or any value
+// that cannot be parsed well enough to compare (those fall back to plain
+// match / no match).
 export type InstallComparison = "current" | "close" | "behind" | "preview" | "unrecorded";
 
-type FuzzyResult = "current" | "close" | "behind";
+type FuzzyResult = "equal" | "ahead" | "close" | "behind";
 
 const QUALIFIER_WORDS = /\b(?:pre-?alpha|alpha|beta|early(?: access)?|final|hotfix)\b/g;
 
@@ -111,14 +113,14 @@ function parseLabel(value: string): { skeleton: string; numbers: number[] } | nu
 function fuzzyCompare(value: string, gslValue: string): FuzzyResult {
   const left = normalizeLabel(value);
   const right = normalizeLabel(gslValue);
-  if (left === right) return "current";
+  if (left === right) return "equal";
 
   const leftVersion = parseLeadingVersion(left);
   const rightVersion = parseLeadingVersion(right);
   if (leftVersion && rightVersion) {
     const diff = firstDifference(leftVersion.core, rightVersion.core);
-    if (!diff) return leftVersion.suffix === rightVersion.suffix ? "current" : "close";
-    if (diff.gap < 0) return "current";
+    if (!diff) return leftVersion.suffix === rightVersion.suffix ? "equal" : "close";
+    if (diff.gap < 0) return "ahead";
     return diff.index > 0 && diff.oneOff ? "close" : "behind";
   }
 
@@ -126,7 +128,8 @@ function fuzzyCompare(value: string, gslValue: string): FuzzyResult {
   const rightLabel = parseLabel(right);
   if (!leftVersion && !rightVersion && leftLabel && rightLabel && leftLabel.skeleton === rightLabel.skeleton) {
     const diff = firstDifference(leftLabel.numbers, rightLabel.numbers);
-    if (!diff || diff.gap < 0) return "current";
+    if (!diff) return "equal";
+    if (diff.gap < 0) return "ahead";
     return diff.oneOff ? "close" : "behind";
   }
   return "behind";
@@ -134,11 +137,18 @@ function fuzzyCompare(value: string, gslValue: string): FuzzyResult {
 
 // How one Orion/Typhoon installation stands against the current GSL value.
 // "preview" is a demo/intro/prologue install, which is never held against GSL.
-export function compareInstallToGsl(install: GameVersion, gslValue: string | null): InstallComparison {
+export function compareInstallToGsl(
+  install: GameVersion,
+  gslValue: string | null,
+  previousGslValue: string | null = null,
+): InstallComparison {
   const value = effectiveVersion(install);
   if (!value || !gslValue) return "unrecorded";
   if (PREVIEW_INSTALL_PATTERN.test(value)) return "preview";
-  return fuzzyCompare(value, gslValue);
+  const result = fuzzyCompare(value, gslValue);
+  if (result === "equal" || result === "ahead") return "current";
+  if (result === "behind" && previousGslValue && fuzzyCompare(value, previousGslValue) === "equal") return "close";
+  return result;
 }
 
 export function hasVersionMismatch(game: TrackedGameVersions): boolean {
@@ -208,6 +218,15 @@ function compareGsl(a: GameVersion, b: GameVersion): number {
   }
   if (Boolean(a.release_date) !== Boolean(b.release_date)) return a.release_date ? -1 : 1;
   return compareByVersionDesc(a, b);
+}
+
+// The GSL release immediately before the current one (newest first by release
+// date), or null when there is none.
+export function previousGslVersion(versions: GameVersion[] | null | undefined): string | null {
+  const gsl = (versions ?? []).filter((row) => row.source === "gsl").sort(compareGsl);
+  const currentIndex = gsl.findIndex((row) => row.is_current !== false);
+  const previous = currentIndex < 0 ? undefined : gsl[currentIndex + 1];
+  return previous ? effectiveVersion(previous) : null;
 }
 
 function compareInstall(a: GameVersion, b: GameVersion): number {
