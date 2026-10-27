@@ -1007,7 +1007,7 @@ const miscFilterEntries = [
       href: `/filters/misc/developer-links/${value}/index.html`,
       count: devLinkKindCounts[value],
     })),
-  { label: "Missing from Completed Games Tier List + Completed Player Status", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
+  { label: "Tier List: Completed Games - Missing + Played Status: Completed", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Omnibus Games", href: "/filters/misc/omnibus-games/index.html", count: omnibusGamesCount },
   { label: "Placeholder Covers", href: "/filters/misc/placeholder-covers/index.html", count: placeholderCoverCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
@@ -1018,7 +1018,7 @@ const miscFilterEntries = [
     count: entry.count,
   })),
   ...genreTierCoverageEntries.map((entry) => ({
-    label: `Missing from ${entry.tierListTitle} Tier List + Genre: ${entry.genreName}`,
+    label: `Tier List: ${entry.tierListTitle} - Missing + Genre: ${entry.genreName}`,
     href: `/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`,
     count: entry.missingCount,
   })),
@@ -1043,7 +1043,7 @@ const dataCurationMiscLabels = new Set([
   "Download Link - Missing",
   "Cover Art - Non-Standard Aspect Ratio",
   "Developer + Missing Links",
-  "Missing from Completed Games Tier List + Completed Player Status",
+  "Tier List: Completed Games - Missing + Played Status: Completed",
   "Placeholder Covers",
   "AVN - Version Mismatches",
 ]);
@@ -1115,7 +1115,7 @@ const dataCurationFilterEntries = [
   { label: "Section Data Present + Incomplete Progress (By Percent)", href: "/filters/section-style/incomplete-progress/index.html", count: partialProgressCount },
   { label: "Section Data Present + No Progress", href: "/filters/section-style/no-progress/index.html", count: sectionNoProgressCount },
   ...genreTierCoverageEntries.map((entry) => ({
-    label: `Missing from ${entry.tierListTitle} Tier List + Genre: ${entry.genreName}`,
+    label: `Tier List: ${entry.tierListTitle} - Missing + Genre: ${entry.genreName}`,
     href: `/filters/misc/genre-not-in-tier/${entry.genreSlug}/index.html`,
     count: entry.missingCount,
   })),

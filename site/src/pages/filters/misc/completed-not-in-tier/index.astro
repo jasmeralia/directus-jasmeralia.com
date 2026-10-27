@@ -41,7 +41,7 @@ const csvName = "completed-not-in-tier.csv";
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title="Filters | Missing from ~Completed Games Tier List + Completed Player Status">
+<BaseLayout title="Filters | Tier List: Completed Games - Missing + Played Status: Completed">
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -53,7 +53,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title="Missing from ~Completed Games Tier List + Completed Player Status" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title="Tier List: Completed Games - Missing + Played Status: Completed" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>Games marked as <em>Completed</em> in player status that have not yet been added to the ~Completed Games tier list.</p>
     </div>
     <ThumbnailBorderLegend />

@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.267] - 2026-10-26
+- Filters: rename the "Missing from <tier list> Tier List" filters to "Tier List: <name> - Missing + ..." (index links and page titles) so they group together, and use "Played Status: Completed" for the completed-games one.
 ## [1.0.266] - 2026-10-26
 - Filters: retitle the Version Mismatches page and its filters index link to AVN - Version Mismatches.
 ## [1.0.265] - 2026-10-26
