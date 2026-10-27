@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import PieChart from "../../components/PieChart.astro";
 import { directusFetchItems, directusFieldChoiceMap, directusFieldChoices, isFamilySharingDisabled } from "../../lib/directus";
 import { getUrlPlatform, downloadLinks, isMissingDownloadLink, walkthroughLinks, walkthroughTextNotes, hasSteamDownloadLink } from "../../lib/download-link";
 import { hasMissingSectionData, isCurrentlyCompleteGame, isIncompleteGame } from "../../lib/avn-filters";
@@ -923,6 +924,17 @@ const allDevCount = (await directusFetchItems("developers", {
   limit: -1,
 })).length;
 const developerMissingLinksCount = allDevCount - devsWithAnyLink.size;
+// Developers with at least one link of each kind, the same counts as the
+// "Developer Links + <kind>" filters (a developer with two kinds is in both).
+const DEV_LINK_KIND_COLOR: Record<string, string> = {
+  steam: "#4aa3ff",         itch: "#ff7a7a",    patreon: "#c788ff",
+  subscribestar: "#ff9f43", discord: "#5865f2", website: "#c8c8c8",
+  gamestorylog: "#7fe29a",  other: "#888",
+};
+const devLinkPieSegments = devLinkKindChoices
+  .map(({ value, label }) => ({ label, value: devLinkKindCounts[value] ?? 0, color: DEV_LINK_KIND_COLOR[value] ?? "#888" }))
+  .filter((segment) => segment.value > 0)
+  .sort((a, b) => b.value - a.value);
 const labelRadius = 130;
 const platformLabeledArcs = platformPieArcs
   .filter((seg) => seg.end - seg.start >= 8)
@@ -1143,6 +1155,7 @@ const chartCount = [
   platformExclusivePieSegments,
   downloadPlatformCountPieSegments,
   walkthroughPieSegments,
+  devLinkPieSegments,
   nsfwPieSegments,
 ].filter((segments) => segments.length > 0).length;
 ---
@@ -1546,7 +1559,7 @@ const chartCount = [
           ) : null}
         </div>
       ) : null}
-      {downloadPlatformCountPieSegments.length || walkthroughPieSegments.length ? (
+      {downloadPlatformCountPieSegments.length || walkthroughPieSegments.length || devLinkPieSegments.length ? (
         <div class="pie-grid">
           {downloadPlatformCountPieSegments.length ? (
           <div class="pie-panel">
@@ -1599,6 +1612,9 @@ const chartCount = [
               </svg>
             </div>
           </div>
+          ) : null}
+          {devLinkPieSegments.length ? (
+            <PieChart title="Developer Link Platform" ariaLabel="Developer link platform distribution" segments={devLinkPieSegments} />
           ) : null}
         </div>
       ) : null}
