@@ -993,13 +993,13 @@ const miscFilterEntries = [
   { label: "Download Platform + Patreon",      href: "/filters/misc/platform/patreon/index.html",      count: platformCounts.patreon,      exclusiveCount: platformCounts.patreonExclusive },
   { label: "Download Platform + PlayStation",  href: "/filters/misc/platform/playstation/index.html",  count: platformCounts.playstation,  exclusiveCount: platformCounts.playstationExclusive },
   { label: "Download Platform + Steam",        href: "/filters/misc/platform/steam/index.html",        count: platformCounts.steam,        exclusiveCount: platformCounts.steamExclusive },
-  { label: "Steam Link - Missing (No itch.io or GameStoryLog)", href: "/filters/misc/platform/not-steam/index.html", count: notSteamPlatformCount },
+  { label: "Missing Link - Platform: Steam (No itch.io or GameStoryLog)", href: "/filters/misc/platform/not-steam/index.html", count: notSteamPlatformCount },
   { label: "Download Platform + Unknown",      href: "/filters/misc/platform/unknown/index.html",      count: unknownPlatformCount },
   { label: "Download Platform + Xbox",         href: "/filters/misc/platform/xbox/index.html",         count: platformCounts.xbox,         exclusiveCount: platformCounts.xboxExclusive },
   { label: "Cover Art - Missing", href: "/filters/misc/missing-cover-art/index.html", count: missingCoverArtCount },
-  { label: "Download Link - Missing", href: "/filters/misc/missing-download-link/index.html", count: missingDownloadLinkCount },
+  { label: "Missing Link - Download", href: "/filters/misc/missing-download-link/index.html", count: missingDownloadLinkCount },
   { label: "Cover Art - Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
-  { label: "Developer + Missing Links", href: "/filters/misc/developer-missing-links/index.html", count: developerMissingLinksCount },
+  { label: "Missing Link - Developer", href: "/filters/misc/developer-missing-links/index.html", count: developerMissingLinksCount },
   ...devLinkKindChoices
     .filter(({ value }) => (devLinkKindCounts[value] ?? 0) > 0)
     .map(({ value, label }) => ({
@@ -1009,7 +1009,7 @@ const miscFilterEntries = [
     })),
   { label: "Tier List: Completed Games - Missing + Played Status: Completed", href: "/filters/misc/completed-not-in-tier/index.html", count: completedNotInTierCount },
   { label: "Omnibus Games", href: "/filters/misc/omnibus-games/index.html", count: omnibusGamesCount },
-  { label: "Placeholder Covers", href: "/filters/misc/placeholder-covers/index.html", count: placeholderCoverCount },
+  { label: "Cover Art - Placeholder Image", href: "/filters/misc/placeholder-covers/index.html", count: placeholderCoverCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
   { label: "AVN - Version Mismatches", href: "/filters/misc/version-mismatches/index.html", count: versionMismatchCount },
   ...walkthroughFilterEntries.map((entry) => ({
@@ -1038,13 +1038,13 @@ const dataCurationMiscLabels = new Set([
   "AVN + Missing Walkthrough URL",
   "NSFW + Genre: Not AVN",
   "Download Platform + Unknown",
-  "Steam Link - Missing (No itch.io or GameStoryLog)",
+  "Missing Link - Platform: Steam (No itch.io or GameStoryLog)",
   "Cover Art - Missing",
-  "Download Link - Missing",
+  "Missing Link - Download",
   "Cover Art - Non-Standard Aspect Ratio",
-  "Developer + Missing Links",
+  "Missing Link - Developer",
   "Tier List: Completed Games - Missing + Played Status: Completed",
-  "Placeholder Covers",
+  "Cover Art - Placeholder Image",
   "AVN - Version Mismatches",
 ]);
 const dataCurationFilterEntries = [

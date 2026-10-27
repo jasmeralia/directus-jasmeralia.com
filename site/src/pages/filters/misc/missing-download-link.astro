@@ -25,7 +25,7 @@ const csvName = "missing-download-link.csv";
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title="Filters | Download Link - Missing">
+<BaseLayout title="Filters | Missing Link - Download">
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -37,7 +37,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title="Download Link - Missing" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title="Missing Link - Download" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>Games other than unreleased titles with no download link set (no <code>games_links</code> row with <code>kind = "download"</code>).</p>
     </div>
     <ThumbnailBorderLegend />

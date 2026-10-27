@@ -11,7 +11,7 @@ import { sortByTitle } from "../../../../lib/list-format";
 
 const platformMeta = {
   steam: { label: "Steam" },
-  "not-steam": { label: "Steam Link - Missing (No itch.io or GameStoryLog)" },
+  "not-steam": { label: "Missing Link - Platform: Steam (No itch.io or GameStoryLog)" },
   itch: { label: "itch.io" },
   gog: { label: "GOG" },
   epic: { label: "Epic Games" },
@@ -76,7 +76,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
     <div class="panel">
       <CsvHeader title={pageTitle} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>{platform === "unknown"
-        ? "Games with at least one download link whose platform could not be detected. Games with no download link at all belong on the Download Link - Missing filter instead."
+        ? "Games with at least one download link whose platform could not be detected. Games with no download link at all belong on the Missing Link - Download filter instead."
         : platform === "not-steam"
           ? "Games with no Steam download link, no itch.io download link, and no GameStoryLog link. Includes games with no links at all."
         : `Games with download links detected as ${platformLabel}.`}</p>

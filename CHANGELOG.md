@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.268] - 2026-10-26
+- Filters: rename Download Link - Missing, Developer + Missing Links, and Steam Link - Missing to Missing Link - Download / Developer / Platform: Steam, and Placeholder Covers to Cover Art - Placeholder Image, so related filters group together (index links and page titles).
 ## [1.0.267] - 2026-10-26
 - Filters: rename the "Missing from <tier list> Tier List" filters to "Tier List: <name> - Missing + ..." (index links and page titles) so they group together, and use "Played Status: Completed" for the completed-games one.
 ## [1.0.266] - 2026-10-26
