@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   downloadLinks,
+  downloadLinksByDomain,
   getDeveloperLinkMeta,
   getLinkMeta,
   getUrlLinkMeta,
@@ -294,5 +295,33 @@ describe("URL platform and metadata", () => {
       kind,
       label: "Creator profile",
     })).toEqual({ icon, label: "Creator profile" });
+  });
+});
+
+describe("download links by domain", () => {
+  const dl = (url: string, sort: number | null = null): GameLink => ({ url, kind: "download", sort });
+
+  it("orders by site so itch.io subdomains group together, ignoring stored sort", () => {
+    const input: GameLink[] = [
+      dl("https://www.patreon.com/someone", 1),
+      dl("https://zanithone.itch.io/game", 2),
+      dl("https://subscribestar.adult/someone", 3),
+      dl("https://store.steampowered.com/app/1/", 4),
+      dl("https://aliencatgames.itch.io/game", 5),
+      { url: "https://example.test/walkthrough", kind: "walkthrough", sort: 0 },
+    ];
+    expect(downloadLinksByDomain(input).map(({ url }) => url)).toEqual([
+      "https://aliencatgames.itch.io/game",
+      "https://zanithone.itch.io/game",
+      "https://www.patreon.com/someone",
+      "https://store.steampowered.com/app/1/",
+      "https://subscribestar.adult/someone",
+    ]);
+    expect(input.map(({ sort }) => sort)).toEqual([1, 2, 3, 4, 5, 0]);
+  });
+
+  it("handles empty input", () => {
+    expect(downloadLinksByDomain(undefined)).toEqual([]);
+    expect(downloadLinksByDomain([])).toEqual([]);
   });
 });
