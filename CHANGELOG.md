@@ -1,7 +1,7 @@
 # Changelog
 
 ## [1.0.266] - 2026-10-26
-- Filters: retitle the Version Mismatches page and its filters index link to AVN Version Mismatches.
+- Filters: retitle the Version Mismatches page and its filters index link to AVN - Version Mismatches.
 ## [1.0.265] - 2026-10-26
 - Version Mismatches: an install that exactly matches the previous GameStoryLog release now shows yellow instead of red, however many numbers apart the two versions are.
 ## [1.0.264] - 2026-10-26

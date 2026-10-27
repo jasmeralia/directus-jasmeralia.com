@@ -96,7 +96,7 @@ const hasClose = hasComparison("close");
 const hasPreview = hasComparison("preview");
 ---
 
-<BaseLayout title="Filters | AVN Version Mismatches" description={description}>
+<BaseLayout title="Filters | AVN - Version Mismatches" description={description}>
   <div slot="head">
     <style>
       main{padding:24px;}
@@ -140,7 +140,7 @@ const hasPreview = hasComparison("preview");
   </div>
   <main>
     <div class="list">
-      <h1>AVN Version Mismatches <span style="opacity:.6;font-size:.8em;">({games.length})</span></h1>
+      <h1>AVN - Version Mismatches <span style="opacity:.6;font-size:.8em;">({games.length})</span></h1>
       <p>A game appears here when an active Orion or Typhoon installation is behind the current GameStoryLog version. Every active installation is shown separately.</p>
       {games.length === 0 ? (
         <p>No tracked game versions currently differ.</p>
@@ -167,7 +167,7 @@ const hasPreview = hasComparison("preview");
               </span>
             ))}
           </div>
-          <div class="grid" role="table" aria-label="AVN version mismatches">
+          <div class="grid" role="table" aria-label="AVN - version mismatches">
             <div class="row head" role="row">
               <div role="columnheader">Game</div>
               <div role="columnheader">GameStoryLog</div>
