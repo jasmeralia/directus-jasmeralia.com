@@ -8,10 +8,15 @@ and icon. Steps run in this order and are idempotent: an existing
 
   covers  Copy each games.cover_image into a "capsule" row (same Directus file).
   steam   For games with a Steam download link, import wide_capsule, hero,
-          icon, and (when a game has none yet) capsule and logo from Steam. The
-          2x asset is preferred over 1x. Asset names come from Steam's
-          IStoreBrowseService, which also separates localized assets from
-          unlocalized ones.
+          logo, icon, and (when a game has none yet) capsule from Steam. The 2x
+          asset is preferred over 1x. Wide capsule, hero and logo come from the
+          app's PICS record (common.library_assets_full: library_header,
+          library_hero, library_logo), whose per-language keys separate localized
+          assets from unlocalized (`english`) ones; the Store API's
+          IStoreBrowseService fills in the rest (icon, capsule, and a wide
+          capsule or hero PICS lacks), and the unhashed logo probe is the last
+          resort for a logo. PICS needs the `steam` package, so run this step as
+          `uv run --with 'steam[client]' python backfill_games_art.py ...`.
   renpy   Give Ren'Py games with no logo or icon the default Ren'Py logo and
           icon (uploaded once from --renpy-logo / --renpy-icon).
 
@@ -24,13 +29,18 @@ Usage:
         --manifest ~/git/steam-typhoon/docs/steam_shortcuts_typhoon.md \\
         --manifest ~/git/steam-typhoon/docs/steam_shortcuts_orion.md   # manifest games only
     python3 backfill_games_art.py --language fr            # localized Steam art
+    python3 backfill_games_art.py --steps steam --replace-renpy-logos --apply
     python3 backfill_games_art.py --renpy-logo PATH --renpy-icon PATH --apply
 
 --slug and --manifest (a steam_shortcuts_*.md file; every Directus Slug in it) limit
 the run to those games; with neither, every game is processed.
 
-Steam lookups are cached in mcp/cache/games_art_steam.json, so --apply reuses
-what the dry run fetched. No site rebuild is triggered.
+--replace-renpy-logos is the one exception to "never replaced": a logo row that
+still points at the shared Ren'Py default logo file is repointed at the game's
+real Steam logo when Steam has one. Any other existing row is left alone.
+
+Steam lookups are cached in mcp/cache/games_art_steam.json (Store API, logo
+probe) and games_art_pics.json (PICS), so --apply reuses what the dry run fetched. No site rebuild is triggered.
 """
 
 import argparse
@@ -52,7 +62,9 @@ from steamlib import (
     STEAM_LANGUAGES,
     SteamArtCandidate,
     extract_steam_appid_from_links,
+    fetch_steam_library_assets,
     fetch_steam_store_assets,
+    library_art_candidates,
     steam_art_candidates,
     steam_logo_candidate,
 )
@@ -68,7 +80,7 @@ RENPY_DEFAULT_TITLES = {
 STEPS = ("covers", "steam", "renpy")
 GAME_FIELDS = (
     "id,title,slug,cover_image,engines.engines_id.slug,"
-    "links.url,links.kind,art.kind,art.language"
+    "links.url,links.kind,art.id,art.kind,art.language,art.file,art.source_url"
 )
 
 Key = tuple[int, str, str]
@@ -106,6 +118,18 @@ class ArtWriter:
         self.known.add(key)
         self.counts[f"{step}:{row['kind']}"] += 1
         return True
+
+    def replace(self, row_id: int, row: dict[str, Any], label: str, step: str) -> None:
+        """Repoint an existing games_art row at a new file."""
+        verb = "REPLACE" if self.apply else "PLAN REPLACE"
+        print(f"  {verb} {row['kind']:<12} {row['scale']} {row['language']}  {label}")
+        if self.apply:
+            self.client.patch(
+                f"/items/games_art/{row_id}",
+                {k: row[k] for k in ("file", "scale", "source_url")},
+                description=f"replace games_art {row['kind']} row {row_id}",
+            )
+        self.counts[f"{step}:{row['kind']}_replaced"] += 1
 
 
 def manifest_slugs(paths: list[Path]) -> list[str]:
@@ -220,16 +244,47 @@ def lookup_steam_assets(
     cache.flush()
 
 
+def lookup_library_assets(appids: list[int], cache: ProgressCache) -> None:
+    """Fill the cache with PICS library_assets_full for every uncached app."""
+    pending = [a for a in appids if f"{a}|pics" not in cache]
+    if not pending:
+        return
+    print(f"  PICS asset lookup for {len(pending)} apps", file=sys.stderr)
+    for appid, assets in fetch_steam_library_assets(pending).items():
+        cache.set(f"{appid}|pics", assets)
+    cache.flush()
+
+
+def renpy_logo_rows(
+    games: list[dict], default_file: str | None
+) -> dict[tuple[int, str], int]:
+    """Map (game, language) of logo rows still on the Ren'Py default to row ids."""
+    if not default_file:
+        return {}
+    return {
+        (game["id"], art["language"]): art["id"]
+        for game in games
+        for art in game.get("art") or []
+        if art["kind"] == "logo"
+        and art.get("file") == default_file
+        and not art.get("source_url")
+    }
+
+
 def steam_row_language(candidate: SteamArtCandidate, language: str) -> str:
     """Tag a localized variant with the requested language, else English."""
     return language if candidate.localized else "en"
 
 
 def backfill_steam(  # pylint: disable=too-many-locals
-    writer: ArtWriter, games: list[dict], language: str, limit: int | None
+    writer: ArtWriter,
+    games: list[dict],
+    language: str,
+    limit: int | None,
+    replaceable_logos: dict[tuple[int, str], int],
 ) -> None:
-    """Import Steam wide capsule, hero, icon, and any missing capsule/logo."""
-    print("== steam: wide_capsule, hero, icon (+ missing capsule, logo)")
+    """Import Steam wide capsule, hero, logo, icon, and any missing capsule."""
+    print("== steam: wide_capsule, hero, logo, icon (+ missing capsule)")
     steam_language = STEAM_LANGUAGES[language]
     targets = [
         (game, appid)
@@ -241,20 +296,35 @@ def backfill_steam(  # pylint: disable=too-many-locals
     print(f"  {len(targets)} games with a Steam download link")
     cache = ProgressCache(CACHE_DIR / "games_art_steam.json")
     lookup_steam_assets([appid for _, appid in targets], steam_language, cache)
+    pics_cache = ProgressCache(CACHE_DIR / "games_art_pics.json")
+    lookup_library_assets([appid for _, appid in targets], pics_cache)
 
     for game, appid in targets:
         entry = cache.get(f"{appid}|{steam_language}")
-        if not entry:
+        library = pics_cache.get(f"{appid}|pics") or {}
+        if not entry and not library:
             writer.counts["steam:no_assets"] += 1
             continue
-        candidates = steam_art_candidates(appid, entry)
-        if not writer.has(game["id"], "logo", "en"):
+        # PICS library assets win; the Store API fills the kinds they lack.
+        by_kind = {
+            c.kind: c for c in library_art_candidates(appid, library, steam_language)
+        }
+        for candidate in steam_art_candidates(appid, entry) if entry else []:
+            by_kind.setdefault(candidate.kind, candidate)
+        if "logo" not in by_kind and not writer.has(game["id"], "logo", "en"):
             logo = cached_logo(cache, appid)
             if logo:
-                candidates.append(SteamArtCandidate(**logo))
-        for candidate in candidates:
+                by_kind["logo"] = SteamArtCandidate(**logo)
+        for candidate in by_kind.values():
             row_language = steam_row_language(candidate, language)
-            if writer.has(game["id"], candidate.kind, row_language):
+            replace_id = (
+                replaceable_logos.get((game["id"], row_language))
+                if candidate.kind == "logo"
+                else None
+            )
+            if replace_id is None and writer.has(
+                game["id"], candidate.kind, row_language
+            ):
                 writer.counts["steam:exists"] += 1
                 continue
             file_id = (
@@ -265,18 +335,18 @@ def backfill_steam(  # pylint: disable=too-many-locals
             if file_id is None:
                 writer.counts["steam:import_failed"] += 1
                 continue
-            writer.add(
-                {
-                    "games_id": game["id"],
-                    "kind": candidate.kind,
-                    "file": file_id,
-                    "language": row_language,
-                    "scale": candidate.scale,
-                    "source_url": candidate.url[:255],
-                },
-                game["slug"],
-                "steam",
-            )
+            row = {
+                "games_id": game["id"],
+                "kind": candidate.kind,
+                "file": file_id,
+                "language": row_language,
+                "scale": candidate.scale,
+                "source_url": candidate.url[:255],
+            }
+            if replace_id is not None:
+                writer.replace(replace_id, row, game["slug"], "steam")
+            else:
+                writer.add(row, game["slug"], "steam")
     cache.flush()
 
 
@@ -377,6 +447,11 @@ def parse_args() -> argparse.Namespace:
         help="limit to the Directus slugs in a steam_shortcuts_*.md manifest (repeatable)",
     )
     parser.add_argument("--limit", type=int, help="limit the Steam step to N games")
+    parser.add_argument(
+        "--replace-renpy-logos",
+        action="store_true",
+        help="repoint logo rows still on the Ren'Py default at the game's Steam logo",
+    )
     parser.add_argument("--renpy-logo", type=Path, help="default Ren'Py logo image")
     parser.add_argument("--renpy-icon", type=Path, help="default Ren'Py icon image")
     args = parser.parse_args()
@@ -404,7 +479,18 @@ def main() -> None:
     if "covers" in args.steps:
         backfill_covers(writer, games)
     if "steam" in args.steps:
-        backfill_steam(writer, games, args.language, args.limit)
+        default_logo = (
+            renpy_default_file(base, client, "logo", None, False)
+            if args.replace_renpy_logos
+            else None
+        )
+        backfill_steam(
+            writer,
+            games,
+            args.language,
+            args.limit,
+            renpy_logo_rows(games, default_logo),
+        )
     if "renpy" in args.steps:
         backfill_renpy(
             writer,
