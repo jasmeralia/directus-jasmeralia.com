@@ -20,8 +20,14 @@ Usage:
     python3 backfill_games_art.py --apply
     python3 backfill_games_art.py --steps covers --apply
     python3 backfill_games_art.py --steps steam --slug some-game --apply
+    python3 backfill_games_art.py \\
+        --manifest ~/git/steam-typhoon/docs/steam_shortcuts_typhoon.md \\
+        --manifest ~/git/steam-typhoon/docs/steam_shortcuts_orion.md   # manifest games only
     python3 backfill_games_art.py --language fr            # localized Steam art
     python3 backfill_games_art.py --renpy-logo PATH --renpy-icon PATH --apply
+
+--slug and --manifest (a steam_shortcuts_*.md file; every Directus Slug in it) limit
+the run to those games; with neither, every game is processed.
 
 Steam lookups are cached in mcp/cache/games_art_steam.json, so --apply reuses
 what the dry run fetched. No site rebuild is triggered.
@@ -100,6 +106,28 @@ class ArtWriter:
         self.known.add(key)
         self.counts[f"{step}:{row['kind']}"] += 1
         return True
+
+
+def manifest_slugs(paths: list[Path]) -> list[str]:
+    """Return the Directus slugs listed in steam_shortcuts_*.md manifests."""
+    slugs: set[str] = set()
+    for path in paths:
+        column: int | None = None
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip().startswith("|"):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if column is None:
+                if "Directus Slug" in cells:
+                    column = cells.index("Directus Slug")
+                continue
+            if cells[0].startswith("-") or len(cells) <= column:
+                continue
+            if cells[column]:
+                slugs.add(cells[column])
+        if column is None:
+            raise SystemExit(f"{path}: no 'Directus Slug' column found")
+    return sorted(slugs)
 
 
 def fetch_games(client: RetryingDirectusClient, slugs: list[str]) -> list[dict]:
@@ -341,6 +369,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--slug", action="append", default=[], help="limit to a game slug"
     )
+    parser.add_argument(
+        "--manifest",
+        action="append",
+        default=[],
+        type=Path,
+        help="limit to the Directus slugs in a steam_shortcuts_*.md manifest (repeatable)",
+    )
     parser.add_argument("--limit", type=int, help="limit the Steam step to N games")
     parser.add_argument("--renpy-logo", type=Path, help="default Ren'Py logo image")
     parser.add_argument("--renpy-icon", type=Path, help="default Ren'Py icon image")
@@ -357,7 +392,12 @@ def main() -> None:
     args = parse_args()
     base = DirectusClient.from_config()
     client = RetryingDirectusClient(base)
-    games = fetch_games(client, args.slug)
+    wanted = sorted(
+        {*args.slug, *manifest_slugs([p.expanduser() for p in args.manifest])}
+    )
+    games = fetch_games(client, wanted)
+    for slug in sorted(set(wanted) - {game["slug"] for game in games}):
+        print(f"NOT FOUND in Directus: {slug}", file=sys.stderr)
     print(("Mode: APPLY" if args.apply else "Mode: DRY RUN") + f" ({len(games)} games)")
     writer = ArtWriter(client, existing_art_keys(games), args.apply)
 
