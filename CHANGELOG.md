@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.272] - 2026-10-27
+- Games: add an Art tab for non-capsule artwork and hide generic Ren'Py default logo/icon images.
 ## [1.0.271] - 2026-10-27
 - Games: read each game's portrait cover from the games_art collection (capsule art) instead of the deprecated games.cover_image field, across game cards, game/franchise/review/tier pages, the walkthrough list, the RSS feed, and the Cover Art filters. Import and repair scripts now write the cover to games_art.
 ## [1.0.270] - 2026-10-26
