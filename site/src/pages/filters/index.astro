@@ -1011,7 +1011,7 @@ const miscFilterEntries = [
   { label: "Omnibus Games", href: "/filters/misc/omnibus-games/index.html", count: omnibusGamesCount },
   { label: "Placeholder Covers", href: "/filters/misc/placeholder-covers/index.html", count: placeholderCoverCount },
   { label: "Steam Family Sharing Disabled", href: "/filters/misc/steam-family-sharing-disabled/index.html", count: familySharingDisabledCount },
-  { label: "Version Mismatches", href: "/filters/misc/version-mismatches/index.html", count: versionMismatchCount },
+  { label: "AVN - Version Mismatches", href: "/filters/misc/version-mismatches/index.html", count: versionMismatchCount },
   ...walkthroughFilterEntries.map((entry) => ({
     label: `Walkthrough URL + ${entry.label}`,
     href: `/filters/misc/walkthrough/${entry.kind}/index.html`,
@@ -1045,7 +1045,7 @@ const dataCurationMiscLabels = new Set([
   "Developer + Missing Links",
   "Missing from Completed Games Tier List + Completed Player Status",
   "Placeholder Covers",
-  "Version Mismatches",
+  "AVN - Version Mismatches",
 ]);
 const dataCurationFilterEntries = [
   ...miscFilterEntries.filter((entry) => dataCurationMiscLabels.has(entry.label)),
