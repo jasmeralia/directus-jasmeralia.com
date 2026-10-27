@@ -155,6 +155,7 @@ def parse_playnite_release_year(date_str: str | None) -> int | None:
 
 
 GAME_JUNCTIONS: tuple[tuple[str, str], ...] = (
+    ("games_art", "games_id"),
     ("game_sections", "games_id"),
     ("game_versions", "games_id"),
     ("tier_list_games", "game_id"),
@@ -165,6 +166,55 @@ GAME_JUNCTIONS: tuple[tuple[str, str], ...] = (
 )
 
 REBUILD_FLOW_PATH = "/flows/trigger/e3aa03ad-3352-4ade-8156-22d53f107907"
+
+
+def set_game_capsule(
+    client: DirectusClient | RetryingDirectusClient,
+    game_id: int,
+    file_id: str,
+    source_url: str | None = None,
+) -> None:
+    """Create or replace a game's portrait cover (games_art kind "capsule", en).
+
+    Covers live in games_art; games.cover_image is deprecated and no longer
+    written. Replacing patches the existing row so the unique
+    (game, kind, language) index is never violated.
+    """
+    existing = client.get(
+        "/items/games_art",
+        params={
+            "filter[games_id][_eq]": game_id,
+            "filter[kind][_eq]": "capsule",
+            "filter[language][_eq]": "en",
+            "fields": "id",
+            "limit": 1,
+        },
+    ).get("data", [])
+    body = {"file": file_id, "scale": "1x", "source_url": source_url}
+    if existing:
+        client.patch(f"/items/games_art/{existing[0]['id']}", body)
+    else:
+        client.post(
+            "/items/games_art",
+            {"games_id": game_id, "kind": "capsule", "language": "en", **body},
+        )
+
+
+def game_capsule_file(
+    client: DirectusClient | RetryingDirectusClient, game_id: int
+) -> str | None:
+    """Return the Directus file ID of a game's portrait cover, if any."""
+    rows = client.get(
+        "/items/games_art",
+        params={
+            "filter[games_id][_eq]": game_id,
+            "filter[kind][_eq]": "capsule",
+            "fields": "file,language",
+            "limit": -1,
+        },
+    ).get("data", [])
+    rows.sort(key=lambda row: row.get("language") != "en")
+    return rows[0]["file"] if rows else None
 
 
 def delete_game_junctions(client: DirectusClient, game_id: int) -> None:

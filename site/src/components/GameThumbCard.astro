@@ -1,5 +1,6 @@
 ---
 import { fileUrl, isFamilySharingDisabled } from "../lib/directus";
+import { coverImage } from "../lib/game-art";
 import { isGameNsfw } from "../lib/nsfw";
 import { downloadLinks, walkthroughLinks, getLinkMeta, steamDbAppUrl, steamDbSearchUrl, steamGridDbSearchUrl, hasSteamDownloadLink } from "../lib/download-link";
 import { bundleProgressSummary, effectiveSectionStyle, sectionDataIndicator } from "../lib/game-bundles";
@@ -43,7 +44,8 @@ const stackStyle = [
   `--inner-border:${innerBorderColor}`,
 ].join(";");
 
-const img = game?.cover_image ? fileUrl(game.cover_image) : null;
+const cover = coverImage(game);
+const img = cover ? fileUrl(cover) : null;
 const nsfw = isGameNsfw(game);
 const hasSteamLink = hasSteamDownloadLink(allDownloadLinks);
 const platformEntries = [

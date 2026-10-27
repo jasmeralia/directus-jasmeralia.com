@@ -1,4 +1,5 @@
 import type { DirectusFile } from "./directus";
+import type { GameArtRow } from "./game-art";
 import type { GameSection } from "./game-sections";
 import { directGameSections, pluralizeNoun, sectionNoun, sectionProgressPercent } from "./game-sections";
 import { compareLabels } from "./list-format";
@@ -11,7 +12,7 @@ export type BundleSourceGame = {
   title: string;
   slug: string;
   release_year?: number | null;
-  cover_image?: DirectusFile | string | null;
+  art?: GameArtRow[] | null;
 };
 
 export type GameBundleMember = {

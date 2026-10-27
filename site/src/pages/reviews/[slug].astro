@@ -3,6 +3,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { renderMarkdown, plainTextExcerpt } from "../../lib/markdown";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
 import { formatDate } from "../../lib/date";
+import { artFields, coverImage } from "../../lib/game-art";
 import { isGameNsfw } from "../../lib/nsfw";
 
 export async function getStaticPaths() {
@@ -33,8 +34,7 @@ const reviews = await directusFetchItems("reviews", {
     "game.slug",
     "game.nsfw",
     "game.genres.genres_id.nsfw",
-    "game.cover_image.id",
-    "game.cover_image.filename_disk",
+    ...artFields("game."),
     "game.developers.id",
     "game.developers.developers_id.name",
     "game.developers.developers_id.slug",
@@ -52,7 +52,7 @@ const developers = (review.game?.developers ?? [])
   .map((developer) => developer?.developers_id)
   .filter((value) => value && value.name && value.slug)
   .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-const cover = fileUrl(review.game?.cover_image);
+const cover = fileUrl(coverImage(review.game));
 const gameNsfw = isGameNsfw(review.game ?? {});
 const excerpt = plainTextExcerpt(review.body) || review.title;
 const published = review.published_at;

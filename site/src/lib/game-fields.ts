@@ -1,3 +1,5 @@
+import { artFields } from "./game-art";
+
 export const GAME_THUMB_FIELDS = [
   "id",
   "title",
@@ -8,8 +10,7 @@ export const GAME_THUMB_FIELDS = [
   "cover_is_placeholder",
   "game_status",
   "player_status",
-  "cover_image.id",
-  "cover_image.filename_disk",
+  ...artFields(),
   "genres.id",
   "genres.genres_id.id",
   "genres.genres_id.name",

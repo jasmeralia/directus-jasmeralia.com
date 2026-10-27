@@ -6,6 +6,7 @@ import {
   walkthroughTextNotes,
   type GameLink,
 } from "../lib/download-link";
+import { coverImage, type GameArtRow } from "../lib/game-art";
 import { classifyWalkthroughValue, type WalkthroughKind } from "../lib/walkthrough-link";
 import { isGameNsfw } from "../lib/nsfw";
 
@@ -20,7 +21,7 @@ type WalkthroughGame = {
   slug: string;
   title: string;
   release_year?: number | null;
-  cover_image?: unknown;
+  art?: GameArtRow[] | null;
   nsfw?: boolean | null;
   genres?: { genres_id?: { nsfw?: boolean | null } | null }[] | null;
   links?: GameLink[] | null;
@@ -79,7 +80,8 @@ const walkthroughEntries = (game: WalkthroughGame): WalkthroughEntry[] => {
     {games.map((game, index) => {
       const entries = walkthroughEntries(game);
       const primaryUrl = entries.find((entry) => !entry.isTextNote && entry.url)?.url;
-      const img = game?.cover_image ? fileUrl(game.cover_image) : null;
+      const cover = coverImage(game);
+      const img = cover ? fileUrl(cover) : null;
       const gameHref = primaryUrl ?? `/games/${game.slug}/index.html`;
       const linkAttrs = primaryUrl ? { target: "_blank", rel: "noopener noreferrer" } : {};
       const nsfw = isGameNsfw(game);

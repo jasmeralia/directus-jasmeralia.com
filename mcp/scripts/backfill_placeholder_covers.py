@@ -71,7 +71,7 @@ def main() -> None:
         "/items/games",
         params={
             "filter[slug][_in]": ",".join(candidate_filenames),
-            "fields": "id,slug,title,cover_image,cover_is_placeholder",
+            "fields": "id,slug,title,art.kind,art.language,art.file,cover_is_placeholder",
             "limit": -1,
         },
         description="fetch known placeholder-cover candidate games",
@@ -90,7 +90,11 @@ def main() -> None:
             print(f"NOT FOUND: slug={slug}")
             continue
 
-        asset_id = cover_asset_id(game.get("cover_image"))
+        capsules = sorted(
+            (a for a in game.get("art") or [] if a["kind"] == "capsule" and a["file"]),
+            key=lambda a: a["language"] != "en",
+        )
+        asset_id = cover_asset_id(capsules[0]["file"] if capsules else None)
         if asset_id is None:
             print(f"NO COVER: id={game['id']} slug={slug}")
             continue

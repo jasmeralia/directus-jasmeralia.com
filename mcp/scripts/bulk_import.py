@@ -23,7 +23,13 @@ import time
 import urllib.error
 from pathlib import Path
 
-from scriptlib import DirectusClient, ProgressCache, derive_game_status, server_env
+from scriptlib import (
+    DirectusClient,
+    ProgressCache,
+    derive_game_status,
+    server_env,
+    set_game_capsule,
+)
 from steamlib import cover_uuid, find_cover_url, import_steam_cover
 
 STEAMGRIDDB_TOKEN = server_env("game-encyclopedia")["STEAMGRIDDB_API_KEY"]
@@ -164,8 +170,6 @@ def main():
             "game_status": derive_game_status(game.get("release_year")),
             "player_status": game.get("player_status", "not_started"),
         }
-        if cover_id:
-            game_payload["cover_image"] = cover_id
 
         if args.dry_run:
             print(f"  [game] DRY-RUN create: {title}", file=sys.stderr)
@@ -189,6 +193,10 @@ def main():
                 progress_path.write_text(json.dumps(progress, indent=2))
                 time.sleep(args.delay)
                 continue
+
+        # The portrait cover lives in games_art, not games.cover_image.
+        if cover_id and not args.dry_run:
+            set_game_capsule(DIRECTUS, game_id, cover_id, cover_url)
 
         # 3. Download link junction
         dl_url = (game.get("download_url") or "").strip()

@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import PieChart from "../../components/PieChart.astro";
+import { artFields, coverImage } from "../../lib/game-art";
 import { directusFetchItems, directusFieldChoiceMap, directusFieldChoices, isFamilySharingDisabled } from "../../lib/directus";
 import { getUrlPlatform, downloadLinks, isMissingDownloadLink, walkthroughLinks, walkthroughTextNotes, hasSteamDownloadLink } from "../../lib/download-link";
 import { hasMissingSectionData, isCurrentlyCompleteGame, isIncompleteGame } from "../../lib/avn-filters";
@@ -886,16 +887,16 @@ const partialProgressCount = (progressGames ?? []).filter((game) => {
   return typeof percent === "number" && percent > 0 && percent < 100;
 }).length;
 const coverArtGames = await directusFetchItems("games", {
-  fields: ["id", "cover_image.width", "cover_image.height"],
-  filter: { cover_image: { _nnull: true } },
+  fields: ["id", ...artFields("", true)],
   limit: -1,
 });
+const coverFiles = (coverArtGames ?? []).map((game) => coverImage(game)).filter(Boolean);
 const COVER_TARGET_RATIO = 2 / 3;
 const COVER_RATIO_TOLERANCE = 0.02;
-const missingCoverArtCount = (games ?? []).length - (coverArtGames ?? []).length;
-const nonStandardCoverCount = (coverArtGames ?? []).filter((game) => {
-  const w = game?.cover_image?.width;
-  const h = game?.cover_image?.height;
+const missingCoverArtCount = (games ?? []).length - coverFiles.length;
+const nonStandardCoverCount = coverFiles.filter((file) => {
+  const w = file?.width;
+  const h = file?.height;
   if (!w || !h) return false;
   return Math.abs(w / h - COVER_TARGET_RATIO) > COVER_RATIO_TOLERANCE;
 }).length;

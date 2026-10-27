@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Fetch cover art for games with no cover_image using IGDB.
+Fetch cover art for games with no portrait cover (games_art capsule) using IGDB.
 
-For each game in Directus with cover_image = null:
+For each game in Directus with no capsule row in games_art:
   1. Search IGDB by title (prefers exact match, then first result)
   2. Download the cover at t_cover_big_2x (528x748)
   3. Upload to Directus files
-  4. Patch the game record
+  4. Create (or replace) the game's capsule games_art row
 
 Usage:
     python3 fetch_missing_covers.py             # dry run (preview matches)
@@ -27,6 +27,7 @@ from scriptlib import (
     RetryPolicy,
     fetch_with_backoff,
     server_env,
+    set_game_capsule,
 )
 
 MAX_RETRIES = 5
@@ -159,8 +160,11 @@ def save_igdb_cache(cache: dict) -> None:
 
 
 def get_missing_games() -> list[dict]:
-    """Fetch games that do not have a cover image."""
-    qs = "fields=id,title,slug&filter%5Bcover_image%5D%5B_null%5D=true&limit=-1&sort=title"
+    """Fetch games that do not have a portrait cover (capsule art)."""
+    qs = (
+        "fields=id,title,slug&limit=-1&sort=title"
+        "&filter%5Bart%5D%5B_none%5D%5Bkind%5D%5B_eq%5D=capsule"
+    )
     return DIRECTUS.get(f"/items/games?{qs}").get("data", [])
 
 
@@ -232,7 +236,7 @@ def main():
             errors += 1
             continue
 
-        DIRECTUS.patch(f"/items/games/{game['id']}", {"cover_image": new_uuid})
+        set_game_capsule(DIRECTUS, game["id"], new_uuid, cover_url)
         print(f"  Updated cover → {new_uuid}", file=sys.stderr)
         fixed += 1
         time.sleep(0.3)

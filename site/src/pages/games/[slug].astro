@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, directusFieldChoices, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
+import { artFields, coverImage } from "../../lib/game-art";
 import { downloadLinks, otherLinks, otherLinkText, walkthroughLinks, walkthroughTextNotes, getLinkMeta, steamDbAppUrl } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
 import { effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
@@ -37,8 +38,7 @@ export async function getStaticPaths() {
     'cover_is_placeholder',
     'player_status',
     'game_status',
-    'cover_image.id',
-    'cover_image.filename_disk',
+    ...artFields(),
     'genres.id',
     'genres.genres_id.id',
     'genres.genres_id.name',
@@ -103,8 +103,7 @@ export async function getStaticPaths() {
     'bundle_members.source_game_id.title',
     'bundle_members.source_game_id.slug',
     'bundle_members.source_game_id.release_year',
-    'bundle_members.source_game_id.cover_image.id',
-    'bundle_members.source_game_id.cover_image.filename_disk',
+    ...artFields('bundle_members.source_game_id.'),
     'included_in_bundles.id',
     'included_in_bundles.games_id.id',
     'included_in_bundles.games_id.title',
@@ -315,7 +314,7 @@ const includedIn = (game.included_in_bundles ?? [])
   .map((membership) => membership?.games_id)
   .filter((parent) => parent?.slug && parent?.title)
   .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
-const cover = fileUrl(game.cover_image);
+const cover = fileUrl(coverImage(game));
 const gameNsfw = isGameNsfw(game);
 const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 const tierLabel = (value) => value === "U" ? "Too Early" : (value ?? "");
@@ -698,7 +697,7 @@ const coverStackStyle = [
               const source = typeof member.source_game_id === "object"
                 ? member.source_game_id
                 : null;
-              const memberCover = fileUrl(member.cover_image ?? source?.cover_image);
+              const memberCover = fileUrl(member.cover_image ?? coverImage(source));
               const memberReleaseYear = member.release_year ?? source?.release_year ?? null;
               const memberSections = orderedSections(member.sections);
               const memberSectionGroups = groupSectionsByCategory(memberSections);

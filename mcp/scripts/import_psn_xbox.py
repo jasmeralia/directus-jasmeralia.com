@@ -229,12 +229,23 @@ def main():
                 "release_year": game.get("release_year"),
                 "player_status": player_status,
                 "game_status": derive_game_status(game.get("release_year")),
-                "cover_image": file_uuid,
                 "family_sharing": None,
             }
             result = api_post("/items/games", game_body)
             game_id = result["data"]["id"]
             print(f"  Created game ID {game_id}")
+            if file_uuid:
+                api_post(
+                    "/items/games_art",
+                    {
+                        "games_id": game_id,
+                        "kind": "capsule",
+                        "file": file_uuid,
+                        "language": "en",
+                        "scale": "1x",
+                        "source_url": game.get("cover_art_url"),
+                    },
+                )
 
             # Download link junction
             if download_url:
