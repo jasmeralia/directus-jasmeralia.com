@@ -22,7 +22,7 @@ const missingDevs = (allDevs ?? [])
   .sort((a, b) => compareLabels(a.name ?? a.slug ?? "", b.name ?? b.slug ?? ""));
 ---
 
-<BaseLayout title="Filters | Developer + Missing Links">
+<BaseLayout title="Filters | Missing Link - Developer">
   <div slot="head">
     <style>
       main{max-width:980px;margin:0 auto;padding:24px;}
@@ -34,7 +34,7 @@ const missingDevs = (allDevs ?? [])
   </div>
   <main>
     <div class="panel">
-      <h1>Developer + Missing Links <span style="opacity:.6;font-size:.8em;">({missingDevs.length})</span></h1>
+      <h1>Missing Link - Developer <span style="opacity:.6;font-size:.8em;">({missingDevs.length})</span></h1>
       <p>Developers with no entries in the developer links collection.</p>
     </div>
     {missingDevs.length === 0 ? (

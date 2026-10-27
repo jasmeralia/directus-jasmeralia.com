@@ -84,6 +84,7 @@ const matchingTierLists = rankedTierLists.filter((tierList) =>
   keyVariants(tierList?.title).some((key) => genreKeys.has(key)),
 );
 if (!matchingTierLists.length) throw new Error(`No tier list found matching genre: ${genreInfo.name}`);
+const tierListTitle = matchingTierLists[0].title;
 const tierListIds = matchingTierLists.map((tierList) => tierList.id).filter((id) => typeof id === "number");
 
 const candidates = await directusFetchItems("games", {
@@ -126,7 +127,7 @@ const csvName = `${genre}-missing-from-tier-list.csv`;
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title={`Filters | ${genreInfo.name} Missing from Tier List`}>
+<BaseLayout title={`Filters | Tier List: ${tierListTitle} - Missing + Genre: ${genreInfo.name}`}>
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -138,7 +139,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title={`${genreInfo.name} + Missing from ${genreInfo.name} Tier List`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title={`Tier List: ${tierListTitle} - Missing + Genre: ${genreInfo.name}`} count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>Games tagged as {genreInfo.name} that are not in the matching tier list for that genre.</p>
     </div>
     <ThumbnailBorderLegend />

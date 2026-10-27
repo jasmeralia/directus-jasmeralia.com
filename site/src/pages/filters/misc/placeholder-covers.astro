@@ -28,7 +28,7 @@ const csvName = "placeholder-covers.csv";
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title="Filters | Placeholder Covers">
+<BaseLayout title="Filters | Cover Art - Placeholder Image">
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -40,7 +40,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title="Placeholder Covers" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title="Cover Art - Placeholder Image" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>Games currently using generated placeholder cover art while final cover art is unavailable.</p>
     </div>
     <ThumbnailBorderLegend />
