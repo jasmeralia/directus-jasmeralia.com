@@ -53,6 +53,24 @@ function currentVersions(game: TrackedGameVersions): GameVersion[] {
   return (game.versions ?? []).filter((row) => row.is_current !== false);
 }
 
+function isBehindGsl(value: string, gslValue: string): boolean {
+  const left = parseSemver(value.toLocaleLowerCase("en-US"));
+  const right = parseSemver(gslValue.toLocaleLowerCase("en-US"));
+  if (left && right) return compareSemver(left, right) < 0;
+  return value.toLocaleLowerCase("en-US") !== gslValue.toLocaleLowerCase("en-US");
+}
+
+export type InstallComparison = "current" | "behind" | "preview" | "unrecorded";
+
+// How one Orion/Typhoon installation stands against the current GSL value.
+// "preview" is a demo/intro/prologue install, which is never held against GSL.
+export function compareInstallToGsl(install: GameVersion, gslValue: string | null): InstallComparison {
+  const value = effectiveVersion(install);
+  if (!value || !gslValue) return "unrecorded";
+  if (PREVIEW_INSTALL_PATTERN.test(value)) return "preview";
+  return isBehindGsl(value, gslValue) ? "behind" : "current";
+}
+
 export function hasVersionMismatch(game: TrackedGameVersions): boolean {
   if (game.slug && VERSION_MISMATCH_EXCLUDED_SLUGS.has(game.slug)) return false;
   if (
@@ -65,20 +83,10 @@ export function hasVersionMismatch(game: TrackedGameVersions): boolean {
   const versions = currentVersions(game);
   const gsl = versions.find((row) => row.source === "gsl");
   const gslValue = gsl ? effectiveVersion(gsl) : null;
-  const installs = versions.filter((row) => row.source !== "gsl");
-  const usable = installs.filter((row) => {
-    const value = effectiveVersion(row);
-    return value && !PREVIEW_INSTALL_PATTERN.test(value);
-  });
-  if (!gslValue || usable.length === 0) return false;
-  return usable.some((install) => {
-    const value = effectiveVersion(install);
-    if (!value) return false;
-    const left = parseSemver(value.toLocaleLowerCase("en-US"));
-    const right = parseSemver(gslValue.toLocaleLowerCase("en-US"));
-    if (left && right) return compareSemver(left, right) < 0;
-    return value.toLocaleLowerCase("en-US") !== gslValue.toLocaleLowerCase("en-US");
-  });
+  if (!gslValue) return false;
+  return versions
+    .filter((row) => row.source !== "gsl")
+    .some((install) => compareInstallToGsl(install, gslValue) === "behind");
 }
 
 export type VersionsTabGroup = {

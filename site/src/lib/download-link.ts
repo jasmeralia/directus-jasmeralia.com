@@ -18,6 +18,21 @@ export const downloadLinks = (links: GameLink[] | null | undefined): GameLink[] 
   return links.filter((l) => l.kind === "download").sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999));
 };
 
+// Download links ordered by site (registrable domain, then full URL) so a list
+// of games shows its platform icons in one consistent order. Unlike
+// downloadLinks(), this ignores the stored `sort` value.
+const registrableDomain = (value: string): string => {
+  const labels = hostFromUrl(value).split(".");
+  return labels.slice(-2).join(".");
+};
+
+export const downloadLinksByDomain = (links: GameLink[] | null | undefined): GameLink[] =>
+  downloadLinks(links).sort(
+    (a, b) =>
+      registrableDomain(a.url).localeCompare(registrableDomain(b.url), "en", { sensitivity: "base" }) ||
+      a.url.localeCompare(b.url, "en", { sensitivity: "base" }),
+  );
+
 // Contextual non-download links (social pages, support pages, boards, ...).
 export const otherLinks = (links: GameLink[] | null | undefined): GameLink[] => {
   if (!links?.length) return [];

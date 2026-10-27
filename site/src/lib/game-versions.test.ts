@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildVersionsTab,
+  compareInstallToGsl,
   effectiveVersion,
   formatTrackedVersion,
   hasVersionMismatch,
@@ -174,5 +175,29 @@ describe("buildVersionsTab", () => {
       `0.7:${legacy}`,
       "0.9.5:Eternum-0.9.5-pc",
     ]);
+  });
+});
+
+describe("install comparison against GSL", () => {
+  const install = (reported_version: string | null, comparison_override?: string) => ({
+    source: "typhoon" as const,
+    reported_version,
+    comparison_override,
+    is_current: true,
+  });
+
+  it("classifies an install as behind, current, preview, or unrecorded", () => {
+    expect(compareInstallToGsl(install("0.8"), "0.9")).toBe("behind");
+    expect(compareInstallToGsl(install("0.9.0"), "0.9")).toBe("current");
+    expect(compareInstallToGsl(install("0.9.21"), "0.9.0")).toBe("current");
+    expect(compareInstallToGsl(install("Demo 0.1"), "0.9")).toBe("preview");
+    expect(compareInstallToGsl(install(null), "0.9")).toBe("unrecorded");
+    expect(compareInstallToGsl(install("0.8"), null)).toBe("unrecorded");
+  });
+
+  it("compares non-semver labels case-insensitively and honors overrides", () => {
+    expect(compareInstallToGsl(install("Ch. 4"), "ch. 4")).toBe("current");
+    expect(compareInstallToGsl(install("Ch. 3"), "Ch. 4")).toBe("behind");
+    expect(compareInstallToGsl(install("0.4.6r1", "0.4.6"), "0.4.6")).toBe("current");
   });
 });
