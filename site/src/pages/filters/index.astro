@@ -14,6 +14,7 @@ import { CONTENT_RATING_META, contentRating, hasGenreSlug, isGameNsfw } from "..
 import {
   WALKTHROUGH_KIND_LABEL,
   WALKTHROUGH_KINDS,
+  classifyWalkthroughValue,
   type WalkthroughKind,
 } from "../../lib/walkthrough-link";
 
@@ -620,6 +621,7 @@ const platformCounts = {
   gog:          countPlatform("gog"),          gogExclusive:          countPlatformExclusive("gog"),
   epic:         countPlatform("epic"),         epicExclusive:         countPlatformExclusive("epic"),
   patreon:      countPlatform("patreon"),      patreonExclusive:      countPlatformExclusive("patreon"),
+  subscribestar: countPlatform("subscribestar"), subscribestarExclusive: countPlatformExclusive("subscribestar"),
   playstation:  countPlatform("playstation"),  playstationExclusive:  countPlatformExclusive("playstation"),
   xbox:         countPlatform("xbox"),         xboxExclusive:         countPlatformExclusive("xbox"),
 };
@@ -640,6 +642,7 @@ const platformPieSegments = [
   { label: "GOG", value: platformCounts.gog, color: "#ffd966" },
   { label: "Epic Games", value: platformCounts.epic, color: "#c8c8c8" },
   { label: "Patreon", value: platformCounts.patreon, color: "#c788ff" },
+  { label: "SubscribeStar", value: platformCounts.subscribestar, color: "#ff9f43" },
   { label: formatUnknown("unknown", "Download Platform"), value: unknownPlatformCount, color: "#7fe29a" },
 ].filter((segment) => segment.value > 0);
 const platformPieTotal = platformPieSegments.reduce((sum, segment) => sum + segment.value, 0);
@@ -670,8 +673,7 @@ for (const game of games ?? []) {
   }
   const kinds = new Set<WalkthroughKind>();
   for (const link of wtLinks) {
-    const platform = getUrlPlatform(link.url);
-    kinds.add((platform as WalkthroughKind | null) ?? "unknown");
+    kinds.add(classifyWalkthroughValue(link.url));
   }
   for (const kind of kinds) {
     if (kind !== "text-note" && kind !== "none-provided") {
@@ -695,6 +697,7 @@ const platformExclusivePieSegments = [
   { label: "GOG",          value: platformCounts.gogExclusive,          color: "#ffd966" },
   { label: "Epic Games",   value: platformCounts.epicExclusive,         color: "#c8c8c8" },
   { label: "Patreon",      value: platformCounts.patreonExclusive,      color: "#c788ff" },
+  { label: "SubscribeStar", value: platformCounts.subscribestarExclusive, color: "#ff9f43" },
 ].filter((segment) => segment.value > 0);
 const platformExclusivePieTotal = platformExclusivePieSegments.reduce((sum, s) => sum + s.value, 0);
 const downloadPlatformCountBuckets = new Map<number, number>();
@@ -1005,6 +1008,7 @@ const miscFilterEntries = [
   { label: "Download Platform + Patreon",      href: "/filters/misc/platform/patreon/index.html",      count: platformCounts.patreon,      exclusiveCount: platformCounts.patreonExclusive },
   { label: "Download Platform + PlayStation",  href: "/filters/misc/platform/playstation/index.html",  count: platformCounts.playstation,  exclusiveCount: platformCounts.playstationExclusive },
   { label: "Download Platform + Steam",        href: "/filters/misc/platform/steam/index.html",        count: platformCounts.steam,        exclusiveCount: platformCounts.steamExclusive },
+  { label: "Download Platform + SubscribeStar", href: "/filters/misc/platform/subscribestar/index.html", count: platformCounts.subscribestar, exclusiveCount: platformCounts.subscribestarExclusive },
   { label: "Missing Link - Platform: Steam (No itch.io or GameStoryLog)", href: "/filters/misc/platform/not-steam/index.html", count: notSteamPlatformCount },
   { label: "Download Platform + Unknown",      href: "/filters/misc/platform/unknown/index.html",      count: unknownPlatformCount },
   { label: "Download Platform + Xbox",         href: "/filters/misc/platform/xbox/index.html",         count: platformCounts.xbox,         exclusiveCount: platformCounts.xboxExclusive },

@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.270] - 2026-10-26
+- Filters: detect SubscribeStar as a download platform. Adds a Download Platform + SubscribeStar filter and SubscribeStar slices in the Download Platform charts, so Download Platform + Unknown no longer lists every game whose only unrecognized link is SubscribeStar. Walkthrough URL filters now classify through one shared function, so SubscribeStar and Epic walkthrough links count as unknown consistently.
 ## [1.0.269] - 2026-10-26
 - Filters: add a Developer Link Platform chart (developers per link kind) before the SFW / NSFW chart.
 ## [1.0.268] - 2026-10-26

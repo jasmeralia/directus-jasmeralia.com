@@ -34,5 +34,6 @@ describe("classifyWalkthroughValue", () => {
   it("classifies an unrecognized HTTP URL as unknown", () => {
     expect(classifyWalkthroughValue("https://example.com/guide")).toBe("unknown");
     expect(classifyWalkthroughValue("https://store.epicgames.com/p/example")).toBe("unknown");
+    expect(classifyWalkthroughValue("https://subscribestar.adult/creator/posts/1")).toBe("unknown");
   });
 });
