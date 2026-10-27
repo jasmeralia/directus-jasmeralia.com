@@ -26,7 +26,13 @@ import urllib.request
 from collections import Counter
 from pathlib import Path
 
-from scriptlib import DirectusClient, ProgressCache, derive_game_status, server_env
+from scriptlib import (
+    DirectusClient,
+    ProgressCache,
+    derive_game_status,
+    server_env,
+    set_game_capsule,
+)
 from steamlib import (
     cover_uuid,
     extract_release_year,
@@ -374,8 +380,6 @@ def apply_proposals(
             "player_status": game.get("player_status", "not_started"),
             "family_sharing": game.get("family_sharing", False),
         }
-        if cover_id:
-            game_payload["cover_image"] = cover_id
 
         if dry_run:
             print(f"  [game] DRY-RUN create: {title}", file=sys.stderr)
@@ -399,6 +403,10 @@ def apply_proposals(
                 PROGRESS_PATH.write_text(json.dumps(progress, indent=2))
                 time.sleep(delay)
                 continue
+
+        # The portrait cover lives in games_art, not games.cover_image.
+        if cover_id and not dry_run:
+            set_game_capsule(DIRECTUS, game_id, cover_id, cover_url)
 
         # Download link junction
         dl_url = (game.get("download_url") or "").strip()

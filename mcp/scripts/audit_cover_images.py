@@ -31,6 +31,7 @@ from scriptlib import (
     RetryPolicy,
     fetch_with_backoff,
     server_env,
+    set_game_capsule,
 )
 from steamlib import extract_steam_appid_from_links
 
@@ -101,10 +102,19 @@ def audit():
 
     print("Fetching games with cover images...", file=sys.stderr)
     games = DIRECTUS.fetch_all(
-        "/items/games?fields=id,title,slug,cover_image,links.url,links.kind"
-        "&filter%5Bcover_image%5D%5B_nnull%5D=true"
+        "/items/games?fields=id,title,slug,art.kind,art.language,art.file,"
+        "links.url,links.kind&filter%5Bart%5D%5B_some%5D%5Bkind%5D%5B_eq%5D=capsule"
     )
-    print(f"  {len(games)} games with cover_image", file=sys.stderr)
+    for game in games:
+        # Covers live in games_art (kind capsule); keep the file ID under the
+        # "cover_image" key the rest of this script already uses.
+        capsules = sorted(
+            (a for a in game["art"] if a["kind"] == "capsule" and a["file"]),
+            key=lambda a: a["language"] != "en",
+        )
+        game["cover_image"] = capsules[0]["file"] if capsules else None
+    games = [g for g in games if g["cover_image"]]
+    print(f"  {len(games)} games with a capsule cover", file=sys.stderr)
 
     # Collect all file UUIDs
     uuid_to_game: dict[str, dict] = {g["cover_image"]: g for g in games}
@@ -228,7 +238,7 @@ def fix(dry_run: bool):
             errors += 1
             continue
 
-        DIRECTUS.patch(f"/items/games/{game['id']}", {"cover_image": new_uuid})
+        set_game_capsule(DIRECTUS, game["id"], new_uuid, img_url)
         print(f"    Updated cover → {new_uuid}", file=sys.stderr)
         cache.set(game_key, {"status": "done", "new_uuid": new_uuid})
         fixed += 1

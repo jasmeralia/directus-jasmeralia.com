@@ -10,7 +10,7 @@ import { sortByTitle } from "../../../lib/list-format";
 
 const filteredGames = sortByTitle(await directusFetchItems("games", {
   fields: GAME_THUMB_FIELDS,
-  filter: { cover_image: { _null: true } },
+  filter: { art: { _none: { kind: { _eq: "capsule" } } } },
   limit: -1,
 }));
 
@@ -38,7 +38,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   <main>
     <div class="panel">
       <CsvHeader title="Cover Art – Missing" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
-      <p>Games with no cover image set (<code>cover_image = null</code>).</p>
+      <p>Games with no portrait cover (no <code>capsule</code> row in <code>games_art</code>).</p>
     </div>
     <ThumbnailBorderLegend />
     {filteredGames.length === 0 ? (

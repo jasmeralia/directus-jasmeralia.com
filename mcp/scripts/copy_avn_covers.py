@@ -183,11 +183,21 @@ def api_get(path):
 
 
 def fetch_games(ids):
-    """Fetch slug + cover_image for a batch of game IDs."""
+    """Fetch slug + cover (games_art capsule file) for a batch of game IDs."""
     ids_param = ",".join(str(i) for i in ids)
     # Use filter[id][_in] via query string
-    path = f"/items/games?fields=id,slug,title,cover_image&filter[id][_in]={ids_param}&limit={len(ids)}"
-    return api_get(path)["data"]
+    path = (
+        "/items/games?fields=id,slug,title,art.kind,art.language,art.file"
+        f"&filter[id][_in]={ids_param}&limit={len(ids)}"
+    )
+    games = api_get(path)["data"]
+    for game in games:
+        capsules = sorted(
+            (a for a in game["art"] if a["kind"] == "capsule" and a["file"]),
+            key=lambda a: a["language"] != "en",
+        )
+        game["cover_image"] = capsules[0]["file"] if capsules else None
+    return games
 
 
 def get_file_info(uuid):

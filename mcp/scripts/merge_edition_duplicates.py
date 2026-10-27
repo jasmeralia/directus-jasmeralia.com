@@ -17,6 +17,7 @@ import sys
 from scriptlib import (
     DirectusClient,
     delete_game_junctions,
+    set_game_capsule,
     take_pg_dump_backup,
 )
 
@@ -80,11 +81,21 @@ MERGE_PAIRS = [
 ]
 
 
+def capsule_file(game):
+    """Return a game's capsule (cover) file ID from its expanded art rows."""
+    capsules = sorted(
+        (a for a in game.get("art") or [] if a["kind"] == "capsule" and a["file"]),
+        key=lambda a: a["language"] != "en",
+    )
+    return capsules[0]["file"] if capsules else None
+
+
 def get_game(game_id):
     """Fetch one game with the relations needed for merging."""
     return DIRECTUS.get(
         f"/items/games/{game_id}"
-        f"?fields=id,title,cover_image,links.id,links.url,links.kind,links.sort"
+        f"?fields=id,title,art.kind,art.language,art.file,"
+        f"links.id,links.url,links.kind,links.sort"
     )["data"]
 
 
@@ -145,13 +156,13 @@ def main():
         elif not new_links:
             print("  (all edition links already present on base)")
 
-        # Copy cover art if base has none
-        if not base.get("cover_image") and edition.get("cover_image"):
-            print(f"  + cover: {edition['cover_image']}")
+        # Copy cover art (games_art capsule) if base has none
+        base_cover = capsule_file(base)
+        edition_cover = capsule_file(edition)
+        if not base_cover and edition_cover:
+            print(f"  + cover: {edition_cover}")
             if not DRY_RUN:
-                DIRECTUS.patch(
-                    f"/items/games/{base_id}", {"cover_image": edition["cover_image"]}
-                )
+                set_game_capsule(DIRECTUS, base_id, edition_cover)
             covers_copied += 1
 
         # Delete edition game record

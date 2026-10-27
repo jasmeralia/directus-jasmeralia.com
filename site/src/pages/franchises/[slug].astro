@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, fileUrl } from "../../lib/directus";
 import { downloadLinks, getLinkMeta } from "../../lib/download-link";
+import { artFields, coverImage } from "../../lib/game-art";
 import { plainTextExcerpt } from "../../lib/markdown";
 import {
   bundleProgressSummary,
@@ -40,7 +41,7 @@ const members = await directusFetchItems("franchise_games", {
     "game_id.id", "game_id.title", "game_id.slug",
     "game_id.release_year", "game_id.player_status",
     "game_id.nsfw", "game_id.genres.genres_id.nsfw",
-    "game_id.cover_image.id", "game_id.cover_image.filename_disk",
+    ...artFields("game_id."),
     "game_id.links.id", "game_id.links.url", "game_id.links.label",
     "game_id.links.kind", "game_id.links.sort",
     "game_id.section_style", "game_id.section_noun", "game_id.current_section",
@@ -62,8 +63,7 @@ const members = await directusFetchItems("franchise_games", {
     "game_id.bundle_members.source_game_id.title",
     "game_id.bundle_members.source_game_id.slug",
     "game_id.bundle_members.source_game_id.release_year",
-    "game_id.bundle_members.source_game_id.cover_image.id",
-    "game_id.bundle_members.source_game_id.cover_image.filename_disk",
+    ...artFields("game_id.bundle_members.source_game_id."),
     "game_id.bundle_members.source_game_id.nsfw",
     "game_id.bundle_members.source_game_id.genres.genres_id.nsfw",
     "game_id.bundle_members.source_game_id.links.id",
@@ -105,7 +105,7 @@ const downloadEntries = (game) =>
 const progressForGame = (game) =>
   bundleProgressSummary(game) ?? sectionProgressSummary(game);
 
-const franchiseImage = games[0] ? fileUrl(games[0].game_id.cover_image) : null;
+const franchiseImage = games[0] ? fileUrl(coverImage(games[0].game_id)) : null;
 const description = plainTextExcerpt(franchise.description)
   || `Games in the ${franchise.title} franchise - ${games.length} tracked by Jasmeralia.`;
 ---
@@ -164,7 +164,7 @@ const description = plainTextExcerpt(franchise.description)
     <div class="game-list">
       {games.map((member, i) => {
         const game = member.game_id;
-        const img = fileUrl(game.cover_image);
+        const img = fileUrl(coverImage(game));
         const bundleMembers = orderedBundleMembers(game.bundle_members);
         const gameDownloads = downloadEntries(game);
         const progress = progressForGame(game);
@@ -227,7 +227,7 @@ const description = plainTextExcerpt(franchise.description)
             </article>
             {bundleMembers.map((included) => {
               const source = sourceGame(included);
-              const includedImg = fileUrl(included.cover_image ?? source?.cover_image);
+              const includedImg = fileUrl(included.cover_image ?? coverImage(source));
               const includedYear = included.release_year ?? source?.release_year ?? null;
               const includedProgress = sectionProgressSummary(included, { nested: true });
               const includedNsfw = source ? isGameNsfw(source) : isGameNsfw(game);

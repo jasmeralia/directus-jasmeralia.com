@@ -7,10 +7,13 @@
     "game_status": "released",
     "player_status": "completed",
     "family_sharing": false,
-    "cover_image": {
-      "id": "cover-alpha",
-      "filename_disk": "alpha.webp"
-    },
+    "art": [
+      {
+        "kind": "capsule",
+        "language": "en",
+        "file": { "id": "cover-alpha", "filename_disk": "alpha.webp" }
+      }
+    ],
     "links": [
       {
         "id": 1,
@@ -31,7 +34,7 @@
     "game_status": "unreleased",
     "player_status": "not_started",
     "family_sharing": true,
-    "cover_image": null,
+    "art": [],
     "links": [],
     "engines": [],
     "genres": [],

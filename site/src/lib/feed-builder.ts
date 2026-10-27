@@ -1,4 +1,5 @@
 import { siteBaseUrl, type DirectusFile } from "./directus";
+import { artFields, coverImage } from "./game-art";
 import { directGameSections, type GameSection } from "./game-sections";
 import { isGameNsfw, isTierBoardEntryNsfw, isTierListNsfw } from "./nsfw";
 import {
@@ -212,7 +213,7 @@ function buildGameEntry(
   const isCreate = isCreateRevision(rev, false);
   const slug     = requireGuidPart(gameItem?.slug ?? data.slug ?? rev.item, `game revision ${rev.id} slug`);
   const link     = `${siteBase}/games/${slug}/index.html`;
-  const imgUrl   = mediaUrl(gameItem?.cover_image ?? data.cover_image) ?? undefined;
+  const imgUrl   = mediaUrl(coverImage(gameItem) ?? data.cover_image) ?? undefined;
 
   if (isCreate) {
     return {
@@ -258,7 +259,7 @@ function buildReviewEntry(
   const slug   = requireGuidPart(reviewItem?.slug ?? data.slug ?? rev.item, `review revision ${rev.id} slug`);
   const link   = `${siteBase}/reviews/${slug}/index.html`;
   const reviewGame = reviewItem?.game as DirectusRecord | undefined;
-  const imgUrl = mediaUrl(reviewGame?.cover_image) ?? undefined;
+  const imgUrl = mediaUrl(coverImage(reviewGame)) ?? undefined;
   const reviewGameTitle = reviewGame?.title ? String(reviewGame.title) : undefined;
   const event = describeReviewEvent({
     revision: rev,
@@ -398,7 +399,7 @@ function buildGameLinkEntry(
   const date = requireDate(act.timestamp, `games_link activity ${act.id}`);
   const slug = requireGuidPart(gameItem.slug, `games_link activity ${act.id} game slug`);
   const link = `${siteBase}/games/${slug}/index.html`;
-  const imgUrl = mediaUrl(gameItem.cover_image) ?? undefined;
+  const imgUrl = mediaUrl(coverImage(gameItem)) ?? undefined;
   const kind: string = String(glinkItem.kind ?? "download");
   const event = describeLinkEvent({
     action: act.action,
@@ -547,7 +548,7 @@ function buildBundleMemberEntry(
     link: `${siteBase}/games/${gameSlug}/index.html`,
     description: event.body,
     pubDate: date,
-    imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
+    imageUrl: mediaUrl(coverImage(gameItem)) ?? undefined,
     guid: rssGuid(
       "game",
       gameSlug,
@@ -659,7 +660,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     fetchItemMap("tier_list_games", tlgItemIds, "id,game_id,tier_list_id,rating"),
     fetchItemMap("games_links",     glinkItemIds, "id,games_id,url,kind"),
     fetchItemMap("reviews", reviewItemIds,
-      "id,title,slug,status,rating,published_at,game.id,game.title,game.cover_image.id,game.cover_image.filename_disk,game.nsfw,game.genres.genres_id.nsfw"),
+      `id,title,slug,status,rating,published_at,game.id,game.title,${artFields("game.").join(",")},game.nsfw,game.genres.genres_id.nsfw`),
     fetchItemMap(
       "game_bundle_members",
       bundleMemberItemIds,
@@ -724,7 +725,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
   ] = await Promise.all([
     fetchItemMap("tier_lists", Array.from(tierListIdsForAdd), "id,title,slug,nsfw"),
     fetchItemMap("games", Array.from(allGameIds),
-      "id,title,slug,cover_image.id,cover_image.filename_disk,nsfw,genres.genres_id.nsfw,section_style,section_noun"),
+      `id,title,slug,${artFields().join(",")},nsfw,genres.genres_id.nsfw,section_style,section_noun`),
     fetchGameSectionsByGameIds(Array.from(new Set([...gameRevisionIds, ...sectionGameIds]))),
     fetchGameSectionsByBundleMemberIds(Array.from(new Set(bundleMemberItemIds))),
   ]);
@@ -833,7 +834,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
       link: `${siteBase}/games/${slug}/index.html`,
       description: described.event.body,
       pubDate: date,
-      imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
+      imageUrl: mediaUrl(coverImage(gameItem)) ?? undefined,
       guid: rssGuid("game", slug, `sections_${run.key}`, date, `game_sections run ${run.key}`),
       nsfw: isGameNsfw(gameItem),
       completed: false,
@@ -885,7 +886,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
       link: `${siteBase}/games/${slug}/index.html`,
       description: event.body,
       pubDate: date,
-      imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
+      imageUrl: mediaUrl(coverImage(gameItem)) ?? undefined,
       guid: rssGuid("game", slug, `music_list_${revision.id}`, date, `games_music_lists revision ${revision.id}`),
       nsfw: isGameNsfw(gameItem),
       completed: false,
@@ -908,7 +909,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
       link: `${siteBase}/games/${slug}/index.html`,
       description: described.event.body,
       pubDate: date,
-      imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
+      imageUrl: mediaUrl(coverImage(gameItem)) ?? undefined,
       guid: rssGuid("game", slug, `music_tracks_${gameId}_${run.listId}_${run.key.split("_").at(-1)}`, date, `games_tracks run ${run.key}`),
       nsfw: isGameNsfw(gameItem),
       completed: false,
@@ -935,7 +936,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
       link: `${siteBase}/games/${slug}/index.html`,
       description: event.body,
       pubDate: date,
-      imageUrl: mediaUrl(gameItem.cover_image) ?? undefined,
+      imageUrl: mediaUrl(coverImage(gameItem)) ?? undefined,
       guid: rssGuid("game", slug, `genre_added_${activity.id}`, date, `games_genres activity ${activity.id}`),
       nsfw: isGameNsfw(gameItem),
       completed: false,

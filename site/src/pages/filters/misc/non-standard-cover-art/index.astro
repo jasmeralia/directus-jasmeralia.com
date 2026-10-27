@@ -5,6 +5,7 @@ import ThumbnailBorderLegend from "../../../../components/ThumbnailBorderLegend.
 import GameThumbCard from "../../../../components/GameThumbCard.astro";
 import { directusFetchItems, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../../lib/directus";
 import { csvDataUri, gamesToCsv } from "../../../../lib/csv";
+import { artFields, coverImage } from "../../../../lib/game-art";
 import { GAME_THUMB_FIELDS } from "../../../../lib/game-fields";
 import { sortByTitle } from "../../../../lib/list-format";
 
@@ -12,14 +13,15 @@ const TARGET_RATIO = 2 / 3;
 const TOLERANCE = 0.02;
 
 const allGames = await directusFetchItems("games", {
-  fields: [...GAME_THUMB_FIELDS, "cover_image.width", "cover_image.height"],
+  fields: [...GAME_THUMB_FIELDS, ...artFields("", true)],
   limit: -1,
 });
 
 const filteredGames = sortByTitle(
   (allGames ?? []).filter((game) => {
-    const w = game?.cover_image?.width;
-    const h = game?.cover_image?.height;
+    const cover = coverImage(game);
+    const w = cover?.width;
+    const h = cover?.height;
     if (!w || !h) return false;
     return Math.abs(w / h - TARGET_RATIO) > TOLERANCE;
   }),

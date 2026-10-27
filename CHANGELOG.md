@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.271] - 2026-10-27
+- Games: read each game's portrait cover from the games_art collection (capsule art) instead of the deprecated games.cover_image field, across game cards, game/franchise/review/tier pages, the walkthrough list, the RSS feed, and the Cover Art filters. Import and repair scripts now write the cover to games_art.
 ## [1.0.270] - 2026-10-26
 - Filters: detect SubscribeStar as a download platform. Adds a Download Platform + SubscribeStar filter and SubscribeStar slices in the Download Platform charts, so Download Platform + Unknown no longer lists every game whose only unrecognized link is SubscribeStar. Walkthrough URL filters now classify through one shared function, so SubscribeStar and Epic walkthrough links count as unknown consistently.
 ## [1.0.269] - 2026-10-26

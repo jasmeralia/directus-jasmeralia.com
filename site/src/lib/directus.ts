@@ -1,6 +1,7 @@
 import { getUrlPlatform, primaryDownloadLink, type GameLink } from "./download-link";
 import { recordDirectusFetch } from "./build-metrics";
 import type { GameBundleMember } from "./game-bundles";
+import { artFields, type GameArtRow } from "./game-art";
 import type { GameSection } from "./game-sections";
 import { groupTierChipsByGame, type TierChip, type TierChipEntry } from "./tier-chips";
 
@@ -9,13 +10,15 @@ export type DirectusFile = {
   filename_download?: string;
   filename_disk?: string | null;
   title?: string;
+  width?: number | null;
+  height?: number | null;
 };
 
 export type Game = {
   id: number;
   title: string;
   slug: string;
-  cover_image?: DirectusFile | string | null;
+  art?: GameArtRow[] | null;
   links?: GameLink[] | null;
   player_status?: string | null;
   family_sharing?: boolean | null;
@@ -60,7 +63,7 @@ export type TierListGame = {
     player_status?: string | null;
     release_year?: number | null;
     links?: GameLink[] | null;
-    cover_image?: { id: string; filename_disk: string } | null;
+    art?: GameArtRow[] | null;
     nsfw?: boolean | null;
     genres?: { genres_id?: { nsfw?: boolean | null } | null }[] | null;
   };
@@ -289,7 +292,7 @@ export async function getPublishedTierListBySlug(slug: string): Promise<TierList
       "game_id.id", "game_id.title", "game_id.slug", "game_id.player_status", "game_id.release_year",
       "game_id.nsfw", "game_id.genres.genres_id.nsfw",
       "game_id.links.id", "game_id.links.url", "game_id.links.kind", "game_id.links.sort",
-      "game_id.cover_image.id", "game_id.cover_image.filename_disk",
+      ...artFields("game_id."),
     ],
     filter: { tier_list_id: { _eq: item.id } },
     limit: -1,
