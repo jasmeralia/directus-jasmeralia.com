@@ -53,14 +53,84 @@ function currentVersions(game: TrackedGameVersions): GameVersion[] {
   return (game.versions ?? []).filter((row) => row.is_current !== false);
 }
 
-function isBehindGsl(value: string, gslValue: string): boolean {
-  const left = parseSemver(value.toLocaleLowerCase("en-US"));
-  const right = parseSemver(gslValue.toLocaleLowerCase("en-US"));
-  if (left && right) return compareSemver(left, right) < 0;
-  return value.toLocaleLowerCase("en-US") !== gslValue.toLocaleLowerCase("en-US");
+// "close" is a one-off difference: an install exactly one step behind GSL
+// (0.8.15 vs 0.8.16, or 0.19.1 vs 0.20, but not 0.5 vs 0.6.9, which skips
+// patch releases), or the same version with a different build or qualifier
+// suffix (0.8.15r1 vs 0.8.15). Anything further behind is "behind", as is a
+// major-version difference or any value that cannot be parsed well enough to
+// compare (those fall back to plain match / no match).
+export type InstallComparison = "current" | "close" | "behind" | "preview" | "unrecorded";
+
+type FuzzyResult = "current" | "close" | "behind";
+
+const QUALIFIER_WORDS = /\b(?:pre-?alpha|alpha|beta|early(?: access)?|final|hotfix)\b/g;
+
+function normalizeLabel(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-US");
 }
 
-export type InstallComparison = "current" | "behind" | "preview" | "unrecorded";
+type Difference = { index: number; gap: number; oneOff: boolean };
+
+// First differing component of two padded numeric sequences. The difference is
+// one-off when GSL is a single step ahead and nothing follows that component
+// in GSL's number (it is the first release of the next step).
+function firstDifference(install: number[], gsl: number[]): Difference | null {
+  for (let index = 0; index < Math.max(install.length, gsl.length); index += 1) {
+    const gap = (gsl[index] ?? 0) - (install[index] ?? 0);
+    if (gap) return { index, gap, oneOff: gap === 1 && gsl.slice(index + 1).every((part) => part === 0) };
+  }
+  return null;
+}
+
+// Version-led values: "0.8.15r1", "v1.02.01-2", "0.8.16 Alpha", "26.9.0e".
+function parseLeadingVersion(value: string): { core: number[]; suffix: string } | null {
+  const match = /^v?(\d+(?:\.\d+)*)(.*)$/.exec(value);
+  if (!match) return null;
+  return { core: match[1].split(".").map(Number), suffix: match[2].trim() };
+}
+
+// Label-style values: "Chapter 4 Episode 5", "S2 Ch. 11". The skeleton keeps
+// the words with every number replaced by "#", so two labels are only compared
+// when they are the same shape.
+function parseLabel(value: string): { skeleton: string; numbers: number[] } | null {
+  const numbers: number[] = [];
+  const skeleton = value
+    .replace(QUALIFIER_WORDS, " ")
+    .replace(/\bchapter\b/g, "ch")
+    .replace(/\bepisode\b/g, "ep")
+    .replace(/\bseason\b/g, "s")
+    .replace(/\d+(?:\.\d+)*/g, (token) => {
+      numbers.push(...token.split(".").map(Number));
+      return " # ";
+    })
+    .replace(/[^a-z#]+/g, " ")
+    .trim();
+  return numbers.length > 0 ? { skeleton, numbers } : null;
+}
+
+function fuzzyCompare(value: string, gslValue: string): FuzzyResult {
+  const left = normalizeLabel(value);
+  const right = normalizeLabel(gslValue);
+  if (left === right) return "current";
+
+  const leftVersion = parseLeadingVersion(left);
+  const rightVersion = parseLeadingVersion(right);
+  if (leftVersion && rightVersion) {
+    const diff = firstDifference(leftVersion.core, rightVersion.core);
+    if (!diff) return leftVersion.suffix === rightVersion.suffix ? "current" : "close";
+    if (diff.gap < 0) return "current";
+    return diff.index > 0 && diff.oneOff ? "close" : "behind";
+  }
+
+  const leftLabel = parseLabel(left);
+  const rightLabel = parseLabel(right);
+  if (!leftVersion && !rightVersion && leftLabel && rightLabel && leftLabel.skeleton === rightLabel.skeleton) {
+    const diff = firstDifference(leftLabel.numbers, rightLabel.numbers);
+    if (!diff || diff.gap < 0) return "current";
+    return diff.oneOff ? "close" : "behind";
+  }
+  return "behind";
+}
 
 // How one Orion/Typhoon installation stands against the current GSL value.
 // "preview" is a demo/intro/prologue install, which is never held against GSL.
@@ -68,7 +138,7 @@ export function compareInstallToGsl(install: GameVersion, gslValue: string | nul
   const value = effectiveVersion(install);
   if (!value || !gslValue) return "unrecorded";
   if (PREVIEW_INSTALL_PATTERN.test(value)) return "preview";
-  return isBehindGsl(value, gslValue) ? "behind" : "current";
+  return fuzzyCompare(value, gslValue);
 }
 
 export function hasVersionMismatch(game: TrackedGameVersions): boolean {
@@ -86,7 +156,10 @@ export function hasVersionMismatch(game: TrackedGameVersions): boolean {
   if (!gslValue) return false;
   return versions
     .filter((row) => row.source !== "gsl")
-    .some((install) => compareInstallToGsl(install, gslValue) === "behind");
+    .some((install) => {
+      const comparison = compareInstallToGsl(install, gslValue);
+      return comparison === "behind" || comparison === "close";
+    });
 }
 
 export type VersionsTabGroup = {

@@ -185,19 +185,63 @@ describe("install comparison against GSL", () => {
     comparison_override,
     is_current: true,
   });
+  const compare = (value: string, gsl: string) => compareInstallToGsl(install(value), gsl);
 
-  it("classifies an install as behind, current, preview, or unrecorded", () => {
-    expect(compareInstallToGsl(install("0.8"), "0.9")).toBe("behind");
-    expect(compareInstallToGsl(install("0.9.0"), "0.9")).toBe("current");
-    expect(compareInstallToGsl(install("0.9.21"), "0.9.0")).toBe("current");
-    expect(compareInstallToGsl(install("Demo 0.1"), "0.9")).toBe("preview");
+  it("classifies the basics: matching, ahead, preview, unrecorded", () => {
+    expect(compare("0.9.0", "0.9")).toBe("current");
+    expect(compare("0.9.21", "0.9.0")).toBe("current");
+    expect(compare("Demo 0.1", "0.9")).toBe("preview");
     expect(compareInstallToGsl(install(null), "0.9")).toBe("unrecorded");
     expect(compareInstallToGsl(install("0.8"), null)).toBe("unrecorded");
   });
 
-  it("compares non-semver labels case-insensitively and honors overrides", () => {
-    expect(compareInstallToGsl(install("Ch. 4"), "ch. 4")).toBe("current");
-    expect(compareInstallToGsl(install("Ch. 3"), "Ch. 4")).toBe("behind");
+  it("calls an install exactly one step behind close", () => {
+    expect(compare("0.8.15", "0.8.16")).toBe("close");
+    expect(compare("0.8.15r1", "0.8.16 Alpha")).toBe("close");
+    expect(compare("0.3.3", "0.4")).toBe("close");
+    expect(compare("0.19.1", "0.20 Pre-Alpha")).toBe("close");
+    expect(compare("0.2.5.1", "0.2.6")).toBe("close");
+  });
+
+  it("calls the same version with a different build or qualifier close", () => {
+    expect(compare("0.8.15r1", "0.8.15")).toBe("close");
+    expect(compare("0.6.1", "0.6.1_ch5")).toBe("close");
+    expect(compare("0.ZF", "0.Z")).toBe("close");
+  });
+
+  it("calls anything further behind, or a major difference, behind", () => {
+    expect(compare("0.8", "0.9.9")).toBe("behind");
+    expect(compare("0.5", "0.6.1")).toBe("behind");
+    expect(compare("0.5.1", "0.6.1")).toBe("behind");
+    expect(compare("0.5.25", "0.5.75")).toBe("behind");
+    expect(compare("0.1.200", "0.3")).toBe("behind");
+    expect(compare("1.8.0", "1.9.5")).toBe("behind");
+    expect(compare("0.91", "1.0")).toBe("behind");
+    expect(compare("25.7.0", "26.9.0e")).toBe("behind");
+  });
+
+  it("fuzzy-matches label-style versions of the same shape", () => {
+    expect(compare("Chapter 4 Episode 5", "Ch. 4 Ep. 5")).toBe("current");
+    expect(compare("Chapter 4 Episode 4", "Ch. 4 Ep. 5")).toBe("close");
+    expect(compare("Ch. 3", "Ch. 4")).toBe("close");
+    expect(compare("S2 Ch. 9 Early", "S2 Ch. 11")).toBe("behind");
+    expect(compare("S2 Ch. 12", "S2 Ch. 11")).toBe("current");
+  });
+
+  it("falls back to match / no match when the values cannot be compared", () => {
+    expect(compare("Ch. 4", "ch. 4")).toBe("current");
+    expect(compare("Ch6269", "Amber & Gold P4 (Ch. 63)")).toBe("behind");
+    expect(compare("0.19", "Chapter 20")).toBe("behind");
+    expect(compare("1.0", "Episode 2.1")).toBe("behind");
+    expect(compare("alpha", "beta")).toBe("behind");
+  });
+
+  it("honors comparison overrides", () => {
     expect(compareInstallToGsl(install("0.4.6r1", "0.4.6"), "0.4.6")).toBe("current");
+  });
+
+  it("still lists close and behind installs as mismatches", () => {
+    expect(hasVersionMismatch(versionsOf(null, "0.8.15", "0.8.16"))).toBe(true);
+    expect(hasVersionMismatch(versionsOf(null, "0.8.16", "0.8.16"))).toBe(false);
   });
 });

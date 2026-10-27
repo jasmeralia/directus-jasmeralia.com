@@ -53,6 +53,7 @@ const statusLabel = (status) => playerStatusLabels.get(status) ?? status;
 
 const COMPARISON_LABELS = {
   current: "Up to date with GameStoryLog",
+  close: "One step behind GameStoryLog",
   behind: "Behind GameStoryLog",
   preview: "Demo or preview install",
   unrecorded: "No version recorded",
@@ -88,7 +89,10 @@ const rows = games.map((game) => {
 });
 
 const statusesPresent = STATUS_ORDER.filter((status) => games.some((game) => game.player_status === status));
-const hasPreview = rows.some((row) => [...row.typhoon, ...row.orion].some((i) => i.comparison === "preview"));
+const hasComparison = (comparison) =>
+  rows.some((row) => [...row.typhoon, ...row.orion].some((install) => install.comparison === comparison));
+const hasClose = hasComparison("close");
+const hasPreview = hasComparison("preview");
 ---
 
 <BaseLayout title="Filters | Version Mismatches" description={description}>
@@ -116,6 +120,7 @@ const hasPreview = rows.some((row) => [...row.typhoon, ...row.orion].some((i) =>
       .na{font-style:italic;font-size:.8rem;opacity:.5;}
       .icon{flex:none;width:15px;height:15px;}
       .icon.is-current{color:#3fb96b;}
+      .icon.is-close{color:#e6c029;}
       .icon.is-behind{color:#e5534b;}
       .icon.is-preview,.icon.is-unrecorded{color:#8a8a8a;}
       .missing{font-style:italic;opacity:.55;}
@@ -143,13 +148,15 @@ const hasPreview = rows.some((row) => [...row.typhoon, ...row.orion].some((i) =>
           <svg width="0" height="0" style="position:absolute" aria-hidden="true">
             <defs>
               <g id="vm-current"><circle cx="8" cy="8" r="7.5" fill="currentColor" opacity=".18"/><path d="M4.6 8.3l2.3 2.3 4.5-4.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
+              <g id="vm-close"><circle cx="8" cy="8" r="7.5" fill="currentColor" opacity=".18"/><path d="M8 4.4v4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="11.4" r="1.05" fill="currentColor"/></g>
               <g id="vm-behind"><circle cx="8" cy="8" r="7.5" fill="currentColor" opacity=".18"/><path d="M5.3 5.3l5.4 5.4M10.7 5.3l-5.4 5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
               <g id="vm-preview"><circle cx="8" cy="8" r="7.5" fill="currentColor" opacity=".18"/><path d="M5 8h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
             </defs>
           </svg>
           <div class="legend" aria-label="Legend">
             <span><svg class="icon is-current" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-current"/></svg> up to date with GSL</span>
-            <span><svg class="icon is-behind" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-behind"/></svg> behind GSL</span>
+            {hasClose ? <span><svg class="icon is-close" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-close"/></svg> one step behind GSL</span> : null}
+            <span><svg class="icon is-behind" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-behind"/></svg> further behind GSL</span>
             {hasPreview ? <span><svg class="icon is-preview" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-preview"/></svg> demo or preview</span> : null}
             <span><span class="na">N/A</span> not installed there</span>
             {statusesPresent.map((status) => (
@@ -207,7 +214,7 @@ const hasPreview = rows.some((row) => [...row.typhoon, ...row.orion].some((i) =>
                           <div class="line" title={install.note ?? undefined}>
                             <svg class={`icon is-${install.comparison}`} viewBox="0 0 16 16" role="img" aria-label={COMPARISON_LABELS[install.comparison]}>
                               <title>{COMPARISON_LABELS[install.comparison]}</title>
-                              {install.comparison === "current" ? <use href="#vm-current"/> : install.comparison === "behind" ? <use href="#vm-behind"/> : <use href="#vm-preview"/>}
+                              <use href={`#vm-${install.comparison === "unrecorded" ? "preview" : install.comparison}`}/>
                             </svg>
                             <span class:list={["text", { missing: install.version === null }]} title={install.version ?? undefined}>{install.version ?? "Not recorded"}</span>
                           </div>
