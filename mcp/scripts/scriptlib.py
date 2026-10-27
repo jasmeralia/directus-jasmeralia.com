@@ -574,25 +574,34 @@ class DirectusClient:
                 return results
             offset += page_size
 
-    def upload_cover(
-        self, game_id: int, image_bytes: bytes, extension: str = "jpg"
+    def upload_file(
+        self,
+        file_bytes: bytes,
+        filename: str,
+        mime: str,
+        title: str | None = None,
     ) -> str | None:
-        """Upload cover bytes and return the new Directus file ID."""
+        """Upload bytes as a new Directus file and return its ID, or None."""
         boundary = "----FormBoundary7MA4YWxkTrZu0gW"
-        filename = f"cover_{game_id}.{extension}"
-        mime = "image/jpeg" if extension in ("jpg", "jpeg") else f"image/{extension}"
-        body = (
+        parts = b""
+        if title:
+            parts += (
+                f"--{boundary}\r\n"
+                'Content-Disposition: form-data; name="title"\r\n\r\n'
+                f"{title}\r\n"
+            ).encode()
+        parts += (
             (
                 f"--{boundary}\r\n"
                 f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
                 f"Content-Type: {mime}\r\n\r\n"
             ).encode()
-            + image_bytes
+            + file_bytes
             + f"\r\n--{boundary}--\r\n".encode()
         )
         request = urllib.request.Request(
             f"{self.base_url}/files",
-            data=body,
+            data=parts,
             method="POST",
             headers={
                 "Authorization": f"Bearer {self.token}",
@@ -603,6 +612,13 @@ class DirectusClient:
             with urllib.request.urlopen(request, timeout=60) as response:
                 result = json.loads(response.read())
             return result["data"]["id"]
-        except Exception as error:  # noqa: BLE001 - Report and skip per-cover failures.
+        except Exception as error:  # noqa: BLE001 - Report and skip per-file failures.
             print(f"    Upload error: {error}", file=sys.stderr)
             return None
+
+    def upload_cover(
+        self, game_id: int, image_bytes: bytes, extension: str = "jpg"
+    ) -> str | None:
+        """Upload cover bytes and return the new Directus file ID."""
+        mime = "image/jpeg" if extension in ("jpg", "jpeg") else f"image/{extension}"
+        return self.upload_file(image_bytes, f"cover_{game_id}.{extension}", mime)

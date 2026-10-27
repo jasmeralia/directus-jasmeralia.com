@@ -1,10 +1,13 @@
 """Shared Steam metadata helpers for import and backfill scripts."""
 
+import json
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
+from dataclasses import dataclass
 
 from scriptlib import DirectusClient, ProgressCache, RetryPolicy, fetch_with_backoff
 
@@ -217,3 +220,123 @@ def genres_from_tags(tags: dict[str, int], minimum_votes: int) -> set[str]:
     if genres & {"card", "rts", "visual-novel"}:
         genres.discard("crpg")
     return genres
+
+
+STEAM_GET_ITEMS_URL = (
+    "https://api.steampowered.com/IStoreBrowseService/GetItems/v1?input_json={payload}"
+)
+STEAM_ART_CDN = "https://shared.cloudflare.steamstatic.com/store_item_assets/"
+STEAM_COMMUNITY_ICON_URL = (
+    "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/"
+    "{appid}/{icon_hash}.jpg"
+)
+STEAM_LANGUAGES = {
+    "en": "english",
+    "fr": "french",
+    "de": "german",
+    "es": "spanish",
+    "it": "italian",
+    "pt": "portuguese",
+    "ru": "russian",
+    "ja": "japanese",
+    "ko": "koreana",
+    "zh": "schinese",
+    "zh-tw": "tchinese",
+    "pl": "polish",
+    "tr": "turkish",
+    "nl": "dutch",
+    "sv": "swedish",
+}
+# games_art.kind -> Store asset names, preferred first (2x before 1x). The
+# portrait capsule and hero come from the library assets; wide_capsule is the
+# store header (the 920x430 2x variant when Steam has one).
+STEAM_ART_ASSETS: dict[str, tuple[tuple[str, str], ...]] = {
+    "capsule": (("library_capsule_2x", "2x"), ("library_capsule", "1x")),
+    "wide_capsule": (("header_2x", "2x"), ("header", "1x")),
+    "hero": (("library_hero_2x", "2x"), ("library_hero", "1x")),
+}
+
+
+@dataclass(frozen=True)
+class SteamArtCandidate:
+    """One downloadable Steam image for a games_art kind."""
+
+    kind: str
+    url: str
+    scale: str
+    localized: bool
+
+
+def fetch_steam_store_assets(
+    appids: list[int], steam_language: str
+) -> tuple[dict[int, dict | None], str | None]:
+    """Fetch Store asset names for apps in one IStoreBrowseService batch.
+
+    Returns {appid: {"assets", "without_overrides", "format"} or None when the
+    app has no assets}, plus an error code when the request itself failed.
+    """
+    request = {
+        "ids": [{"appid": appid} for appid in appids],
+        "context": {"language": steam_language, "country_code": "US"},
+        "data_request": {
+            "include_assets": True,
+            "include_assets_without_overrides": True,
+        },
+    }
+    url = STEAM_GET_ITEMS_URL.format(
+        payload=urllib.parse.quote(json.dumps(request, separators=(",", ":")))
+    )
+    payload, err = fetch_with_backoff(
+        url,
+        headers={"User-Agent": "Mozilla/5.0"},
+        retry=RetryPolicy(rate_limit_codes=(403, 429)),
+    )
+    if payload is None:
+        return {}, err
+    found: dict[int, dict | None] = {appid: None for appid in appids}
+    for item in payload.get("response", {}).get("store_items", []):
+        appid = item.get("appid") or item.get("id")
+        assets = item.get("assets")
+        if appid in found and assets:
+            found[appid] = {
+                "assets": assets,
+                "without_overrides": item.get("assets_without_overrides") or assets,
+            }
+    return found, None
+
+
+def steam_art_candidates(appid: int, entry: dict) -> list[SteamArtCandidate]:
+    """Return the preferred Steam image per kind (2x over 1x) for one app.
+
+    `localized` is true when the requested language's asset differs from the
+    unlocalized one. Steam's Store API language and an asset's own language are
+    separate, so the app's supported-language list is never consulted.
+    """
+    assets = entry["assets"]
+    base = assets.get("asset_url_format")
+    if not base:
+        return []
+    plain = entry["without_overrides"]
+    found: list[SteamArtCandidate] = []
+    for kind, names in STEAM_ART_ASSETS.items():
+        for name, scale in names:
+            path = assets.get(name)
+            if not path:
+                continue
+            url = STEAM_ART_CDN + base.replace("${FILENAME}", path)
+            found.append(SteamArtCandidate(kind, url, scale, plain.get(name) != path))
+            break
+    icon_hash = assets.get("community_icon")
+    if icon_hash:
+        url = STEAM_COMMUNITY_ICON_URL.format(appid=appid, icon_hash=icon_hash)
+        found.append(SteamArtCandidate("icon", url, "1x", False))
+    return found
+
+
+def steam_logo_candidate(appid: int) -> SteamArtCandidate | None:
+    """Probe the unhashed Steam logo paths (2x first); newer apps have none."""
+    for name, scale in (("logo_2x.png", "2x"), ("logo.png", "1x")):
+        url = f"{STEAM_ART_CDN}steam/apps/{appid}/{name}"
+        if url_responds(url):
+            return SteamArtCandidate("logo", url, scale, False)
+    return None
