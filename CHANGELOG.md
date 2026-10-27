@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.265] - 2026-10-26
+- Version Mismatches: an install that exactly matches the previous GameStoryLog release now shows yellow instead of red, however many numbers apart the two versions are.
 ## [1.0.264] - 2026-10-26
 - Version Mismatches: fuzzy-match each install against GameStoryLog. A true match stays green, a one-off difference (exactly one step behind, or only a build/qualifier suffix) is yellow, anything further behind is red, and values that cannot be parsed fall back to plain match/no match. Equivalent labels such as "Chapter 4 Episode 5" and "Ch. 4 Ep. 5" now count as a match.
 ## [1.0.263] - 2026-10-26

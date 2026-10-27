@@ -6,6 +6,7 @@ import {
   effectiveVersion,
   formatTrackedVersion,
   hasVersionMismatch,
+  previousGslVersion,
 } from "./game-versions";
 
 type Source = "orion" | "typhoon" | "gsl";
@@ -243,5 +244,45 @@ describe("install comparison against GSL", () => {
   it("still lists close and behind installs as mismatches", () => {
     expect(hasVersionMismatch(versionsOf(null, "0.8.15", "0.8.16"))).toBe(true);
     expect(hasVersionMismatch(versionsOf(null, "0.8.16", "0.8.16"))).toBe(false);
+  });
+
+  it("calls an exact match to the previous GSL release close, however far behind", () => {
+    expect(compareInstallToGsl(install("0.6.9"), "0.6.9.5", "0.6.9")).toBe("close");
+    expect(compareInstallToGsl(install("0.91"), "1.0", "0.91")).toBe("close");
+    expect(compareInstallToGsl(install("0.4"), "0.7", "0.6")).toBe("behind");
+    expect(compareInstallToGsl(install("0.4"), "0.7", null)).toBe("behind");
+  });
+
+  it("does not credit an install that falls between the previous and current GSL release", () => {
+    expect(compareInstallToGsl(install("0.5.6"), "0.5.75", "0.5.5")).toBe("behind");
+  });
+});
+
+describe("previous GSL version", () => {
+  const gsl = (reported_version: string, release_date: string | null, is_current: boolean, comparison_override?: string) => ({
+    source: "gsl" as const,
+    reported_version,
+    release_date,
+    is_current,
+    comparison_override,
+  });
+
+  it("is the release immediately before the current one by release date", () => {
+    expect(previousGslVersion([
+      gsl("0.5", "2026-01-01", false),
+      gsl("0.7", "2026-03-01", true),
+      gsl("0.6", "2026-02-01", false),
+    ])).toBe("0.6");
+  });
+
+  it("uses a comparison override, ignores Orion/Typhoon rows, and is null without history", () => {
+    expect(previousGslVersion([
+      gsl("0.7", "2026-03-01", true),
+      gsl("Update 6 Final", "2026-02-01", false, "0.6"),
+      { source: "typhoon" as const, reported_version: "0.5", is_current: true },
+    ])).toBe("0.6");
+    expect(previousGslVersion([gsl("0.7", "2026-03-01", true)])).toBeNull();
+    expect(previousGslVersion([{ source: "orion" as const, reported_version: "0.5", is_current: true }])).toBeNull();
+    expect(previousGslVersion(null)).toBeNull();
   });
 });

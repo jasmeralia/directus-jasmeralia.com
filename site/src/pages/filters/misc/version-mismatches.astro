@@ -2,7 +2,7 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import { directusFetchItems, directusFieldChoiceMap } from "../../../lib/directus";
 import { downloadLinksByDomain, getLinkMeta } from "../../../lib/download-link";
-import { compareInstallToGsl, effectiveVersion, formatTrackedVersion, hasVersionMismatch } from "../../../lib/game-versions";
+import { compareInstallToGsl, effectiveVersion, formatTrackedVersion, hasVersionMismatch, previousGslVersion } from "../../../lib/game-versions";
 import { sortByTitle } from "../../../lib/list-format";
 
 const allGames = await directusFetchItems("games", {
@@ -21,7 +21,7 @@ const allGames = await directusFetchItems("games", {
   limit: -1,
 });
 const versions = await directusFetchItems("game_versions", {
-  fields: ["id", "games_id", "source", "reported_version", "comparison_override", "override_reason", "source_reference", "installation_key", "is_current"],
+  fields: ["id", "games_id", "source", "reported_version", "comparison_override", "override_reason", "source_reference", "installation_key", "is_current", "release_date"],
   limit: -1,
 });
 const playerStatusLabels = await directusFieldChoiceMap("games", "player_status");
@@ -53,7 +53,7 @@ const statusLabel = (status) => playerStatusLabels.get(status) ?? status;
 
 const COMPARISON_LABELS = {
   current: "Up to date with GameStoryLog",
-  close: "One step behind GameStoryLog",
+  close: "One release behind GameStoryLog",
   behind: "Behind GameStoryLog",
   preview: "Demo or preview install",
   unrecorded: "No version recorded",
@@ -63,13 +63,14 @@ const rows = games.map((game) => {
   const current = (game.versions ?? []).filter((row) => row.is_current !== false);
   const gsl = current.find((row) => row.source === "gsl") ?? null;
   const gslValue = gsl ? effectiveVersion(gsl) : null;
+  const previousGslValue = previousGslVersion(game.versions);
   const gslLink = (game.links ?? []).find((l) => l.kind === "gamestorylog") ?? null;
   const installs = (source) =>
     current
       .filter((row) => row.source === source)
       .map((row) => ({
         version: formatTrackedVersion(row.reported_version),
-        comparison: compareInstallToGsl(row, gslValue),
+        comparison: compareInstallToGsl(row, gslValue, previousGslValue),
         // Hover text only: the install directory and any comparison override.
         note: [
           row.installation_key ? (row.source_reference ?? "installation") : null,
@@ -155,7 +156,7 @@ const hasPreview = hasComparison("preview");
           </svg>
           <div class="legend" aria-label="Legend">
             <span><svg class="icon is-current" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-current"/></svg> up to date with GSL</span>
-            {hasClose ? <span><svg class="icon is-close" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-close"/></svg> one step behind GSL</span> : null}
+            {hasClose ? <span><svg class="icon is-close" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-close"/></svg> one release behind GSL</span> : null}
             <span><svg class="icon is-behind" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-behind"/></svg> further behind GSL</span>
             {hasPreview ? <span><svg class="icon is-preview" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-preview"/></svg> demo or preview</span> : null}
             <span><span class="na">N/A</span> not installed there</span>
