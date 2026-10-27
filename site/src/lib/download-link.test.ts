@@ -113,6 +113,8 @@ describe("URL platform and metadata", () => {
     ["https://www.gog.com/game/example", "gog"],
     ["https://store.epicgames.com/p/example", "epic"],
     ["https://www.patreon.com/creator", "patreon"],
+    ["https://subscribestar.adult/creator", "subscribestar"],
+    ["https://www.subscribestar.com/creator", "subscribestar"],
     ["https://store.playstation.com/product/example", "playstation"],
     ["https://www.xbox.com/games/example", "xbox"],
     ["https://www.ign.com/wikis/example", "ign"],
@@ -206,8 +208,9 @@ describe("URL platform and metadata", () => {
     });
   });
 
-  it("keeps SubscribeStar out of the platform filters", () => {
-    expect(getUrlPlatform("https://subscribestar.adult/creator")).toBeNull();
+  it("does not treat a lookalike host as SubscribeStar", () => {
+    expect(getUrlPlatform("https://notsubscribestar.com/creator")).toBeNull();
+    expect(getUrlPlatform("https://subscribestar.com.example.test/creator")).toBeNull();
   });
 
   it.each([

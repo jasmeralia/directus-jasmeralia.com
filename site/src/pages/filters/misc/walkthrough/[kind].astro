@@ -9,9 +9,10 @@ import { sortByTitle } from "../../../../lib/list-format";
 import {
   WALKTHROUGH_KIND_LABEL,
   WALKTHROUGH_KINDS,
+  classifyWalkthroughValue,
   type WalkthroughKind,
 } from "../../../../lib/walkthrough-link";
-import { getUrlPlatform, walkthroughLinks, walkthroughTextNotes } from "../../../../lib/download-link";
+import { walkthroughLinks, walkthroughTextNotes } from "../../../../lib/download-link";
 
 export async function getStaticPaths() {
   return WALKTHROUGH_KINDS.map((kind) => ({ params: { kind } }));
@@ -35,8 +36,7 @@ const filteredGames = games.filter((game) => {
   if (kind === "text-note") return notes.length > 0;
   if (wtLinks.length === 0) return false;
   return wtLinks.some((link) => {
-    const platform = getUrlPlatform(link.url);
-    return kind === "unknown" ? platform === null : platform === kind;
+    return classifyWalkthroughValue(link.url) === kind;
   });
 });
 

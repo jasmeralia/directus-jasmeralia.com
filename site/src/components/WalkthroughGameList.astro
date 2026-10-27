@@ -2,12 +2,11 @@
 import { fileUrl } from "../lib/directus";
 import {
   getLinkMeta,
-  getUrlPlatform,
   walkthroughLinks,
   walkthroughTextNotes,
   type GameLink,
 } from "../lib/download-link";
-import type { WalkthroughKind } from "../lib/walkthrough-link";
+import { classifyWalkthroughValue, type WalkthroughKind } from "../lib/walkthrough-link";
 import { isGameNsfw } from "../lib/nsfw";
 
 type WalkthroughEntry = {
@@ -46,8 +45,7 @@ const walkthroughEntries = (game: WalkthroughGame): WalkthroughEntry[] => {
 
   const matchingLinks = links.filter((link) => {
     if (!kind) return true;
-    const platform = getUrlPlatform(link.url);
-    return kind === "unknown" ? platform === null : platform === kind;
+    return classifyWalkthroughValue(link.url) === kind;
   });
 
   const linkEntries = matchingLinks.map((link) => {
