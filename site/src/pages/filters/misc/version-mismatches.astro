@@ -69,10 +69,13 @@ const rows = games.map((game) => {
       .map((row) => ({
         version: formatTrackedVersion(row.reported_version),
         comparison: compareInstallToGsl(row, gslValue),
-        reference: row.installation_key ? (row.source_reference ?? "installation") : null,
-        note: row.comparison_override
-          ? `Compared as ${effectiveVersion(row)}${row.override_reason ? ` - ${row.override_reason}` : ""}`
-          : null,
+        // Hover text only: the install directory and any comparison override.
+        note: [
+          row.installation_key ? (row.source_reference ?? "installation") : null,
+          row.comparison_override
+            ? `Compared as ${effectiveVersion(row)}${row.override_reason ? ` - ${row.override_reason}` : ""}`
+            : null,
+        ].filter(Boolean).join("\n") || null,
       }));
   return {
     game,
@@ -111,7 +114,6 @@ const hasPreview = rows.some((row) => [...row.typhoon, ...row.orion].some((i) =>
       .status-dot{display:block;width:9px;height:9px;border-radius:50%;box-sizing:border-box;}
       .status-dot.is-hollow{background:transparent !important;border:1.5px solid;}
       .na{font-style:italic;font-size:.8rem;opacity:.5;}
-      .ref{font-size:.75rem;opacity:.6;}
       .icon{flex:none;width:15px;height:15px;}
       .icon.is-current{color:#3fb96b;}
       .icon.is-behind{color:#e5534b;}
@@ -163,7 +165,7 @@ const hasPreview = rows.some((row) => [...row.typhoon, ...row.orion].some((i) =>
               <div role="columnheader">GameStoryLog</div>
               <div role="columnheader">Typhoon</div>
               <div role="columnheader">Orion</div>
-              <div role="columnheader" style="text-align:right">Get</div>
+              <div role="columnheader" style="text-align:right">Links</div>
             </div>
             {rows.map((row) => {
               const status = row.game.player_status;
@@ -208,7 +210,6 @@ const hasPreview = rows.some((row) => [...row.typhoon, ...row.orion].some((i) =>
                               {install.comparison === "current" ? <use href="#vm-current"/> : install.comparison === "behind" ? <use href="#vm-behind"/> : <use href="#vm-preview"/>}
                             </svg>
                             <span class:list={["text", { missing: install.version === null }]} title={install.version ?? undefined}>{install.version ?? "Not recorded"}</span>
-                            {install.reference ? <span class="ref text">{install.reference}</span> : null}
                           </div>
                         ))
                       )}

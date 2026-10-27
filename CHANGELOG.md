@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.263] - 2026-10-26
+- Version Mismatches: stop showing the install directory name beside each version (it stays in the hover text) and rename the "Get" column to "Links".
 ## [1.0.262] - 2026-10-26
 - Version Mismatches: replace the per-game cards with a compact table that always shows GameStoryLog, Typhoon, and Orion columns (N/A when not installed), mark each install with a green check or red X against GSL, show the player status as a dot matching the thumbnail card colors, order download icons by site, and drop the always-NSFW badge.
 ## [1.0.261] - 2026-10-24
