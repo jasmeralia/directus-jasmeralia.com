@@ -1,36 +1,139 @@
 import { describe, expect, it } from "vitest";
 
-import { artFields, artFile, coverImage } from "./game-art";
+import {
+  artFields,
+  artFile,
+  artTabFields,
+  buildArtTab,
+  coverImage,
+  hasArtTab,
+  type GameArtRow,
+} from "./game-art";
 
-const file = (id: string) => ({ id, filename_disk: `${id}.jpg` });
+const art = (
+  kind: string,
+  id: string,
+  options: Partial<GameArtRow> & { title?: string; width?: number; height?: number } = {},
+): GameArtRow => ({
+  kind,
+  language: options.language,
+  scale: options.scale,
+  sort: options.sort,
+  file: options.title === undefined && options.width === undefined && options.height === undefined
+    ? { id, filename_disk: `${id}.png` }
+    : {
+        id,
+        filename_disk: `${id}.png`,
+        title: options.title,
+        width: options.width,
+        height: options.height,
+      },
+});
 
-describe("game art", () => {
-  it("returns the capsule file as the cover", () => {
+describe("game art tab", () => {
+  it("excludes portrait capsule art", () => {
+    expect(buildArtTab({ art: [art("capsule", "cover")] })).toEqual([]);
+  });
+
+  it("excludes shared Ren'Py default logo and icon files", () => {
+    expect(buildArtTab({ art: [
+      art("logo", "default-logo", { title: "Ren'Py default logo" }),
+      art("icon", "default-icon", { title: "Ren'Py default icon" }),
+    ] })).toEqual([]);
+  });
+
+  it("orders groups by kind and items by language, scale, and sort", () => {
+    const groups = buildArtTab({ art: [
+      art("icon", "icon", { language: "en", scale: "1x" }),
+      art("hero", "hero-fr", { language: "fr", scale: "1x" }),
+      art("logo", "logo-null-sort", { language: "en", scale: "2x" }),
+      art("wide_capsule", "wide-en-1x", { language: "en", scale: "1x", sort: 2 }),
+      art("wide_capsule", "wide-en-2x-null-sort", { language: "en", scale: "2x" }),
+      art("wide_capsule", "wide-en-2x-sort-2", { language: "en", scale: "2x", sort: 2 }),
+      art("wide_capsule", "wide-de", { language: "de", scale: "2x", sort: 1 }),
+      art("wide_capsule", "wide-en-2x-sort-1", { language: "en", scale: "2x", sort: 1 }),
+      art("hero", "hero-en", { language: "en", scale: "1x" }),
+    ] });
+
+    expect(groups.map((group) => group.kind)).toEqual(["wide_capsule", "hero", "logo", "icon"]);
+    expect(groups[0].items.map((item) => item.url)).toEqual([
+      "https://assets.test/media/wide-en-2x-sort-1.png",
+      "https://assets.test/media/wide-en-2x-sort-2.png",
+      "https://assets.test/media/wide-en-2x-null-sort.png",
+      "https://assets.test/media/wide-en-1x.png",
+      "https://assets.test/media/wide-de.png",
+    ]);
+    expect(groups[1].items.map((item) => item.url)).toEqual([
+      "https://assets.test/media/hero-en.png",
+      "https://assets.test/media/hero-fr.png",
+    ]);
+  });
+
+  it("drops rows without files or a public file URL", () => {
+    expect(buildArtTab({ art: [
+      { kind: "hero" },
+      { kind: "logo", file: null },
+      { kind: "icon", file: { id: "", title: "Icon" } },
+    ] })).toEqual([]);
+  });
+
+  it("returns no groups for empty art", () => {
+    expect(buildArtTab({})).toEqual([]);
+    expect(buildArtTab({ art: [] })).toEqual([]);
+  });
+
+  it("reports whether a game has visible tab art", () => {
+    expect(hasArtTab({ art: [art("capsule", "cover")] })).toBe(false);
+    expect(hasArtTab({ art: [art("hero", "hero")] })).toBe(true);
+    expect(hasArtTab(null)).toBe(false);
+  });
+
+  it("builds art fields with and without a relation prefix", () => {
+    const fields = [
+      "art.kind",
+      "art.language",
+      "art.scale",
+      "art.sort",
+      "art.file.id",
+      "art.file.filename_disk",
+      "art.file.title",
+      "art.file.width",
+      "art.file.height",
+    ];
+    expect(artTabFields()).toEqual(fields);
+    expect(artTabFields("game_id.")).toEqual(fields.map((field) => `game_id.${field}`));
+  });
+});
+
+describe("game art cover helpers", () => {
+  it("returns capsule art as the cover", () => {
     const game = {
       art: [
-        { kind: "hero", language: "en", file: file("hero") },
-        { kind: "capsule", language: "en", file: file("cover") },
+        { kind: "hero", language: "en", file: { id: "hero", filename_disk: "hero.jpg" } },
+        { kind: "capsule", language: "en", file: { id: "cover", filename_disk: "cover.jpg" } },
       ],
     };
-    expect(coverImage(game)).toEqual(file("cover"));
-    expect(artFile(game, "hero")).toEqual(file("hero"));
+    expect(coverImage(game)).toEqual({ id: "cover", filename_disk: "cover.jpg" });
+    expect(artFile(game, "hero")).toEqual({ id: "hero", filename_disk: "hero.jpg" });
     expect(artFile(game, "logo")).toBeNull();
   });
 
-  it("prefers the requested language and falls back to any row of that kind", () => {
+  it("prefers the requested language and falls back to another row", () => {
     const game = {
       art: [
-        { kind: "capsule", language: "fr", file: file("fr") },
-        { kind: "capsule", language: "en", file: file("en") },
+        { kind: "capsule", language: "fr", file: { id: "fr", filename_disk: "fr.jpg" } },
+        { kind: "capsule", language: "en", file: { id: "en", filename_disk: "en.jpg" } },
       ],
     };
-    expect(artFile(game, "capsule")).toEqual(file("en"));
-    expect(artFile(game, "capsule", "fr")).toEqual(file("fr"));
-    expect(artFile({ art: [{ kind: "capsule", language: "fr", file: file("fr") }] }, "capsule")).toEqual(file("fr"));
+    expect(artFile(game, "capsule")).toEqual({ id: "en", filename_disk: "en.jpg" });
+    expect(artFile(game, "capsule", "fr")).toEqual({ id: "fr", filename_disk: "fr.jpg" });
+    expect(artFile({ art: [{ kind: "capsule", language: "fr", file: { id: "fr" } }] }, "capsule"))
+      .toEqual({ id: "fr" });
   });
 
-  it("wraps a bare file id and skips rows without a file", () => {
-    expect(coverImage({ art: [{ kind: "capsule", language: "en", file: "abc" }] })).toEqual({ id: "abc" });
+  it("wraps bare file ids and skips rows without files", () => {
+    expect(coverImage({ art: [{ kind: "capsule", language: "en", file: "abc" }] }))
+      .toEqual({ id: "abc" });
     expect(coverImage({ art: [{ kind: "capsule", language: "en", file: null }] })).toBeNull();
   });
 
@@ -41,8 +144,13 @@ describe("game art", () => {
     expect(coverImage({ art: null })).toBeNull();
   });
 
-  it("builds field lists with an optional prefix and file size", () => {
-    expect(artFields()).toEqual(["art.kind", "art.language", "art.file.id", "art.file.filename_disk"]);
+  it("builds art fields with an optional prefix and file sizes", () => {
+    expect(artFields()).toEqual([
+      "art.kind",
+      "art.language",
+      "art.file.id",
+      "art.file.filename_disk",
+    ]);
     expect(artFields("game_id.", true)).toContain("game_id.art.file.width");
     expect(artFields("game_id.", true)).toContain("game_id.art.file.height");
   });

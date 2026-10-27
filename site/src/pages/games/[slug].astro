@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems, directusFieldChoices, fileUrl, isFamilySharingDisabled } from '../../lib/directus';
 import { formatDate } from "../../lib/date";
-import { artFields, coverImage } from "../../lib/game-art";
+import { artFields, artTabFields, buildArtTab, coverImage } from "../../lib/game-art";
 import { downloadLinks, otherLinks, otherLinkText, walkthroughLinks, walkthroughTextNotes, getLinkMeta, steamDbAppUrl } from "../../lib/download-link";
 import { buildGameHistory } from "../../lib/game-history";
 import { effectiveSectionStyle, orderedBundleMembers } from "../../lib/game-bundles";
@@ -38,7 +38,7 @@ export async function getStaticPaths() {
     'cover_is_placeholder',
     'player_status',
     'game_status',
-    ...artFields(),
+    ...artTabFields(),
     'genres.id',
     'genres.genres_id.id',
     'genres.genres_id.name',
@@ -315,6 +315,7 @@ const includedIn = (game.included_in_bundles ?? [])
   .filter((parent) => parent?.slug && parent?.title)
   .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 const cover = fileUrl(coverImage(game));
+const artGroups = buildArtTab(game);
 const gameNsfw = isGameNsfw(game);
 const labelize = (value) => value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 const tierLabel = (value) => value === "U" ? "Too Early" : (value ?? "");
@@ -482,6 +483,13 @@ const coverStackStyle = [
       .tab-btn.active{color:#fff;border-bottom-color:#8c58ff;}
       .versions-group{margin-top:.75rem;}
       .versions-source{font-weight:600;margin-bottom:.25rem;}
+      .art-group{margin-top:.75rem;}
+      .art-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:1rem;}
+      .art-figure{margin:0;min-width:0;}
+      .art-image-wrap{display:block;position:relative;overflow:hidden;background:#000;border-radius:6px;}
+      .art-image-wrap a{display:flex;min-height:140px;align-items:center;justify-content:center;}
+      .art-image-wrap img{display:block;max-width:100%;max-height:420px;width:auto;height:auto;object-fit:contain;}
+      .art-caption{margin-top:.35rem;opacity:.7;font-size:.85rem;}
       .versions-list{list-style:none;margin:0;padding:0;}
       .versions-list li{padding:.35rem 0;border-bottom:1px solid #222;}
       .versions-list li:last-child{border-bottom:none;}
@@ -567,10 +575,42 @@ const coverStackStyle = [
 
       <div class="tabs" role="tablist">
         <button type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-details" id="tab-details-btn">Details</button>
+        {artGroups.length ? <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-art" id="tab-art-btn" data-hash="art">Art</button> : null}
         {gslLink ? <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-versions" id="tab-versions-btn" data-hash="versions">Versions</button> : null}
         {hasMusic({ music_lists: musicLists }) ? <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-music" id="tab-music-btn" data-hash="music">Music</button> : null}
         <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-history" id="tab-history-btn" data-hash="history">History</button>
       </div>
+      {artGroups.length ? (
+        <div id="tab-art" role="tabpanel" aria-labelledby="tab-art-btn" hidden>
+          <div class="section panel">
+            <div class="label">Art</div>
+            {artGroups.map((group) => (
+              <section class="art-group">
+                <div class="versions-source">{group.label}</div>
+                <div class="art-grid">
+                  {group.items.map((item) => {
+                    const caption = [
+                      item.scale,
+                      item.language,
+                      item.width !== null && item.height !== null ? `${item.width} x ${item.height}` : null,
+                    ].filter(Boolean).join(" - ");
+                    return (
+                      <figure class="art-figure">
+                        <div class={`art-image-wrap${gameNsfw ? " nsfw-cover" : ""}`}>
+                          <a href={item.url} target="_blank" rel="noopener noreferrer">
+                            <img src={item.url} alt={`${game.title} ${item.label}`} loading="lazy" decoding="async" />
+                          </a>
+                        </div>
+                        {caption ? <figcaption class="art-caption">{caption}</figcaption> : null}
+                      </figure>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div id="tab-details" role="tabpanel" aria-labelledby="tab-details-btn">
       <div class="section panel">
         <div class="label">Details</div>
