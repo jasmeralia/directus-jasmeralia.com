@@ -6,7 +6,6 @@ site and Steam Deck workflow use: capsule (portrait), wide_capsule, hero, logo
 and icon. Steps run in this order and are idempotent: an existing
 (game, kind, language) row is never replaced, so a manual Directus edit sticks.
 
-  covers  Copy each games.cover_image into a "capsule" row (same Directus file).
   steam   For games with a Steam download link, import wide_capsule, hero,
           logo, icon, and (when a game has none yet) capsule from Steam. The 2x
           asset is preferred over 1x. Wide capsule, hero and logo come from the
@@ -23,7 +22,6 @@ and icon. Steps run in this order and are idempotent: an existing
 Usage:
     python3 backfill_games_art.py                          # dry run, all steps
     python3 backfill_games_art.py --apply
-    python3 backfill_games_art.py --steps covers --apply
     python3 backfill_games_art.py --steps steam --slug some-game --apply
     python3 backfill_games_art.py \\
         --manifest ~/git/steam-typhoon/docs/steam_shortcuts_typhoon.md \\
@@ -77,9 +75,9 @@ RENPY_DEFAULT_TITLES = {
     "logo": "Ren'Py default logo",
     "icon": "Ren'Py default icon",
 }
-STEPS = ("covers", "steam", "renpy")
+STEPS = ("steam", "renpy")
 GAME_FIELDS = (
-    "id,title,slug,cover_image,engines.engines_id.slug,"
+    "id,title,slug,engines.engines_id.slug,"
     "links.url,links.kind,art.id,art.kind,art.language,art.file,art.source_url"
 )
 
@@ -169,26 +167,6 @@ def existing_art_keys(games: list[dict]) -> set[Key]:
         for game in games
         for art in game.get("art") or []
     }
-
-
-def backfill_covers(writer: ArtWriter, games: list[dict]) -> None:
-    """Copy each games.cover_image into a capsule row pointing at the same file."""
-    print("== covers: games.cover_image -> capsule")
-    for game in games:
-        if not game.get("cover_image"):
-            continue
-        writer.add(
-            {
-                "games_id": game["id"],
-                "kind": "capsule",
-                "file": game["cover_image"],
-                "language": "en",
-                "scale": "1x",
-                "source_url": None,
-            },
-            game["slug"],
-            "covers",
-        )
 
 
 def import_remote_image(
@@ -476,8 +454,6 @@ def main() -> None:
     print(("Mode: APPLY" if args.apply else "Mode: DRY RUN") + f" ({len(games)} games)")
     writer = ArtWriter(client, existing_art_keys(games), args.apply)
 
-    if "covers" in args.steps:
-        backfill_covers(writer, games)
     if "steam" in args.steps:
         default_logo = (
             renpy_default_file(base, client, "logo", None, False)
