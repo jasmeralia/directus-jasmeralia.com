@@ -16,8 +16,12 @@ and icon. Steps run in this order and are idempotent: an existing
           capsule or hero PICS lacks), and the unhashed logo probe is the last
           resort for a logo. PICS needs the `steam` package, so run this step as
           `uv run --with 'steam[client]' python backfill_games_art.py ...`.
+  patreon For non-Steam games with a single creator-level Patreon link, import
+          the creator's public profile avatar as the game's logo. Existing
+          logos are replaced only when they use the shared Ren'Py default.
   renpy   Give Ren'Py games with no logo or icon the default Ren'Py logo and
-          icon (uploaded once from --renpy-logo / --renpy-icon).
+          icon (uploaded once from --renpy-logo / --renpy-icon). This runs
+          after Patreon, so a Patreon logo takes precedence over the default.
 
 Usage:
     python3 backfill_games_art.py                          # dry run, all steps
@@ -38,13 +42,19 @@ still points at the shared Ren'Py default logo file is repointed at the game's
 real Steam logo when Steam has one. Any other existing row is left alone.
 
 Steam lookups are cached in mcp/cache/games_art_steam.json (Store API, logo
-probe) and games_art_pics.json (PICS), so --apply reuses what the dry run fetched. No site rebuild is triggered.
+probe) and games_art_pics.json (PICS), so --apply reuses what the dry run fetched.
+Patreon page/avatar results are cached in mcp/cache/games_art_patreon.json; signed
+avatar URLs are refreshed when near expiry. No site rebuild is triggered.
 """
 
 import argparse
+import json
+import re
 import sys
 import time
 import urllib.error
+import urllib.parse
+import urllib.request
 import uuid
 from collections import Counter
 from pathlib import Path
@@ -55,6 +65,7 @@ from scriptlib import (
     DirectusClient,
     ProgressCache,
     RetryingDirectusClient,
+    fetch_with_backoff,
 )
 from steamlib import (
     STEAM_LANGUAGES,
@@ -66,16 +77,19 @@ from steamlib import (
     steam_art_candidates,
     steam_logo_candidate,
 )
+from sync_patron_links import patron_identity
 
 ART_NAMESPACE = uuid.UUID("5b0a1c9e-3f7d-4e8a-9c21-6d4f8a2b7e10")
 STEAM_BATCH_SIZE = 25
 STEAM_DELAY_S = 1.5
+PATREON_DELAY_S = 1.5
+PATREON_CACHE_TTL_S = 12 * 60 * 60
 RENPY_ENGINE_SLUG = "ren-py"
 RENPY_DEFAULT_TITLES = {
     "logo": "Ren'Py default logo",
     "icon": "Ren'Py default icon",
 }
-STEPS = ("steam", "renpy")
+STEPS = ("steam", "patreon", "renpy")
 GAME_FIELDS = (
     "id,title,slug,engines.engines_id.slug,"
     "links.url,links.kind,art.id,art.kind,art.language,art.file,art.source_url"
@@ -130,34 +144,60 @@ class ArtWriter:
         self.counts[f"{step}:{row['kind']}_replaced"] += 1
 
 
-def manifest_slugs(paths: list[Path]) -> list[str]:
-    """Return the Directus slugs listed in steam_shortcuts_*.md manifests."""
-    slugs: set[str] = set()
+def manifest_game_refs(paths: list[Path]) -> list[tuple[int | None, str]]:
+    """Return (Directus ID, slug) references from shortcut manifests."""
+    refs: set[tuple[int | None, str]] = set()
     for path in paths:
-        column: int | None = None
+        columns: dict[str, int | None] | None = None
         for line in path.read_text(encoding="utf-8").splitlines():
             if not line.strip().startswith("|"):
                 continue
             cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-            if column is None:
+            if columns is None:
                 if "Directus Slug" in cells:
-                    column = cells.index("Directus Slug")
+                    columns = {
+                        "slug": cells.index("Directus Slug"),
+                        "id": cells.index("Directus ID")
+                        if "Directus ID" in cells
+                        else None,
+                    }
                 continue
-            if cells[0].startswith("-") or len(cells) <= column:
+            if cells[0].startswith("-") or len(cells) <= columns["slug"]:
                 continue
-            if cells[column]:
-                slugs.add(cells[column])
-        if column is None:
+            slug = cells[columns["slug"]]
+            raw_id = (
+                cells[columns["id"]]
+                if columns["id"] is not None and len(cells) > columns["id"]
+                else ""
+            )
+            directus_id = int(raw_id) if raw_id.isdigit() else None
+            if slug or directus_id:
+                refs.add((directus_id, slug))
+        if columns is None:
             raise SystemExit(f"{path}: no 'Directus Slug' column found")
-    return sorted(slugs)
+    return sorted(refs, key=lambda ref: (ref[0] or 0, ref[1]))
 
 
-def fetch_games(client: RetryingDirectusClient, slugs: list[str]) -> list[dict]:
-    """Fetch games with their links, engines and existing art keys."""
-    path = f"/items/games?fields={GAME_FIELDS}&sort=id"
+def manifest_slugs(paths: list[Path]) -> list[str]:
+    """Return the Directus slugs listed in steam_shortcuts_*.md manifests."""
+    return sorted({slug for _, slug in manifest_game_refs(paths) if slug})
+
+
+def fetch_games(
+    client: RetryingDirectusClient, slugs: list[str], game_ids: list[int]
+) -> list[dict]:
+    """Fetch games by stable manifest IDs and slug fallbacks."""
+    games: dict[int, dict] = {}
+    paths = []
     if slugs:
-        path += f"&filter[slug][_in]={','.join(slugs)}"
-    return client.fetch_all(path, description="fetch games for art backfill")
+        paths.append(f"/items/games?fields={GAME_FIELDS}&sort=id&filter[slug][_in]={','.join(slugs)}")
+    if game_ids:
+        ids = ",".join(str(game_id) for game_id in game_ids)
+        paths.append(f"/items/games?fields={GAME_FIELDS}&sort=id&filter[id][_in]={ids}")
+    for path in paths:
+        for game in client.fetch_all(path, description="fetch games for art backfill"):
+            games[game["id"]] = game
+    return sorted(games.values(), key=lambda game: game["id"])
 
 
 def existing_art_keys(games: list[dict]) -> set[Key]:
@@ -338,6 +378,143 @@ def cached_logo(cache: ProgressCache, appid: int) -> dict[str, Any] | None:
     return cache.get(key)
 
 
+def patreon_avatar_url(
+    identity: tuple[str, str], profile_url: str, cache: ProgressCache
+) -> str | None:
+    """Fetch a public Patreon creator avatar, caching it for dry-run/apply."""
+    key = f"v2|{identity[0]}|{identity[1]}"
+    cached = cache.get(key)
+    if cached is None:
+        # Retain successful URLs from the first parser version; its negative
+        # results need refreshing because it did not unescape pageBootstrap.
+        legacy = cache.get(f"{identity[0]}|{identity[1]}")
+        if isinstance(legacy, dict) and legacy.get("url"):
+            cached = legacy
+    if isinstance(cached, dict) and cached.get("fetched_at", 0) + PATREON_CACHE_TTL_S > time.time():
+        return cached.get("url")
+
+    page, error = fetch_with_backoff(
+        profile_url,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; games-art-backfill/1.0)"},
+        parse=lambda raw: raw.decode("utf-8", errors="replace"),
+        timeout=20,
+    )
+    time.sleep(PATREON_DELAY_S)
+    if error:
+        print(f"  Patreon page fetch failed for {identity[1]} ({error})", file=sys.stderr)
+        return None
+
+    # Patreon serializes pageBootstrap as an escaped JSON string in the HTML.
+    # Normalize its escaped quotes/separators before extracting the avatar URL.
+    page = page.replace(r'\"', '"').replace(r"\u0026", "&").replace(r"\/", "/")
+    match = re.search(
+        r'"avatar_photo_image_urls"\s*:\s*\{\s*"original"\s*:\s*"((?:\\.|[^"\\])*)"',
+        page,
+    )
+    avatar = None
+    if match:
+        try:
+            avatar = json.loads(f'"{match.group(1)}"')
+        except json.JSONDecodeError:
+            pass
+    if avatar:
+        avatar = urllib.parse.urljoin(profile_url, avatar)
+    else:
+        print(f"  Patreon page has no public creator avatar for {identity[1]}")
+    cache.set(key, {"url": avatar, "fetched_at": time.time()})
+    return avatar
+
+
+def import_patreon_avatar(
+    client: RetryingDirectusClient,
+    avatar_url: str,
+    creator: str,
+    title: str,
+) -> str | None:
+    """Import a Patreon profile avatar into Directus under a stable file ID."""
+    file_id = str(uuid.uuid5(ART_NAMESPACE, f"patreon:{creator}:{avatar_url}"))
+    extension = Path(urllib.parse.urlparse(avatar_url).path).suffix.lstrip(".") or "png"
+    try:
+        client.post(
+            "/files/import",
+            {
+                "url": avatar_url,
+                "data": {
+                    "id": file_id,
+                    "title": f"{title} Patreon logo",
+                    "filename_download": f"{creator}_patreon_logo.{extension}",
+                },
+            },
+            description=f"import Patreon logo for {title}",
+        )
+    except urllib.error.HTTPError as error:
+        body = error.read().decode(errors="replace")
+        if '"RECORD_NOT_UNIQUE"' in body or error.code == 409:
+            return file_id
+        print(f"    Patreon import failed (HTTP {error.code}): {body[:120]}", file=sys.stderr)
+        return None
+    return file_id
+
+
+def backfill_patreon(
+    writer: ArtWriter,
+    games: list[dict],
+    replaceable_logos: dict[tuple[int, str], int],
+) -> None:
+    """Use one unambiguous public Patreon creator avatar for non-Steam logos."""
+    print("== patreon: public creator avatars as non-Steam logos")
+    targets: list[tuple[dict, tuple[str, str], str]] = []
+    for game in games:
+        if extract_steam_appid_from_links(game.get("links")) is not None:
+            continue
+        creators: dict[tuple[str, str], str] = {}
+        for link in game.get("links") or []:
+            url = link.get("url") or ""
+            identity = patron_identity(url)
+            if identity and identity[0] == "patreon":
+                creators.setdefault(identity, url)
+        if len(creators) > 1:
+            print(f"  SKIP ambiguous Patreon creators  {game['slug']}: {', '.join(k[1] for k in creators)}")
+            writer.counts["patreon:ambiguous"] += 1
+            continue
+        if creators:
+            identity, profile_url = next(iter(creators.items()))
+            targets.append((game, identity, profile_url))
+    print(f"  {len(targets)} non-Steam games with one creator-level Patreon link")
+
+    cache = ProgressCache(CACHE_DIR / "games_art_patreon.json")
+    for game, identity, profile_url in targets:
+        avatar_url = patreon_avatar_url(identity, profile_url, cache)
+        if not avatar_url:
+            writer.counts["patreon:no_avatar"] += 1
+            continue
+        replace_id = replaceable_logos.get((game["id"], "en"))
+        if replace_id is None and writer.has(game["id"], "logo", "en"):
+            writer.counts["patreon:exists"] += 1
+            continue
+        file_id = (
+            import_patreon_avatar(writer.client, avatar_url, identity[1], game["title"])
+            if writer.apply
+            else f"(would import {identity[1]} Patreon avatar)"
+        )
+        if file_id is None:
+            writer.counts["patreon:import_failed"] += 1
+            continue
+        row = {
+            "games_id": game["id"],
+            "kind": "logo",
+            "file": file_id,
+            "language": "en",
+            "scale": "1x",
+            "source_url": profile_url[:255],
+        }
+        if replace_id is not None:
+            writer.replace(replace_id, row, game["slug"], "patreon")
+        else:
+            writer.add(row, game["slug"], "patreon")
+    cache.flush()
+
+
 def renpy_default_file(
     base: DirectusClient,
     client: RetryingDirectusClient,
@@ -445,11 +622,22 @@ def main() -> None:
     args = parse_args()
     base = DirectusClient.from_config()
     client = RetryingDirectusClient(base)
-    wanted = sorted(
-        {*args.slug, *manifest_slugs([p.expanduser() for p in args.manifest])}
-    )
-    games = fetch_games(client, wanted)
-    for slug in sorted(set(wanted) - {game["slug"] for game in games}):
+    refs = manifest_game_refs([p.expanduser() for p in args.manifest])
+    wanted_slugs = sorted({*args.slug, *(slug for _, slug in refs if slug)})
+    wanted_ids = sorted({game_id for game_id, _ in refs if game_id is not None})
+    games = fetch_games(client, wanted_slugs, wanted_ids)
+    found_ids = {game["id"] for game in games}
+    found_slugs = {game["slug"] for game in games}
+    missing_refs = [
+        (game_id, slug)
+        for game_id, slug in refs
+        if (game_id is not None and game_id not in found_ids)
+        and (not slug or slug not in found_slugs)
+    ]
+    missing_slugs = sorted(set(args.slug) - found_slugs)
+    for game_id, slug in missing_refs:
+        print(f"NOT FOUND in Directus: ID {game_id}, slug {slug}", file=sys.stderr)
+    for slug in missing_slugs:
         print(f"NOT FOUND in Directus: {slug}", file=sys.stderr)
     print(("Mode: APPLY" if args.apply else "Mode: DRY RUN") + f" ({len(games)} games)")
     writer = ArtWriter(client, existing_art_keys(games), args.apply)
@@ -467,6 +655,9 @@ def main() -> None:
             args.limit,
             renpy_logo_rows(games, default_logo),
         )
+    if "patreon" in args.steps:
+        default_logo = renpy_default_file(base, client, "logo", None, False)
+        backfill_patreon(writer, games, renpy_logo_rows(games, default_logo))
     if "renpy" in args.steps:
         backfill_renpy(
             writer,
