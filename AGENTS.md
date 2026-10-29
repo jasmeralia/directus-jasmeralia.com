@@ -20,6 +20,8 @@ Copy `.mcp.json.example` to `.mcp.json` at the repo root and fill in all `<VALUE
 
 **Never add a game to Directus without cover art unless Morgan explicitly instructs you to omit it.** Before creating a game record, find and assign a suitable cover from Steam, SteamGridDB, or GameStoryLog. If none of those sources has a suitable cover, ask Morgan to provide one before creating the record. Do not create the game first and leave it without a cover while waiting for art. The portrait cover is the game's `capsule` row in `games_art` (see below); create it with `scriptlib.set_game_capsule()` (or `POST /items/games_art`). The old `games.cover_image` field was dropped from the schema on 2026-10-27 (every cover already had an identical `capsule` row); never reintroduce it. `game_bundle_members.cover_image` is a different field and stays.
 
+When adding a game with a good, game-specific Steam app link, backfill **all available Steam-supported artwork kinds** from that app ID: `capsule`, `wide_capsule`, `hero`, `logo`, and `icon`. Run `mcp/scripts/backfill_games_art.py --steps steam --slug <slug> --apply` after adding the Steam download link. Do not stop after importing only the capsule. A developer-profile Steam link or a Steam link for a different game (such as a main game linked from a prequel page) is not a game-specific Steam app link for art backfill.
+
 ## Key collections (Directus schema)
 
 | Collection | Notes |
@@ -285,6 +287,11 @@ For the Steam Store API specifically, a base inter-request delay of **1.5s** has
 
 **The exemption covers only the Directus calls themselves.** External APIs (Steam Store, SteamSpy, SteamGridDB, IGDB, ITAD, PSN/Xbox, GameStoryLog, cover CDNs, ...) must keep every delay and backoff described above. When a loop mixes Directus writes with external calls, its end-of-loop `time.sleep` is usually the only thing pacing the external API (e.g. `bulk_import.py`/`wishlist_import.py` fetch a SteamGridDB cover then have Directus import it; `audit_cover_images.py`/`fetch_missing_covers.py` fetch from SteamGridDB/IGDB between Directus patches), so keep it. Only drop a sleep when the loop body makes no external call at all (e.g. an `--apply` phase that replays cached results into Directus).
 
+In particular, `POST /files/import` with a third-party `url` makes Directus fetch
+from that external host. Pace those imports according to the source host's limits,
+even though the API request itself goes to Directus. A Steam/Cloudflare asset import
+is an upstream Steam CDN request for rate-limiting purposes.
+
 ### Dry-run / apply pattern: cache external API results (REQUIRED)
 
 Scripts that support a dry-run phase followed by an `--apply` phase **must** cache all external API responses to disk during the dry run. The apply phase must load from that cache and skip re-querying the API entirely. Re-querying wastes rate-limit budget, doubles wall-clock time, and can produce different results between review and commit.
@@ -320,6 +327,14 @@ for collection, fk in GAME_JUNCTIONS:
 This list and loop are also available as `scriptlib.GAME_JUNCTIONS` / `scriptlib.delete_game_junctions(client, game_id)` — call that instead of reimplementing the loop.
 
 This has caused build failures more than once (orphaned `tier_list_games` rows leave `game_id: null` entries that crash the tiers page template).
+
+### Itch.io quarantine checks
+
+Before importing either title below into Directus, check its current itch.io page and confirm its quarantine status has been resolved. Do not re-add either game until a follow-up check confirms the quarantine is lifted:
+
+- `KoSoba The Harem Adventures` (Directus title: `KonoSuba - The Harem Adventures`; record removed on 2026-10-28 after Morgan reported the itch.io quarantine).
+- `Milfy Multiverse` (Morgan reported the itch.io quarantine; no Directus record was found on 2026-10-28).
+- `Projekt Moon: Hope Awakens` (record removed on 2026-10-28 at Morgan's request; check with Morgan before re-importing).
 
 ### Import filters
 

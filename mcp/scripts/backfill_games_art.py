@@ -36,6 +36,10 @@ Usage:
 
 --slug and --manifest (a steam_shortcuts_*.md file; every Directus Slug in it) limit
 the run to those games; with neither, every game is processed.
+Steam targets are processed by slug alphabetically and report timestamped progress
+for each game, followed by a warning for unavailable art kinds or an info line when
+all five kinds are present. Steam file imports are paced to limit requests made by
+Directus to Steam's CDN.
 
 --replace-renpy-logos is the one exception to "never replaced": a logo row that
 still points at the shared Ren'Py default logo file is repointed at the game's
@@ -57,6 +61,7 @@ import urllib.parse
 import urllib.request
 import uuid
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -82,6 +87,7 @@ from sync_patron_links import patron_identity
 ART_NAMESPACE = uuid.UUID("5b0a1c9e-3f7d-4e8a-9c21-6d4f8a2b7e10")
 STEAM_BATCH_SIZE = 25
 STEAM_DELAY_S = 1.5
+STEAM_IMPORT_DELAY_S = 1.5
 PATREON_DELAY_S = 1.5
 PATREON_CACHE_TTL_S = 12 * 60 * 60
 RENPY_ENGINE_SLUG = "ren-py"
@@ -90,6 +96,7 @@ RENPY_DEFAULT_TITLES = {
     "icon": "Ren'Py default icon",
 }
 STEPS = ("steam", "patreon", "renpy")
+STEAM_ART_KINDS = ("capsule", "wide_capsule", "hero", "logo", "icon")
 GAME_FIELDS = (
     "id,title,slug,engines.engines_id.slug,"
     "links.url,links.kind,art.id,art.kind,art.language,art.file,art.source_url"
@@ -148,32 +155,31 @@ def manifest_game_refs(paths: list[Path]) -> list[tuple[int | None, str]]:
     """Return (Directus ID, slug) references from shortcut manifests."""
     refs: set[tuple[int | None, str]] = set()
     for path in paths:
-        columns: dict[str, int | None] | None = None
+        slug_column: int | None = None
+        id_column: int | None = None
         for line in path.read_text(encoding="utf-8").splitlines():
             if not line.strip().startswith("|"):
                 continue
             cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-            if columns is None:
+            if slug_column is None:
                 if "Directus Slug" in cells:
-                    columns = {
-                        "slug": cells.index("Directus Slug"),
-                        "id": cells.index("Directus ID")
-                        if "Directus ID" in cells
-                        else None,
-                    }
+                    slug_column = cells.index("Directus Slug")
+                    id_column = (
+                        cells.index("Directus ID") if "Directus ID" in cells else None
+                    )
                 continue
-            if cells[0].startswith("-") or len(cells) <= columns["slug"]:
+            if cells[0].startswith("-") or len(cells) <= slug_column:
                 continue
-            slug = cells[columns["slug"]]
+            slug = cells[slug_column]
             raw_id = (
-                cells[columns["id"]]
-                if columns["id"] is not None and len(cells) > columns["id"]
+                cells[id_column]
+                if id_column is not None and len(cells) > id_column
                 else ""
             )
             directus_id = int(raw_id) if raw_id.isdigit() else None
             if slug or directus_id:
                 refs.add((directus_id, slug))
-        if columns is None:
+        if slug_column is None:
             raise SystemExit(f"{path}: no 'Directus Slug' column found")
     return sorted(refs, key=lambda ref: (ref[0] or 0, ref[1]))
 
@@ -190,7 +196,9 @@ def fetch_games(
     games: dict[int, dict] = {}
     paths = []
     if slugs:
-        paths.append(f"/items/games?fields={GAME_FIELDS}&sort=id&filter[slug][_in]={','.join(slugs)}")
+        paths.append(
+            f"/items/games?fields={GAME_FIELDS}&sort=id&filter[slug][_in]={','.join(slugs)}"
+        )
     if game_ids:
         ids = ",".join(str(game_id) for game_id in game_ids)
         paths.append(f"/items/games?fields={GAME_FIELDS}&sort=id&filter[id][_in]={ids}")
@@ -236,6 +244,10 @@ def import_remote_image(
             return file_id
         print(f"    import failed (HTTP {error.code}): {body[:120]}", file=sys.stderr)
         return None
+    finally:
+        # /files/import makes Directus fetch this Steam-hosted asset. Pace the
+        # upstream requests even though the API call itself goes to Directus.
+        time.sleep(STEAM_IMPORT_DELAY_S)
     return file_id
 
 
@@ -309,6 +321,7 @@ def backfill_steam(  # pylint: disable=too-many-locals
         for game in games
         if (appid := extract_steam_appid_from_links(game.get("links"))) is not None
     ]
+    targets.sort(key=lambda target: target[0]["slug"].casefold())
     if limit is not None:
         targets = targets[:limit]
     print(f"  {len(targets)} games with a Steam download link")
@@ -317,11 +330,16 @@ def backfill_steam(  # pylint: disable=too-many-locals
     pics_cache = ProgressCache(CACHE_DIR / "games_art_pics.json")
     lookup_library_assets([appid for _, appid in targets], pics_cache)
 
-    for game, appid in targets:
+    for index, (game, appid) in enumerate(targets, start=1):
+        timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
+        print(
+            f"{timestamp} [{index}/{len(targets)} {index / len(targets):.1%}] Working on {game['slug']}"
+        )
         entry = cache.get(f"{appid}|{steam_language}")
         library = pics_cache.get(f"{appid}|pics") or {}
         if not entry and not library:
             writer.counts["steam:no_assets"] += 1
+            report_steam_art_status(writer, game, set())
             continue
         # PICS library assets win; the Store API fills the kinds they lack.
         by_kind = {
@@ -333,6 +351,7 @@ def backfill_steam(  # pylint: disable=too-many-locals
             logo = cached_logo(cache, appid)
             if logo:
                 by_kind["logo"] = SteamArtCandidate(**logo)
+        candidate_kinds = set(by_kind)
         for candidate in by_kind.values():
             row_language = steam_row_language(candidate, language)
             replace_id = (
@@ -365,7 +384,25 @@ def backfill_steam(  # pylint: disable=too-many-locals
                 writer.replace(replace_id, row, game["slug"], "steam")
             else:
                 writer.add(row, game["slug"], "steam")
+        report_steam_art_status(writer, game, candidate_kinds)
     cache.flush()
+
+
+def report_steam_art_status(
+    writer: ArtWriter, game: dict[str, Any], candidate_kinds: set[str]
+) -> None:
+    """Report missing Steam candidates or confirm all art kinds are present."""
+    missing = [
+        kind for kind in STEAM_ART_KINDS if not writer.has(game["id"], kind, "en")
+    ]
+    if not missing:
+        print(f"  INFO all art kinds satisfied  {game['slug']}")
+        return
+    unavailable = [kind for kind in missing if kind not in candidate_kinds]
+    if unavailable:
+        print(
+            f"  WARNING no Steam candidate for {', '.join(unavailable)}  {game['slug']}"
+        )
 
 
 def cached_logo(cache: ProgressCache, appid: int) -> dict[str, Any] | None:
@@ -390,7 +427,10 @@ def patreon_avatar_url(
         legacy = cache.get(f"{identity[0]}|{identity[1]}")
         if isinstance(legacy, dict) and legacy.get("url"):
             cached = legacy
-    if isinstance(cached, dict) and cached.get("fetched_at", 0) + PATREON_CACHE_TTL_S > time.time():
+    if (
+        isinstance(cached, dict)
+        and cached.get("fetched_at", 0) + PATREON_CACHE_TTL_S > time.time()
+    ):
         return cached.get("url")
 
     page, error = fetch_with_backoff(
@@ -401,12 +441,16 @@ def patreon_avatar_url(
     )
     time.sleep(PATREON_DELAY_S)
     if error:
-        print(f"  Patreon page fetch failed for {identity[1]} ({error})", file=sys.stderr)
+        print(
+            f"  Patreon page fetch failed for {identity[1]} ({error})", file=sys.stderr
+        )
+        return None
+    if page is None:
         return None
 
     # Patreon serializes pageBootstrap as an escaped JSON string in the HTML.
     # Normalize its escaped quotes/separators before extracting the avatar URL.
-    page = page.replace(r'\"', '"').replace(r"\u0026", "&").replace(r"\/", "/")
+    page = page.replace(r"\"", '"').replace(r"\u0026", "&").replace(r"\/", "/")
     match = re.search(
         r'"avatar_photo_image_urls"\s*:\s*\{\s*"original"\s*:\s*"((?:\\.|[^"\\])*)"',
         page,
@@ -451,7 +495,10 @@ def import_patreon_avatar(
         body = error.read().decode(errors="replace")
         if '"RECORD_NOT_UNIQUE"' in body or error.code == 409:
             return file_id
-        print(f"    Patreon import failed (HTTP {error.code}): {body[:120]}", file=sys.stderr)
+        print(
+            f"    Patreon import failed (HTTP {error.code}): {body[:120]}",
+            file=sys.stderr,
+        )
         return None
     return file_id
 
@@ -474,7 +521,9 @@ def backfill_patreon(
             if identity and identity[0] == "patreon":
                 creators.setdefault(identity, url)
         if len(creators) > 1:
-            print(f"  SKIP ambiguous Patreon creators  {game['slug']}: {', '.join(k[1] for k in creators)}")
+            print(
+                f"  SKIP ambiguous Patreon creators  {game['slug']}: {', '.join(k[1] for k in creators)}"
+            )
             writer.counts["patreon:ambiguous"] += 1
             continue
         if creators:

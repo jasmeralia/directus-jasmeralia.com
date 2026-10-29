@@ -2,6 +2,7 @@
 db_data/
 backups/
 .mcp.json
+uv.lock
 mcp/cache/
 __pycache__/
 mcp/scripts/ignored/
