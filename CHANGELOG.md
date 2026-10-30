@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.274] - 2026-10-29
+- Games: center the images and captions in the Art tab.
 ## [1.0.273] - 2026-10-29
 - Games: Art tab images now keep their own aspect ratio at natural size instead of sitting in black letterboxed cells.
 ## [1.0.272] - 2026-10-27
