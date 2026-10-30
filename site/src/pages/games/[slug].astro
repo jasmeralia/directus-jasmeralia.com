@@ -484,11 +484,11 @@ const coverStackStyle = [
       .versions-group{margin-top:.75rem;}
       .versions-source{font-weight:600;margin-bottom:.25rem;}
       .art-group{margin-top:.75rem;}
-      .art-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:1rem;}
-      .art-figure{margin:0;min-width:0;}
-      .art-image-wrap{display:block;position:relative;overflow:hidden;background:#000;border-radius:6px;}
-      .art-image-wrap a{display:flex;min-height:140px;align-items:center;justify-content:center;}
-      .art-image-wrap img{display:block;max-width:100%;max-height:420px;width:auto;height:auto;object-fit:contain;}
+      .art-grid{display:flex;flex-wrap:wrap;align-items:flex-start;gap:1rem;}
+      .art-figure{margin:0;min-width:0;max-width:100%;}
+      .art-image-wrap{display:block;position:relative;overflow:hidden;border-radius:6px;width:fit-content;max-width:100%;}
+      .art-image-wrap a{display:block;}
+      .art-image-wrap img{display:block;max-width:100%;max-height:420px;width:auto;height:auto;}
       .art-caption{margin-top:.35rem;opacity:.7;font-size:.85rem;}
       .versions-list{list-style:none;margin:0;padding:0;}
       .versions-list li{padding:.35rem 0;border-bottom:1px solid #222;}
@@ -598,7 +598,7 @@ const coverStackStyle = [
                       <figure class="art-figure">
                         <div class={`art-image-wrap${gameNsfw ? " nsfw-cover" : ""}`}>
                           <a href={item.url} target="_blank" rel="noopener noreferrer">
-                            <img src={item.url} alt={`${game.title} ${item.label}`} loading="lazy" decoding="async" />
+                            <img src={item.url} alt={`${game.title} ${item.label}`} width={item.width ?? undefined} height={item.height ?? undefined} loading="lazy" decoding="async" />
                           </a>
                         </div>
                         {caption ? <figcaption class="art-caption">{caption}</figcaption> : null}
