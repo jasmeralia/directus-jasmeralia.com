@@ -11,7 +11,7 @@ const [franchisesRaw, allFranchiseGames] = await Promise.all([
     limit: -1,
   }),
   directusFetchItems("franchise_games", {
-    fields: ["franchise_id", "game_id.player_status"],
+    fields: ["franchise_id", "game_id.player_status", "game_id.genres.genres_id.slug"],
     limit: -1,
   }),
 ]);

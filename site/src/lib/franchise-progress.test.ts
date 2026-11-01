@@ -14,6 +14,19 @@ describe("countFranchiseGames", () => {
     expect(counts.get(2)).toEqual({ total: 1, completed: 0 });
   });
 
+  it("counts waiting_for_update as completed for AVNs only", () => {
+    const avn = [{ genres_id: { slug: "avn" } }];
+    const other = [{ genres_id: { slug: "rpg" } }];
+    const counts = countFranchiseGames([
+      { franchise_id: 1, game_id: { player_status: "waiting_for_update", genres: avn } },
+      { franchise_id: 1, game_id: { player_status: "waiting_for_update", genres: other } },
+      { franchise_id: 1, game_id: { player_status: "waiting_for_update" } },
+      { franchise_id: 1, game_id: { player_status: "completed", genres: other } },
+      { franchise_id: 1, game_id: { player_status: "in_progress", genres: avn } },
+    ]);
+    expect(counts.get(1)).toEqual({ total: 5, completed: 2 });
+  });
+
   it("still counts rows whose game is missing and skips rows without a franchise id", () => {
     const counts = countFranchiseGames([
       { franchise_id: 5, game_id: null },
