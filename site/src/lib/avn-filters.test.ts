@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   hasMissingSectionData,
+  isBacklogGame,
   isCurrentlyCompleteGame,
   isIncompleteGame,
 } from "./avn-filters";
@@ -22,6 +23,26 @@ describe("isIncompleteGame", () => {
     expect(isIncompleteGame({ player_status: "not_started", game_status: "in_development" })).toBe(true);
     expect(isIncompleteGame({ player_status: "not_started", game_status: null })).toBe(true);
     expect(isIncompleteGame(null)).toBe(false);
+  });
+});
+
+describe("isBacklogGame", () => {
+  it("keeps unplayed and on-hold statuses, including no player status", () => {
+    for (const player_status of ["not_started", "plan_to_play", "on_hold", null, undefined]) {
+      expect(isBacklogGame({ player_status, game_status: "released" })).toBe(true);
+    }
+    for (const player_status of ["did_not_finish", "completed", "in_progress", "waiting_for_update"]) {
+      expect(isBacklogGame({ player_status, game_status: "released" })).toBe(false);
+    }
+  });
+
+  it("excludes unreleased and abandoned games but keeps the other release statuses", () => {
+    expect(isBacklogGame({ player_status: "not_started", game_status: "unreleased" })).toBe(false);
+    expect(isBacklogGame({ player_status: "not_started", game_status: "abandoned" })).toBe(false);
+    for (const game_status of ["in_development", "on_hiatus", "released", null, undefined]) {
+      expect(isBacklogGame({ player_status: "not_started", game_status })).toBe(true);
+    }
+    expect(isBacklogGame(null)).toBe(true);
   });
 });
 

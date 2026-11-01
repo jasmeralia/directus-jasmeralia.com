@@ -1,6 +1,6 @@
 import { sectionDataState, type BundleAwareGame } from "./game-bundles";
 
-// Shared definitions for the AVN + Missing Section Data misc filters. The
+// Shared definitions for the AVN + Missing Section Data and AVN + Backlog misc filters. The
 // AVN genre itself is matched by the caller (a Directus filter on the pages,
 // hasAvnGenre on the filters index).
 
@@ -16,6 +16,19 @@ export const INCOMPLETE_PLAYER_STATUSES = new Set([
 // status stay in.
 export const INCOMPLETE_EXCLUDED_GAME_STATUSES = new Set(["unreleased", "abandoned"]);
 
+// AVN + Backlog: player statuses that already have progress or a verdict, so
+// the game is not "waiting to be played". A missing player status stays in.
+export const BACKLOG_EXCLUDED_PLAYER_STATUSES = new Set([
+  "did_not_finish",
+  "completed",
+  "in_progress",
+  "waiting_for_update",
+]);
+
+// Not out yet, or dead: nothing to play from the backlog. Other release
+// statuses (in_development, on_hiatus, released, none) stay in.
+export const BACKLOG_EXCLUDED_GAME_STATUSES = new Set(["unreleased", "abandoned"]);
+
 export const CURRENTLY_COMPLETE_PLAYER_STATUSES = new Set(["completed", "waiting_for_update"]);
 
 type FilterGame = BundleAwareGame & {
@@ -26,6 +39,10 @@ type FilterGame = BundleAwareGame & {
 export const isIncompleteGame = (game: FilterGame | null | undefined): boolean =>
   INCOMPLETE_PLAYER_STATUSES.has(game?.player_status ?? "")
   && !INCOMPLETE_EXCLUDED_GAME_STATUSES.has(game?.game_status ?? "");
+
+export const isBacklogGame = (game: FilterGame | null | undefined): boolean =>
+  !BACKLOG_EXCLUDED_GAME_STATUSES.has(game?.game_status ?? "")
+  && !BACKLOG_EXCLUDED_PLAYER_STATUSES.has(game?.player_status ?? "");
 
 export const isCurrentlyCompleteGame = (game: FilterGame | null | undefined): boolean =>
   CURRENTLY_COMPLETE_PLAYER_STATUSES.has(game?.player_status ?? "");
