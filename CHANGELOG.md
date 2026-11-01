@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.278] - 2026-11-01
+- Filters: AVN + Backlog no longer includes unreleased games; the filter page and the count on the filters index now share one predicate.
 ## [1.0.277] - 2026-11-01
 - Franchises: AVNs waiting for an update now count as completed in the franchise list's completed count and percentage; other games still need to be completed.
 ## [1.0.276] - 2026-11-01
