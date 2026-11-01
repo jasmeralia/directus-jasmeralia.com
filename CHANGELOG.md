@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.277] - 2026-11-01
+- Franchises: AVNs waiting for an update now count as completed in the franchise list's completed count and percentage; other games still need to be completed.
 ## [1.0.276] - 2026-11-01
 - Dependencies: override minimatch to ^11.0.1 to fix the GHSA-g3hv-75wg-m249 denial-of-service advisory that was failing the builder npm audit gate.
 ## [1.0.275] - 2026-11-01
