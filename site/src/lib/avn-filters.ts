@@ -30,7 +30,6 @@ export const BACKLOG_EXCLUDED_PLAYER_STATUSES = new Set([
 export const BACKLOG_EXCLUDED_GAME_STATUSES = new Set(["unreleased", "abandoned"]);
 
 export const CURRENTLY_COMPLETE_PLAYER_STATUSES = new Set(["completed", "waiting_for_update"]);
-export const CURRENTLY_ACTIVE_PLAYER_STATUSES = new Set(["in_progress", "on_hold"]);
 
 type FilterGame = BundleAwareGame & {
   player_status?: string | null;
@@ -47,9 +46,6 @@ export const isBacklogGame = (game: FilterGame | null | undefined): boolean =>
 
 export const isCurrentlyCompleteGame = (game: FilterGame | null | undefined): boolean =>
   CURRENTLY_COMPLETE_PLAYER_STATUSES.has(game?.player_status ?? "");
-
-export const isCurrentlyActiveGame = (game: FilterGame | null | undefined): boolean =>
-  CURRENTLY_ACTIVE_PLAYER_STATUSES.has(game?.player_status ?? "");
 
 // Only the "missing" state: omnibus games with some members tracked
 // ("partial") and games where sections do not apply are not missing data.
