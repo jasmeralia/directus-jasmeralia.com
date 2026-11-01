@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.275] - 2026-11-01
+- Franchises: the franchise list now shows how many games are completed and the percentage (for example "3 of 4 games completed, 75%"); franchises with no completed games keep the plain game count.
 ## [1.0.274] - 2026-10-29
 - Games: center the images and captions in the Art tab.
 ## [1.0.273] - 2026-10-29

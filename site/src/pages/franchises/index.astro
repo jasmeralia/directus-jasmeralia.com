@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { directusFetchItems } from "../../lib/directus";
+import { countFranchiseGames, formatFranchiseCount } from "../../lib/franchise-progress";
 import { ALPHABET, buildAlphaAnchors, invertAlphaAnchors, sortByTitle } from "../../lib/list-format";
 
 const [franchisesRaw, allFranchiseGames] = await Promise.all([
@@ -10,18 +11,17 @@ const [franchisesRaw, allFranchiseGames] = await Promise.all([
     limit: -1,
   }),
   directusFetchItems("franchise_games", {
-    fields: ["franchise_id"],
+    fields: ["franchise_id", "game_id.player_status"],
     limit: -1,
   }),
 ]);
 const franchises = sortByTitle(franchisesRaw);
 const alphaAnchors = buildAlphaAnchors(franchises.map((f) => f.title ?? ""));
 const alphaAnchorLetters = invertAlphaAnchors(alphaAnchors);
-const countsByFranchise = new Map<number, number>();
-for (const entry of allFranchiseGames ?? []) {
-  const id = entry?.franchise_id;
-  if (typeof id === "number") countsByFranchise.set(id, (countsByFranchise.get(id) ?? 0) + 1);
-}
+const progressByFranchise = countFranchiseGames(allFranchiseGames);
+const countsByFranchise = new Map<number, number>(
+  [...progressByFranchise].map(([id, progress]) => [id, progress.total])
+);
 
 // ── Shared SVG helpers ──────────────────────────────────────────────────────
 const size = 220;
@@ -145,7 +145,7 @@ const description = `Browse all ${franchises.length} tracked franchises by Jasme
             <li id={alphaAnchorLetters.has(i) ? `letter-${alphaAnchorLetters.get(i)}` : undefined}>
               <span class="li-swatch" style={`background:${franchiseBucketColor.get(f.id) ?? "#555"};`}></span>
               <a href={`/franchises/${f.slug}/index.html`}>{f.title}</a>
-              <span style="opacity:.7;"> ({countsByFranchise.get(f.id) ?? 0})</span>
+              <span style="opacity:.7;"> {formatFranchiseCount(progressByFranchise.get(f.id) ?? { total: 0, completed: 0 })}</span>
               {f.description ? <span style="opacity:.7;"> — {f.description}</span> : null}
             </li>
           ))}
