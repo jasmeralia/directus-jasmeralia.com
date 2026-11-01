@@ -31,7 +31,7 @@ const csvName = "avn-currently-active.csv";
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title="Filters | AVNs + Currently Active">
+<BaseLayout title="Filters | AVN + Currently Active">
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -43,7 +43,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title="AVNs + Currently Active" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title="AVN + Currently Active" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>AVN games whose played status is in progress or on hold.</p>
     </div>
     <ThumbnailBorderLegend />
