@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.276] - 2026-11-01
+- Dependencies: override minimatch to ^11.0.1 to fix the GHSA-g3hv-75wg-m249 denial-of-service advisory that was failing the builder npm audit gate.
 ## [1.0.275] - 2026-11-01
 - Franchises: the franchise list now shows how many games are completed and the percentage (for example "3 of 4 games completed, 75%"); franchises with no completed games keep the plain game count.
 ## [1.0.274] - 2026-10-29
