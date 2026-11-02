@@ -12,6 +12,8 @@ The chosen image per member lives in mcp/cache/gold_box_covers_choices.json
 manual curation step between `candidates` and `apply`.
 """
 
+# pylint: disable=duplicate-code  # Keep each bundle-specific tool self-contained.
+
 import argparse
 import json
 import sys

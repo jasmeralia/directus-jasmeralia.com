@@ -12,6 +12,8 @@ Same approach as gold_box_member_covers.py: the manual curation step is filling
 in SGDB_GAME_IDS / CHOSEN_GRIDS between `candidates` and `report`.
 """
 
+# pylint: disable=duplicate-code  # Keep each bundle-specific tool self-contained.
+
 import argparse
 import json
 import sys
