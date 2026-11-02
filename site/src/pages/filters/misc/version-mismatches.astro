@@ -50,6 +50,13 @@ const STATUS_COLORS = {
 };
 const STATUS_ORDER = ["plan_to_play", "in_progress", "on_hold", "waiting_for_update", "did_not_finish", "completed"];
 const statusLabel = (status) => playerStatusLabels.get(status) ?? status;
+const RECENT_GSL_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+const isRecentGslRelease = (releaseDate) => {
+  if (!releaseDate) return false;
+  const timestamp = new Date(releaseDate).getTime();
+  const age = Date.now() - timestamp;
+  return Number.isFinite(timestamp) && age >= 0 && age <= RECENT_GSL_WINDOW_MS;
+};
 
 const COMPARISON_LABELS = {
   current: "Up to date with GameStoryLog",
@@ -82,6 +89,8 @@ const rows = games.map((game) => {
   return {
     game,
     gslValue,
+    gslReleaseDate: gsl?.release_date ?? null,
+    gslUpdatedRecently: isRecentGslRelease(gsl?.release_date),
     gslUrl: gslLink?.url ?? null,
     typhoon: installs("typhoon"),
     orion: installs("orion"),
@@ -128,6 +137,7 @@ const hasPreview = hasComparison("preview");
       .links{display:flex;align-items:center;justify-content:flex-end;gap:.45rem;}
       .links img{width:1.05rem;height:1.05rem;display:block;}
       .links .platform-icon{filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
+      .recent-badge{display:inline-flex;flex:none;align-items:center;border:1px solid #4da879;border-radius:3px;padding:1px 4px;color:#81d9a8;background:#173323;font-size:.62rem;font-weight:700;letter-spacing:.04em;line-height:1.3;text-transform:uppercase;}
       .label{display:none;}
       @media (max-width:760px){
         .row{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 10px;padding:8px 6px;}
@@ -158,6 +168,7 @@ const hasPreview = hasComparison("preview");
             <span><svg class="icon is-current" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-current"/></svg> up to date with GSL</span>
             {hasClose ? <span><svg class="icon is-close" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-close"/></svg> one release behind GSL</span> : null}
             <span><svg class="icon is-behind" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-behind"/></svg> further behind GSL</span>
+            <span><span class="recent-badge">New</span> GSL version released within 14 days</span>
             {hasPreview ? <span><svg class="icon is-preview" viewBox="0 0 16 16" aria-hidden="true"><use href="#vm-preview"/></svg> demo or preview</span> : null}
             <span><span class="na">N/A</span> not installed there</span>
             {statusesPresent.map((status) => (
@@ -203,6 +214,7 @@ const hasPreview = hasComparison("preview");
                       ) : (
                         <span class="text" title={row.gslValue}>{row.gslValue}</span>
                       )}
+                      {row.gslUpdatedRecently ? <span class="recent-badge" title={`GSL release dated ${row.gslReleaseDate}; updated within the last 14 days`}>New</span> : null}
                     </div>
                   </div>
                   {[["Typhoon", row.typhoon], ["Orion", row.orion]].map(([name, installs]) => (
