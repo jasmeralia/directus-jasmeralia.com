@@ -36,6 +36,7 @@ REVIEW_PATH = CACHE_DIR / "steam_synopsis_review.md"
 PROGRESS_PATH = CACHE_DIR / "steam_synopsis_progress.json"
 STEAM_DELAY_S = 1.5
 SPACE_RE = re.compile(r"[ \t\f\v]+")
+HTML_TEXT_SPACE_RE = re.compile(r"[ \t\r\n\f\v]+")
 BLANK_LINE_RE = re.compile(r"\n{2,}")
 BOUNDARY_TAGS = {
     "address",
@@ -120,7 +121,7 @@ class SynopsisHTMLParser(HTMLParser):
 
     def handle_data(self, data: str) -> None:
         if not self.drop_stack:
-            self.parts.append(data)
+            self.parts.append(HTML_TEXT_SPACE_RE.sub(" ", data))
 
 
 def html_to_text(value: str) -> str:
@@ -525,6 +526,15 @@ def self_test() -> int:
         and "hidden" not in extracted
         and "<p>" not in extracted,
         "HTML active and media content removal",
+    )
+    wrapped_html = html_to_text(
+        "<p>Wrapped\n source <em>with\tinline</em>\r\nmarkup</p>"
+        "<p>Next<br>line</p><ul><li>one</li><li>two</li></ul>"
+    )
+    wrapped_text = normalize_synopsis(wrapped_html)[0]
+    check(
+        wrapped_text == "Wrapped source with inline markup\nNext\nline\none\ntwo",
+        "HTML source whitespace collapses while explicit block and br boundaries remain",
     )
     void_media = html_to_text(
         "before<source src='a'>middle<track src='b'><embed src='c'>after"
