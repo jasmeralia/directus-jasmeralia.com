@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.286] - 2026-11-03
+- Games: constrain injected Steam synopsis media to the synopsis panel and apply the NSFW visibility rules to injected elements.
+
 ## [1.0.285] - 2026-11-03
 - Games: preserve Steam synopsis rich text and render Steam CDN images and videos inside the existing synopsis reveal.
 
