@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { synopsisBlocks, synopsisParagraphs, synopsisSourceLink } from "./synopsis";
+import { renderSteamSynopsis, synopsisBlocks, synopsisParagraphs, synopsisSourceLink } from "./synopsis";
 
 describe("synopsisParagraphs", () => {
   it.each([null, undefined, "", "  \n  \t\n"])("returns no paragraphs for blank input: %s", (text) => {
@@ -62,6 +62,79 @@ describe("synopsisBlocks", () => {
     expect(synopsisBlocks("![Image](https://[broken)", "steam")).toEqual([
       { kind: "paragraph", text: "![Image](https://[broken)" },
     ]);
+    expect(synopsisBlocks("![Image](https://evil.example/image.png)", "steam")).toEqual([
+      { kind: "paragraph", text: "![Image](https://evil.example/image.png)" },
+    ]);
+  });
+});
+
+describe("renderSteamSynopsis", () => {
+  it("renders emphasis, links, headings, and lists from importer Markdown", () => {
+    const html = renderSteamSynopsis(
+      "## Chapter Two\n\n**Bold** and *italic* [Steam](https://store.steampowered.com/)\n\n- First\n- Second",
+    );
+    expect(html).toContain("<h2>Chapter Two</h2>");
+    expect(html).toContain("<strong>Bold</strong>");
+    expect(html).toContain("<em>italic</em>");
+    expect(html).toContain('href="https://store.steampowered.com/"');
+    expect(html).toContain("<ul>");
+    expect(html).toContain("<li>First</li>");
+    expect(renderSteamSynopsis("Line one\nLine two")).toContain("Line one<br>Line two");
+  });
+
+  it("renders Steam video poster plus safe WebM and MP4 sources", () => {
+    const html = renderSteamSynopsis(
+      "![steam-video:https://shared.akamai.steamstatic.com/extras/clip.poster.avif|https://shared.akamai.steamstatic.com/extras/clip.mp4](https://shared.akamai.steamstatic.com/extras/clip.webm)",
+    );
+    expect(html).toContain('<video class="synopsis-video" poster="https://shared.akamai.steamstatic.com/extras/clip.poster.avif"');
+    expect(html).toContain('<source src="https://shared.akamai.steamstatic.com/extras/clip.webm" type="video/webm">');
+    expect(html).toContain('<source src="https://shared.akamai.steamstatic.com/extras/clip.mp4" type="video/mp4">');
+    expect(html).toContain("controls playsinline preload=\"none\"");
+  });
+
+  it("defers Steam images and video media until the NSFW reveal", () => {
+    const html = renderSteamSynopsis(
+      "![Screenshot](https://shared.akamai.steamstatic.com/extras/scene.avif)\n\n![steam-video:https://shared.akamai.steamstatic.com/extras/clip.poster.avif|](https://shared.akamai.steamstatic.com/extras/clip.webm)",
+      true,
+    );
+    expect(html).toContain('data-src="https://shared.akamai.steamstatic.com/extras/scene.avif"');
+    expect(html).toContain('data-poster="https://shared.akamai.steamstatic.com/extras/clip.poster.avif"');
+    expect(html).toContain('source data-src="https://shared.akamai.steamstatic.com/extras/clip.webm"');
+    expect(html).not.toMatch(/(?:\s|<)src="https:\/\/shared\.akamai\.steamstatic\.com\/extras\//);
+  });
+
+  it("escapes raw HTML and rejects unsafe media and link URLs", () => {
+    const html = renderSteamSynopsis(
+      '<script>alert("xss")</script>\n\n![Bad](https://evil.example/image.png)\n\n![steam-video:https://evil.example/poster.jpg|](https://evil.example/clip.mp4)\n\n[Bad link](javascript:alert(1))',
+    );
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("evil.example");
+    expect(html).not.toContain("javascript:");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("rejects malformed HTTPS links", () => {
+    const html = renderSteamSynopsis("[Broken link](https://[broken)");
+    expect(html).not.toContain("href=");
+  });
+
+  it("renders source titles and ordinary images without deferring them", () => {
+    const html = renderSteamSynopsis(
+      '[Steam](https://store.steampowered.com/ "Store page")\n\n![Scene](https://shared.akamai.steamstatic.com/extras/scene.avif "Screenshot")',
+    );
+    expect(html).toContain('title="Store page"');
+    expect(html).toContain('src="https://shared.akamai.steamstatic.com/extras/scene.avif"');
+    expect(html).toContain('alt="Scene" title="Screenshot"');
+  });
+
+  it("rejects invalid media and preserves text for an empty HTTPS link", () => {
+    const html = renderSteamSynopsis(
+      "[No URL]()\n\n![steam-video:|](https://shared.akamai.steamstatic.com/extras/clip.avi)\n\n![steam-video:|](https://shared.akamai.steamstatic.com/extras/clip.webm)",
+    );
+    expect(html).toContain("No URL");
+    expect(html).not.toContain('href="');
+    expect(html).not.toContain("clip.avi");
+    expect(html).toContain('src="https://shared.akamai.steamstatic.com/extras/clip.webm"');
   });
 });
 

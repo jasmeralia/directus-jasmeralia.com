@@ -1,4 +1,5 @@
 import type { GameLink } from "./download-link";
+import { marked } from "marked";
 
 export function synopsisParagraphs(text: string | null | undefined): string[] {
   return (text ?? "")
@@ -33,6 +34,78 @@ function safeSteamImageUrl(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+function safeSteamVideoUrl(value: string): string | null {
+  const safe = safeSteamImageUrl(value);
+  if (!safe) return null;
+  return /\.(?:mp4|webm)$/i.test(new URL(safe).pathname) ? safe : null;
+}
+
+function safeHttpsLink(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    url.hash = "";
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+function escapeHtml(value: string): string {
+  const entities: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  };
+  return value.replace(/[&<>"']/g, (character) => entities[character] ?? character);
+}
+
+function videoSource(source: string, deferred: boolean): string {
+  const type = new URL(source).pathname.toLowerCase().endsWith(".webm")
+    ? "video/webm"
+    : "video/mp4";
+  const attribute = deferred ? "data-src" : "src";
+  return `<source ${attribute}="${escapeHtml(source)}" type="${type}">`;
+}
+
+/** Render importer-generated Steam Markdown with a strict output and media allowlist. */
+export function renderSteamSynopsis(
+  text: string | null | undefined,
+  deferMedia = false,
+): string {
+  const renderer = new marked.Renderer();
+  renderer.html = ({ text: raw }) => escapeHtml(raw);
+  renderer.link = ({ href, title, text: label }) => {
+    const safe = safeHttpsLink(href);
+    if (!safe) return label;
+    const titleAttribute = title ? ` title="${escapeHtml(title)}"` : "";
+    return `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer"${titleAttribute}>${label}</a>`;
+  };
+  renderer.image = ({ href, title, text: alt }) => {
+    const video = /^steam-video:([^|]*)\|(.*)$/.exec(alt);
+    if (video) {
+      const primary = href ? safeSteamVideoUrl(href) : null;
+      const fallback = safeSteamVideoUrl(video[2]);
+      if (!primary) return "";
+      const poster = video[1] ? safeSteamImageUrl(video[1]) : null;
+      const posterAttribute = poster
+        ? ` ${deferMedia ? "data-poster" : "poster"}="${escapeHtml(poster)}"`
+        : "";
+      const titleAttribute = title ? ` aria-label="${escapeHtml(title)}"` : "";
+      return `<video class="synopsis-video"${posterAttribute}${titleAttribute} controls playsinline preload="none" data-synopsis-video>${videoSource(primary, deferMedia)}${fallback && fallback !== primary ? videoSource(fallback, deferMedia) : ""}</video>`;
+    }
+    const safe = href ? safeSteamImageUrl(href) : null;
+    if (!safe) return "";
+    const sourceAttribute = deferMedia ? "data-src" : "src";
+    const titleAttribute = title ? ` title="${escapeHtml(title)}"` : "";
+    return `<img class="synopsis-image" ${sourceAttribute}="${escapeHtml(safe)}" alt="${escapeHtml(alt)}"${titleAttribute} loading="lazy" decoding="async" referrerpolicy="no-referrer">`;
+  };
+  return marked.parse(text ?? "", { renderer, breaks: true }) as string;
 }
 
 /** Parse paragraph text and the controlled Steam image markers used by the backfill. */

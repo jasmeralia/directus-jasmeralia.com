@@ -11,4 +11,6 @@ mcp/scripts/ignored/
 tmp-site/*
 !tmp-site/.keep
 site/coverage/
+.coverage
+mcp/coverage.xml
 .kanna

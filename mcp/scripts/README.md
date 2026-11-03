@@ -112,10 +112,13 @@ retries the script aborts instead of continuing to send requests.
 Steam app download link. It uses the full `about_the_game` description, with
 `detailed_description` and `short_description` as fallbacks when no visible
 text is available. HTML becomes paragraph text with heading, list-item, and
-line-break boundaries; images on allowlisted Steam CDN hosts are preserved as
-controlled image markers, while scripts, styles, and other embedded media are
-discarded. Linked Steam game and DLC entries are supported. Typography is
-normalized to ASCII punctuation without truncating the text.
+line-break boundaries, and retains bold, italic, links, and ordered/unordered
+lists as controlled Markdown. Images and video poster/source URLs are preserved
+only from HTTPS Steam CDN hosts; scripts, styles, and other embeds are dropped.
+The page renders video with controls inside the synopsis and defers NSFW media
+requests until the existing reveal. Linked Steam game and DLC entries are
+supported. Typography is normalized to ASCII punctuation without truncating
+the text.
 
 ```sh
 python3 mcp/scripts/backfill_steam_synopsis.py --avn-only --refresh # all AVNs, dry run
@@ -124,6 +127,8 @@ python3 mcp/scripts/backfill_steam_synopsis.py --apply --only-slug game-slug
 python3 mcp/scripts/backfill_steam_synopsis.py --refresh --only-slug game-slug
 python3 mcp/scripts/backfill_steam_synopsis.py --self-test           # offline
 ```
+
+`make test-python` runs this offline self-test with coverage for CI.
 
 Repeat `--only-slug` to select several games; omit it to plan the entire
 catalog. `--avn-only` limits the plan to games tagged with the AVN genre.
