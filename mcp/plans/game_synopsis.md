@@ -150,8 +150,8 @@ the `SKIP_DELTA` entries.
      harmless.
    - **History:** synopsis fields stay in `SKIP_DELTA`. Steam synopsis additions and updates get
      content-free labels in RSS and Recent Updates. Keep the existing 100-revision window for
-     other game events and use a separate 500-revision Steam synopsis window so bulk updates do
-     not displace already-published GUIDs. Keep the full list for previous-value lookup;
+     other game events and include up to 50 recent Steam synopsis revisions in the RSS feed. Keep the full revision list
+     for previous-value lookup;
      `fmtNewGame` does not include the synopsis, so game-created entries are unchanged.
 6. Process per `AGENTS.md`: bump `site/package.json` patch version, prepend a `CHANGELOG.md` entry,
    update the `AGENTS.md` `games` row (fields, plain-text/ASCII rule, `SKIP_DELTA`, query-weight
