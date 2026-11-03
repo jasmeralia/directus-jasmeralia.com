@@ -109,6 +109,11 @@ describe("renderSteamSynopsis", () => {
     expect(html).not.toContain("javascript:");
     expect(html).toContain("&lt;script&gt;");
   });
+
+  it("rejects malformed HTTPS links", () => {
+    const html = renderSteamSynopsis("[Broken link](https://[broken)");
+    expect(html).not.toContain("href=");
+  });
 });
 
 describe("synopsisSourceLink", () => {
