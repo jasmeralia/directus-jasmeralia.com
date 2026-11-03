@@ -596,11 +596,16 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     fetchCreateActivity("games_genres", LIMIT_GENRES),
     fetchAllGameGenreLinks(),
   ]);
-  // Bulk metadata backfills must not consume the window of real game events.
+  // Ignore new synopsis-only revisions before the cap, keeping the legacy window
+  // for every other revision. Filtering all skipped metadata here could admit old
+  // events, change consolidation groups, and replace already-published RSS GUIDs.
   // Keep allGameRevs intact for previous-value lookup, including skipped snapshots.
-  const gameRevs = allGameRevs.filter((revision) =>
-    isCreateRevision(revision, false) || Object.keys(feedDelta(revision.delta)).length > 0,
-  ).slice(0, LIMIT_GAMES);
+  const gameRevs = allGameRevs.filter((revision) => {
+    const delta = revision.delta ?? {};
+    const synopsisOnly = ("synopsis" in delta || "synopsis_source" in delta)
+      && Object.keys(feedDelta(delta)).length === 0;
+    return isCreateRevision(revision, false) || !synopsisOnly;
+  }).slice(0, LIMIT_GAMES);
   const bundleMemberRevs = allBundleMemberRevs.slice(0, LIMIT_BUNDLE_MEMBERS);
 
   // Section runs are resolved up front (no network access) so their parent

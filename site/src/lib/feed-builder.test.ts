@@ -74,6 +74,43 @@ describe("buildFeedEntries", () => {
     expect(await buildFeedEntries()).toEqual(before);
   });
 
+  it("preserves the published GUID at the legacy revision-cap boundary", async () => {
+    const game = { id: 1, title: "Boundary Game", slug: "boundary-game" };
+    const statusUpdate = { id: 200, item: "1", collection: "games", data: { ...game, player_status: "completed" }, delta: { player_status: "completed" }, activity: { id: 1200, action: "update", timestamp: "2026-10-03T01:20:00Z" } };
+    const metadata = Array.from({ length: 99 }, (_, i) => ({
+      id: 199 - i, item: "1", collection: "games", data: { ...game, player_status: "in_progress" },
+      delta: { date_updated: "2026-10-03T01:10:00Z" },
+      activity: { id: 1199 - i, action: "update", timestamp: "2026-10-03T01:10:00Z" },
+    }));
+    const olderUpdate = { id: 100, item: "1", collection: "games", data: { ...game, player_status: "in_progress", release_year: 2024 }, delta: { release_year: 2024 }, activity: { id: 1100, action: "update", timestamp: "2026-10-03T01:00:00Z" } };
+    const legacyWindow = [statusUpdate, ...metadata];
+    mockDirectusFetch(feedRoutes({ games: [game], gameRevisions: legacyWindow }));
+    const before = await buildFeedEntries();
+    expect(before).toHaveLength(1);
+    expect(before[0].guid).toBe("game:boundary-game:play_status:2026-10-03T01:20:00Z");
+    const backfill = Array.from({ length: 101 }, (_, i) => ({
+      id: 300 + i, item: "1", collection: "games", data: game,
+      delta: { synopsis: "A story.", synopsis_source: "gsl", date_updated: "2026-10-04T01:00:00Z" },
+      activity: { id: 1300 + i, action: "update", timestamp: "2026-10-04T01:00:00Z" },
+    }));
+    // The older event is outside the original cap; admitting it would consolidate
+    // it with the published status update and replace that update's GUID.
+    mockDirectusFetch(feedRoutes({ games: [game], gameRevisions: [...backfill, ...legacyWindow, olderUpdate] }));
+    expect(await buildFeedEntries()).toEqual(before);
+  });
+
+  it("keeps a status event when the same edit also changes the synopsis", async () => {
+    const game = { id: 1, title: "Mixed Edit", slug: "mixed-edit" };
+    mockDirectusFetch(feedRoutes({
+      games: [game],
+      gameRevisions: [{ id: 1, item: "1", collection: "games", data: { ...game, player_status: "completed" }, delta: { synopsis: "Secret story.", synopsis_source: "gsl", player_status: "completed" }, activity: { id: 101, action: "update", timestamp: "2026-10-03T01:20:00Z" } }],
+    }));
+    const entries = await buildFeedEntries();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].description).toBe("**Play Status**: Completed");
+    expect(entries[0].guid).toBe("game:mixed-edit:play_status:2026-10-03T01:20:00Z");
+  });
+
   it("omits a game revision containing only synopsis fields", async () => {
     mockDirectusFetch(feedRoutes({
       gameRevisions: [{
