@@ -19,6 +19,8 @@ export const SKIP_DELTA = new Set([
   "engines",
   // Retired scalar version fields: version tracking lives in the Versions tab.
   "version_orion", "version_typhoon", "version_gsl",
+  // Synopsis backfills must not announce bulk content updates in History or feeds.
+  "synopsis", "synopsis_source",
 ]);
 
 // current_section is formatted specially (see fmtDelta) using the game's

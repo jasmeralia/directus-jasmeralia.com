@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.279] - 2026-11-03
+- Games: add a Synopsis panel to the game page (NSFW games hide it behind the usual click-to-reveal; shown from GameStoryLog data), and keep synopsis edits out of History and the feeds.
+
 ## [1.0.278] - 2026-11-01
 - Filters: AVN + Backlog no longer includes unreleased games; the filter page and the count on the filters index now share one predicate.
 ## [1.0.277] - 2026-11-01

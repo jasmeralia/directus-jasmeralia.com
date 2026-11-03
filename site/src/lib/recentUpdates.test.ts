@@ -61,6 +61,22 @@ const rev = (id: number, item: number, data: Record<string, unknown>, delta: Rec
 });
 
 describe("fetchRecentUpdates", () => {
+  it("omits a game revision containing only synopsis fields", async () => {
+    mockFeed({
+      games: [rev(
+        901,
+        901,
+        { title: "Synopsis Game", slug: "synopsis-game" },
+        { synopsis: "A story.", synopsis_source: "gsl" },
+        "update",
+        "2026-10-10T01:02:03Z",
+      )],
+      gameRows: [{ id: 901, title: "Synopsis Game", slug: "synopsis-game" }],
+    });
+
+    expect(await fetchRecentUpdates()).toEqual([]);
+  });
+
   it("ignores feed-only music events", async () => {
     mockFeed({
       musicLists: [

@@ -56,6 +56,22 @@ const feedRoutes = (config: FeedRouteConfig) => [
 ];
 
 describe("buildFeedEntries", () => {
+  it("omits a game revision containing only synopsis fields", async () => {
+    mockDirectusFetch(feedRoutes({
+      gameRevisions: [{
+        id: 901,
+        item: "901",
+        collection: "games",
+        data: { title: "Synopsis Game", slug: "synopsis-game" },
+        delta: { synopsis: "A story.", synopsis_source: "gsl" },
+        activity: { id: 1901, action: "update", timestamp: "2026-10-10T01:02:03Z" },
+      }],
+      games: [{ id: 901, title: "Synopsis Game", slug: "synopsis-game" }],
+    }));
+
+    expect(await buildFeedEntries()).toEqual([]);
+  });
+
   it("characterizes existing feed output for event families affected by the refactor", async () => {
     const cases: { name: string; config: FeedRouteConfig; expected: Record<string, unknown> }[] = [
       {
