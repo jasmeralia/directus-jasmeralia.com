@@ -5,7 +5,7 @@ MYPY   := $(if $(wildcard $(VENV)/bin/mypy),$(VENV)/bin/mypy,mypy)
 PYLINT := $(if $(wildcard $(VENV)/bin/pylint),$(VENV)/bin/pylint,pylint)
 PY_SRC := mcp/scripts
 
-.PHONY: lint lintfix lint-site lint-builder test-site lint-python lint-docker lint-shell \
+.PHONY: lint lintfix lint-site lint-builder test-site test-python lint-python lint-docker lint-shell \
         ruff ruff-format pylint mypy
 
 lint: lint-site lint-builder lint-python lint-docker lint-shell
@@ -24,6 +24,10 @@ lint-builder:
 
 test-site:
 	cd site && npm test
+
+test-python:
+	$(PYTHON) -m coverage run --include='mcp/scripts/backfill_steam_synopsis.py' mcp/scripts/backfill_steam_synopsis.py --self-test
+	$(PYTHON) -m coverage xml --include='mcp/scripts/backfill_steam_synopsis.py' -o mcp/coverage.xml
 
 lint-python:
 	@status=0; \

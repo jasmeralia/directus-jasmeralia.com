@@ -128,6 +128,8 @@ python3 mcp/scripts/backfill_steam_synopsis.py --refresh --only-slug game-slug
 python3 mcp/scripts/backfill_steam_synopsis.py --self-test           # offline
 ```
 
+`make test-python` runs this offline self-test with coverage for CI.
+
 Repeat `--only-slug` to select several games; omit it to plan the entire
 catalog. `--avn-only` limits the plan to games tagged with the AVN genre.
 Steam may replace GSL-owned synopses from cached data; `--refresh` fetches fresh
