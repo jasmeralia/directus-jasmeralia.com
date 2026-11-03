@@ -129,7 +129,8 @@ the `SKIP_DELTA` entries.
    - **Pagefind:** verify how `Nav.astro` renders search-result excerpts. If excerpts can show body
      text for NSFW games, `data-pagefind-ignore` on the wrapper is required; if not, it is still
      harmless.
-   - **Feeds/History/Recent Updates:** covered by `SKIP_DELTA`; `fmtNewGame` does not include the
+   - **Feeds/History/Recent Updates:** covered by `SKIP_DELTA`; filter skipped-only updates before
+     the feed revision cap, retaining create revisions and the full list for previous-value lookup; `fmtNewGame` does not include the
      synopsis, so game-created entries are unchanged.
 6. Process per `AGENTS.md`: bump `site/package.json` patch version, prepend a `CHANGELOG.md` entry,
    update the `AGENTS.md` `games` row (fields, plain-text/ASCII rule, `SKIP_DELTA`, query-weight

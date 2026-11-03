@@ -596,7 +596,11 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     fetchCreateActivity("games_genres", LIMIT_GENRES),
     fetchAllGameGenreLinks(),
   ]);
-  const gameRevs = allGameRevs.slice(0, LIMIT_GAMES);
+  // Bulk metadata backfills must not consume the window of real game events.
+  // Keep allGameRevs intact for previous-value lookup, including skipped snapshots.
+  const gameRevs = allGameRevs.filter((revision) =>
+    isCreateRevision(revision, false) || Object.keys(feedDelta(revision.delta)).length > 0,
+  ).slice(0, LIMIT_GAMES);
   const bundleMemberRevs = allBundleMemberRevs.slice(0, LIMIT_BUNDLE_MEMBERS);
 
   // Section runs are resolved up front (no network access) so their parent

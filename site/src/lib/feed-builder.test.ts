@@ -22,7 +22,6 @@ type FeedRouteConfig = {
   tlgItems?: unknown[];
   linkItems?: unknown[];
   musicLists?: unknown[];
-  musicLists?: unknown[];
   genreRows?: unknown[];
 };
 
@@ -32,10 +31,6 @@ const feedRoutes = (config: FeedRouteConfig) => [
   { match: /\/revisions\?.*collection\]\[_eq\]=tier_lists(?:&|$)/, data: config.tierListRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=game_bundle_members(?:&|$)/, data: config.bundleMemberRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=game_sections(?:&|$)/, data: config.sectionRevisions ?? [] },
-  { match: /\/revisions\?.*collection\]\[_eq\]=games_music_lists(?:&|$)/, data: config.musicListRevisions ?? [] },
-  { match: /\/revisions\?.*collection\]\[_eq\]=games_tracks(?:&|$)/, data: config.musicTrackRevisions ?? [] },
-  { match: /\/revisions\?.*collection\]\[_eq\]=games_music_lists(?:&|$)/, data: config.musicListRevisions ?? [] },
-  { match: /\/revisions\?.*collection\]\[_eq\]=games_tracks(?:&|$)/, data: config.musicTrackRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=games_music_lists(?:&|$)/, data: config.musicListRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=games_tracks(?:&|$)/, data: config.musicTrackRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=games_links(?:&|$)/, data: config.linkRevisions ?? [] },
@@ -50,12 +45,35 @@ const feedRoutes = (config: FeedRouteConfig) => [
   { match: "/items/games?", data: config.games ?? [] },
   { match: "/items/game_sections?", data: config.sectionRows ?? [] },
   { match: "/items/games_music_lists?", data: config.musicLists ?? [] },
-  { match: "/items/games_music_lists?", data: config.musicLists ?? [] },
-  { match: "/items/games_music_lists?", data: config.musicLists ?? [] },
   { match: "/items/games_genres?", data: config.genreRows ?? [] },
 ];
 
 describe("buildFeedEntries", () => {
+  it("keeps real events and previous values through a synopsis backfill larger than the revision cap", async () => {
+    const games = [
+      { id: 1, title: "Added Game", slug: "added-game" },
+      { id: 2, title: "Updated Game", slug: "updated-game" },
+    ];
+    const realRevisions = [
+      { id: 3, item: "2", collection: "games", data: { ...games[1], player_status: "completed" }, delta: { player_status: "completed" }, activity: { id: 103, action: "update", timestamp: "2026-10-02T01:02:03Z" } },
+      { id: 2, item: "2", collection: "games", data: { ...games[1], player_status: "in_progress" }, delta: { synopsis: "Previous snapshot" }, activity: { id: 102, action: "update", timestamp: "2026-10-01T02:02:03Z" } },
+      { id: 1, item: "1", collection: "games", data: games[0], delta: {}, activity: { id: 101, action: "create", timestamp: "2026-10-01T01:02:03Z" } },
+    ];
+    mockDirectusFetch(feedRoutes({ games, gameRevisions: realRevisions }));
+    const before = await buildFeedEntries();
+    expect(before.map((entry) => entry.title)).toEqual(["Game Updated: Updated Game", "Game Added: Added Game"]);
+    expect(before[0].description).toContain("In Progress");
+    expect(before[0].description).toContain("Completed");
+
+    const synopsisRevisions = Array.from({ length: 101 }, (_, i) => ({
+      id: 200 + i, item: "2", collection: "games", data: games[1],
+      delta: { synopsis: "A story.", synopsis_source: "gsl" },
+      activity: { id: 1200 + i, action: "update", timestamp: "2026-10-03T01:02:03Z" },
+    }));
+    mockDirectusFetch(feedRoutes({ games, gameRevisions: [...synopsisRevisions, ...realRevisions] }));
+    expect(await buildFeedEntries()).toEqual(before);
+  });
+
   it("omits a game revision containing only synopsis fields", async () => {
     mockDirectusFetch(feedRoutes({
       gameRevisions: [{
