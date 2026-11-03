@@ -47,9 +47,8 @@ const LIMIT_JUNCTIONS   = 300; // tier_list_games activities
 const LIMIT_LINKS       = 400; // games_links activities (create + update)
 const LIMIT_GENRES      = 300;
 const LIMIT_BUNDLE_MEMBERS = 200;
-// Leave room for one bulk Steam synopsis announcement per AVN plus the rest
-// of the recent feed; the separate revision windows remain bounded at 500.
-const LIMIT_FEED_ENTRIES = 500;
+// Keep the public feed compact while surfacing the latest game and content events.
+const LIMIT_FEED_ENTRIES = 50;
 
 // Game-related feed entries (direct game revisions, included-game revisions,
 // download/walkthrough links, section-count changes) landing within this
@@ -626,7 +625,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
   // Keep allGameRevs intact for previous-value lookup, including skipped snapshots.
   const synopsisRevs = allGameRevs.filter((revision) =>
     "synopsis" in (revision.delta ?? {}) && revision.data?.synopsis_source === "steam",
-  ).slice(0, 500);
+  ).slice(0, LIMIT_FEED_ENTRIES);
   const standardGameRevs = allGameRevs.filter((revision) => {
     const delta = revision.delta ?? {};
     const synopsisOnly = ("synopsis" in delta || "synopsis_source" in delta)

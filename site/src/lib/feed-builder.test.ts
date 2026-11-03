@@ -120,7 +120,7 @@ describe("buildFeedEntries", () => {
     expect(JSON.stringify(entries)).not.toContain("Private new prose");
   });
 
-  it("keeps a bulk Steam synopsis backfill above the legacy 200-item feed cap", async () => {
+  it("caps the feed at 50 while keeping synopsis announcements content-free", async () => {
     const games = Array.from({ length: 220 }, (_, index) => ({
       id: index + 1,
       title: `Steam AVN ${index + 1}`,
@@ -147,7 +147,7 @@ describe("buildFeedEntries", () => {
     mockDirectusFetch(feedRoutes({ games, gameRevisions: revisions }));
 
     const entries = await buildFeedEntries();
-    expect(entries).toHaveLength(220);
+    expect(entries).toHaveLength(50);
     expect(entries.every((entry) => entry.description === "**Synopsis**: Added")).toBe(true);
     expect(JSON.stringify(entries)).not.toContain("private synopsis");
   });
