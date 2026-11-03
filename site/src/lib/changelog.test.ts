@@ -216,6 +216,12 @@ describe("changelog value formatting", () => {
     );
   });
 
+  it("keeps synopsis changes out of History", () => {
+    expect(SKIP_DELTA.has("synopsis")).toBe(true);
+    expect(SKIP_DELTA.has("synopsis_source")).toBe(true);
+    expect(fmtDelta({ synopsis: "x", synopsis_source: "gsl" }, null)).toBe("");
+  });
+
   it("ignores the retired version fields in History delta formatting", () => {
     const result = fmtDelta(
       { version_orion: "0.2", version_typhoon: "0.3", version_gsl: "0.4", player_status: "completed" },

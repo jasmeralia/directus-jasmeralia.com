@@ -61,6 +61,35 @@ const rev = (id: number, item: number, data: Record<string, unknown>, delta: Rec
 });
 
 describe("fetchRecentUpdates", () => {
+  it("retains a genuine update after more than 100 synopsis-only revisions", async () => {
+    const game = { id: 1, title: "Played Game", slug: "played-game" };
+    const realUpdate = rev(1, 1, { ...game, player_status: "completed" }, { player_status: "completed" }, "update", "2026-10-01T01:02:03Z");
+    mockFeed({ gameRows: [game], games: [realUpdate] });
+    const before = await fetchRecentUpdates();
+    expect(before).toHaveLength(1);
+    const backfill = Array.from({ length: 101 }, (_, i) => rev(
+      200 + i, 1, game, { synopsis: "A story.", synopsis_source: "gsl" }, "update", "2026-10-03T01:02:03Z",
+    ));
+    mockFeed({ gameRows: [game], games: [...backfill, realUpdate] });
+    expect(await fetchRecentUpdates()).toEqual(before);
+  });
+
+  it("omits a game revision containing only synopsis fields", async () => {
+    mockFeed({
+      games: [rev(
+        901,
+        901,
+        { title: "Synopsis Game", slug: "synopsis-game" },
+        { synopsis: "A story.", synopsis_source: "gsl" },
+        "update",
+        "2026-10-10T01:02:03Z",
+      )],
+      gameRows: [{ id: 901, title: "Synopsis Game", slug: "synopsis-game" }],
+    });
+
+    expect(await fetchRecentUpdates()).toEqual([]);
+  });
+
   it("ignores feed-only music events", async () => {
     mockFeed({
       musicLists: [

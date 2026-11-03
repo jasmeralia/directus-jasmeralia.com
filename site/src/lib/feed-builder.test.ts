@@ -22,7 +22,6 @@ type FeedRouteConfig = {
   tlgItems?: unknown[];
   linkItems?: unknown[];
   musicLists?: unknown[];
-  musicLists?: unknown[];
   genreRows?: unknown[];
 };
 
@@ -32,10 +31,6 @@ const feedRoutes = (config: FeedRouteConfig) => [
   { match: /\/revisions\?.*collection\]\[_eq\]=tier_lists(?:&|$)/, data: config.tierListRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=game_bundle_members(?:&|$)/, data: config.bundleMemberRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=game_sections(?:&|$)/, data: config.sectionRevisions ?? [] },
-  { match: /\/revisions\?.*collection\]\[_eq\]=games_music_lists(?:&|$)/, data: config.musicListRevisions ?? [] },
-  { match: /\/revisions\?.*collection\]\[_eq\]=games_tracks(?:&|$)/, data: config.musicTrackRevisions ?? [] },
-  { match: /\/revisions\?.*collection\]\[_eq\]=games_music_lists(?:&|$)/, data: config.musicListRevisions ?? [] },
-  { match: /\/revisions\?.*collection\]\[_eq\]=games_tracks(?:&|$)/, data: config.musicTrackRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=games_music_lists(?:&|$)/, data: config.musicListRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=games_tracks(?:&|$)/, data: config.musicTrackRevisions ?? [] },
   { match: /\/revisions\?.*collection\]\[_eq\]=games_links(?:&|$)/, data: config.linkRevisions ?? [] },
@@ -50,12 +45,88 @@ const feedRoutes = (config: FeedRouteConfig) => [
   { match: "/items/games?", data: config.games ?? [] },
   { match: "/items/game_sections?", data: config.sectionRows ?? [] },
   { match: "/items/games_music_lists?", data: config.musicLists ?? [] },
-  { match: "/items/games_music_lists?", data: config.musicLists ?? [] },
-  { match: "/items/games_music_lists?", data: config.musicLists ?? [] },
   { match: "/items/games_genres?", data: config.genreRows ?? [] },
 ];
 
 describe("buildFeedEntries", () => {
+  it("keeps real events and previous values through a synopsis backfill larger than the revision cap", async () => {
+    const games = [
+      { id: 1, title: "Added Game", slug: "added-game" },
+      { id: 2, title: "Updated Game", slug: "updated-game" },
+    ];
+    const realRevisions = [
+      { id: 3, item: "2", collection: "games", data: { ...games[1], player_status: "completed" }, delta: { player_status: "completed" }, activity: { id: 103, action: "update", timestamp: "2026-10-02T01:02:03Z" } },
+      { id: 2, item: "2", collection: "games", data: { ...games[1], player_status: "in_progress" }, delta: { synopsis: "Previous snapshot" }, activity: { id: 102, action: "update", timestamp: "2026-10-01T02:02:03Z" } },
+      { id: 1, item: "1", collection: "games", data: games[0], delta: {}, activity: { id: 101, action: "create", timestamp: "2026-10-01T01:02:03Z" } },
+    ];
+    mockDirectusFetch(feedRoutes({ games, gameRevisions: realRevisions }));
+    const before = await buildFeedEntries();
+    expect(before.map((entry) => entry.title)).toEqual(["Game Updated: Updated Game", "Game Added: Added Game"]);
+    expect(before[0].description).toContain("In Progress");
+    expect(before[0].description).toContain("Completed");
+
+    const synopsisRevisions = Array.from({ length: 101 }, (_, i) => ({
+      id: 200 + i, item: "2", collection: "games", data: games[1],
+      delta: { synopsis: "A story.", synopsis_source: "gsl" },
+      activity: { id: 1200 + i, action: "update", timestamp: "2026-10-03T01:02:03Z" },
+    }));
+    mockDirectusFetch(feedRoutes({ games, gameRevisions: [...synopsisRevisions, ...realRevisions] }));
+    expect(await buildFeedEntries()).toEqual(before);
+  });
+
+  it("preserves the published GUID at the legacy revision-cap boundary", async () => {
+    const game = { id: 1, title: "Boundary Game", slug: "boundary-game" };
+    const statusUpdate = { id: 200, item: "1", collection: "games", data: { ...game, player_status: "completed" }, delta: { player_status: "completed" }, activity: { id: 1200, action: "update", timestamp: "2026-10-03T01:20:00Z" } };
+    const metadata = Array.from({ length: 99 }, (_, i) => ({
+      id: 199 - i, item: "1", collection: "games", data: { ...game, player_status: "in_progress" },
+      delta: { date_updated: "2026-10-03T01:10:00Z" },
+      activity: { id: 1199 - i, action: "update", timestamp: "2026-10-03T01:10:00Z" },
+    }));
+    const olderUpdate = { id: 100, item: "1", collection: "games", data: { ...game, player_status: "in_progress", release_year: 2024 }, delta: { release_year: 2024 }, activity: { id: 1100, action: "update", timestamp: "2026-10-03T01:00:00Z" } };
+    const legacyWindow = [statusUpdate, ...metadata];
+    mockDirectusFetch(feedRoutes({ games: [game], gameRevisions: legacyWindow }));
+    const before = await buildFeedEntries();
+    expect(before).toHaveLength(1);
+    expect(before[0].guid).toBe("game:boundary-game:play_status:2026-10-03T01:20:00Z");
+    const backfill = Array.from({ length: 101 }, (_, i) => ({
+      id: 300 + i, item: "1", collection: "games", data: game,
+      delta: { synopsis: "A story.", synopsis_source: "gsl", date_updated: "2026-10-04T01:00:00Z" },
+      activity: { id: 1300 + i, action: "update", timestamp: "2026-10-04T01:00:00Z" },
+    }));
+    // The older event is outside the original cap; admitting it would consolidate
+    // it with the published status update and replace that update's GUID.
+    mockDirectusFetch(feedRoutes({ games: [game], gameRevisions: [...backfill, ...legacyWindow, olderUpdate] }));
+    expect(await buildFeedEntries()).toEqual(before);
+  });
+
+  it("keeps a status event when the same edit also changes the synopsis", async () => {
+    const game = { id: 1, title: "Mixed Edit", slug: "mixed-edit" };
+    mockDirectusFetch(feedRoutes({
+      games: [game],
+      gameRevisions: [{ id: 1, item: "1", collection: "games", data: { ...game, player_status: "completed" }, delta: { synopsis: "Secret story.", synopsis_source: "gsl", player_status: "completed" }, activity: { id: 101, action: "update", timestamp: "2026-10-03T01:20:00Z" } }],
+    }));
+    const entries = await buildFeedEntries();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].description).toBe("**Play Status**: Completed");
+    expect(entries[0].guid).toBe("game:mixed-edit:play_status:2026-10-03T01:20:00Z");
+  });
+
+  it("omits a game revision containing only synopsis fields", async () => {
+    mockDirectusFetch(feedRoutes({
+      gameRevisions: [{
+        id: 901,
+        item: "901",
+        collection: "games",
+        data: { title: "Synopsis Game", slug: "synopsis-game" },
+        delta: { synopsis: "A story.", synopsis_source: "gsl" },
+        activity: { id: 1901, action: "update", timestamp: "2026-10-10T01:02:03Z" },
+      }],
+      games: [{ id: 901, title: "Synopsis Game", slug: "synopsis-game" }],
+    }));
+
+    expect(await buildFeedEntries()).toEqual([]);
+  });
+
   it("characterizes existing feed output for event families affected by the refactor", async () => {
     const cases: { name: string; config: FeedRouteConfig; expected: Record<string, unknown> }[] = [
       {
