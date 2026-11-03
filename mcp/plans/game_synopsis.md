@@ -282,14 +282,12 @@ restricts any run to specific Directus slugs.
 
 The Steam script uses `mcp/scripts/backfill_steam_synopsis.py`, documented in
 `mcp/scripts/README.md`. It follows the same dry-run/cache/apply workflow, uses game-specific Steam
-download links, and protects existing GSL/manual synopses. Full Steam About text is converted from
-HTML into paragraph text, retaining images from allowlisted Steam CDN hosts as controlled inline
-markers; fallback descriptions, length anomalies, and ambiguous links are reported. Apply rechecks
-both source ownership and the Steam link. The page renders Steam images inside the existing
-synopsis reveal, without a separate image control, and loads them directly from Steam's CDN. The
-site source caption identifies Steam when that is the stored source. Initial rollout is limited to
-two empty-synopsis AVNs, Darkness
-and Desire and Monster College; the rest of the catalog is not part of this apply.
+download links, and protects existing GSL/manual synopses. Steam About HTML is converted to safe rich Markdown, preserving emphasis, links, ordered/unordered
+lists, images, and playable videos from allowlisted Steam CDN hosts; fallback descriptions, length
+anomalies, and ambiguous links are reported. Apply rechecks both source ownership and the Steam link.
+The page renders Steam rich text and media inside the existing synopsis reveal, without separate
+media controls. NSFW media URLs are deferred until reveal. Steam CDN URLs remain external; the site
+source caption identifies Steam when that is the stored source.
 
 ### Remaining source research
 

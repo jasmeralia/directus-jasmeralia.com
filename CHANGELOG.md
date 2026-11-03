@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.285] - 2026-11-03
+- Games: preserve Steam synopsis rich text and render Steam CDN images and videos inside the existing synopsis reveal.
+
 ## [1.0.284] - 2026-11-03
 - Feeds: cap RSS at 50 items while retaining content-free Steam synopsis announcements.
 

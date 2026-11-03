@@ -45,23 +45,14 @@ STEAM_APPID_PREFERENCES = {
 }
 SPACE_RE = re.compile(r"[ \t\f\v]+")
 HTML_TEXT_SPACE_RE = re.compile(r"[ \t\r\n\f\v]+")
-BLANK_LINE_RE = re.compile(r"\n{2,}")
+BLANK_LINE_RE = re.compile(r"\n{3,}")
 BOUNDARY_TAGS = {
     "address",
     "article",
     "blockquote",
     "div",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "li",
-    "ol",
     "p",
     "section",
-    "ul",
 }
 DROP_TAGS = {
     "audio",
@@ -75,7 +66,6 @@ DROP_TAGS = {
     "style",
     "svg",
     "track",
-    "video",
 }
 DROP_VOID_TAGS = {"embed", "source", "track"}
 LEGACY_STEAM_IMAGE_HOSTS = {
@@ -86,6 +76,10 @@ LEGACY_STEAM_IMAGE_HOSTS = {
 STEAM_IMAGE_MARKER_RE = re.compile(
     r"^!\[([^\]\n]*)\]\((https://[^)\s]+)\)$", re.MULTILINE
 )
+STEAM_VIDEO_MARKER_RE = re.compile(
+    r"!\[steam-video:([^|\]\n]*)\|([^\]\n]*)\]\((https://[^)\s]+)\)"
+)
+MARKDOWN_ESCAPE_RE = re.compile(r"([\\`*_{}\[\]<>])")
 SMART_MAP = str.maketrans(
     {
         "\u2018": "'",
@@ -102,29 +96,80 @@ SMART_MAP = str.maketrans(
 
 
 class SynopsisHTMLParser(HTMLParser):
-    """Extract readable text and safe Steam CDN images from description HTML."""
+    """Convert Steam description HTML to Markdown and safe Steam media markers."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
         self.drop_stack: list[str] = []
+        self.video_stack: list[dict[str, Any]] = []
+        self.list_stack: list[dict[str, Any]] = []
+        self.link_stack: list[str | None] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
         if self.drop_stack:
+            if tag == "source" and self.video_stack:
+                attributes = dict(attrs)
+                source = steam_video_url(attributes.get("src"))
+                if source:
+                    self.video_stack[-1]["sources"].append(source)
+                return
             if tag in DROP_TAGS and tag not in DROP_VOID_TAGS:
                 self.drop_stack.append(tag)
             return
-        if tag in DROP_TAGS:
+        if tag == "video":
+            attributes = dict(attrs)
+            direct_source = steam_video_url(
+                attributes.get("src") or attributes.get("data-src")
+            )
+            self.video_stack.append(
+                {
+                    "poster": steam_image_url(
+                        attributes.get("poster") or attributes.get("data-poster")
+                    ),
+                    "sources": [direct_source] if direct_source else [],
+                }
+            )
+            self.drop_stack.append(tag)
+        elif tag in DROP_TAGS:
             if tag not in DROP_VOID_TAGS:
                 self.drop_stack.append(tag)
         elif tag == "img":
             attributes = dict(attrs)
-            source = steam_image_url(attributes.get("src"))
+            source = steam_image_url(
+                attributes.get("src") or attributes.get("data-src")
+            )
             if source:
                 alt = re.sub(r"[\[\]\r\n]+", " ", attributes.get("alt") or "")
                 alt = SPACE_RE.sub(" ", alt).strip()
                 self.parts.extend(("\n", f"![{alt}]({source})", "\n"))
+        elif tag in {"strong", "b"}:
+            self.parts.append("**")
+        elif tag in {"em", "i"}:
+            self.parts.append("*")
+        elif tag in {"s", "strike", "del"}:
+            self.parts.append("~~")
+        elif tag == "a":
+            attributes = dict(attrs)
+            href = steam_link_url(attributes.get("href"))
+            self.link_stack.append(href)
+            if href:
+                self.parts.append("[")
+        elif tag in {"ul", "ol"}:
+            self.parts.append("\n\n")
+            self.list_stack.append({"ordered": tag == "ol", "next": 1})
+        elif tag == "li":
+            self.parts.append("\n")
+            if self.list_stack:
+                current = self.list_stack[-1]
+                if current["ordered"]:
+                    self.parts.append(f"{current['next']}. ")
+                    current["next"] += 1
+                else:
+                    self.parts.append("- ")
+        elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+            self.parts.extend(("\n\n", "#" * int(tag[1]), " "))
         elif tag == "br" or tag in BOUNDARY_TAGS:
             self.parts.append("\n")
 
@@ -133,18 +178,64 @@ class SynopsisHTMLParser(HTMLParser):
         if self.drop_stack:
             if tag == self.drop_stack[-1]:
                 self.drop_stack.pop()
+                if tag == "video" and self.video_stack:
+                    video = self.video_stack.pop()
+                    sources = list(dict.fromkeys(video["sources"]))
+                    if sources:
+                        primary = next(
+                            (
+                                source
+                                for source in sources
+                                if source.endswith(".webm") or ".webm?" in source
+                            ),
+                            sources[0],
+                        )
+                        fallback = next(
+                            (
+                                source
+                                for source in sources
+                                if source != primary
+                                and (source.endswith(".mp4") or ".mp4?" in source)
+                            ),
+                            "",
+                        )
+                        poster = video["poster"] or ""
+                        self.parts.extend(
+                            (
+                                "\n",
+                                f"![steam-video:{poster}|{fallback}]({primary})",
+                                "\n",
+                            )
+                        )
             elif tag in self.drop_stack:
                 while self.drop_stack:
                     popped = self.drop_stack.pop()
+                    if popped == "video" and self.video_stack:
+                        self.video_stack.pop()
                     if popped == tag:
                         break
             return
-        if tag in BOUNDARY_TAGS:
-            self.parts.append("\n")
+        if tag in {"strong", "b"}:
+            self.parts.append("**")
+        elif tag in {"em", "i"}:
+            self.parts.append("*")
+        elif tag in {"s", "strike", "del"}:
+            self.parts.append("~~")
+        elif tag == "a":
+            href = self.link_stack.pop() if self.link_stack else None
+            if href:
+                self.parts.append(f"]({href})")
+        elif tag in {"ul", "ol"}:
+            if self.list_stack:
+                self.list_stack.pop()
+            self.parts.append("\n\n")
+        elif tag in BOUNDARY_TAGS:
+            self.parts.append("\n\n")
 
     def handle_data(self, data: str) -> None:
         if not self.drop_stack:
-            self.parts.append(HTML_TEXT_SPACE_RE.sub(" ", data))
+            text = HTML_TEXT_SPACE_RE.sub(" ", data)
+            self.parts.append(MARKDOWN_ESCAPE_RE.sub(r"\\\1", text))
 
 
 def steam_image_url(value: str | None) -> str | None:
@@ -170,8 +261,42 @@ def steam_image_url(value: str | None) -> str | None:
     return urllib.parse.urlunsplit(("https", parsed.netloc, path, query, ""))
 
 
+def steam_video_url(value: str | None) -> str | None:
+    """Return a Steam CDN video URL with a supported media extension."""
+    url = steam_image_url(value)
+    if not url:
+        return None
+    path = urllib.parse.urlsplit(url).path.casefold()
+    return url if path.endswith((".mp4", ".webm")) else None
+
+
+def steam_link_url(value: str | None) -> str | None:
+    """Allow secure HTTP links in Steam rich text without accepting active schemes."""
+    if not value:
+        return None
+    try:
+        parsed = urllib.parse.urlsplit(value.strip())
+        if (
+            parsed.scheme.casefold() != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            return None
+    except ValueError:
+        return None
+    path = urllib.parse.quote(parsed.path, safe="/%:@!$&'*,;=+~.-_")
+    query = urllib.parse.quote(parsed.query, safe="/?%:@!$&'*,;=+~.-_")
+    return urllib.parse.urlunsplit(("https", parsed.netloc, path, query, ""))
+
+
+def strip_steam_media_markers(value: str) -> str:
+    """Remove controlled image and video markers before text-only checks."""
+    return STEAM_VIDEO_MARKER_RE.sub("", STEAM_IMAGE_MARKER_RE.sub("", value))
+
+
 def html_to_text(value: str) -> str:
-    """Convert Steam description HTML to text and safe image markers."""
+    """Convert Steam description HTML to safe Markdown and media markers."""
     parser = SynopsisHTMLParser()
     parser.feed(value)
     parser.close()
@@ -184,17 +309,17 @@ def normalize_synopsis(text: str) -> tuple[str, list[str]]:
     for character in "\u200b\u200c\u200d\ufeff":
         value = value.replace(character, "")
     value = "\n".join(SPACE_RE.sub(" ", line).strip() for line in value.split("\n"))
-    value = BLANK_LINE_RE.sub("\n", value).strip()
+    value = BLANK_LINE_RE.sub("\n\n", value).strip()
     flags: list[str] = []
-    visible_length = len(STEAM_IMAGE_MARKER_RE.sub("", value).strip())
+    visible_length = len(strip_steam_media_markers(value).strip())
     if visible_length < 150:
         flags.append(f"short_length:{visible_length}")
     if visible_length > 3000:
         flags.append(f"long_length:{visible_length}")
     if any(not character.isascii() and not character.isalpha() for character in value):
         flags.append("non_ascii_symbol")
-    without_images = STEAM_IMAGE_MARKER_RE.sub("", value)
-    if re.search(r"<[^>]+>|\[[^\]]+\]\(https?://", without_images):
+    without_media = strip_steam_media_markers(value)
+    if re.search(r"(?<!\\)<[^>]+>", without_media):
         flags.append("markup_like_syntax")
     return value, flags
 
@@ -353,18 +478,19 @@ def game_has_avn_genre(game: dict[str, Any]) -> bool:
 
 
 def choose_steam_text(details: dict[str, Any]) -> tuple[str, bool] | None:
-    """Choose prose and images, retaining image-only descriptions with fallback prose."""
-    image_only: tuple[str, bool] | None = None
+    """Choose rich prose and media, retaining media-only descriptions."""
+    media_only: tuple[str, bool] | None = None
     for key in ("about_the_game", "detailed_description", "short_description"):
         raw = details.get(key)
         if isinstance(raw, str) and raw.strip():
             visible = html_to_text(raw)
             normalized = normalize_synopsis(visible)[0]
-            if STEAM_IMAGE_MARKER_RE.sub("", normalized).strip():
-                if image_only:
+            if strip_steam_media_markers(normalized).strip():
+                if media_only:
                     earlier_markers = [
                         match.group(0)
-                        for match in STEAM_IMAGE_MARKER_RE.finditer(image_only[0])
+                        for pattern in (STEAM_IMAGE_MARKER_RE, STEAM_VIDEO_MARKER_RE)
+                        for match in pattern.finditer(media_only[0])
                         if match.group(0) not in normalized
                     ]
                     if earlier_markers:
@@ -374,11 +500,14 @@ def choose_steam_text(details: dict[str, Any]) -> tuple[str, bool] | None:
                 return normalized, key != "about_the_game"
             if (
                 normalized
-                and STEAM_IMAGE_MARKER_RE.search(normalized)
-                and not image_only
+                and (
+                    STEAM_IMAGE_MARKER_RE.search(normalized)
+                    or STEAM_VIDEO_MARKER_RE.search(normalized)
+                )
+                and not media_only
             ):
-                image_only = (normalized, key != "about_the_game")
-    return image_only
+                media_only = (normalized, key != "about_the_game")
+    return media_only
 
 
 def plan_games(
@@ -669,7 +798,21 @@ def self_test() -> int:
         "alert" not in extracted
         and "hidden" not in extracted
         and "<p>" not in extracted,
-        "HTML active and media content removal",
+        "HTML scripts and unapproved images are omitted",
+    )
+    rich_text = normalize_synopsis(
+        html_to_text(
+            "<p><strong>Bold</strong> and <em>italic</em></p>"
+            "<ul><li>First</li><li><b>Second</b></li></ul>"
+            "<ol><li>Third</li><li>Fourth</li></ol>"
+            "<p>Literal **asterisks** stay literal.</p>"
+        )
+    )[0]
+    check(
+        rich_text
+        == "**Bold** and *italic*\n\n- First\n- **Second**\n\n1. Third\n2. Fourth\n\n"
+        "Literal \\*\\*asterisks\\*\\* stay literal.",
+        "Steam bold, italic, unordered and ordered lists remain rich text",
     )
     image_html = html_to_text(
         '<p>Before</p><img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner_(1).avif?t=42" alt="Banner [one]">'
@@ -678,6 +821,27 @@ def self_test() -> int:
         "![Banner one](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner_%281%29.avif?t=42)"
         in image_html,
         "Steam CDN image markers encode closing parentheses and sanitize alt text",
+    )
+    video_html = html_to_text(
+        '<p>Before</p><video poster="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/clip.poster.avif?t=42">'
+        '<source src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/clip.webm?t=42" type="video/webm">'
+        '<source src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/clip.mp4?t=42" type="video/mp4">'
+        "fallback text</video><p>After</p>"
+    )
+    check(
+        "![steam-video:https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/clip.poster.avif?t=42|"
+        "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/clip.mp4?t=42]("
+        "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/clip.webm?t=42)"
+        in video_html
+        and "fallback text" not in video_html,
+        "Steam video poster and WebM/MP4 sources are preserved as controlled markers",
+    )
+    unsafe_video = html_to_text(
+        '<video poster="https://evil.example/poster.jpg"><source src="https://evil.example/clip.mp4"></video>'
+    )
+    check(
+        "steam-video:" not in unsafe_video and "evil.example" not in unsafe_video,
+        "video media outside the Steam CDN is rejected",
     )
     image_only_about = '<img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner.avif" alt="Banner">'
     image_fallback = choose_steam_text(
@@ -713,7 +877,8 @@ def self_test() -> int:
     )
     wrapped_text = normalize_synopsis(wrapped_html)[0]
     check(
-        wrapped_text == "Wrapped source with inline markup\nNext\nline\none\ntwo",
+        wrapped_text
+        == "Wrapped source *with inline* markup\n\nNext\nline\n\n- one\n- two",
         "HTML source whitespace collapses while explicit block and br boundaries remain",
     )
     void_media = html_to_text(
@@ -730,7 +895,7 @@ def self_test() -> int:
         "\ufeffOne\r\n\r\n  Deux\u200b \u2014 café\u2026"
     )
     check(
-        normalized == "One\nDeux - café..." and "\u200b" not in normalized,
+        normalized == "One\n\nDeux - café..." and "\u200b" not in normalized,
         "text whitespace, zero-width, punctuation, and accents",
     )
     check(

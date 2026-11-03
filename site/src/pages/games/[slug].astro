@@ -16,7 +16,7 @@ import { buildVersionsTab, effectiveVersion } from "../../lib/game-versions";
 import MusicLists from "../../components/MusicLists.astro";
 import { hasMusic } from "../../lib/game-music";
 import { plainTextExcerpt } from "../../lib/markdown";
-import { synopsisBlocks, synopsisSourceLink } from "../../lib/synopsis";
+import { renderSteamSynopsis, synopsisBlocks, synopsisSourceLink } from "../../lib/synopsis";
 
 export async function getStaticPaths() {
   // Every game page used to independently re-fetch its own game record,
@@ -322,6 +322,9 @@ const cover = fileUrl(coverImage(game));
 const artGroups = buildArtTab(game);
 const gameNsfw = isGameNsfw(game);
 const synopsisContent = synopsisBlocks(game.synopsis, game.synopsis_source);
+const steamSynopsisHtml = game.synopsis_source === "steam"
+  ? renderSteamSynopsis(game.synopsis, gameNsfw)
+  : "";
 const synopsisAttribution = synopsisSourceLink(game.synopsis_source, game.links);
 const description = gameNsfw
   ? metaDescription
@@ -457,6 +460,10 @@ const coverStackStyle = [
       .synopsis-body p:first-child{margin-top:0;}
       .synopsis-body p:last-child{margin-bottom:0;}
       .synopsis-image{display:block;max-width:100%;height:auto;margin:.75rem auto;border-radius:6px;}
+      .synopsis-video{display:block;width:100%;max-width:900px;height:auto;margin:.75rem auto;border-radius:6px;background:#000;}
+      .synopsis-body.nsfw-text .synopsis-video{display:none;}
+      :global(html.nsfw-on) .synopsis-body.nsfw-text .synopsis-video,
+      .synopsis-body.nsfw-text.revealed .synopsis-video{display:block;}
       .synopsis-body.nsfw-text{display:block;padding:8px 10px;}
       .synopsis-body.nsfw-text .synopsis-image{visibility:hidden;}
       :global(html.nsfw-on) .synopsis-body.nsfw-text .synopsis-image,
@@ -653,13 +660,17 @@ const coverStackStyle = [
             <div class="label">Synopsis</div>
             {gameNsfw ? <button class="synopsis-toggle" type="button" aria-controls="synopsis-body" aria-expanded="false">Reveal synopsis</button> : null}
           </div>
-          <div id="synopsis-body" class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "", "aria-hidden": "true" } : {})}>
-            {synopsisContent.map((block) => block.kind === "image" ? (
-              <img class="synopsis-image" src={gameNsfw ? undefined : block.src} data-src={gameNsfw ? block.src : undefined} alt={block.alt} loading="lazy" decoding="async" referrerpolicy="no-referrer" />
-            ) : (
-              <p>{block.text}</p>
-            ))}
-          </div>
+          {game.synopsis_source === "steam" ? (
+            <div id="synopsis-body" class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "", "aria-hidden": "true" } : {})} set:html={steamSynopsisHtml}></div>
+          ) : (
+            <div id="synopsis-body" class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "", "aria-hidden": "true" } : {})}>
+              {synopsisContent.map((block) => block.kind === "image" ? (
+                <img class="synopsis-image" src={gameNsfw ? undefined : block.src} data-src={gameNsfw ? block.src : undefined} alt={block.alt} loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+              ) : (
+                <p>{block.text}</p>
+              ))}
+            </div>
+          )}
           {synopsisAttribution ? (
             <div class="synopsis-source">Source: <a href={synopsisAttribution.url} target="_blank" rel="noopener noreferrer">{synopsisAttribution.label}</a></div>
           ) : null}
@@ -1068,6 +1079,22 @@ const coverStackStyle = [
           image.src = image.dataset.src ?? "";
           image.removeAttribute("data-src");
         });
+        body.querySelectorAll<HTMLVideoElement>("video[data-synopsis-video]").forEach((video) => {
+          if (video.dataset.poster) {
+            video.poster = video.dataset.poster;
+            video.removeAttribute("data-poster");
+          }
+          const sources = video.querySelectorAll<HTMLSourceElement>("source[data-src]");
+          if (sources.length) {
+            sources.forEach((source) => {
+              source.src = source.dataset.src ?? "";
+              source.removeAttribute("data-src");
+            });
+            video.load();
+          }
+        });
+      } else {
+        body.querySelectorAll<HTMLVideoElement>("video[data-synopsis-video]").forEach((video) => video.pause());
       }
     };
     toggle.addEventListener("click", () => {
