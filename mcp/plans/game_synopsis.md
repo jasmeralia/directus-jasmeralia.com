@@ -9,11 +9,13 @@ site.
 non-GSL population script) is only sketched at the end and gets its own plan once Phase A ships.**
 
 Status: design approved 2026-11-03 (including the dashed purple outline around the Synopsis panel, as
-shown in the mockup); implementation in progress. Measurements below were taken on 2026-11-03.
+shown in the mockup). Schema created after explicit approval and a verified full-database backup;
+site PR #399 is open, and the live dry run reports 363 creates with no failures. Apply awaits
+review of that dry run. Measurements below were taken on 2026-11-03.
 
 ## Findings that drive the design
 
-- **No such field exists.** `GET /fields/games` has no `description` or `synopsis`. The stale
+- **At design time no such field existed.** `GET /fields/games` has no `description` or `synopsis`. The stale
   `description: "Description"` entry in `FIELD_LABEL` (`site/src/lib/changelog.ts`) is not a
   `games` field.
 - **Name collision on the detail page.** `site/src/pages/games/[slug].astro` already has a local
@@ -143,7 +145,8 @@ marks read-only lookup scripts, and this one writes.
 
 ### Inputs and resolution
 
-- Directus: all `games_links` rows with `kind = "gamestorylog"` (paginated with `limit=-1`), joined
+- Directus: all `games_links` rows with `kind = "gamestorylog"` (paginated by `fetch_all`; do not
+  pass an explicit `limit`, because the helper supplies it), joined
   to game `id`, `slug`, `title`, `synopsis`, `synopsis_source`. The GSL slug is the last path
   segment of the URL, as the sibling GSL scripts compute it. Group games by GSL slug.
 - GSL data: read `mcp/cache/gsl_game_data.json` first. Only cache misses, or everything under
@@ -162,7 +165,7 @@ marks read-only lookup scripts, and this one writes.
 3. Remove U+200B, U+200C, U+200D, U+FEFF; U+00A0 and U+2011 become a space and `-`.
 4. Curly single/double quotes become straight; U+2013 becomes `-`; U+2014 becomes ` - ` (then
    collapse spaces); U+2026 becomes `...`.
-5. Trim trailing whitespace per line, collapse 3+ newlines to 2, strip the whole value.
+5. Trim each line, collapse runs of newlines to one paragraph separator, strip the whole value.
 5a. Repair glued paragraphs: GSL text sometimes loses its paragraph break, leaving a sentence end
    directly against the next sentence (`intimacy.Beautiful girls`; A House in the Rift has two).
    Insert a `\n` where `[a-z0-9][.!?]` is immediately followed by `[A-Z][a-z]` with no space. This
@@ -198,8 +201,9 @@ restricts any run to specific Directus slugs.
   - One `PATCH /items/games/{id}` per game with `{synopsis, synopsis_source}`; no inter-request
     delay and no 429 handling (Directus is exempt), but keep the ambiguous-network-failure retries
     in `RetryingDirectusClient`.
-  - Stale-plan guard: before each PATCH compare the row's current `synopsis` to the plan's recorded
-    old value and skip (and report) on mismatch.
+  - Stale-plan guard: before each PATCH compare the row's current `synopsis` and
+    `synopsis_source` to the plan's recorded old values and skip (and report) on mismatch. Always
+    protect a `manual` source, even when its text is empty.
   - Resumable: progress is saved every 25 rows in `mcp/cache/gsl_synopsis_progress.json`; reruns
     skip rows already equal to the target, so the script is idempotent.
   - Triggers no rebuild itself; the content-change Flow's debounced build covers it (verify, see
@@ -217,9 +221,10 @@ restricts any run to specific Directus slugs.
    `/feed-nsfw.xml` and `/feed-sfw.xml` item counts for later comparison.
 4. Phase 3 dry run. Post a plain-text summary first (counts per action, shared groups, flagged
    anomalies) and get Morgan's review before applying.
-5. Apply the 303 unique-page games. Record the trigger time, then monitor OpenSearch for exactly one
-   new `Starting build` and a `completed successfully` line strictly after it.
-6. Resolve the shared-page decision (question 1) and apply that set the same way.
+5. Apply all 363 games, including shared-page duplicates (approved 2026-11-03). Record the trigger
+   time, then monitor OpenSearch for a new `Starting build` and a `completed successfully` line
+   strictly after it.
+6. Re-run the dry run and confirm all 363 are unchanged.
 7. Spot-check deployed pages (e.g. one short, one near-3,600-character, one shared-page game):
    - NSFW mode off: synopsis box is masked; one click reveals it; with NSFW mode on it shows by
      default; the source caption links to the right GSL page.
@@ -234,29 +239,20 @@ restricts any run to specific Directus slugs.
 ## Acceptance criteria (Phase A)
 
 - `games.synopsis` and `games.synopsis_source` exist; no other schema change was made.
-- All 303 unique-page GSL games have a normalized `gsl` synopsis; shared-page games are written
-  only according to the decision recorded for question 1.
+- All 363 GSL-linked games have a normalized `gsl` synopsis, including the same text on every
+  member of a shared GSL page.
 - No synopsis text appears in any meta description, search result, feed, History or Recent Updates
   entry, and the NSFW synopsis is masked until NSFW mode is on or the box is clicked.
 - Re-running the script after apply reports zero changes.
 - A hand-edited synopsis (`synopsis_source = "manual"`) is never overwritten by any script.
 - Lint and unit tests pass; the production build succeeds with and without a synopsis present.
 
-## Open questions
+## Resolved decisions (2026-11-03)
 
-(Resolved 2026-11-03: question 1 - shared pages are written to every member, duplication is fine;
-questions 2-4 approved with the design.)
-
-1. **Shared GSL pages (60 games, 24 pages).** Recommendation: leave them out of the first apply, and
-   decide per group after reading the review file. For most multi-season AVNs the series blurb is
-   accurate for every season and writing it to all members is fine; for pages that GSL uses to
-   cover a combined franchise (the `companion-of-darkness-season-1` version-mismatch exclusion is
-   precedent for GSL not matching this site's per-entry records), a series blurb on a single season
-   would mislead. Options: write to all members, write to the first/primary member only, or skip.
-2. **ASCII normalization** of source text (decision 5). Recommendation: yes, consistent with the
-   typography rule.
-3. **Visible source caption** (decision 4). Recommendation: yes.
-4. **Field names** `synopsis` / `synopsis_source` (decision 1 and 3).
+1. Shared GSL pages are written to every linked game; duplicate synopsis text is intended.
+2. Normalize ASCII punctuation as specified above.
+3. Show the visible GameStoryLog source caption.
+4. Use `synopsis` / `synopsis_source`.
 
 ## Phase B sketch: non-GSL games (separate plan later)
 
