@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { synopsisParagraphs, synopsisSourceLink } from "./synopsis";
+import { synopsisBlocks, synopsisParagraphs, synopsisSourceLink } from "./synopsis";
 
 describe("synopsisParagraphs", () => {
   it.each([null, undefined, "", "  \n  \t\n"])("returns no paragraphs for blank input: %s", (text) => {
@@ -29,6 +29,38 @@ describe("synopsisParagraphs", () => {
     expect(synopsisParagraphs("\n First paragraph. \n\n   \n Second paragraph.\n\n")).toEqual([
       "First paragraph.",
       "Second paragraph.",
+    ]);
+  });
+});
+
+describe("synopsisBlocks", () => {
+  it("keeps ordinary synopses as paragraph blocks", () => {
+    expect(synopsisBlocks("First paragraph.\nSecond paragraph.", "gsl")).toEqual([
+      { kind: "paragraph", text: "First paragraph." },
+      { kind: "paragraph", text: "Second paragraph." },
+    ]);
+    expect(synopsisBlocks(null, "steam")).toEqual([]);
+  });
+
+  it("renders allowlisted Steam CDN image markers", () => {
+    expect(synopsisBlocks(
+      "![Banner](https://shared.akamai.steamstatic.com/extras/banner_%281%29.avif?t=42)",
+      "steam",
+    )).toEqual([{
+      kind: "image",
+      src: "https://shared.akamai.steamstatic.com/extras/banner_%281%29.avif?t=42",
+      alt: "Banner",
+    }]);
+    expect(synopsisBlocks("![Legacy](https://steamcdn-a.akamaihd.net/a.jpg)", "steam")[0].kind)
+      .toBe("image");
+  });
+
+  it("does not interpret non-Steam or untrusted image markers", () => {
+    const marker = "![Image](https://evil.example/image.png)";
+    expect(synopsisBlocks(marker, "gsl")).toEqual([{ kind: "paragraph", text: marker }]);
+    expect(synopsisBlocks(marker, "steam")).toEqual([{ kind: "paragraph", text: marker }]);
+    expect(synopsisBlocks("![Image](https://[broken)", "steam")).toEqual([
+      { kind: "paragraph", text: "![Image](https://[broken)" },
     ]);
   });
 });

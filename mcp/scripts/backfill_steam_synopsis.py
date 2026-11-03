@@ -157,9 +157,9 @@ def steam_image_url(value: str | None) -> str | None:
         or not (host.endswith(".steamstatic.com") or host in LEGACY_STEAM_IMAGE_HOSTS)
     ):
         return None
-    return urllib.parse.urlunsplit(
-        ("https", parsed.netloc, parsed.path, parsed.query, "")
-    )
+    path = urllib.parse.quote(parsed.path, safe="/%:@!$&'*,;=+~.-_")
+    query = urllib.parse.quote(parsed.query, safe="/?%:@!$&'*,;=+~.-_")
+    return urllib.parse.urlunsplit(("https", parsed.netloc, path, query, ""))
 
 
 def html_to_text(value: str) -> str:
@@ -585,6 +585,19 @@ def self_test() -> int:
         and "hidden" not in extracted
         and "<p>" not in extracted,
         "HTML active and media content removal",
+    )
+    image_html = html_to_text(
+        '<p>Before</p><img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner_(1).avif?t=42" alt="Banner [one]">'
+    )
+    check(
+        "![Banner one](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner_%281%29.avif?t=42)"
+        in image_html,
+        "Steam CDN image markers encode closing parentheses and sanitize alt text",
+    )
+    check(
+        steam_image_url("https://evil.example/image.png") is None
+        and steam_image_url("http://shared.akamai.steamstatic.com/image.png") is None,
+        "image URLs outside HTTPS Steam CDN hosts are rejected",
     )
     wrapped_html = html_to_text(
         "<p>Wrapped\n source <em>with\tinline</em>\r\nmarkup</p>"
