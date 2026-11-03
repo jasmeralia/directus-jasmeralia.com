@@ -55,6 +55,31 @@ alongside other sessions that add Steam links, and triggers a site rebuild for
 the games it changed. The script never writes developer records itself; the
 developer backfill picks the new Steam links up.
 
+## IsThereAnyDeal links
+
+`backfill_itad_links.py` resolves the primary Steam download app ID for each game
+through ITAD’s `/games/lookup/v1` endpoint and adds the corresponding ITAD page
+as a `games_links` row with `kind: itad`. It does not search by title or guess
+slugs. Games without a Steam app link, games already linked to ITAD, and ITAD
+no-matches are reported separately.
+
+```sh
+python3 mcp/scripts/backfill_itad_links.py                 # dry run + cache
+python3 mcp/scripts/backfill_itad_links.py --apply         # add links + rebuild
+python3 mcp/scripts/backfill_itad_links.py --refresh        # refresh lookups
+python3 mcp/scripts/backfill_itad_links.py --only-slug foo  # one game
+```
+
+The default is a dry run. `--apply` rechecks the game’s current links before
+creating a row and triggers one rebuild for changed games. ITAD results are
+cached in `mcp/cache/itad_game_link_cache.json`, and the proposed plan is
+written to `mcp/cache/itad_game_link_plan.json`. Uncached requests are spaced
+at least one second apart. HTTP 429/503 responses honor `Retry-After` and use
+exponential backoff capped at 15 minutes; repeated rate limiting or other API
+errors stop the run without caching a false no-match. The `itad` choice is
+registered in `games_links.kind` and displayed as a contextual link on the
+game page.
+
 ## Steam developer links
 
 `backfill_steam_developer_links.py` finds games with Steam download links,
