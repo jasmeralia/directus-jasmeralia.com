@@ -8,10 +8,27 @@ site.
 **Scope of this plan: Phase A (field, site rendering, GSL backfill) is fully designed. Phase B (the
 non-GSL population script) is only sketched at the end and gets its own plan once Phase A ships.**
 
-Status: design approved 2026-11-03 (including the dashed purple outline around the Synopsis panel, as
-shown in the mockup). Schema created after explicit approval and a verified full-database backup;
-site changes are in PR #399, and the live dry run reports 363 creates with no failures. Apply awaits
-review of that dry run. Measurements below were taken on 2026-11-03.
+Status: Phase A completed 2026-11-03. The approved design, including the dashed purple outline,
+shipped in PR #399 (site version 1.0.279). Schema creation and the 363-game backfill were explicitly
+approved. Phase B remains future work. Baseline measurements below were taken on 2026-11-03.
+
+## Phase A rollout results
+
+- Full-database backup verified before creating the two nullable fields; Astro Readonly has access.
+- Backfill: 363 games updated, zero skipped, zero errors, including every shared-page member.
+  All stored text and `synopsis_source = "gsl"` values match the reviewed plan. A fresh dry run
+  reports `unchanged=363` and no failures.
+- Production publish completed at `2026-11-03T19:10:47.827Z`, after the explicit rebuild trigger at
+  `2026-11-03T19:09:32.765Z`.
+- Public spot checks cover A House in the Rift (three paragraphs), a short synopsis, a long
+  synopsis, and a shared-page member. Text, attribution, masking, Pagefind exclusion, and metadata
+  safeguards passed. Chrome verification also covered keyboard reveal/hide, global NSFW mode,
+  and a synopsis-only search phrase returning no results.
+- Feed GUID lists and item counts are unchanged: combined 200, NSFW 122, SFW 78. Synopsis-only
+  writes did not create History or Recent Updates events.
+- All 453 site tests and repository lint passed. Copilot's final review of PR #399 recorded no
+  open issues, and every required check, including both Codecov contexts, passed.
+
 
 ## Findings that drive the design
 
