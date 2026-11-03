@@ -47,6 +47,9 @@ const LIMIT_JUNCTIONS   = 300; // tier_list_games activities
 const LIMIT_LINKS       = 400; // games_links activities (create + update)
 const LIMIT_GENRES      = 300;
 const LIMIT_BUNDLE_MEMBERS = 200;
+// Leave room for one bulk Steam synopsis announcement per AVN plus the rest
+// of the recent feed; the separate revision windows remain bounded at 500.
+const LIMIT_FEED_ENTRIES = 500;
 
 // Game-related feed entries (direct game revisions, included-game revisions,
 // download/walkthrough links, section-count changes) landing within this
@@ -1001,7 +1004,7 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     if (seen.has(e.guid)) return false;
     seen.add(e.guid);
     return true;
-  }).slice(0, 200);
+  }).slice(0, LIMIT_FEED_ENTRIES);
   validateFeedEntries(top);
 
   return top;

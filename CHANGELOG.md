@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.283] - 2026-11-03
+- Feeds: raise the bounded RSS item cap to 500 so a bulk synopsis pass can announce every AVN update.
+- Scripts: deduplicate duplicate game rows from expanded Steam synopsis queries.
+
 ## [1.0.282] - 2026-11-03
 - Games: announce Steam synopsis additions and updates in the feed and Recent Updates without exposing synopsis text; allow the AVN backfill to replace GSL synopses.
 
