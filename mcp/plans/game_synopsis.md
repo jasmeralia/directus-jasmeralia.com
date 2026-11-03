@@ -5,12 +5,13 @@ description/synopsis field to `games`, populate it from GameStoryLog (GSL) for g
 link, later populate it for other games, and treat the synopsis of an NSFW game as a spoiler on the
 site.
 
-**Scope of this plan: Phase A (field, site rendering, GSL backfill) is fully designed. Phase B (the
-non-GSL population script) is only sketched at the end and gets its own plan once Phase A ships.**
+**Scope of this plan: Phase A (field, site rendering, GSL backfill) is complete. The Steam portion of
+Phase B provides a backfill script and two AVN examples; other sources remain future work.**
 
 Status: Phase A completed 2026-11-03. The approved design, including the dashed purple outline,
 shipped in PR #399 (site version 1.0.279). Schema creation and the 363-game backfill were explicitly
-approved. Phase B remains future work. Baseline measurements below were taken on 2026-11-03.
+approved. Steam Phase B was authorized on 2026-11-03 for script implementation and two example
+AVNs, with the broader catalog left unapplied. Baseline measurements below were taken on 2026-11-03.
 
 ## Phase A rollout results
 
@@ -275,14 +276,21 @@ restricts any run to specific Directus slugs.
 3. Show the visible GameStoryLog source caption.
 4. Use `synopsis` / `synopsis_source`.
 
-## Phase B sketch: non-GSL games (separate plan later)
+## Phase B: Steam first, other sources later
 
-Population for games without a GSL link, using the same `synopsis`/`synopsis_source` fields.
-Candidates named in the task: the video-game encyclopedia MCP server (its tools are not callable
-from a standalone script, so the script would need the underlying Steam Store API directly, which
-`steamlib.py` and the art backfill already use), SteamDB, and IsThereAnyDeal. Open points to settle
-in that plan: SteamDB has no public API and scraping it may conflict with its terms (verify, likely
-drop); whether ITAD exposes a usable description at all (verify); mapping Steam `short_description`
-vs `about_the_game`; and SFW games becoming eligible for `plainTextExcerpt(synopsis)` as the meta
-description. It follows the same dry-run/cache/apply, rate-limit and fill-empty-only conventions,
-and must also respect the Twice Burned exclusion.
+The Steam script uses `mcp/scripts/backfill_steam_synopsis.py`, documented in
+`mcp/scripts/README.md`. It follows the same dry-run/cache/apply workflow, uses game-specific Steam
+download links, and protects existing GSL/manual synopses. Full Steam About text is converted from
+HTML into plain text; fallback descriptions, length anomalies, and ambiguous links are reported.
+Apply rechecks both source ownership and the Steam link. The site source caption identifies Steam
+when that is the stored source. Initial rollout is limited to two empty-synopsis AVNs, Darkness
+and Desire and Monster College; the rest of the catalog is not part of this apply.
+
+### Remaining source research
+
+The Steam script covers linked games with usable Steam descriptions. Population for games without
+usable GSL or Steam data remains separate work. Candidates named in task 510 include the video-game
+encyclopedia MCP server, SteamDB, and IsThereAnyDeal. Verify their accessible description data and
+permitted API/scraping paths before choosing an integration. Any later script must use the same
+source ownership, dry-run/cache/apply, rate-limit, and Twice Burned exclusion rules. SFW synopsis
+text may supply a meta description through the existing site behavior; NSFW text remains excluded.

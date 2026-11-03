@@ -16,7 +16,7 @@ import { buildVersionsTab, effectiveVersion } from "../../lib/game-versions";
 import MusicLists from "../../components/MusicLists.astro";
 import { hasMusic } from "../../lib/game-music";
 import { plainTextExcerpt } from "../../lib/markdown";
-import { synopsisParagraphs } from "../../lib/synopsis";
+import { synopsisParagraphs, synopsisSourceLink } from "../../lib/synopsis";
 
 export async function getStaticPaths() {
   // Every game page used to independently re-fetch its own game record,
@@ -322,6 +322,7 @@ const cover = fileUrl(coverImage(game));
 const artGroups = buildArtTab(game);
 const gameNsfw = isGameNsfw(game);
 const synopsisText = synopsisParagraphs(game.synopsis);
+const synopsisAttribution = synopsisSourceLink(game.synopsis_source, game.links);
 const description = gameNsfw
   ? metaDescription
   : game.synopsis
@@ -642,8 +643,8 @@ const coverStackStyle = [
           <div id="synopsis-body" class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "", "aria-hidden": "true" } : {})}>
             {synopsisText.map((p) => <p>{p}</p>)}
           </div>
-          {game.synopsis_source === "gsl" && gslLink ? (
-            <div class="synopsis-source">Source: <a href={gslLink.url} target="_blank" rel="noopener noreferrer">GameStoryLog</a></div>
+          {synopsisAttribution ? (
+            <div class="synopsis-source">Source: <a href={synopsisAttribution.url} target="_blank" rel="noopener noreferrer">{synopsisAttribution.label}</a></div>
           ) : null}
         </div>
       ) : null}

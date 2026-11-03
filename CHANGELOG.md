@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.280] - 2026-11-03
+- Games: support Steam-sourced synopsis backfills with Steam attribution, preserving existing GSL and manual text.
+
 ## [1.0.279] - 2026-11-03
 - Games: add a Synopsis panel to the game page (NSFW games hide it behind the usual click-to-reveal with a keyboard-accessible Reveal/Hide control; shown from GameStoryLog data), and keep synopsis edits out of History and the feeds without displacing existing feed or Recent Updates entries during bulk backfills.
 
