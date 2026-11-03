@@ -171,20 +171,39 @@ def canonical_steam_link(links: Any) -> tuple[int | None, str | None, str | None
             continue
         try:
             parsed = urllib.parse.urlsplit(url)
+            port = parsed.port
         except ValueError:
             if "steampowered.com" in url.casefold():
                 malformed_steam = True
             continue
-        if parsed.hostname not in {
+        if (parsed.hostname or "").casefold() not in {
             "store.steampowered.com",
             "www.store.steampowered.com",
         }:
             continue
-        if parsed.scheme not in {"http", "https"} or parsed.username or parsed.password:
+        scheme = parsed.scheme.casefold()
+        invalid_port = (
+            port is not None and port != (80 if scheme == "http" else 443)
+        ) or (":" in parsed.netloc and port is None)
+        if (
+            scheme not in {"http", "https"}
+            or parsed.username
+            or parsed.password
+            or invalid_port
+        ):
             malformed_steam = True
             continue
-        match = re.fullmatch(r"/app/(\d+)(?:/[^/]*)?/?", parsed.path)
-        helper_id = extract_steam_appid(url)
+        match = re.fullmatch(r"/app/([1-9]\d*)(?:/[^/]*)?/?", parsed.path)
+        normalized_url = urllib.parse.urlunsplit(
+            (
+                scheme,
+                (parsed.hostname or "").casefold(),
+                parsed.path,
+                parsed.query,
+                parsed.fragment,
+            )
+        )
+        helper_id = extract_steam_appid(normalized_url)
         if (
             not match
             or helper_id is None
@@ -566,6 +585,13 @@ def self_test() -> int:
     )
     check(
         canonical_steam_link(
+            [{"kind": "download", "url": "https://STORE.STEAMPOWERED.COM/app/789/"}]
+        )[0]
+        == 789,
+        "uppercase Steam host still resolves its app ID",
+    )
+    check(
+        canonical_steam_link(
             [
                 {
                     "kind": "download",
@@ -582,6 +608,16 @@ def self_test() -> int:
     )
     check(
         canonical_steam_link(
+            [
+                {"kind": "download", "url": "https://store.steampowered.com/app/123/"},
+                {"kind": "download", "url": "https://STORE.STEAMPOWERED.COM/app/456/"},
+            ]
+        )[2]
+        == "ambiguous_steam_appids",
+        "mixed-case hosts with different app IDs remain ambiguous",
+    )
+    check(
+        canonical_steam_link(
             [{"kind": "other", "url": "https://store.steampowered.com/app/123/"}]
         )[2]
         == "no_steam_link",
@@ -593,6 +629,29 @@ def self_test() -> int:
         )[2]
         == "invalid_steam_link",
         "zero Steam app ID rejected",
+    )
+    check(
+        canonical_steam_link(
+            [{"kind": "download", "url": "https://store.steampowered.com/app/0123/"}]
+        )[2]
+        == "invalid_steam_link",
+        "leading-zero Steam app ID rejected",
+    )
+    check(
+        canonical_steam_link(
+            [{"kind": "download", "url": "https://store.steampowered.com:443/app/123/"}]
+        )[0]
+        == 123
+        and canonical_steam_link(
+            [
+                {
+                    "kind": "download",
+                    "url": "https://store.steampowered.com:8443/app/123/",
+                }
+            ]
+        )[2]
+        == "invalid_steam_link",
+        "default Steam port accepted and nonstandard port rejected",
     )
     check(
         canonical_steam_link(
@@ -849,6 +908,23 @@ def self_test() -> int:
         ):
             check(apply_plan(set()) == 0, "changed Steam link is skipped")
         check(fake_client.patch.call_count == 1, "stale link does not write")
+        fake_client.get.return_value["data"]["links"] = [
+            {"kind": "download", "url": "https://store.steampowered.com/app/123/"},
+            {
+                "kind": "download",
+                "url": "https://STORE.STEAMPOWERED.COM/app/456/",
+            },
+        ]
+        with (
+            patch.object(module, "PLAN_PATH", plan_path),
+            patch.object(module, "PROGRESS_PATH", progress_path),
+            patch.object(DirectusClient, "from_config", return_value=fake_client),
+            patch.object(
+                module, "RetryingDirectusClient", side_effect=lambda client: client
+            ),
+        ):
+            check(apply_plan(set()) == 0, "apply skips newly ambiguous Steam links")
+        check(fake_client.patch.call_count == 1, "ambiguous links do not write")
     print(f"Self-test passed: {checks} checks")
     return 0
 
