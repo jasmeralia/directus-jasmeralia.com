@@ -74,20 +74,22 @@ describe("fetchRecentUpdates", () => {
     expect(await fetchRecentUpdates()).toEqual(before);
   });
 
-  it("omits a game revision containing only synopsis fields", async () => {
+  it("labels synopsis additions in Recent Updates without synopsis content", async () => {
     mockFeed({
-      games: [rev(
-        901,
-        901,
-        { title: "Synopsis Game", slug: "synopsis-game" },
-        { synopsis: "A story.", synopsis_source: "gsl" },
-        "update",
-        "2026-10-10T01:02:03Z",
-      )],
+      games: [
+        rev(902, 901, { title: "Synopsis Game", slug: "synopsis-game", synopsis: "Secret Steam prose.", synopsis_source: "steam" }, { synopsis: "Secret Steam prose.", synopsis_source: "steam" }, "update", "2026-10-10T01:02:03Z"),
+        rev(901, 901, { title: "Synopsis Game", slug: "synopsis-game", synopsis: null, synopsis_source: null }, { date_updated: "2026-10-10T01:01:03Z" }, "update", "2026-10-10T01:01:03Z"),
+      ],
       gameRows: [{ id: 901, title: "Synopsis Game", slug: "synopsis-game" }],
     });
 
-    expect(await fetchRecentUpdates()).toEqual([]);
+    expect(await fetchRecentUpdates()).toEqual([{
+      tag: "synopsis-added",
+      subject: "Synopsis Game",
+      link: "https://assets.test/games/synopsis-game/index.html",
+      timestamp: new Date("2026-10-10T01:02:03Z"),
+      nsfw: false,
+    }]);
   });
 
   it("ignores feed-only music events", async () => {

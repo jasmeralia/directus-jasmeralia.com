@@ -35,6 +35,14 @@ PLAN_PATH = CACHE_DIR / "steam_synopsis_plan.json"
 REVIEW_PATH = CACHE_DIR / "steam_synopsis_review.md"
 PROGRESS_PATH = CACHE_DIR / "steam_synopsis_progress.json"
 STEAM_DELAY_S = 1.5
+# These games have multiple valid Steam links. Prefer the store product that
+# matches the Directus entry; the other links point to a sequel, prologue, or
+# separate game and must not be used for this synopsis.
+STEAM_APPID_PREFERENCES = {
+    "college-kings": 1463120,  # College Kings - The Complete Season
+    "sex-of-thrones": 2480200,  # Sex of Thrones (the other link is its prologue)
+    "family-crush": 2600150,  # Family Crush - Season 1 (not Summer Crush)
+}
 SPACE_RE = re.compile(r"[ \t\f\v]+")
 HTML_TEXT_SPACE_RE = re.compile(r"[ \t\r\n\f\v]+")
 BLANK_LINE_RE = re.compile(r"\n{2,}")
@@ -199,7 +207,9 @@ def excluded_game(game: dict[str, Any]) -> bool:
     )
 
 
-def canonical_steam_link(links: Any) -> tuple[int | None, str | None, str | None]:
+def canonical_steam_link(
+    links: Any, *, preferred_appid: int | None = None
+) -> tuple[int | None, str | None, str | None]:
     """Return a unique canonical Steam game app link, or an exclusion reason."""
     app_links: list[tuple[int, str]] = []
     malformed_steam = False
@@ -255,7 +265,9 @@ def canonical_steam_link(links: Any) -> tuple[int | None, str | None, str | None
         app_links.append((helper_id, url))
     appids = {appid for appid, _url in app_links}
     if len(appids) > 1:
-        return None, None, "ambiguous_steam_appids"
+        if preferred_appid not in appids:
+            return None, None, "ambiguous_steam_appids"
+        appids = {preferred_appid}
     if not app_links:
         return None, None, "invalid_steam_link" if malformed_steam else "no_steam_link"
     appid = next(iter(appids))
@@ -269,10 +281,14 @@ def ownership_action(game: dict[str, Any], *, refresh: bool) -> str:
     source = game.get("synopsis_source")
     if source == "manual":
         return "protected"
-    if source not in (None, "", "steam"):
+    if source not in (None, "", "steam", "gsl"):
         return "protected"
-    if synopsis and source != "steam":
+    if synopsis and source not in ("steam", "gsl"):
         return "protected"
+    # Explicitly permit Steam to replace a GSL synopsis; manual and other
+    # source-owned content remains protected.
+    if synopsis and source == "gsl":
+        return "eligible"
     if synopsis and source == "steam" and not refresh:
         return "cached_compare"
     return "eligible"
@@ -298,12 +314,23 @@ def load_cache() -> dict[str, Any]:
 
 def fetch_directus_games(client: Any) -> list[dict[str, Any]]:
     """Fetch games, their synopsis ownership fields, and link rows."""
-    fields = "id,slug,title,synopsis,synopsis_source,links.url,links.kind"
+    fields = "id,slug,title,synopsis,synopsis_source,links.url,links.kind,genres.genres_id.name"
     path = (
         f"/items/games?filter[slug][_neq]=twice-burned"
         f"&filter[title][_neq]=Twice%20Burned&fields={fields}"
     )
     return [game for game in client.fetch_all(path) if not excluded_game(game)]
+
+
+def game_has_avn_genre(game: dict[str, Any]) -> bool:
+    """Return whether Directus links this game to the AVN genre."""
+    for relation in game.get("genres") or []:
+        genre = relation.get("genres_id") if isinstance(relation, dict) else None
+        if isinstance(genre, list):
+            genre = genre[0] if genre else None
+        if isinstance(genre, dict) and str(genre.get("name", "")).casefold() == "avn":
+            return True
+    return False
 
 
 def choose_steam_text(details: dict[str, Any]) -> tuple[str, bool] | None:
@@ -336,7 +363,11 @@ def choose_steam_text(details: dict[str, Any]) -> tuple[str, bool] | None:
 
 
 def plan_games(
-    games: list[dict[str, Any]], *, refresh: bool, only_slugs: set[str]
+    games: list[dict[str, Any]],
+    *,
+    refresh: bool,
+    only_slugs: set[str],
+    avn_only: bool = False,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Build a plan, calling Steam only for selected eligible games."""
     cache = load_cache()
@@ -347,10 +378,15 @@ def plan_games(
     selected = [
         g
         for g in games
-        if not excluded_game(g) and (not only_slugs or g.get("slug") in only_slugs)
+        if not excluded_game(g)
+        and (not only_slugs or g.get("slug") in only_slugs)
+        and (not avn_only or game_has_avn_genre(g))
     ]
     for index, game in enumerate(selected, start=1):
-        appid, steam_url, link_error = canonical_steam_link(game.get("links"))
+        appid, steam_url, link_error = canonical_steam_link(
+            game.get("links"),
+            preferred_appid=STEAM_APPID_PREFERENCES.get(str(game.get("slug") or "")),
+        )
         action = ownership_action(game, refresh=refresh)
         flags: list[str] = []
         target = ""
@@ -382,7 +418,7 @@ def plan_games(
             elif (
                 action != "stale"
                 and isinstance(app_data, dict)
-                and app_data.get("type") != "game"
+                and app_data.get("type") not in {"game", "dlc"}
             ):
                 action = "non_game_store_entry"
             elif (
@@ -404,7 +440,14 @@ def plan_games(
                     if not target.strip():
                         action = "no_description"
                     elif target == game.get("synopsis"):
-                        action = "unchanged"
+                        action = (
+                            "source_update"
+                            if game.get("synopsis")
+                            and game.get("synopsis_source") == "gsl"
+                            else "unchanged"
+                        )
+                    elif game.get("synopsis") and game.get("synopsis_source") == "gsl":
+                        action = "update"
                     elif (
                         game.get("synopsis") and game.get("synopsis_source") == "steam"
                     ):
@@ -445,7 +488,9 @@ def write_review(plan: list[dict[str, Any]]) -> None:
                 f"- `{row['slug']}` (Steam app {row.get('appid')}): {', '.join(row['flags'])}"
             )
     lines.extend(["", "## Planned changes", ""])
-    candidates = [row for row in plan if row["action"] in {"create", "update"}]
+    candidates = [
+        row for row in plan if row["action"] in {"create", "update", "source_update"}
+    ]
     for row in candidates:
         lines.extend(
             [
@@ -475,7 +520,10 @@ def current_canonical_link(
     game: dict[str, Any],
 ) -> tuple[int | None, str | None, str | None]:
     """Resolve Steam link from a single-game Directus response."""
-    return canonical_steam_link(game.get("links"))
+    slug = str(game.get("slug") or "")
+    return canonical_steam_link(
+        game.get("links"), preferred_appid=STEAM_APPID_PREFERENCES.get(slug)
+    )
 
 
 def apply_plan(only_slugs: set[str]) -> int:
@@ -494,7 +542,7 @@ def apply_plan(only_slugs: set[str]) -> int:
     candidates = [
         row
         for row in plan
-        if row.get("action") in {"create", "update"}
+        if row.get("action") in {"create", "update", "source_update"}
         and (not only_slugs or row.get("slug") in only_slugs)
     ]
     updated = skipped = errors = 0
@@ -543,8 +591,8 @@ def apply_plan(only_slugs: set[str]) -> int:
             synopsis = current.get("synopsis")
             if (
                 source == "manual"
-                or (source not in (None, "", "steam"))
-                or (synopsis and source != "steam")
+                or source not in (None, "", "steam", "gsl")
+                or (synopsis and source not in ("steam", "gsl"))
             ):
                 skipped += 1
                 continue
@@ -700,6 +748,18 @@ def self_test() -> int:
         == "ambiguous_steam_appids",
         "ambiguous app IDs rejected",
     )
+    preferred_links = [
+        {"kind": "download", "url": "https://store.steampowered.com/app/1463120/"},
+        {
+            "kind": "download",
+            "url": "https://store.steampowered.com/app/1924480/College_Kings_2/",
+        },
+    ]
+    check(
+        canonical_steam_link(preferred_links, preferred_appid=1463120)
+        == (1463120, "https://store.steampowered.com/app/1463120/", None),
+        "reviewed app preference resolves multi-app game to its matching title",
+    )
     check(
         canonical_steam_link(
             [
@@ -771,8 +831,15 @@ def self_test() -> int:
     )
     check(
         ownership_action({"synopsis": "GSL", "synopsis_source": "gsl"}, refresh=True)
-        == "protected",
-        "GSL synopsis protected",
+        == "eligible",
+        "Steam refresh may replace GSL synopsis",
+    )
+    check(
+        game_has_avn_genre({"genres": [{"genres_id": {"name": "AVN"}}]})
+        and not game_has_avn_genre(
+            {"genres": [{"genres_id": {"name": "Visual Novel"}}]}
+        ),
+        "AVN-only genre selection",
     )
     check(
         ownership_action({"synopsis": "old", "synopsis_source": "steam"}, refresh=False)
@@ -796,6 +863,39 @@ def self_test() -> int:
     check(
         choose_steam_text({"about_the_game": "<img src='cover.jpg'>"}) is None,
         "image-only descriptions never produce an empty target",
+    )
+    dlc_game = {
+        "id": 12,
+        "slug": "book-two",
+        "title": "Book Two",
+        "synopsis": None,
+        "synopsis_source": None,
+        "links": [
+            {"kind": "download", "url": "https://store.steampowered.com/app/123/"}
+        ],
+    }
+    with (
+        patch.object(
+            module,
+            "load_cache",
+            return_value={
+                "123": {
+                    "type": "dlc",
+                    "steam_appid": 123,
+                    "about_the_game": "A separately tracked story chapter.",
+                }
+            },
+        ),
+        patch.object(
+            module,
+            "fetch_steam_details",
+            side_effect=AssertionError("cached DLC synopsis should not refetch"),
+        ),
+    ):
+        dlc_rows, _ = plan_games([dlc_game], refresh=False, only_slugs=set())
+    check(
+        dlc_rows[0]["action"] == "create",
+        "Steam DLC-linked AVN entries can use their store synopsis",
     )
 
     existing_text = "An existing Steam synopsis."
@@ -895,6 +995,38 @@ def self_test() -> int:
             "refresh fetches current text for Steam-owned synopses",
         )
         check(fetch_details.call_count == 1, "refresh deduplicates Steam app IDs")
+
+    gsl_game = {
+        **existing_game,
+        "synopsis": "Existing GSL synopsis.",
+        "synopsis_source": "gsl",
+    }
+    with (
+        patch.object(module, "CACHE_PATH", temp_cache),
+        patch.object(module, "load_cache", return_value={"123": refreshed_details}),
+        patch.object(
+            module, "fetch_steam_details", return_value=(refreshed_details, None)
+        ),
+    ):
+        gsl_rows, _ = plan_games([gsl_game], refresh=True, only_slugs=set())
+    check(
+        gsl_rows[0]["action"] == "update"
+        and gsl_rows[0]["old_synopsis_source"] == "gsl",
+        "Steam plan marks existing GSL synopsis for replacement",
+    )
+    same_gsl_game = {**gsl_game, "synopsis": refreshed_text}
+    with (
+        patch.object(module, "CACHE_PATH", temp_cache),
+        patch.object(module, "load_cache", return_value={"123": refreshed_details}),
+        patch.object(
+            module, "fetch_steam_details", return_value=(refreshed_details, None)
+        ),
+    ):
+        same_gsl_rows, _ = plan_games([same_gsl_game], refresh=True, only_slugs=set())
+    check(
+        same_gsl_rows[0]["action"] == "source_update",
+        "matching GSL text is reassigned to Steam ownership",
+    )
 
     with tempfile.TemporaryDirectory() as tmp:
         directory = Path(tmp)
@@ -1034,7 +1166,12 @@ def main() -> int:
     parser.add_argument(
         "--refresh",
         action="store_true",
-        help="update existing Steam-sourced synopsis values",
+        help="fetch fresh Steam data and permit replacing Steam-owned or GSL text",
+    )
+    parser.add_argument(
+        "--avn-only",
+        action="store_true",
+        help="restrict the plan to games linked to the AVN genre",
     )
     parser.add_argument(
         "--only-slug",
@@ -1051,7 +1188,9 @@ def main() -> int:
         return apply_plan(only_slugs)
     client = RetryingDirectusClient(DirectusClient.from_config())
     games = fetch_directus_games(client)
-    plan, failures = plan_games(games, refresh=args.refresh, only_slugs=only_slugs)
+    plan, failures = plan_games(
+        games, refresh=args.refresh, only_slugs=only_slugs, avn_only=args.avn_only
+    )
     atomic_json_write(PLAN_PATH, plan)
     write_review(plan)
     counts = Counter(row["action"] for row in plan)

@@ -160,8 +160,20 @@ const itemXml = (e: {
   ].join("");
 };
 
-function gameGuidEvent(rev: Revision): string {
+function synopsisEvent(rev: Revision, previousData: Record<string, unknown> | null): "added" | "updated" | null {
+  if (!("synopsis" in (rev.delta ?? {}))) return null;
+  const before = previousData?.synopsis;
+  const after = rev.data?.synopsis;
+  if (typeof after !== "string" || !after.trim()) return null;
+  if (before === null || before === undefined) return "added";
+  return before === after ? null : "updated";
+}
+
+function gameGuidEvent(rev: Revision, synopsisChange: "added" | "updated" | null): string {
   if (rev.activity?.action === "create") return "created";
+  if (synopsisChange && Object.keys(feedDelta(rev.delta)).length === 0) {
+    return `synopsis_${synopsisChange}`;
+  }
   const changedFields = Object.keys(rev.delta ?? {}).filter(
     (field) => !SKIP_DELTA.has(field),
   );
@@ -186,7 +198,7 @@ export type FeedEntry = {
   completed: boolean;
 };
 
-export type UpdateTag = "added" | "updated" | "tier-added" | "tier-updated" | "review";
+export type UpdateTag = "added" | "updated" | "synopsis-added" | "synopsis-updated" | "tier-added" | "tier-updated" | "review";
 
 export type SourceEntry = FeedEntry & {
   widget?: { tag: UpdateTag; subject: string };
@@ -231,18 +243,24 @@ function buildGameEntry(
     };
   }
 
-  const desc = fmtDelta(feedDelta(rev.delta), prevData, data, sections);
+  const synopsisChange = synopsisEvent(rev, prevData);
+  const descParts = [fmtDelta(feedDelta(rev.delta), prevData, data, sections)];
+  if (synopsisChange) descParts.push(`**Synopsis**: ${synopsisChange === "added" ? "Added" : "Updated"}`);
+  const desc = descParts.filter(Boolean).join("\n");
   if (!desc.trim()) return null; // only skipped fields changed (e.g. just date_updated)
 
+  const synopsisWidgetTag = synopsisChange ? `synopsis-${synopsisChange}` as const : null;
   return {
-    title: `Game Updated: ${data.title}`,
+    title: synopsisChange && Object.keys(feedDelta(rev.delta)).length === 0
+      ? `Synopsis ${synopsisChange === "added" ? "Added" : "Updated"}: ${data.title}`
+      : `Game Updated: ${data.title}`,
     gameTitle: String(data.title),
-    widget: { tag: "updated", subject: String(data.title) },
+    widget: { tag: synopsisWidgetTag ?? "updated", subject: String(data.title) },
     link,
     description: desc,
     pubDate: date,
     imageUrl: imgUrl,
-    guid: rssGuid("game", slug, gameGuidEvent(rev), date, `game revision ${rev.id}`),
+    guid: rssGuid("game", slug, gameGuidEvent(rev, synopsisChange), date, `game revision ${rev.id}`),
     nsfw: isGameNsfw(gameItem ?? {}),
     completed: rev.delta?.player_status === "completed",
   };
@@ -435,7 +453,10 @@ function mergeGameSession(session: Entry[]): Entry {
     .join("\n\n");
   const imageUrl = session.map((entry) => entry.imageUrl).find(Boolean);
   const addedWidgetEntry = session.find((entry) => entry.widget?.tag === "added");
-  const widgetEntry = addedWidgetEntry ?? [...session].reverse().find((entry) => entry.widget);
+  const synopsisWidgetEntry = [...session].reverse().find((entry) =>
+    entry.widget?.tag === "synopsis-added" || entry.widget?.tag === "synopsis-updated",
+  );
+  const widgetEntry = addedWidgetEntry ?? synopsisWidgetEntry ?? [...session].reverse().find((entry) => entry.widget);
   const slug = requireGuidPart(last.guid.split(":")[1], "consolidated session slug");
   const anchorMs = session[0].pubDate.getTime();
   return {
@@ -444,7 +465,7 @@ function mergeGameSession(session: Entry[]): Entry {
     added: Boolean(addedEntry),
     ...(widgetEntry?.widget
       ? { widget: {
-        tag: addedWidgetEntry ? "added" : "updated",
+        tag: addedWidgetEntry ? "added" : synopsisWidgetEntry?.widget?.tag ?? "updated",
         subject: addedWidgetEntry?.widget?.subject ?? widgetEntry.widget.subject,
       } as const }
       : {}),
@@ -596,16 +617,22 @@ export async function buildSourceEntries(): Promise<SourceEntry[]> {
     fetchCreateActivity("games_genres", LIMIT_GENRES),
     fetchAllGameGenreLinks(),
   ]);
-  // Ignore new synopsis-only revisions before the cap, keeping the legacy window
-  // for every other revision. Filtering all skipped metadata here could admit old
-  // events, change consolidation groups, and replace already-published RSS GUIDs.
+  // Keep the existing 100-revision window unchanged for ordinary game events,
+  // while allowing a separate recent window for Steam synopsis announcements.
+  // This preserves already-published legacy GUIDs during bulk synopsis writes.
   // Keep allGameRevs intact for previous-value lookup, including skipped snapshots.
-  const gameRevs = allGameRevs.filter((revision) => {
+  const synopsisRevs = allGameRevs.filter((revision) =>
+    "synopsis" in (revision.delta ?? {}) && revision.data?.synopsis_source === "steam",
+  ).slice(0, 500);
+  const standardGameRevs = allGameRevs.filter((revision) => {
     const delta = revision.delta ?? {};
     const synopsisOnly = ("synopsis" in delta || "synopsis_source" in delta)
       && Object.keys(feedDelta(delta)).length === 0;
     return isCreateRevision(revision, false) || !synopsisOnly;
   }).slice(0, LIMIT_GAMES);
+  const includedRevisionIds = new Set(standardGameRevs.map(({ id }) => id));
+  const gameRevs = [...standardGameRevs, ...synopsisRevs.filter(({ id }) => !includedRevisionIds.has(id))]
+    .sort((left, right) => right.id - left.id);
   const bundleMemberRevs = allBundleMemberRevs.slice(0, LIMIT_BUNDLE_MEMBERS);
 
   // Section runs are resolved up front (no network access) so their parent

@@ -89,10 +89,11 @@ Steam app download link. It uses the full `about_the_game` description, with
 text is available. HTML becomes paragraph text with heading, list-item, and
 line-break boundaries; images on allowlisted Steam CDN hosts are preserved as
 controlled image markers, while scripts, styles, and other embedded media are
-discarded. Typography is normalized to ASCII punctuation without truncating
-the text.
+discarded. Linked Steam game and DLC entries are supported. Typography is
+normalized to ASCII punctuation without truncating the text.
 
 ```sh
+python3 mcp/scripts/backfill_steam_synopsis.py --avn-only --refresh # all AVNs, dry run
 python3 mcp/scripts/backfill_steam_synopsis.py --only-slug game-slug # dry run
 python3 mcp/scripts/backfill_steam_synopsis.py --apply --only-slug game-slug
 python3 mcp/scripts/backfill_steam_synopsis.py --refresh --only-slug game-slug
@@ -100,12 +101,15 @@ python3 mcp/scripts/backfill_steam_synopsis.py --self-test           # offline
 ```
 
 Repeat `--only-slug` to select several games; omit it to plan the entire
-catalog. Review `mcp/cache/steam_synopsis_plan.json` and
+catalog. `--avn-only` limits the plan to games tagged with the AVN genre.
+Steam may replace GSL-owned synopses from cached data; `--refresh` fetches fresh
+Steam data and permits updates to Steam-owned text. Manual, ITAD, and other
+source-owned text stays protected. Review `mcp/cache/steam_synopsis_plan.json` and
 `mcp/cache/steam_synopsis_review.md` before applying. Steam app details are
 cached in `mcp/cache/steam_synopsis_cache.json`; uncached requests are spaced
 at least 1.5 seconds apart, with the shared capped 403/429 retry helper.
-`--refresh` fetches fresh Steam data and permits replacing Steam-owned text.
-GSL, manual, and other sources remain protected, including empty manual rows.
+`--refresh` fetches fresh Steam data and permits replacing GSL- or Steam-owned
+text. Manual, ITAD, and other sources remain protected, including empty manual rows.
 
 Apply makes no Steam requests. It rechecks the current synopsis, source, and
 Steam link against the saved plan, skips stale or protected rows, and records

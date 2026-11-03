@@ -49,7 +49,7 @@ const feedRoutes = (config: FeedRouteConfig) => [
 ];
 
 describe("buildFeedEntries", () => {
-  it("keeps real events and previous values through a synopsis backfill larger than the revision cap", async () => {
+  it("keeps the legacy feed window through older GSL synopsis revisions", async () => {
     const games = [
       { id: 1, title: "Added Game", slug: "added-game" },
       { id: 2, title: "Updated Game", slug: "updated-game" },
@@ -99,25 +99,50 @@ describe("buildFeedEntries", () => {
     expect(await buildFeedEntries()).toEqual(before);
   });
 
+  it("announces a synopsis-only Steam backfill without exposing its text", async () => {
+    const games = [
+      { id: 1, title: "New Synopsis", slug: "new-synopsis" },
+      { id: 2, title: "Changed Synopsis", slug: "changed-synopsis" },
+    ];
+    const revisions = [
+      { id: 4, item: "2", collection: "games", data: { ...games[1], synopsis: "Replacement secret prose.", synopsis_source: "steam" }, delta: { synopsis: "Replacement secret prose.", synopsis_source: "steam" }, activity: { id: 104, action: "update", timestamp: "2026-10-03T02:00:00Z" } },
+      { id: 3, item: "2", collection: "games", data: { ...games[1], synopsis: "Previous secret prose.", synopsis_source: "gsl" }, delta: { date_updated: "2026-10-03T01:59:00Z" }, activity: { id: 103, action: "update", timestamp: "2026-10-03T01:59:00Z" } },
+      { id: 2, item: "1", collection: "games", data: { ...games[0], synopsis: "Private new prose.", synopsis_source: "steam" }, delta: { synopsis: "Private new prose.", synopsis_source: "steam" }, activity: { id: 102, action: "update", timestamp: "2026-10-03T01:00:00Z" } },
+      { id: 1, item: "1", collection: "games", data: { ...games[0], synopsis: null, synopsis_source: null }, delta: { date_updated: "2026-10-03T00:59:00Z" }, activity: { id: 101, action: "update", timestamp: "2026-10-03T00:59:00Z" } },
+    ];
+    mockDirectusFetch(feedRoutes({ games, gameRevisions: revisions }));
+    const entries = await buildFeedEntries();
+    expect(entries.map(({ title, description, guid }) => ({ title, description, guid }))).toEqual([
+      { title: "Synopsis Updated: Changed Synopsis", description: "**Synopsis**: Updated", guid: "game:changed-synopsis:synopsis_updated:2026-10-03T02:00:00Z" },
+      { title: "Synopsis Added: New Synopsis", description: "**Synopsis**: Added", guid: "game:new-synopsis:synopsis_added:2026-10-03T01:00:00Z" },
+    ]);
+    expect(JSON.stringify(entries)).not.toContain("secret prose");
+    expect(JSON.stringify(entries)).not.toContain("Private new prose");
+  });
+
   it("keeps a status event when the same edit also changes the synopsis", async () => {
     const game = { id: 1, title: "Mixed Edit", slug: "mixed-edit" };
     mockDirectusFetch(feedRoutes({
       games: [game],
-      gameRevisions: [{ id: 1, item: "1", collection: "games", data: { ...game, player_status: "completed" }, delta: { synopsis: "Secret story.", synopsis_source: "gsl", player_status: "completed" }, activity: { id: 101, action: "update", timestamp: "2026-10-03T01:20:00Z" } }],
+      gameRevisions: [
+        { id: 2, item: "1", collection: "games", data: { ...game, player_status: "completed", synopsis: "Updated secret.", synopsis_source: "steam" }, delta: { synopsis: "Updated secret.", synopsis_source: "steam", player_status: "completed" }, activity: { id: 102, action: "update", timestamp: "2026-10-03T01:20:00Z" } },
+        { id: 1, item: "1", collection: "games", data: { ...game, synopsis: "Old secret.", synopsis_source: "gsl" }, delta: { date_updated: "2026-10-03T01:19:00Z" }, activity: { id: 101, action: "update", timestamp: "2026-10-03T01:19:00Z" } },
+      ],
     }));
     const entries = await buildFeedEntries();
     expect(entries).toHaveLength(1);
-    expect(entries[0].description).toBe("**Play Status**: Completed");
+    expect(entries[0].description).toBe("**Play Status**: Completed\n**Synopsis**: Updated");
     expect(entries[0].guid).toBe("game:mixed-edit:play_status:2026-10-03T01:20:00Z");
+    expect(entries[0].description).not.toContain("secret");
   });
 
-  it("omits a game revision containing only synopsis fields", async () => {
+  it("does not announce non-Steam synopsis revisions", async () => {
     mockDirectusFetch(feedRoutes({
       gameRevisions: [{
         id: 901,
         item: "901",
         collection: "games",
-        data: { title: "Synopsis Game", slug: "synopsis-game" },
+        data: { title: "Synopsis Game", slug: "synopsis-game", synopsis: "A story.", synopsis_source: "gsl" },
         delta: { synopsis: "A story.", synopsis_source: "gsl" },
         activity: { id: 1901, action: "update", timestamp: "2026-10-10T01:02:03Z" },
       }],

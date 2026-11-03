@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.282] - 2026-11-03
+- Games: announce Steam synopsis additions and updates in the feed and Recent Updates without exposing synopsis text; allow the AVN backfill to replace GSL synopses.
+
 ## [1.0.281] - 2026-11-03
 - Games: render Steam description images inline in the Synopsis panel from approved Steam CDN hosts, under the existing NSFW reveal.
 
