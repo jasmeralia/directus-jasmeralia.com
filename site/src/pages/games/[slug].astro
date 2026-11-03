@@ -456,6 +456,10 @@ const coverStackStyle = [
       .synopsis-body p:last-child{margin-bottom:0;}
       .synopsis-body.nsfw-text{display:block;padding:8px 10px;}
       :global(html.nsfw-on) .synopsis-body.nsfw-text{padding:0;background:none;}
+      .synopsis-heading{display:flex;align-items:center;justify-content:space-between;gap:.75rem;}
+      .synopsis-toggle{border:1px solid #555;border-radius:5px;background:#222;color:#eaeaea;padding:.25rem .5rem;cursor:pointer;}
+      .synopsis-toggle:focus-visible{outline:2px solid #8c58ff;outline-offset:2px;}
+      :global(html.nsfw-on) .synopsis-toggle{display:none;}
       .synopsis-source{margin-top:.6rem;font-size:.85rem;opacity:.7;}
       #synopsis{outline:1px dashed #8c58ff;outline-offset:3px;}
       .panel a{color:#9aa6ff;}
@@ -631,8 +635,11 @@ const coverStackStyle = [
       <div id="tab-details" role="tabpanel" aria-labelledby="tab-details-btn">
       {synopsisText.length > 0 ? (
         <div class="section panel" id="synopsis">
-          <div class="label">Synopsis</div>
-          <div class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "" } : {})}>
+          <div class="synopsis-heading">
+            <div class="label">Synopsis</div>
+            {gameNsfw ? <button class="synopsis-toggle" type="button" aria-controls="synopsis-body" aria-expanded="false">Reveal synopsis</button> : null}
+          </div>
+          <div id="synopsis-body" class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "", "aria-hidden": "true" } : {})}>
             {synopsisText.map((p) => <p>{p}</p>)}
           </div>
           {game.synopsis_source === "gsl" && gslLink ? (
@@ -1027,6 +1034,28 @@ const coverStackStyle = [
 </BaseLayout>
 
 <script>
+  (() => {
+    const toggle = document.querySelector<HTMLButtonElement>(".synopsis-toggle");
+    const body = document.getElementById("synopsis-body");
+    if (!toggle || !body) return;
+    const sync = () => {
+      const nsfwOn = document.documentElement.classList.contains("nsfw-on");
+      const expanded = nsfwOn || body.classList.contains("revealed");
+      toggle.hidden = nsfwOn;
+      toggle.setAttribute("aria-expanded", String(expanded));
+      toggle.textContent = expanded ? "Hide synopsis" : "Reveal synopsis";
+      body.setAttribute("aria-hidden", String(!expanded));
+    };
+    toggle.addEventListener("click", () => {
+      body.classList.toggle("revealed");
+      sync();
+    });
+    // Keep the control in sync with the shared click-to-reveal handler and global mode.
+    const observer = new MutationObserver(sync);
+    observer.observe(body, { attributes: true, attributeFilter: ["class"] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    sync();
+  })();
   (() => {
     const btns = Array.from(document.querySelectorAll<HTMLButtonElement>(".tab-btn"));
     // The Details tab has no hash; the others use their data-hash (#history, #versions).

@@ -115,6 +115,8 @@ the `SKIP_DELTA` entries.
    - `.nsfw-text` is styled as an inline highlight, so give `.synopsis-body.nsfw-text` its own
      `display:block` and padding so the masked box reads as one dark block. Leave the shared
      `.nsfw-text` rules in `BaseLayout.astro` untouched.
+   - Provide a native Reveal/Hide button for NSFW text with `aria-controls` and synchronized
+     `aria-expanded` / body `aria-hidden`; pointer reveals and global NSFW mode update the control.
    - For `gameNsfw`, also set `data-pagefind-ignore` on the wrapper (not the label or caption).
    - The panel has a dashed purple outline (`outline:1px dashed #8c58ff;outline-offset:3px`,
      matching the approved mockup) so it reads as a distinct, sourced block.
