@@ -86,9 +86,11 @@ retries the script aborts instead of continuing to send requests.
 `backfill_steam_synopsis.py` fills empty synopses from a game's unambiguous
 Steam app download link. It uses the full `about_the_game` description, with
 `detailed_description` and `short_description` as fallbacks when no visible
-text is available. HTML becomes plain text with paragraph, heading, list-item,
-and line-break boundaries; scripts, styles, and embedded media are discarded.
-Typography is normalized to ASCII punctuation without truncating the text.
+text is available. HTML becomes paragraph text with heading, list-item, and
+line-break boundaries; images on allowlisted Steam CDN hosts are preserved as
+controlled image markers, while scripts, styles, and other embedded media are
+discarded. Typography is normalized to ASCII punctuation without truncating
+the text.
 
 ```sh
 python3 mcp/scripts/backfill_steam_synopsis.py --only-slug game-slug # dry run

@@ -70,6 +70,14 @@ DROP_TAGS = {
     "video",
 }
 DROP_VOID_TAGS = {"embed", "source", "track"}
+LEGACY_STEAM_IMAGE_HOSTS = {
+    "steamcdn-a.akamaihd.net",
+    "steamcommunity-a.akamaihd.net",
+    "steamstore-a.akamaihd.net",
+}
+STEAM_IMAGE_MARKER_RE = re.compile(
+    r"^!\[([^\]\n]*)\]\((https://[^)\s]+)\)$", re.MULTILINE
+)
 SMART_MAP = str.maketrans(
     {
         "\u2018": "'",
@@ -86,14 +94,14 @@ SMART_MAP = str.maketrans(
 
 
 class SynopsisHTMLParser(HTMLParser):
-    """Extract readable text while discarding markup and embedded media."""
+    """Extract readable text and safe Steam CDN images from description HTML."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
         self.drop_stack: list[str] = []
 
-    def handle_starttag(self, tag: str, _attrs: list[tuple[str, str | None]]) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
         if self.drop_stack:
             if tag in DROP_TAGS and tag not in DROP_VOID_TAGS:
@@ -102,6 +110,13 @@ class SynopsisHTMLParser(HTMLParser):
         if tag in DROP_TAGS:
             if tag not in DROP_VOID_TAGS:
                 self.drop_stack.append(tag)
+        elif tag == "img":
+            attributes = dict(attrs)
+            source = steam_image_url(attributes.get("src"))
+            if source:
+                alt = re.sub(r"[\[\]\r\n]+", " ", attributes.get("alt") or "")
+                alt = SPACE_RE.sub(" ", alt).strip()
+                self.parts.extend(("\n", f"![{alt}]({source})", "\n"))
         elif tag == "br" or tag in BOUNDARY_TAGS:
             self.parts.append("\n")
 
@@ -124,8 +139,31 @@ class SynopsisHTMLParser(HTMLParser):
             self.parts.append(HTML_TEXT_SPACE_RE.sub(" ", data))
 
 
+def steam_image_url(value: str | None) -> str | None:
+    """Return an HTTPS Steam CDN URL safe for a rendered image, if allowed."""
+    if not value:
+        return None
+    try:
+        parsed = urllib.parse.urlsplit(value.strip())
+        port = parsed.port
+    except ValueError:
+        return None
+    host = (parsed.hostname or "").casefold()
+    if (
+        parsed.scheme.casefold() != "https"
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or not (host.endswith(".steamstatic.com") or host in LEGACY_STEAM_IMAGE_HOSTS)
+    ):
+        return None
+    return urllib.parse.urlunsplit(
+        ("https", parsed.netloc, parsed.path, parsed.query, "")
+    )
+
+
 def html_to_text(value: str) -> str:
-    """Convert Steam description HTML to plain text without fetching links."""
+    """Convert Steam description HTML to text and safe image markers."""
     parser = SynopsisHTMLParser()
     parser.feed(value)
     parser.close()
@@ -140,13 +178,15 @@ def normalize_synopsis(text: str) -> tuple[str, list[str]]:
     value = "\n".join(SPACE_RE.sub(" ", line).strip() for line in value.split("\n"))
     value = BLANK_LINE_RE.sub("\n", value).strip()
     flags: list[str] = []
-    if len(value) < 150:
-        flags.append(f"short_length:{len(value)}")
-    if len(value) > 3000:
-        flags.append(f"long_length:{len(value)}")
+    visible_length = len(STEAM_IMAGE_MARKER_RE.sub("", value).strip())
+    if visible_length < 150:
+        flags.append(f"short_length:{visible_length}")
+    if visible_length > 3000:
+        flags.append(f"long_length:{visible_length}")
     if any(not character.isascii() and not character.isalpha() for character in value):
         flags.append("non_ascii_symbol")
-    if re.search(r"<[^>]+>|\[[^\]]+\]\(https?://", value):
+    without_images = STEAM_IMAGE_MARKER_RE.sub("", value)
+    if re.search(r"<[^>]+>|\[[^\]]+\]\(https?://", without_images):
         flags.append("markup_like_syntax")
     return value, flags
 

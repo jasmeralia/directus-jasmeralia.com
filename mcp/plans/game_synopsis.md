@@ -76,11 +76,12 @@ AVNs, with the broader catalog left unapplied. Baseline measurements below were 
 
 1. **Field names: `synopsis` (text) and `synopsis_source` (string).** Not `description`, to avoid the
    stale label above and any future confusion with tier-list/review descriptions.
-2. **Plain text, not markdown.** Stored as plain text with `\n` paragraph breaks; rendered by
-   splitting into paragraphs and letting Astro escape the text (no `set:html`, no `renderMarkdown`).
-   This avoids stray `||` or link syntax in source text being interpreted. The `||spoiler||`
-   markdown extension is deliberately not used; the task's reuse requirement is met by the
-   `.nsfw-text` pattern.
+2. **Plain text, with a controlled Steam image marker; no general Markdown.** Stored with `\n`
+   paragraph breaks. Steam descriptions may contain a standalone `![alt](https://...)` marker
+   only for an image URL on an allowlisted Steam CDN host; the site parses this marker only when
+   `synopsis_source` is `steam`. All other text is escaped by Astro (no `set:html`, no
+   `renderMarkdown`). GSL text stays plain text. The `||spoiler||` markdown extension is
+   deliberately not used; the task's reuse requirement is met by the `.nsfw-text` pattern.
 3. **A `synopsis_source` field exists for refresh safety.** Values: `gsl`, `steam`, `itad`,
    `manual`. A script may only overwrite a synopsis whose source is its own; a hand-edited synopsis
    is protected by setting the source to `manual` in Directus. The default for a script is
@@ -281,9 +282,12 @@ restricts any run to specific Directus slugs.
 The Steam script uses `mcp/scripts/backfill_steam_synopsis.py`, documented in
 `mcp/scripts/README.md`. It follows the same dry-run/cache/apply workflow, uses game-specific Steam
 download links, and protects existing GSL/manual synopses. Full Steam About text is converted from
-HTML into plain text; fallback descriptions, length anomalies, and ambiguous links are reported.
-Apply rechecks both source ownership and the Steam link. The site source caption identifies Steam
-when that is the stored source. Initial rollout is limited to two empty-synopsis AVNs, Darkness
+HTML into paragraph text, retaining images from allowlisted Steam CDN hosts as controlled inline
+markers; fallback descriptions, length anomalies, and ambiguous links are reported. Apply rechecks
+both source ownership and the Steam link. The page renders Steam images inside the existing
+synopsis reveal, without a separate image control, and loads them directly from Steam's CDN. The
+site source caption identifies Steam when that is the stored source. Initial rollout is limited to
+two empty-synopsis AVNs, Darkness
 and Desire and Monster College; the rest of the catalog is not part of this apply.
 
 ### Remaining source research
