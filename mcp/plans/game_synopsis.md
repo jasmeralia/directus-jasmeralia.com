@@ -148,10 +148,11 @@ the `SKIP_DELTA` entries.
    - **Pagefind:** verify how `Nav.astro` renders search-result excerpts. If excerpts can show body
      text for NSFW games, `data-pagefind-ignore` on the wrapper is required; if not, it is still
      harmless.
-   - **Feeds/History/Recent Updates:** covered by `SKIP_DELTA`; filter synopsis-only updates before
-     the feed revision cap, retaining creates and the legacy window for all other revisions so
-     published consolidation GUIDs stay unchanged. Keep the full list for previous-value lookup; `fmtNewGame` does not include the
-     synopsis, so game-created entries are unchanged.
+   - **History:** synopsis fields stay in `SKIP_DELTA`. Steam synopsis additions and updates get
+     content-free labels in RSS and Recent Updates. Keep the existing 100-revision window for
+     other game events and use a separate 500-revision Steam synopsis window so bulk updates do
+     not displace already-published GUIDs. Keep the full list for previous-value lookup;
+     `fmtNewGame` does not include the synopsis, so game-created entries are unchanged.
 6. Process per `AGENTS.md`: bump `site/package.json` patch version, prepend a `CHANGELOG.md` entry,
    update the `AGENTS.md` `games` row (fields, plain-text/ASCII rule, `SKIP_DELTA`, query-weight
    rule, pointer to the ignored README), run `make lintfix && make lint && make test-site`, branch

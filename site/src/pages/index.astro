@@ -19,6 +19,8 @@ const recentUpdates = await fetchRecentUpdates(10);
 const TAG_LABEL: Record<UpdateTag, string> = {
   added:        "Added",
   updated:      "Updated",
+  "synopsis-added": "Synopsis Added",
+  "synopsis-updated": "Synopsis Updated",
   "tier-added": "Tier Added",
   "tier-updated":"Tier Updated",
   review:       "Review",
@@ -92,6 +94,8 @@ const TAG_LABEL: Record<UpdateTag, string> = {
       }
       .tag-added        { background: #0f2e18; color: #5fd87a; border: 1px solid #1a4a28; }
       .tag-updated      { background: #0d1e3a; color: #6ab0f5; border: 1px solid #1a3060; }
+      .tag-synopsis-added,
+      .tag-synopsis-updated { background: #261c36; color: #c4a5ff; border: 1px solid #49316b; }
       .tag-tier-added   { background: #0f2a2a; color: #4dd4d4; border: 1px solid #1a4040; }
       .tag-tier-updated { background: #1e1a30; color: #a090e8; border: 1px solid #2e2848; }
       .tag-review       { background: #2a1e08; color: #e8b45a; border: 1px solid #3f2c0e; }
