@@ -307,14 +307,32 @@ def fetch_directus_games(client: Any) -> list[dict[str, Any]]:
 
 
 def choose_steam_text(details: dict[str, Any]) -> tuple[str, bool] | None:
-    """Choose full Steam description, falling back to detailed/short text."""
+    """Choose prose and images, retaining image-only descriptions with fallback prose."""
+    image_only: tuple[str, bool] | None = None
     for key in ("about_the_game", "detailed_description", "short_description"):
         raw = details.get(key)
         if isinstance(raw, str) and raw.strip():
             visible = html_to_text(raw)
-            if normalize_synopsis(visible)[0]:
-                return visible, key != "about_the_game"
-    return None
+            normalized = normalize_synopsis(visible)[0]
+            if STEAM_IMAGE_MARKER_RE.sub("", normalized).strip():
+                if image_only:
+                    earlier_markers = [
+                        match.group(0)
+                        for match in STEAM_IMAGE_MARKER_RE.finditer(image_only[0])
+                        if match.group(0) not in normalized
+                    ]
+                    if earlier_markers:
+                        normalized = normalize_synopsis(
+                            "\n".join((*earlier_markers, normalized))
+                        )[0]
+                return normalized, key != "about_the_game"
+            if (
+                normalized
+                and STEAM_IMAGE_MARKER_RE.search(normalized)
+                and not image_only
+            ):
+                image_only = (normalized, key != "about_the_game")
+    return image_only
 
 
 def plan_games(
@@ -594,6 +612,29 @@ def self_test() -> int:
         in image_html,
         "Steam CDN image markers encode closing parentheses and sanitize alt text",
     )
+    image_only_about = '<img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner.avif" alt="Banner">'
+    image_fallback = choose_steam_text(
+        {
+            "about_the_game": image_only_about,
+            "detailed_description": "<p>Fallback prose.</p>",
+        }
+    )
+    check(
+        image_fallback is not None
+        and "![Banner](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner.avif)"
+        in image_fallback[0]
+        and "Fallback prose." in image_fallback[0]
+        and image_fallback[1],
+        "image-only About content retains its image and falls back to available prose",
+    )
+    check(
+        choose_steam_text({"about_the_game": image_only_about})
+        == (
+            "![Banner](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner.avif)",
+            False,
+        ),
+        "image-only descriptions remain usable when no prose fallback exists",
+    )
     check(
         steam_image_url("https://evil.example/image.png") is None
         and steam_image_url("http://shared.akamai.steamstatic.com/image.png") is None,
@@ -749,7 +790,7 @@ def self_test() -> int:
         "detailed_description": "<p>Visible fallback text</p>",
     }
     check(
-        choose_steam_text(fallback_details) == ("\nVisible fallback text\n", True),
+        choose_steam_text(fallback_details) == ("Visible fallback text", True),
         "image-only full description falls back to visible detailed text",
     )
     check(
