@@ -355,6 +355,7 @@ for (const entry of (tierEntries ?? [])) {
 const tierLists = Array.from(tierListsMap.values())
   .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 const gslLink = (game.links ?? []).find((l) => l.kind === "gamestorylog") ?? null;
+const itadLinks = (game.links ?? []).filter((l) => l.kind === "itad");
 const HOST_MANIFEST_BASE_URL = "https://github.com/jasmeralia/steam-typhoon/blob/master/docs";
 const versionGroups = gslLink ? buildVersionsTab(game.versions) : [];
 const downloadEntries = downloadLinks(game.links).map((link) => {
@@ -579,6 +580,14 @@ const coverStackStyle = [
                   </a>
                 </div>
               ) : null}
+              {itadLinks.map((link) => (
+                <div>
+                  <a class="download-link" href={link.url} rel="noopener noreferrer" target="_blank">
+                    <img class="platform-icon" src="/icons/link.svg" alt="" aria-hidden="true" loading="lazy" />
+                    <span>View on IsThereAnyDeal</span>
+                  </a>
+                </div>
+              ))}
               {otherEntries.map((entry) => (
                 <div>
                   <a class="download-link" href={entry.url} rel="noopener noreferrer" target="_blank">

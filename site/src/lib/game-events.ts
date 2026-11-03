@@ -24,6 +24,7 @@ const LINK_KIND_LABELS: Record<string, string> = {
   "text-note": "Walkthrough note",
   other: "Other link",
   gamestorylog: "GameStoryLog",
+  itad: "IsThereAnyDeal",
 };
 
 const LINK_EVENT_TITLES: Record<string, string> = {
@@ -31,6 +32,7 @@ const LINK_EVENT_TITLES: Record<string, string> = {
   "text-note": "Walkthrough Link",
   other: "Other Link",
   gamestorylog: "GameStoryLog Link",
+  itad: "IsThereAnyDeal Link",
 };
 
 function fmtLinkDelta(

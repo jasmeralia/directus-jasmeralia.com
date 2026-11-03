@@ -2,7 +2,7 @@ export type GameLink = {
   id?: number;
   url: string;
   label?: string | null;
-  kind: "download" | "walkthrough" | "text-note" | "other" | "gamestorylog";
+  kind: "download" | "walkthrough" | "text-note" | "other" | "gamestorylog" | "itad";
   sort?: number | null;
 };
 
@@ -161,6 +161,9 @@ export const getDownloadLinkMeta = getUrlLinkMeta;
 export const getLinkMeta = (link: GameLink): UrlLinkMeta => {
   if (link.kind === "gamestorylog") {
     return { icon: "/icons/gamestorylog.png", label: "GameStoryLog", host: shortHostFromUrl(link.url) };
+  }
+  if (link.kind === "itad") {
+    return { icon: GENERIC_LINK_ICON, label: "IsThereAnyDeal", host: shortHostFromUrl(link.url) };
   }
   const meta = getUrlLinkMeta(link.url);
   if (link.label) return { ...meta, label: link.label };

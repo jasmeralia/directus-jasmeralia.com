@@ -206,6 +206,14 @@ describe("URL platform and metadata", () => {
       label: "GameStoryLog",
       host: "gamestorylog.com",
     });
+    expect(getLinkMeta({
+      url: "https://isthereanydeal.com/game/example/info/",
+      kind: "itad",
+    })).toEqual({
+      icon: "/icons/link.svg",
+      label: "IsThereAnyDeal",
+      host: "isthereanydeal.com",
+    });
   });
 
   it("does not treat a lookalike host as SubscribeStar", () => {

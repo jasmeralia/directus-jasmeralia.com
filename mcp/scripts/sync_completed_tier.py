@@ -16,7 +16,7 @@ import json
 import sys
 import urllib.request
 
-import psycopg2
+import psycopg2  # type: ignore[import-untyped]  # pylint: disable=import-error
 from scriptlib import server_env
 
 DIRECTUS_ENV = server_env("directus")
