@@ -814,6 +814,22 @@ def self_test() -> int:
         "Literal \\*\\*asterisks\\*\\* stay literal.",
         "Steam bold, italic, unordered and ordered lists remain rich text",
     )
+    linked_text = html_to_text(
+        '<p><s>Removed</s> <a href="https://example.com/path_(one)?q=two&amp;x=3">'
+        'Link</a> <a href="javascript:alert(1)">unsafe</a></p><li>Outside list</li>'
+    )
+    check(
+        "~~Removed~~" in linked_text
+        and "[Link](https://example.com/path_%28one%29?q=two&x=3)" in linked_text
+        and "unsafe" in linked_text
+        and "javascript:" not in linked_text
+        and "\nOutside list" in linked_text
+        and steam_link_url(None) is None
+        and steam_link_url("http://example.com") is None
+        and steam_link_url("https://user:pass@example.com") is None
+        and steam_link_url("https://[broken") is None,
+        "Steam strike-through, safe links, unsafe links, and orphan list items",
+    )
     image_html = html_to_text(
         '<p>Before</p><img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner_(1).avif?t=42" alt="Banner [one]">'
     )
@@ -843,6 +859,19 @@ def self_test() -> int:
         "steam-video:" not in unsafe_video and "evil.example" not in unsafe_video,
         "video media outside the Steam CDN is rejected",
     )
+    video_variants = html_to_text(
+        '<video src="https://shared.akamai.steamstatic.com/a.mp4" '
+        'poster="https://shared.akamai.steamstatic.com/a.jpg"></video>'
+        '<video><source src="https://shared.akamai.steamstatic.com/b.gif"></video>'
+        "<video><svg>ignored</video><p>After malformed video</p>"
+    )
+    check(
+        "![steam-video:https://shared.akamai.steamstatic.com/a.jpg|](https://shared.akamai.steamstatic.com/a.mp4)"
+        in video_variants
+        and video_variants.count("steam-video:") == 1
+        and "After malformed video" in video_variants,
+        "video src and poster work without sources; invalid and malformed videos are dropped",
+    )
     image_only_about = '<img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner.avif" alt="Banner">'
     image_fallback = choose_steam_text(
         {
@@ -868,7 +897,12 @@ def self_test() -> int:
     )
     check(
         steam_image_url("https://evil.example/image.png") is None
-        and steam_image_url("http://shared.akamai.steamstatic.com/image.png") is None,
+        and steam_image_url("http://shared.akamai.steamstatic.com/image.png") is None
+        and steam_image_url("https://shared.akamai.steamstatic.com:444/image.png")
+        is None
+        and steam_image_url("https://shared.akamai.steamstatic.com:broken/image.png")
+        is None
+        and steam_video_url("https://shared.akamai.steamstatic.com/image.avif") is None,
         "image URLs outside HTTPS Steam CDN hosts are rejected",
     )
     wrapped_html = html_to_text(

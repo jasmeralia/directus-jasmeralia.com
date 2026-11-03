@@ -62,6 +62,9 @@ describe("synopsisBlocks", () => {
     expect(synopsisBlocks("![Image](https://[broken)", "steam")).toEqual([
       { kind: "paragraph", text: "![Image](https://[broken)" },
     ]);
+    expect(synopsisBlocks("![Image](https://evil.example/image.png)", "steam")).toEqual([
+      { kind: "paragraph", text: "![Image](https://evil.example/image.png)" },
+    ]);
   });
 });
 
@@ -113,6 +116,25 @@ describe("renderSteamSynopsis", () => {
   it("rejects malformed HTTPS links", () => {
     const html = renderSteamSynopsis("[Broken link](https://[broken)");
     expect(html).not.toContain("href=");
+  });
+
+  it("renders source titles and ordinary images without deferring them", () => {
+    const html = renderSteamSynopsis(
+      '[Steam](https://store.steampowered.com/ "Store page")\n\n![Scene](https://shared.akamai.steamstatic.com/extras/scene.avif "Screenshot")',
+    );
+    expect(html).toContain('title="Store page"');
+    expect(html).toContain('src="https://shared.akamai.steamstatic.com/extras/scene.avif"');
+    expect(html).toContain('alt="Scene" title="Screenshot"');
+  });
+
+  it("rejects invalid media and preserves text for an empty HTTPS link", () => {
+    const html = renderSteamSynopsis(
+      "[No URL]()\n\n![steam-video:|](https://shared.akamai.steamstatic.com/extras/clip.avi)\n\n![steam-video:|](https://shared.akamai.steamstatic.com/extras/clip.webm)",
+    );
+    expect(html).toContain("No URL");
+    expect(html).not.toContain('href="');
+    expect(html).not.toContain("clip.avi");
+    expect(html).toContain('src="https://shared.akamai.steamstatic.com/extras/clip.webm"');
   });
 });
 
