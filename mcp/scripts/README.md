@@ -81,6 +81,36 @@ least two seconds apart. HTTP 429 responses honor `Retry-After` and use
 exponential backoff starting at 60 seconds, capped at 15 minutes; after five
 retries the script aborts instead of continuing to send requests.
 
+## Steam game synopses
+
+`backfill_steam_synopsis.py` fills empty synopses from a game's unambiguous
+Steam app download link. It uses the full `about_the_game` description, with
+`detailed_description` and `short_description` as fallbacks when no visible
+text is available. HTML becomes plain text with paragraph, heading, list-item,
+and line-break boundaries; scripts, styles, and embedded media are discarded.
+Typography is normalized to ASCII punctuation without truncating the text.
+
+```sh
+python3 mcp/scripts/backfill_steam_synopsis.py --only-slug game-slug # dry run
+python3 mcp/scripts/backfill_steam_synopsis.py --apply --only-slug game-slug
+python3 mcp/scripts/backfill_steam_synopsis.py --refresh --only-slug game-slug
+python3 mcp/scripts/backfill_steam_synopsis.py --self-test           # offline
+```
+
+Repeat `--only-slug` to select several games; omit it to plan the entire
+catalog. Review `mcp/cache/steam_synopsis_plan.json` and
+`mcp/cache/steam_synopsis_review.md` before applying. Steam app details are
+cached in `mcp/cache/steam_synopsis_cache.json`; uncached requests are spaced
+at least 1.5 seconds apart, with the shared capped 403/429 retry helper.
+`--refresh` fetches fresh Steam data and permits replacing Steam-owned text.
+GSL, manual, and other sources remain protected, including empty manual rows.
+
+Apply makes no Steam requests. It rechecks the current synopsis, source, and
+Steam link against the saved plan, skips stale or protected rows, and records
+progress under `mcp/cache/steam_synopsis_progress.json`. Ambiguous app links and
+non-game store entries are skipped. Directus credentials come from `.mcp.json`;
+the script makes no schema changes and does not trigger a site rebuild.
+
 ## Steam wishlist imports
 
 `wishlist_import.py` reads the Steam wishlist and current Directus catalog to
