@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.281] - 2026-11-03
+- Games: render Steam description images inline in the Synopsis panel from approved Steam CDN hosts, under the existing NSFW reveal.
+
 ## [1.0.280] - 2026-11-03
 - Games: support Steam-sourced synopsis backfills with Steam attribution, preserving existing GSL and manual text.
 

@@ -7,6 +7,55 @@ export function synopsisParagraphs(text: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
+export type SynopsisBlock =
+  | { kind: "paragraph"; text: string }
+  | { kind: "image"; src: string; alt: string };
+
+const LEGACY_STEAM_IMAGE_HOSTS = new Set([
+  "steamcdn-a.akamaihd.net",
+  "steamcommunity-a.akamaihd.net",
+  "steamstore-a.akamaihd.net",
+]);
+
+function safeSteamImageUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      (url.port !== "" && url.port !== "443") ||
+      !(host.endsWith(".steamstatic.com") || LEGACY_STEAM_IMAGE_HOSTS.has(host))
+    ) return null;
+    url.hash = "";
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+/** Parse paragraph text and the controlled Steam image markers used by the backfill. */
+export function synopsisBlocks(
+  text: string | null | undefined,
+  source: string | null | undefined,
+): SynopsisBlock[] {
+  return (text ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line): SynopsisBlock => {
+      if (source === "steam") {
+        const image = /^!\[([^\]\r\n]*)\]\((https:\/\/[^)\s]+)\)$/.exec(line);
+        if (image) {
+          const src = safeSteamImageUrl(image[2]);
+          if (src) return { kind: "image", src, alt: image[1] };
+        }
+      }
+      return { kind: "paragraph", text: line };
+    });
+}
+
 export function synopsisSourceLink(
   source: string | null | undefined,
   links: GameLink[] | null | undefined,

@@ -70,6 +70,14 @@ DROP_TAGS = {
     "video",
 }
 DROP_VOID_TAGS = {"embed", "source", "track"}
+LEGACY_STEAM_IMAGE_HOSTS = {
+    "steamcdn-a.akamaihd.net",
+    "steamcommunity-a.akamaihd.net",
+    "steamstore-a.akamaihd.net",
+}
+STEAM_IMAGE_MARKER_RE = re.compile(
+    r"^!\[([^\]\n]*)\]\((https://[^)\s]+)\)$", re.MULTILINE
+)
 SMART_MAP = str.maketrans(
     {
         "\u2018": "'",
@@ -86,14 +94,14 @@ SMART_MAP = str.maketrans(
 
 
 class SynopsisHTMLParser(HTMLParser):
-    """Extract readable text while discarding markup and embedded media."""
+    """Extract readable text and safe Steam CDN images from description HTML."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
         self.drop_stack: list[str] = []
 
-    def handle_starttag(self, tag: str, _attrs: list[tuple[str, str | None]]) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
         if self.drop_stack:
             if tag in DROP_TAGS and tag not in DROP_VOID_TAGS:
@@ -102,6 +110,13 @@ class SynopsisHTMLParser(HTMLParser):
         if tag in DROP_TAGS:
             if tag not in DROP_VOID_TAGS:
                 self.drop_stack.append(tag)
+        elif tag == "img":
+            attributes = dict(attrs)
+            source = steam_image_url(attributes.get("src"))
+            if source:
+                alt = re.sub(r"[\[\]\r\n]+", " ", attributes.get("alt") or "")
+                alt = SPACE_RE.sub(" ", alt).strip()
+                self.parts.extend(("\n", f"![{alt}]({source})", "\n"))
         elif tag == "br" or tag in BOUNDARY_TAGS:
             self.parts.append("\n")
 
@@ -124,8 +139,31 @@ class SynopsisHTMLParser(HTMLParser):
             self.parts.append(HTML_TEXT_SPACE_RE.sub(" ", data))
 
 
+def steam_image_url(value: str | None) -> str | None:
+    """Return an HTTPS Steam CDN URL safe for a rendered image, if allowed."""
+    if not value:
+        return None
+    try:
+        parsed = urllib.parse.urlsplit(value.strip())
+        port = parsed.port
+    except ValueError:
+        return None
+    host = (parsed.hostname or "").casefold()
+    if (
+        parsed.scheme.casefold() != "https"
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or not (host.endswith(".steamstatic.com") or host in LEGACY_STEAM_IMAGE_HOSTS)
+    ):
+        return None
+    path = urllib.parse.quote(parsed.path, safe="/%:@!$&'*,;=+~.-_")
+    query = urllib.parse.quote(parsed.query, safe="/?%:@!$&'*,;=+~.-_")
+    return urllib.parse.urlunsplit(("https", parsed.netloc, path, query, ""))
+
+
 def html_to_text(value: str) -> str:
-    """Convert Steam description HTML to plain text without fetching links."""
+    """Convert Steam description HTML to text and safe image markers."""
     parser = SynopsisHTMLParser()
     parser.feed(value)
     parser.close()
@@ -140,13 +178,15 @@ def normalize_synopsis(text: str) -> tuple[str, list[str]]:
     value = "\n".join(SPACE_RE.sub(" ", line).strip() for line in value.split("\n"))
     value = BLANK_LINE_RE.sub("\n", value).strip()
     flags: list[str] = []
-    if len(value) < 150:
-        flags.append(f"short_length:{len(value)}")
-    if len(value) > 3000:
-        flags.append(f"long_length:{len(value)}")
+    visible_length = len(STEAM_IMAGE_MARKER_RE.sub("", value).strip())
+    if visible_length < 150:
+        flags.append(f"short_length:{visible_length}")
+    if visible_length > 3000:
+        flags.append(f"long_length:{visible_length}")
     if any(not character.isascii() and not character.isalpha() for character in value):
         flags.append("non_ascii_symbol")
-    if re.search(r"<[^>]+>|\[[^\]]+\]\(https?://", value):
+    without_images = STEAM_IMAGE_MARKER_RE.sub("", value)
+    if re.search(r"<[^>]+>|\[[^\]]+\]\(https?://", without_images):
         flags.append("markup_like_syntax")
     return value, flags
 
@@ -267,14 +307,32 @@ def fetch_directus_games(client: Any) -> list[dict[str, Any]]:
 
 
 def choose_steam_text(details: dict[str, Any]) -> tuple[str, bool] | None:
-    """Choose full Steam description, falling back to detailed/short text."""
+    """Choose prose and images, retaining image-only descriptions with fallback prose."""
+    image_only: tuple[str, bool] | None = None
     for key in ("about_the_game", "detailed_description", "short_description"):
         raw = details.get(key)
         if isinstance(raw, str) and raw.strip():
             visible = html_to_text(raw)
-            if normalize_synopsis(visible)[0]:
-                return visible, key != "about_the_game"
-    return None
+            normalized = normalize_synopsis(visible)[0]
+            if STEAM_IMAGE_MARKER_RE.sub("", normalized).strip():
+                if image_only:
+                    earlier_markers = [
+                        match.group(0)
+                        for match in STEAM_IMAGE_MARKER_RE.finditer(image_only[0])
+                        if match.group(0) not in normalized
+                    ]
+                    if earlier_markers:
+                        normalized = normalize_synopsis(
+                            "\n".join((*earlier_markers, normalized))
+                        )[0]
+                return normalized, key != "about_the_game"
+            if (
+                normalized
+                and STEAM_IMAGE_MARKER_RE.search(normalized)
+                and not image_only
+            ):
+                image_only = (normalized, key != "about_the_game")
+    return image_only
 
 
 def plan_games(
@@ -546,6 +604,42 @@ def self_test() -> int:
         and "<p>" not in extracted,
         "HTML active and media content removal",
     )
+    image_html = html_to_text(
+        '<p>Before</p><img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner_(1).avif?t=42" alt="Banner [one]">'
+    )
+    check(
+        "![Banner one](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner_%281%29.avif?t=42)"
+        in image_html,
+        "Steam CDN image markers encode closing parentheses and sanitize alt text",
+    )
+    image_only_about = '<img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner.avif" alt="Banner">'
+    image_fallback = choose_steam_text(
+        {
+            "about_the_game": image_only_about,
+            "detailed_description": "<p>Fallback prose.</p>",
+        }
+    )
+    check(
+        image_fallback is not None
+        and "![Banner](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner.avif)"
+        in image_fallback[0]
+        and "Fallback prose." in image_fallback[0]
+        and image_fallback[1],
+        "image-only About content retains its image and falls back to available prose",
+    )
+    check(
+        choose_steam_text({"about_the_game": image_only_about})
+        == (
+            "![Banner](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/123/extras/banner.avif)",
+            False,
+        ),
+        "image-only descriptions remain usable when no prose fallback exists",
+    )
+    check(
+        steam_image_url("https://evil.example/image.png") is None
+        and steam_image_url("http://shared.akamai.steamstatic.com/image.png") is None,
+        "image URLs outside HTTPS Steam CDN hosts are rejected",
+    )
     wrapped_html = html_to_text(
         "<p>Wrapped\n source <em>with\tinline</em>\r\nmarkup</p>"
         "<p>Next<br>line</p><ul><li>one</li><li>two</li></ul>"
@@ -696,7 +790,7 @@ def self_test() -> int:
         "detailed_description": "<p>Visible fallback text</p>",
     }
     check(
-        choose_steam_text(fallback_details) == ("\nVisible fallback text\n", True),
+        choose_steam_text(fallback_details) == ("Visible fallback text", True),
         "image-only full description falls back to visible detailed text",
     )
     check(
