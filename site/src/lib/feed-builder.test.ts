@@ -120,6 +120,38 @@ describe("buildFeedEntries", () => {
     expect(JSON.stringify(entries)).not.toContain("Private new prose");
   });
 
+  it("keeps a bulk Steam synopsis backfill above the legacy 200-item feed cap", async () => {
+    const games = Array.from({ length: 220 }, (_, index) => ({
+      id: index + 1,
+      title: `Steam AVN ${index + 1}`,
+      slug: `steam-avn-${index + 1}`,
+    }));
+    const revisions = games.flatMap((game, index) => [
+      {
+        id: 1000 + index,
+        item: String(game.id),
+        collection: "games",
+        data: { ...game, synopsis: `private synopsis ${index}`, synopsis_source: "steam" },
+        delta: { synopsis: `private synopsis ${index}`, synopsis_source: "steam" },
+        activity: { id: 2000 + index, action: "update", timestamp: `2026-10-10T01:${String(index % 60).padStart(2, "0")}:03Z` },
+      },
+      {
+        id: 500 + index,
+        item: String(game.id),
+        collection: "games",
+        data: { ...game, synopsis: null, synopsis_source: null },
+        delta: { date_updated: "2026-10-09T01:02:03Z" },
+        activity: { id: 1500 + index, action: "update", timestamp: "2026-10-09T01:02:03Z" },
+      },
+    ]);
+    mockDirectusFetch(feedRoutes({ games, gameRevisions: revisions }));
+
+    const entries = await buildFeedEntries();
+    expect(entries).toHaveLength(220);
+    expect(entries.every((entry) => entry.description === "**Synopsis**: Added")).toBe(true);
+    expect(JSON.stringify(entries)).not.toContain("private synopsis");
+  });
+
   it("keeps a status event when the same edit also changes the synopsis", async () => {
     const game = { id: 1, title: "Mixed Edit", slug: "mixed-edit" };
     mockDirectusFetch(feedRoutes({

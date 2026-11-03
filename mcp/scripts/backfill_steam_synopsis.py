@@ -319,7 +319,26 @@ def fetch_directus_games(client: Any) -> list[dict[str, Any]]:
         f"/items/games?filter[slug][_neq]=twice-burned"
         f"&filter[title][_neq]=Twice%20Burned&fields={fields}"
     )
-    return [game for game in client.fetch_all(path) if not excluded_game(game)]
+    by_id: dict[int, dict[str, Any]] = {}
+    for game in client.fetch_all(path):
+        if excluded_game(game) or game.get("id") is None:
+            continue
+        game_id = int(game["id"])
+        existing = by_id.get(game_id)
+        if existing is None:
+            existing = dict(game)
+            existing["links"] = list(game.get("links") or [])
+            existing["genres"] = list(game.get("genres") or [])
+            by_id[game_id] = existing
+            continue
+        # Expanding both o2m relations can return the same game more than once.
+        # Preserve any distinct links/genres while making one plan row per game.
+        for relation in ("links", "genres"):
+            related = existing.setdefault(relation, [])
+            for item in game.get(relation) or []:
+                if item not in related:
+                    related.append(item)
+    return list(by_id.values())
 
 
 def game_has_avn_genre(game: dict[str, Any]) -> bool:
@@ -852,6 +871,47 @@ def self_test() -> int:
     )
 
     module = sys.modules[__name__]
+    duplicate_row = {
+        "id": 22,
+        "slug": "duplicate-game",
+        "title": "Duplicate Game",
+        "links": [
+            {"kind": "download", "url": "https://store.steampowered.com/app/123/"}
+        ],
+        "genres": [{"genres_id": {"name": "AVN"}}],
+    }
+    merged_games = fetch_directus_games(
+        Mock(
+            fetch_all=Mock(
+                return_value=[
+                    duplicate_row,
+                    {
+                        **duplicate_row,
+                        "links": [
+                            {
+                                "kind": "download",
+                                "url": "https://store.steampowered.com/app/123/",
+                            },
+                            {
+                                "kind": "download",
+                                "url": "https://store.steampowered.com/app/456/",
+                            },
+                        ],
+                        "genres": [
+                            {"genres_id": {"name": "AVN"}},
+                            {"genres_id": {"name": "Visual Novel"}},
+                        ],
+                    },
+                ]
+            )
+        )
+    )
+    check(
+        len(merged_games) == 1
+        and len(merged_games[0]["links"]) == 2
+        and len(merged_games[0]["genres"]) == 2,
+        "Directus relation expansion deduplicates games while merging relations",
+    )
     fallback_details = {
         "about_the_game": "<img src='cover.jpg'> \u200b",
         "detailed_description": "<p>Visible fallback text</p>",
