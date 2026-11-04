@@ -462,6 +462,7 @@ class ConsoleLinkTests(unittest.TestCase):
 
     def test_title_matching_protects_sequels_and_prefers_newer_generations(self):
         self.assertEqual(repair.installment_numbers("Game II"), {"2"})
+        self.assertEqual(repair.installment_numbers("King of Fighters XV"), {"15"})
         self.assertEqual(
             repair.normalized_similarity(
                 "Killzone Shadow Fall", "KILLZONE SHADOW FALL™"
