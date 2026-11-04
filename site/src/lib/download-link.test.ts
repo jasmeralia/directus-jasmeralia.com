@@ -210,7 +210,7 @@ describe("URL platform and metadata", () => {
       url: "https://isthereanydeal.com/game/example/info/",
       kind: "itad",
     })).toEqual({
-      icon: "/icons/link.svg",
+      icon: "/icons/simple/itad.svg",
       label: "IsThereAnyDeal",
       host: "isthereanydeal.com",
     });

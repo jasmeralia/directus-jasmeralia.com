@@ -68,6 +68,7 @@ python3 mcp/scripts/backfill_itad_links.py                 # dry run + cache
 python3 mcp/scripts/backfill_itad_links.py --apply         # add links + rebuild
 python3 mcp/scripts/backfill_itad_links.py --refresh        # refresh lookups
 python3 mcp/scripts/backfill_itad_links.py --only-slug foo  # one game
+python3 mcp/scripts/backfill_itad_links.py --exclude-appid 102500 --exclude-appid 108710
 ```
 
 The default is a dry run. `--apply` rechecks the game’s current links before
@@ -76,9 +77,14 @@ cached in `mcp/cache/itad_game_link_cache.json`, and the proposed plan is
 written to `mcp/cache/itad_game_link_plan.json`. Uncached requests are spaced
 at least one second apart. HTTP 429/503 responses honor `Retry-After` and use
 exponential backoff capped at 15 minutes; repeated rate limiting or other API
-errors stop the run without caching a false no-match. The `itad` choice is
-registered in `games_links.kind` and displayed as a contextual link on the
-game page.
+errors stop the run without caching a false no-match. Repeat `--exclude-appid`
+to exclude every game record using an app ID from both the lookup plan and apply.
+The `itad` choice is registered in `games_links.kind` and displayed beside the
+SteamDB link on game details and thumbnail cards. The Data Curation Review
+includes a “Missing Link: ITAD + Download Platform: Steam” filter.
+Directus field choices do not update PostgreSQL's `games_links_kind_canonical_check`;
+when introducing another link kind, update and apply the corresponding constraint
+in `mcp/plans/itad_link_kind_constraint.sql` as part of the schema change.
 
 ## Steam developer links
 

@@ -372,6 +372,7 @@ const downloadEntries = downloadLinks(game.links).map((link) => {
       : `Download from ${linkMeta.label}`,
   };
 });
+const firstSteamDbEntryIndex = downloadEntries.findIndex((entry) => Boolean(entry.steamDbUrl));
 const otherEntries = otherLinks(game.links).map((link) => {
   const linkMeta = getLinkMeta(link);
   return {
@@ -486,6 +487,7 @@ const coverStackStyle = [
       .download-link .edit-icon{width:1rem;height:1rem;display:block;}
       .download-link .platform-icon{filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
       .download-link .gsl-icon{filter:none;}
+      .download-link .itad-icon{filter:none;}
       .sections-summary{margin:.5rem 0;}
       .sections-list{margin-bottom:0;}
       .sections-list li{padding:.2rem .5rem;border-left:2px solid transparent;}
@@ -561,7 +563,7 @@ const coverStackStyle = [
         <div>
           <h1 data-pagefind-meta="title">{game.title}</h1>
           <div class="meta">
-              {downloadEntries.map((entry) => (
+              {downloadEntries.map((entry, entryIndex) => (
                 <div class="download-link-row">
                   <a class="download-link" href={entry.url} rel="noopener noreferrer" target="_blank">
                     {entry.linkMeta.icon ? (
@@ -575,6 +577,12 @@ const coverStackStyle = [
                         <img class="platform-icon" src="/icons/simple/steamdb.svg" alt="" aria-hidden="true" loading="lazy" />
                         <span>SteamDB</span>
                       </a>)
+                      {entryIndex === firstSteamDbEntryIndex ? itadLinks.map((link) => (
+                        <a class="download-link" href={link.url} rel="noopener noreferrer" target="_blank">
+                          <img class="itad-icon" src="/icons/simple/itad.svg" alt="" aria-hidden="true" loading="lazy" />
+                          <span>IsThereAnyDeal</span>
+                        </a>
+                      )) : null}
                     </span>
                   ) : null}
                 </div>
@@ -587,14 +595,14 @@ const coverStackStyle = [
                   </a>
                 </div>
               ) : null}
-              {itadLinks.map((link) => (
+              {firstSteamDbEntryIndex < 0 ? itadLinks.map((link) => (
                 <div>
                   <a class="download-link" href={link.url} rel="noopener noreferrer" target="_blank">
-                    <img class="platform-icon" src="/icons/link.svg" alt="" aria-hidden="true" loading="lazy" />
-                    <span>View on IsThereAnyDeal</span>
+                    <img class="itad-icon" src="/icons/simple/itad.svg" alt="" aria-hidden="true" loading="lazy" />
+                    <span>IsThereAnyDeal</span>
                   </a>
                 </div>
-              ))}
+              )) : null}
               {otherEntries.map((entry) => (
                 <div>
                   <a class="download-link" href={entry.url} rel="noopener noreferrer" target="_blank">

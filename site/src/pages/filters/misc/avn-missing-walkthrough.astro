@@ -32,7 +32,7 @@ const csvName = "avn-missing-walkthrough.csv";
 const csvHref = csvDataUri(gamesToCsv(filteredGames));
 ---
 
-<BaseLayout title="Filters | AVN + Missing Walkthrough URL">
+<BaseLayout title="Filters | Missing Link: Walkthrough + Genre: AVN">
   <div slot="head">
     <style>
       main{padding:2rem;}
@@ -44,7 +44,7 @@ const csvHref = csvDataUri(gamesToCsv(filteredGames));
   </div>
   <main>
     <div class="panel">
-      <CsvHeader title="AVN + Missing Walkthrough URL" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <CsvHeader title="Missing Link: Walkthrough + Genre: AVN" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
       <p>Games tagged as AVN that do not have any walkthrough links.</p>
     </div>
     <ThumbnailBorderLegend />
