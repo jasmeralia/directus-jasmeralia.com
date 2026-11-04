@@ -66,6 +66,11 @@ const games = await directusFetchItems("games", {
   ],
   limit: -1,
 });
+const missingSynopsisCount = (await directusFetchItems("games", {
+  fields: ["id"],
+  filter: { synopsis: { _empty: true } },
+  limit: -1,
+})).length;
 const versions = await directusFetchItems("game_versions", {
   fields: ["id", "games_id", "source", "reported_version", "comparison_override", "source_reference", "installation_key", "is_current"],
   limit: -1,
@@ -1014,6 +1019,7 @@ const miscFilterEntries = [
   { label: "Download Platform + Unknown",      href: "/filters/misc/platform/unknown/index.html",      count: unknownPlatformCount },
   { label: "Download Platform + Xbox",         href: "/filters/misc/platform/xbox/index.html",         count: platformCounts.xbox,         exclusiveCount: platformCounts.xboxExclusive },
   { label: "Cover Art - Missing", href: "/filters/misc/missing-cover-art/index.html", count: missingCoverArtCount },
+  { label: "Synopsis - Missing", href: "/filters/misc/missing-synopsis/index.html", count: missingSynopsisCount },
   { label: "Missing Link - Download", href: "/filters/misc/missing-download-link/index.html", count: missingDownloadLinkCount },
   { label: "Cover Art - Non-Standard Aspect Ratio", href: "/filters/misc/non-standard-cover-art/index.html", count: nonStandardCoverCount },
   { label: "Missing Link - Developer", href: "/filters/misc/developer-missing-links/index.html", count: developerMissingLinksCount },
@@ -1057,6 +1063,7 @@ const dataCurationMiscLabels = new Set([
   "Download Platform + Unknown",
   "Missing Link - Platform: Steam (No itch.io or GameStoryLog)",
   "Cover Art - Missing",
+  "Synopsis - Missing",
   "Missing Link - Download",
   "Cover Art - Non-Standard Aspect Ratio",
   "Missing Link - Developer",

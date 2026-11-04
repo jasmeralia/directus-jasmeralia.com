@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.287] - 2026-11-03
+- Filters: add a Data Curation Review filter for games missing a synopsis.
+
 ## [1.0.286] - 2026-11-03
 - Games: constrain injected Steam synopsis media to the synopsis panel and apply the NSFW visibility rules to injected elements.
 
