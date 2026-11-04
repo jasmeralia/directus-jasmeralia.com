@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import re
 import sys
@@ -18,13 +19,12 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-import backfill_console_links as console  # pylint: disable=wrong-import-position # noqa: E402
-from scriptlib import (  # pylint: disable=wrong-import-position # noqa: E402
-    CACHE_DIR,
-    DirectusClient,
-    RetryingDirectusClient,
-    trigger_site_rebuild,
-)
+console = importlib.import_module("backfill_console_links")
+scriptlib = importlib.import_module("scriptlib")
+CACHE_DIR = scriptlib.CACHE_DIR
+DirectusClient = scriptlib.DirectusClient
+RetryingDirectusClient = scriptlib.RetryingDirectusClient
+trigger_site_rebuild = scriptlib.trigger_site_rebuild
 
 CACHE_PATH = CACHE_DIR / "console_store_search_cache.json"
 PLAN_PATH = CACHE_DIR / "console_store_search_plan.json"
@@ -150,7 +150,9 @@ def search_platform(url: str) -> tuple[str, str] | None:
     if host == "store.playstation.com" and "/search/" in path:
         term = urllib.parse.unquote(path.split("/search/", 1)[1]).strip("/")
         return ("psn", term) if term else None
-    if host in {"xbox.com", "www.xbox.com"} and re.search(r"/search/?$", path, re.I):
+    if host in {"xbox.com", "www.xbox.com"} and re.search(
+        r"/search/?$", path, re.IGNORECASE
+    ):
         term = urllib.parse.parse_qs(parsed.query).get("q", [""])[0].strip()
         return ("xbox", term) if term else None
     return None
@@ -172,7 +174,7 @@ def product_platform(url: str) -> str | None:
 
 def canonical_psn_url(value: str) -> str | None:
     """Normalize a PlayStation product URL and expose its product code."""
-    match = re.search(r"/product/([^/?#]+)", value, re.I)
+    match = re.search(r"/product/([^/?#]+)", value, re.IGNORECASE)
     if not match:
         return None
     return f"https://store.playstation.com/en-us/product/{match.group(1)}"
@@ -217,10 +219,12 @@ def psn_best_latest(
 def xbox_generation(title: str) -> int:
     """Rank explicitly labeled Xbox Series products above Xbox One."""
     if re.search(
-        r"\b(xbox\s*)?series\s*x(?:\s*\|\s*s)?\b|\bxbox\s*series\s*s\b", title, re.I
+        r"\b(xbox\s*)?series\s*x(?:\s*\|\s*s)?\b|\bxbox\s*series\s*s\b",
+        title,
+        re.IGNORECASE,
     ):
         return 2
-    if re.search(r"\bxbox\s*one\b", title, re.I):
+    if re.search(r"\bxbox\s*one\b", title, re.IGNORECASE):
         return 1
     return 0
 
@@ -329,7 +333,11 @@ def build_plan(
                 "psn"
                 if "store.playstation.com" in str(link.get("url") or "").lower()
                 else "xbox"
-                if re.search(r"(?:www\.)?xbox\.com/", str(link.get("url") or ""), re.I)
+                if re.search(
+                    r"(?:www\.)?xbox\.com/",
+                    str(link.get("url") or ""),
+                    re.IGNORECASE,
+                )
                 else ""
             ]
             if platform
@@ -448,7 +456,7 @@ def apply_plan(selected_slugs: set[str]) -> int:
     """Replace stored search URLs only when their source rows are unchanged."""
     plan = load_json(PLAN_PATH, None)
     if not isinstance(plan, dict) or not isinstance(plan.get("rows"), list):
-        raise RuntimeError(f"Plan not found: {PLAN_PATH}; run a dry run first")
+        raise TypeError(f"Plan not found: {PLAN_PATH}; run a dry run first")
     client = RetryingDirectusClient(DirectusClient.from_config())
     candidates = [
         row

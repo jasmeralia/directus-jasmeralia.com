@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import re
 import sys
@@ -11,7 +12,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
@@ -21,13 +22,14 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from backfill_steam_synopsis import excluded_game, normalize_synopsis  # pylint: disable=wrong-import-position # noqa: E402
-from scriptlib import (  # pylint: disable=wrong-import-position # noqa: E402
-    CACHE_DIR,
-    DirectusClient,
-    RetryingDirectusClient,
-    trigger_site_rebuild,
-)
+steam_synopsis = importlib.import_module("backfill_steam_synopsis")
+excluded_game = steam_synopsis.excluded_game
+normalize_synopsis = steam_synopsis.normalize_synopsis
+scriptlib = importlib.import_module("scriptlib")
+CACHE_DIR = scriptlib.CACHE_DIR
+DirectusClient = scriptlib.DirectusClient
+RetryingDirectusClient = scriptlib.RetryingDirectusClient
+trigger_site_rebuild = scriptlib.trigger_site_rebuild
 
 CACHE_PATH = CACHE_DIR / "itch_synopsis_cache.json"
 PLAN_PATH = CACHE_DIR / "itch_synopsis_plan.json"
@@ -129,7 +131,7 @@ def fetch_page(url: str) -> tuple[dict[str, str] | None, str | None]:
                 try:
                     retry_time = parsedate_to_datetime(retry_after)
                     if retry_time.tzinfo is None:
-                        retry_time = retry_time.replace(tzinfo=timezone.utc)
+                        retry_time = retry_time.replace(tzinfo=UTC)
                     wait = max(1.0, (retry_time - datetime.now(UTC)).total_seconds())
                 except (TypeError, ValueError, OverflowError):
                     wait = delay
@@ -305,7 +307,7 @@ def apply_plan(selected_slugs: set[str]) -> int:
     """Apply saved rows only if the game and itch link are unchanged."""
     plan = load_json(PLAN_PATH, None)
     if not isinstance(plan, dict) or not isinstance(plan.get("rows"), list):
-        raise RuntimeError(f"Plan not found: {PLAN_PATH}; run a dry run first")
+        raise TypeError(f"Plan not found: {PLAN_PATH}; run a dry run first")
     client = RetryingDirectusClient(DirectusClient.from_config())
     candidates = [
         row
