@@ -47,6 +47,9 @@ ROMAN_INSTALLMENTS = {
 def installment_numbers(title: str) -> set[str]:
     """Extract Arabic/Roman sequel numbers, including Unicode Roman numerals."""
     normalized = unicodedata.normalize("NFKD", title)
+    normalized = re.sub(
+        r"\b(?:xbox\s*)?series\s*x(?:\s*\|\s*s)?\b", "", normalized, flags=re.IGNORECASE
+    )
     values = {str(int(value)) for value in re.findall(r"\b\d+\b", normalized)}
     values.update(
         value
@@ -83,7 +86,13 @@ def normalized_similarity(title: str, candidate: str) -> float:
         "remastered",
         "enhanced",
         "edition",
-        "game",
+        "xbox",
+        "series",
+        "one",
+        "x",
+        "s",
+        "ps4",
+        "ps5",
         "year",
         "goty",
         "collection",
@@ -114,6 +123,13 @@ def protect_sequel_match(title: str, store_name: str, score: float) -> float:
         - title_tokens
         - {
             "tm",
+            "xbox",
+            "series",
+            "one",
+            "x",
+            "s",
+            "ps4",
+            "ps5",
             "standard",
             "deluxe",
             "ultimate",
@@ -253,9 +269,7 @@ def xbox_best_latest(
             or re.search(r"\bupgrade\b", name, re.IGNORECASE)
         ):
             continue
-        score = console.sequel_penalized_score(
-            title, name, console.store_title_similarity(title, name)
-        )
+        score = normalized_similarity(title, name)
         score = protect_sequel_match(title, name, score)
         candidates.append(
             (name, score, xbox_product_url(name, product_id), xbox_generation(name))

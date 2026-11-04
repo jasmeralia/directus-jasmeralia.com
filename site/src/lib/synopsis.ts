@@ -154,7 +154,7 @@ export function synopsisSourceLink(
     }
     if (source === "itch" && link.kind === "download"
       && url.protocol === "https:"
-      && (host === "itch.io" || host.endsWith(".itch.io"))
+      && host.endsWith(".itch.io")
       && url.pathname.split("/").filter(Boolean).length >= 1) {
       itchUrls.add(url.href);
     }

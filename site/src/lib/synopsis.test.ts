@@ -170,4 +170,21 @@ describe("synopsisSourceLink", () => {
     expect(synopsisSourceLink("steam", null)).toBeNull();
     expect(synopsisSourceLink(null, undefined)).toBeNull();
   });
+
+  it("attributes itch synopses to one unique itch.io download page", () => {
+    const link = { kind: "download" as const, url: "https://creator.itch.io/example-game" };
+    expect(synopsisSourceLink("itch", [link])).toEqual({ label: "itch.io", url: link.url });
+    expect(synopsisSourceLink("itch", [
+      link,
+      { kind: "other", url: "https://other.itch.io/profile" },
+    ])).toEqual({ label: "itch.io", url: link.url });
+    expect(synopsisSourceLink("itch", [link, {
+      kind: "download",
+      url: "https://creator.itch.io/another-game",
+    }])).toBeNull();
+    expect(synopsisSourceLink("itch", [
+      { kind: "download", url: "http://creator.itch.io/example-game" },
+      { kind: "download", url: "https://itch.io/profile/creator" },
+    ])).toBeNull();
+  });
 });
