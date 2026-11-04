@@ -516,6 +516,7 @@ def plan_games(
     refresh: bool,
     only_slugs: set[str],
     avn_only: bool = False,
+    empty_only: bool = False,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Build a plan, calling Steam only for selected eligible games."""
     cache = load_cache()
@@ -529,6 +530,7 @@ def plan_games(
         if not excluded_game(g)
         and (not only_slugs or g.get("slug") in only_slugs)
         and (not avn_only or game_has_avn_genre(g))
+        and (not empty_only or not str(g.get("synopsis") or "").strip())
     ]
     for index, game in enumerate(selected, start=1):
         appid, steam_url, link_error = canonical_steam_link(
@@ -674,7 +676,7 @@ def current_canonical_link(
     )
 
 
-def apply_plan(only_slugs: set[str]) -> int:
+def apply_plan(only_slugs: set[str], *, empty_only: bool = False) -> int:
     """Apply a saved plan with stale ownership and Steam-link checks."""
     if not PLAN_PATH.exists():
         raise RuntimeError(f"Plan not found: {PLAN_PATH}; run a dry run first")
@@ -692,6 +694,7 @@ def apply_plan(only_slugs: set[str]) -> int:
         for row in plan
         if row.get("action") in {"create", "update", "source_update"}
         and (not only_slugs or row.get("slug") in only_slugs)
+        and (not empty_only or not str(row.get("old_synopsis") or "").strip())
     ]
     updated = skipped = errors = 0
     for index, row in enumerate(candidates, start=1):
@@ -1152,9 +1155,27 @@ def self_test() -> int:
         ),
     ):
         dlc_rows, _ = plan_games([dlc_game], refresh=False, only_slugs=set())
+        empty_rows, _ = plan_games(
+            [
+                dlc_game,
+                {
+                    "id": 13,
+                    "slug": "already-has-gsl-synopsis",
+                    "title": "Already Has GSL Synopsis",
+                    "synopsis": "Existing GSL synopsis.",
+                    "synopsis_source": "gsl",
+                    "links": dlc_game["links"],
+                },
+            ],
+            refresh=False,
+            only_slugs=set(),
+            empty_only=True,
+        )
     check(
-        dlc_rows[0]["action"] == "create",
-        "Steam DLC-linked AVN entries can use their store synopsis",
+        dlc_rows[0]["action"] == "create"
+        and len(empty_rows) == 1
+        and empty_rows[0]["slug"] == "book-two",
+        "DLC synopsis planning supports empty-only filtering",
     )
 
     existing_text = "An existing Steam synopsis."
@@ -1304,7 +1325,18 @@ def self_test() -> int:
                         "old_synopsis": None,
                         "old_synopsis_source": None,
                         "new_synopsis": "New text",
-                    }
+                    },
+                    {
+                        "id": 10,
+                        "slug": "already-populated",
+                        "title": "Already Populated",
+                        "action": "update",
+                        "appid": 123,
+                        "steam_url": "https://store.steampowered.com/app/123/",
+                        "old_synopsis": "Existing GSL synopsis",
+                        "old_synopsis_source": "gsl",
+                        "new_synopsis": "Steam replacement",
+                    },
                 ]
             ),
             encoding="utf-8",
@@ -1339,7 +1371,10 @@ def self_test() -> int:
                 side_effect=AssertionError("apply made Steam request"),
             ),
         ):
-            check(apply_plan(set()) == 0, "apply uses saved plan without Steam request")
+            check(
+                apply_plan(set(), empty_only=True) == 0,
+                "empty-only apply excludes populated rows and uses saved plan",
+            )
         fake_client.patch.assert_called_once()
         fake_client.get.return_value["data"]["synopsis"] = "New text"
         fake_client.get.return_value["data"]["synopsis_source"] = "steam"
@@ -1433,6 +1468,11 @@ def main() -> int:
         help="restrict the plan to games linked to the AVN genre",
     )
     parser.add_argument(
+        "--empty-only",
+        action="store_true",
+        help="restrict planning and apply to games with a blank current synopsis",
+    )
+    parser.add_argument(
         "--only-slug",
         action="append",
         default=[],
@@ -1444,11 +1484,15 @@ def main() -> int:
         return self_test()
     only_slugs = set(args.only_slug)
     if args.apply:
-        return apply_plan(only_slugs)
+        return apply_plan(only_slugs, empty_only=args.empty_only)
     client = RetryingDirectusClient(DirectusClient.from_config())
     games = fetch_directus_games(client)
     plan, failures = plan_games(
-        games, refresh=args.refresh, only_slugs=only_slugs, avn_only=args.avn_only
+        games,
+        refresh=args.refresh,
+        only_slugs=only_slugs,
+        avn_only=args.avn_only,
+        empty_only=args.empty_only,
     )
     atomic_json_write(PLAN_PATH, plan)
     write_review(plan)
