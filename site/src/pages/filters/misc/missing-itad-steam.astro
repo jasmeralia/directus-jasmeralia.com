@@ -1,0 +1,61 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import CsvHeader from "../../../components/CsvHeader.astro";
+import ThumbnailBorderLegend from "../../../components/ThumbnailBorderLegend.astro";
+import GameThumbCard from "../../../components/GameThumbCard.astro";
+import { directusFetchItems, getReviewedGameIds, getSTierGameIds, getTierChipsByGameId } from "../../../lib/directus";
+import { csvDataUri, gamesToCsv } from "../../../lib/csv";
+import { downloadLinks, hasSteamDownloadLink } from "../../../lib/download-link";
+import { GAME_THUMB_FIELDS } from "../../../lib/game-fields";
+import { sortByTitle } from "../../../lib/list-format";
+
+const games = sortByTitle(await directusFetchItems("games", {
+  fields: GAME_THUMB_FIELDS,
+  limit: -1,
+}));
+
+const filteredGames = games.filter((game) =>
+  hasSteamDownloadLink(downloadLinks(game?.links)) &&
+  !(game?.links ?? []).some((link) => link.kind === "itad"),
+);
+
+const gameIds = filteredGames.map((game) => game.id).filter((id) => typeof id === "number");
+const [reviewedGameIds, sTierGameIds, tierChipsByGame] = await Promise.all([
+  getReviewedGameIds(gameIds),
+  getSTierGameIds(gameIds),
+  getTierChipsByGameId(gameIds),
+]);
+const csvName = "missing-itad-steam.csv";
+const csvHref = csvDataUri(gamesToCsv(filteredGames));
+
+---
+
+<BaseLayout title="Filters | Missing Link: ITAD + Download Platform: Steam">
+  <div slot="head">
+    <style>
+      main{padding:2rem;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+      .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:16px;}
+      .panel a{color:#9aa6ff;}
+      .panel a:visited{color:#9aa6ff;}
+    </style>
+  </div>
+  <main>
+    <div class="panel">
+      <CsvHeader title="Missing Link: ITAD + Download Platform: Steam" count={filteredGames.length} csvHref={csvHref} csvName={csvName} />
+      <p>Games with a Steam download link and no IsThereAnyDeal link.</p>
+    </div>
+    <ThumbnailBorderLegend />
+    {filteredGames.length === 0 ? (
+      <p>Every Steam-linked game has an IsThereAnyDeal link.</p>
+    ) : (
+      <div class="grid">
+        {filteredGames.map((game) => {
+          const reviewed = reviewedGameIds.has(game.id);
+          const sTier = sTierGameIds.has(game.id);
+          return <GameThumbCard game={game} reviewed={reviewed} sTier={sTier} tierChips={tierChipsByGame.get(game.id) ?? []} />;
+        })}
+      </div>
+    )}
+  </main>
+</BaseLayout>

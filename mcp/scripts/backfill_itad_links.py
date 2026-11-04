@@ -219,6 +219,12 @@ def main() -> int:
         help="limit work to a game slug (repeatable)",
     )
     parser.add_argument(
+        "--exclude-appid",
+        action="append",
+        default=[],
+        help="exclude a Steam app ID and every game record using it (repeatable)",
+    )
+    parser.add_argument(
         "--limit", type=int, help="maximum number of uncached app lookups"
     )
     parser.add_argument(
@@ -252,6 +258,8 @@ def main() -> int:
 
     candidates: list[tuple[dict[str, Any], str]] = []
     skipped_has_itad = skipped_no_steam = 0
+    excluded_app_ids = set(args.exclude_appid)
+    skipped_excluded_app_id = 0
     for game in games:
         links = game.get("links") or []
         if any(link.get("kind") == "itad" for link in links):
@@ -260,6 +268,9 @@ def main() -> int:
         app_id = current_steam_app_id(game)
         if app_id is None:
             skipped_no_steam += 1
+            continue
+        if app_id in excluded_app_ids:
+            skipped_excluded_app_id += 1
             continue
         candidates.append((game, app_id))
 
@@ -317,7 +328,8 @@ def main() -> int:
     print(
         f"\nCandidates: {len(candidates)}; additions: {len(additions)}; "
         f"ITAD no-match: {len(not_found)}; already linked: {skipped_has_itad}; "
-        f"no Steam link: {skipped_no_steam}",
+        f"no Steam link: {skipped_no_steam}; excluded app-ID records: "
+        f"{skipped_excluded_app_id}",
         flush=True,
     )
     for addition in additions:
@@ -335,6 +347,8 @@ def main() -> int:
     report = {
         "generated_at": datetime.now(UTC).isoformat(),
         "mode": "apply" if args.apply else "dry-run",
+        "excluded_app_ids": sorted(excluded_app_ids),
+        "excluded_app_id_records": skipped_excluded_app_id,
         "additions": additions,
         "not_found": not_found,
     }

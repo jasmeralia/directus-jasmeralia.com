@@ -163,7 +163,7 @@ export const getLinkMeta = (link: GameLink): UrlLinkMeta => {
     return { icon: "/icons/gamestorylog.png", label: "GameStoryLog", host: shortHostFromUrl(link.url) };
   }
   if (link.kind === "itad") {
-    return { icon: GENERIC_LINK_ICON, label: "IsThereAnyDeal", host: shortHostFromUrl(link.url) };
+    return { icon: "/icons/simple/itad.svg", label: "IsThereAnyDeal", host: shortHostFromUrl(link.url) };
   }
   const meta = getUrlLinkMeta(link.url);
   if (link.label) return { ...meta, label: link.label };

@@ -76,6 +76,14 @@ const platformEntries = [
   },
 ]
   .filter((e) => e.meta.label !== "Download" || Boolean(e.meta.host));
+const itadEntries = (game?.links ?? [])
+  .filter((link) => link.kind === "itad")
+  .map((link) => ({ url: link.url, kind: link.kind, meta: getLinkMeta(link) }));
+const steamDbEntryIndex = platformEntries.findIndex((entry) => entry.meta.label === "SteamDB");
+const itadInsertIndex = steamDbEntryIndex >= 0
+  ? steamDbEntryIndex + 1
+  : platformEntries.findIndex((entry) => entry.kind === "gamestorylog");
+platformEntries.splice(itadInsertIndex >= 0 ? itadInsertIndex : platformEntries.length, 0, ...itadEntries);
 const genres = (game?.genres ?? [])
   .map((genre) => genre?.genres_id)
   .filter((genre) => genre?.name && genre?.slug);
@@ -143,7 +151,7 @@ const progress = bundleProgress ?? (directProgress
                         entry.kind === "directus" && "platform-link-edit",
                         entry.kind === "steamgriddb" && !hasSteamLink && "platform-link-search-start",
                       ]} href={entry.url} target="_blank" rel="noopener noreferrer" aria-label={entry.meta.label === "Download" && entry.meta.host ? `Download (${entry.meta.host})` : entry.meta.label} title={entry.meta.label === "Download" && entry.meta.host ? `Download (${entry.meta.host})` : entry.meta.label}>
-                        {entry.meta.icon ? <img class:list={[entry.kind === "gamestorylog" && "gsl-icon", entry.kind === "directus" && "edit-icon"]} src={entry.meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
+                        {entry.meta.icon ? <img class:list={[entry.kind === "gamestorylog" && "gsl-icon", entry.kind === "itad" && "itad-icon", entry.kind === "directus" && "edit-icon"]} src={entry.meta.icon} alt="" aria-hidden="true" loading="lazy" /> : null}
                       </a>
                     ))}
                   </div>
@@ -220,6 +228,7 @@ const progress = bundleProgress ?? (directProgress
   .platform-link-edit,.platform-link-search-start{margin-left:.9rem;}
   .platform img{width:.9rem;height:.9rem;display:block;filter:brightness(0) saturate(100%) invert(67%) sepia(11%) saturate(1832%) hue-rotate(194deg) brightness(97%) contrast(96%);}
   .platform img.gsl-icon{width:auto;height:1rem;filter:none;mix-blend-mode:screen;}
+  .platform img.itad-icon{filter:none;}
   .platform img.edit-icon{filter:none;}
   .tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:auto;padding-top:.5rem;}
   .tag{font-size:.75rem;padding:.2rem .5rem;border-radius:999px;background:#1a1a1a;border:1px solid #2b2b2b;opacity:.9;}
