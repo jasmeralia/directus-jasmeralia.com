@@ -576,13 +576,15 @@ const coverStackStyle = [
                       (<a class="download-link" href={entry.steamDbUrl} rel="noopener noreferrer" target="_blank">
                         <img class="platform-icon" src="/icons/simple/steamdb.svg" alt="" aria-hidden="true" loading="lazy" />
                         <span>SteamDB</span>
-                      </a>)
+                      </a>
                       {entryIndex === firstSteamDbEntryIndex ? itadLinks.map((link) => (
-                        <a class="download-link" href={link.url} rel="noopener noreferrer" target="_blank">
-                          <img class="itad-icon" src="/icons/simple/itad.svg" alt="" aria-hidden="true" loading="lazy" />
-                          <span>IsThereAnyDeal</span>
-                        </a>
-                      )) : null}
+                        <>
+                          , <a class="download-link" href={link.url} rel="noopener noreferrer" target="_blank">
+                            <img class="itad-icon" src="/icons/simple/itad.svg" alt="" aria-hidden="true" loading="lazy" />
+                            <span>IsThereAnyDeal</span>
+                          </a>
+                        </>
+                      )) : null})
                     </span>
                   ) : null}
                 </div>
