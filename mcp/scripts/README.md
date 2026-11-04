@@ -160,6 +160,11 @@ progress under `mcp/cache/steam_synopsis_progress.json`. Ambiguous app links and
 non-game store entries are skipped. Directus credentials come from `.mcp.json`;
 the script makes no schema changes and does not trigger a site rebuild.
 
+Synopsis source attribution also supports `gog`, `psn`, `xbox`, and `egs`. These values link to
+a matching game download URL on GOG, PlayStation Store, Xbox Store, or Epic Games Store.
+Attribution is omitted when no valid unique platform link exists. This adds source attribution only;
+synopsis population workflows remain source-specific.
+
 ### Itch.io synopses for AVNs
 
 `backfill_itch_synopsis.py` fills blank AVN synopses from the public metadata

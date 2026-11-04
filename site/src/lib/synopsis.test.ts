@@ -187,4 +187,50 @@ describe("synopsisSourceLink", () => {
       { kind: "download", url: "https://itch.io/profile/creator" },
     ])).toBeNull();
   });
+
+  it.each([
+    ["gog", "https://www.gog.com/en/game/example?ref=test#details", "GOG", "https://www.gog.com/en/game/example"],
+    ["psn", "https://store.playstation.com/en-us/product/UP0001-CUSA00001_00-EXAMPLE000000000?smcid=test#details", "PlayStation Store", "https://store.playstation.com/en-us/product/UP0001-CUSA00001_00-EXAMPLE000000000"],
+    ["xbox", "https://www.xbox.com/en-US/games/store/example/9N0000000000?ref=test#details", "Xbox Store", "https://www.xbox.com/en-US/games/store/example/9N0000000000"],
+    ["egs", "https://store.epicgames.com/en-US/p/example?ref=test#details", "Epic Games Store", "https://store.epicgames.com/en-US/p/example"],
+  ])("attributes %s synopses to a unique official game link", (source, url, label, expectedUrl) => {
+    expect(synopsisSourceLink(source, [{ kind: "download", url }])).toEqual({ label, url: expectedUrl });
+  });
+
+  it("rejects unsafe and non-game storefront URLs", () => {
+    expect(synopsisSourceLink("gog", [
+      { kind: "download", url: "https://user@gog.com/en/game/example" },
+    ])).toBeNull();
+    expect(synopsisSourceLink("gog", [
+      { kind: "download", url: "https://:password@gog.com/en/game/example" },
+    ])).toBeNull();
+    expect(synopsisSourceLink("gog", [
+      { kind: "download", url: "http://www.gog.com/en/game/example" },
+    ])).toBeNull();
+    expect(synopsisSourceLink("psn", [
+      { kind: "download", url: "https://store.playstation.com.invalid/en-us/product/123" },
+      { kind: "download", url: "https://store.playstation.com/en-us/search/example" },
+    ])).toBeNull();
+    expect(synopsisSourceLink("xbox", [
+      { kind: "download", url: "https://xbox.com.invalid/en-us/games/store/example/123" },
+      { kind: "download", url: "https://www.xbox.com/en-us/search/example" },
+    ])).toBeNull();
+    expect(synopsisSourceLink("egs", [
+      { kind: "download", url: "https://store.epicgames.com.invalid/en-us/p/example" },
+      { kind: "download", url: "https://store.epicgames.com/en-us/search/example" },
+    ])).toBeNull();
+    expect(synopsisSourceLink("gog", [
+      { kind: "other", url: "https://www.gog.com/en/game/example" },
+    ])).toBeNull();
+  });
+
+  it("omits ambiguous store attribution and links for a different synopsis source", () => {
+    expect(synopsisSourceLink("gog", [
+      { kind: "download", url: "https://www.gog.com/en/game/example" },
+      { kind: "download", url: "https://www.gog.com/en/game/another-example" },
+    ])).toBeNull();
+    expect(synopsisSourceLink("gog", [
+      { kind: "download", url: "https://store.steampowered.com/app/123/" },
+    ])).toBeNull();
+  });
 });
