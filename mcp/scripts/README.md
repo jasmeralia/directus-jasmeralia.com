@@ -122,6 +122,8 @@ the text.
 
 ```sh
 python3 mcp/scripts/backfill_steam_synopsis.py --avn-only --refresh # all AVNs, dry run
+python3 mcp/scripts/backfill_steam_synopsis.py --empty-only --refresh # blank synopses, entire catalog
+python3 mcp/scripts/backfill_steam_synopsis.py --apply --empty-only # apply only blank-synopsis plan rows
 python3 mcp/scripts/backfill_steam_synopsis.py --only-slug game-slug # dry run
 python3 mcp/scripts/backfill_steam_synopsis.py --apply --only-slug game-slug
 python3 mcp/scripts/backfill_steam_synopsis.py --refresh --only-slug game-slug
@@ -132,6 +134,10 @@ python3 mcp/scripts/backfill_steam_synopsis.py --self-test           # offline
 
 Repeat `--only-slug` to select several games; omit it to plan the entire
 catalog. `--avn-only` limits the plan to games tagged with the AVN genre.
+`--empty-only` limits both planning and applying to games whose synopsis is
+blank. It protects existing GSL and Steam text even when combined with
+`--refresh`; the apply step also skips any game whose synopsis became nonblank
+after the plan was created.
 Steam may replace GSL-owned synopses from cached data; `--refresh` fetches fresh
 Steam data and permits updates to Steam-owned text. Manual, ITAD, and other
 source-owned text stays protected. Review `mcp/cache/steam_synopsis_plan.json` and
