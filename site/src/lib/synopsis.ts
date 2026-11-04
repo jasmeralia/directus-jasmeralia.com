@@ -10,13 +10,15 @@ export function synopsisParagraphs(text: string | null | undefined): string[] {
 
 export type SynopsisBlock =
   | { kind: "paragraph"; text: string }
-  | { kind: "image"; src: string; alt: string };
+  | { kind: "image"; src: string; alt: string }
+  | { kind: "video"; src: string; title: string };
 
 const LEGACY_STEAM_IMAGE_HOSTS = new Set([
   "steamcdn-a.akamaihd.net",
   "steamcommunity-a.akamaihd.net",
   "steamstore-a.akamaihd.net",
 ]);
+const ITCH_IMAGE_HOSTS = new Set(["cdn.imgchest.com", "img.itch.zone"]);
 
 const SYNOPSIS_STORE_SOURCES = new Map([
   ["gog", {
@@ -63,6 +65,42 @@ function safeSteamVideoUrl(value: string): string | null {
   const safe = safeSteamImageUrl(value);
   if (!safe) return null;
   return /\.(?:mp4|webm)$/i.test(new URL(safe).pathname) ? safe : null;
+}
+
+function safeItchImageUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      (url.port !== "" && url.port !== "443") ||
+      !ITCH_IMAGE_HOSTS.has(url.hostname.toLowerCase()) ||
+      !/\.(?:gif|jpe?g|png|webp|avif)$/i.test(url.pathname)
+    ) return null;
+    url.hash = "";
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+function safeItchVideoUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      (url.port !== "" && url.port !== "443") ||
+      !["youtube.com", "www.youtube.com"].includes(url.hostname.toLowerCase())
+    ) return null;
+    const match = url.pathname.match(/^\/embed\/([A-Za-z0-9_-]{11})\/?$/);
+    if (!match) return null;
+    return `https://www.youtube-nocookie.com/embed/${match[1]}`;
+  } catch {
+    return null;
+  }
 }
 
 function safeHttpsLink(value: string | null | undefined): string | null {
@@ -131,7 +169,7 @@ export function renderSteamSynopsis(
   return marked.parse(text ?? "", { renderer, breaks: true }) as string;
 }
 
-/** Parse paragraph text and the controlled Steam image markers used by the backfill. */
+/** Parse paragraph text and the controlled source-specific media markers. */
 export function synopsisBlocks(
   text: string | null | undefined,
   source: string | null | undefined,
@@ -145,6 +183,18 @@ export function synopsisBlocks(
         const image = /^!\[([^\]\r\n]*)\]\((https:\/\/[^)\s]+)\)$/.exec(line);
         if (image) {
           const src = safeSteamImageUrl(image[2]);
+          if (src) return { kind: "image", src, alt: image[1] };
+        }
+      }
+      if (source === "itch") {
+        const video = /^!\[itch-video:([^\]\r\n]*)\]\((https:\/\/[^)\s]+)\)$/.exec(line);
+        if (video) {
+          const src = safeItchVideoUrl(video[2]);
+          if (src) return { kind: "video", src, title: video[1] || "Video" };
+        }
+        const image = /^!\[([^\]\r\n]*)\]\((https:\/\/[^)\s]+)\)$/.exec(line);
+        if (image) {
+          const src = safeItchImageUrl(image[2]);
           if (src) return { kind: "image", src, alt: image[1] };
         }
       }

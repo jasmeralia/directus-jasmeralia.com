@@ -66,6 +66,49 @@ describe("synopsisBlocks", () => {
       { kind: "paragraph", text: "![Image](https://evil.example/image.png)" },
     ]);
   });
+
+  it("renders itch images only from the source page's approved media hosts", () => {
+    expect(synopsisBlocks(
+      "![Gameplay 1](https://cdn.imgchest.com/files/4z9cvqpk837.gif)\n![Gameplay 2](https://img.itch.zone/aW1nLzE5MTM3OTY2LmpwZw==/original/IQzIME.jpg)",
+      "itch",
+    )).toEqual([
+      { kind: "image", src: "https://cdn.imgchest.com/files/4z9cvqpk837.gif", alt: "Gameplay 1" },
+      { kind: "image", src: "https://img.itch.zone/aW1nLzE5MTM3OTY2LmpwZw==/original/IQzIME.jpg", alt: "Gameplay 2" },
+    ]);
+    for (const marker of [
+      "![Bad](https://[broken)",
+      "![Bad](http://cdn.imgchest.com/files/a.gif)",
+      "![Bad](https://cdn.imgchest.com.evil.example/a.gif)",
+      "![Bad](https://img.itch.zone.evil.example/a.jpg)",
+      "![Bad](https://cdn.imgchest.com:444/a.gif)",
+      "![Bad](https://cdn.imgchest.com/a.svg)",
+    ]) {
+      expect(synopsisBlocks(marker, "itch")).toEqual([{ kind: "paragraph", text: marker }]);
+    }
+    expect(synopsisBlocks("![Image](https://cdn.imgchest.com/files/a.gif)", "gsl")[0].kind)
+      .toBe("paragraph");
+  });
+
+  it("allows validated YouTube embed markers only for itch synopses", () => {
+    const marker = "![itch-video:Trailer](https://www.youtube.com/embed/DYfUZOydMZY)";
+    expect(synopsisBlocks(marker, "itch")).toEqual([{
+      kind: "video",
+      src: "https://www.youtube-nocookie.com/embed/DYfUZOydMZY",
+      title: "Trailer",
+    }]);
+    expect(synopsisBlocks(marker, "steam")).toEqual([{ kind: "paragraph", text: marker }]);
+    for (const url of [
+      "https://[broken",
+      "https://youtube.com.evil.example/embed/DYfUZOydMZY",
+      "http://www.youtube.com/embed/DYfUZOydMZY",
+      "https://www.youtube.com/watch?v=DYfUZOydMZY",
+      "https://www.youtube.com/embed/short",
+      "https://www.youtube.com:444/embed/DYfUZOydMZY",
+    ]) {
+      const unsafeMarker = `![itch-video:Trailer](${url})`;
+      expect(synopsisBlocks(unsafeMarker, "itch")).toEqual([{ kind: "paragraph", text: unsafeMarker }]);
+    }
+  });
 });
 
 describe("renderSteamSynopsis", () => {

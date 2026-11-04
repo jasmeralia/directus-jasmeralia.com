@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.290] - 2026-11-04
+- Games: render allowlisted itch.io description images and the YouTube trailer inside the synopsis, with NSFW media deferred until reveal.
+
 ## [1.0.289] - 2026-11-04
 - Games: support GOG, PlayStation Store, Xbox Store, and Epic Games Store synopsis attribution.
 

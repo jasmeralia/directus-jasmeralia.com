@@ -76,11 +76,10 @@ AVNs, with the broader catalog left unapplied. Baseline measurements below were 
 
 1. **Field names: `synopsis` (text) and `synopsis_source` (string).** Not `description`, to avoid the
    stale label above and any future confusion with tier-list/review descriptions.
-2. **Plain text, with a controlled Steam image marker; no general Markdown.** Stored with `\n`
-   paragraph breaks. Steam descriptions may contain a standalone `![alt](https://...)` marker
-   only for an image URL on an allowlisted Steam CDN host; the site parses this marker only when
-   `synopsis_source` is `steam`. All other text is escaped by Astro (no `set:html`, no
-   `renderMarkdown`). GSL text stays plain text. The `||spoiler||` markdown extension is
+2. **Plain text, with controlled source-specific media markers; no general Markdown.** Stored with
+   `\n` paragraph breaks. Steam descriptions may contain a standalone `![alt](https://...)` marker
+   only for an image URL on an allowlisted Steam CDN host. Itch descriptions may contain standalone
+   image markers for `cdn.imgchest.com` and `img.itch.zone`, plus a `![itch-video:Title](https://www.youtube.com/embed/VIDEO_ID)` marker for a validated YouTube embed. The site parses each marker only when its matching `synopsis_source` is set. All other text is escaped by Astro (no general `set:html`, no `renderMarkdown`). GSL text stays plain text. The `||spoiler||` markdown extension is
    deliberately not used; the task's reuse requirement is met by the `.nsfw-text` pattern.
 3. **A `synopsis_source` field exists for refresh safety.** Values: `gsl`, `steam`, `itad`,
    `itch`, `gog`, `psn`, `xbox`, `egs`, `manual`. A script may only overwrite a synopsis whose
@@ -291,7 +290,10 @@ source caption identifies Steam when that is the stored source.
 
 ### Remaining source research
 
-The Steam script covers linked games with usable Steam descriptions. Population for games without
+The Steam script covers linked games with usable Steam descriptions. The itch renderer also
+supports the controlled image and YouTube markers for manually reviewed page descriptions; media
+is deferred until reveal for NSFW games, and hiding the synopsis unloads the YouTube frame.
+Population for games without
 usable GSL or Steam data remains separate work. Candidates named in task 510 include the video-game
 encyclopedia MCP server, SteamDB, and IsThereAnyDeal. Verify their accessible description data and
 permitted API/scraping paths before choosing an integration. Any later script must use the same

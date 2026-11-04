@@ -462,6 +462,7 @@ const coverStackStyle = [
       .synopsis-body p:last-child{margin-bottom:0;}
       :global(.synopsis-body .synopsis-image){display:block;box-sizing:border-box;max-width:100%;height:auto;margin:.75rem auto;border-radius:6px;}
       :global(.synopsis-body .synopsis-video){display:block;box-sizing:border-box;width:100%;max-width:100%;height:auto;margin:.75rem auto;border-radius:6px;background:#000;}
+      :global(.synopsis-body iframe.synopsis-video){aspect-ratio:16/9;height:auto;border:0;}
       :global(.synopsis-body.nsfw-text .synopsis-video){display:none;}
       :global(html.nsfw-on .synopsis-body.nsfw-text .synopsis-video),
       :global(.synopsis-body.nsfw-text.revealed .synopsis-video){display:block;}
@@ -676,6 +677,8 @@ const coverStackStyle = [
             <div id="synopsis-body" class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "", "aria-hidden": "true" } : {})}>
               {synopsisContent.map((block) => block.kind === "image" ? (
                 <img class="synopsis-image" src={gameNsfw ? undefined : block.src} data-src={gameNsfw ? block.src : undefined} alt={block.alt} loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+              ) : block.kind === "video" ? (
+                <iframe class="synopsis-video" src={gameNsfw ? undefined : block.src} data-src={gameNsfw ? block.src : undefined} data-synopsis-video title={block.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
               ) : (
                 <p>{block.text}</p>
               ))}
@@ -1103,8 +1106,18 @@ const coverStackStyle = [
             video.load();
           }
         });
+        body.querySelectorAll<HTMLIFrameElement>("iframe[data-synopsis-video][data-src]").forEach((frame) => {
+          frame.src = frame.dataset.src ?? "about:blank";
+          frame.removeAttribute("data-src");
+        });
       } else {
         body.querySelectorAll<HTMLVideoElement>("video[data-synopsis-video]").forEach((video) => video.pause());
+        body.querySelectorAll<HTMLIFrameElement>("iframe[data-synopsis-video]").forEach((frame) => {
+          if (frame.src && frame.src !== "about:blank") {
+            frame.dataset.src = frame.src;
+            frame.src = "about:blank";
+          }
+        });
       }
     };
     toggle.addEventListener("click", () => {
