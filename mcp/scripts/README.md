@@ -172,7 +172,13 @@ description on the game's single unambiguous itch.io download page. It prefers
 Open Graph description metadata, then the standard page description. It does
 not scrape update logs or download descriptions. Manual and other source-owned
 synopses are protected; `--apply` rechecks the game and source link before
-writing `synopsis_source: itch`.
+writing `synopsis_source: itch`. On the game page, reviewed itch synopsis text
+can include standalone image markers for HTTPS GIF, JPEG, PNG, WebP, or AVIF
+assets from `cdn.imgchest.com` and `img.itch.zone`, and a
+`![itch-video:Trailer](https://www.youtube.com/embed/VIDEO_ID)` marker for a
+YouTube video ID. Other image hosts and video URL forms stay as text. Images
+and the trailer are deferred until the reveal for NSFW games; hiding the synopsis
+unloads the trailer frame.
 
 ```sh
 python3 mcp/scripts/backfill_itch_synopsis.py                 # dry run
