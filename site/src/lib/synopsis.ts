@@ -134,6 +134,7 @@ export function synopsisSourceLink(
   links: GameLink[] | null | undefined,
 ): { label: string; url: string } | null {
   const steamIds = new Set<string>();
+  const itchUrls = new Set<string>();
   for (const link of links ?? []) {
     let url: URL;
     try {
@@ -141,7 +142,7 @@ export function synopsisSourceLink(
     } catch {
       continue;
     }
-    if (!['http:', 'https:'].includes(url.protocol)) continue;
+    if (!["http:", "https:"].includes(url.protocol)) continue;
     const host = url.hostname.toLowerCase().replace(/^www\./, "");
     if (source === "gsl" && link.kind === "gamestorylog"
       && host === "gamestorylog.com" && /^\/games\/[^/]+\/?$/.test(url.pathname)) {
@@ -151,7 +152,14 @@ export function synopsisSourceLink(
       const match = url.pathname.match(/^\/app\/([1-9]\d*)(?:\/|$)/);
       if (match) steamIds.add(match[1]);
     }
+    if (source === "itch" && link.kind === "download"
+      && url.protocol === "https:"
+      && (host === "itch.io" || host.endsWith(".itch.io"))
+      && url.pathname.split("/").filter(Boolean).length >= 1) {
+      itchUrls.add(url.href);
+    }
   }
+  if (itchUrls.size === 1) return { label: "itch.io", url: [...itchUrls][0] };
   if (steamIds.size !== 1) return null;
   return { label: "Steam", url: `https://store.steampowered.com/app/${[...steamIds][0]}/` };
 }

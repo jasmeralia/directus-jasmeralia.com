@@ -20,12 +20,12 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from scriptlib import (  # pylint: disable=wrong-import-position
+from scriptlib import (  # pylint: disable=wrong-import-position # noqa: E402
     CACHE_DIR,
     DirectusClient,
     RetryingDirectusClient,
 )
-from steamlib import (  # pylint: disable=wrong-import-position
+from steamlib import (  # pylint: disable=wrong-import-position # noqa: E402
     extract_steam_appid,
     fetch_steam_details,
 )

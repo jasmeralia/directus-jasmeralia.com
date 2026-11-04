@@ -159,6 +159,52 @@ progress under `mcp/cache/steam_synopsis_progress.json`. Ambiguous app links and
 non-game store entries are skipped. Directus credentials come from `.mcp.json`;
 the script makes no schema changes and does not trigger a site rebuild.
 
+### Itch.io synopses for AVNs
+
+`backfill_itch_synopsis.py` fills blank AVN synopses from the public metadata
+description on the game's single unambiguous itch.io download page. It prefers
+Open Graph description metadata, then the standard page description. It does
+not scrape update logs or download descriptions. Manual and other source-owned
+synopses are protected; `--apply` rechecks the game and source link before
+writing `synopsis_source: itch`.
+
+```sh
+python3 mcp/scripts/backfill_itch_synopsis.py                 # dry run
+python3 mcp/scripts/backfill_itch_synopsis.py --refresh        # refetch descriptions
+python3 mcp/scripts/backfill_itch_synopsis.py --only-slug foo  # one game
+python3 mcp/scripts/backfill_itch_synopsis.py --apply           # write saved plan
+```
+
+The default is a dry run. Page metadata is cached in
+`mcp/cache/itch_synopsis_cache.json` and the plan in
+`mcp/cache/itch_synopsis_plan.json`. Requests are spaced by at least 1.5 seconds;
+403/429/503 responses honor `Retry-After` and use bounded exponential backoff.
+Review `mcp/cache/itch_synopsis_review.md` for short, unusually long, missing,
+or failed descriptions before applying.
+Applying updates triggers one site rebuild for the changed games.
+
+### Repair console search links
+
+`repair_console_search_links.py` resolves legacy PlayStation and Xbox search
+URLs to direct product pages. It searches the store using the saved search term,
+scores results against the Directus title, and prefers a comparable PS5 or Xbox
+Series X|S product when multiple generations are available. Lower-confidence
+matches and links with an existing product link for that platform remain in the
+review file.
+
+```sh
+python3 mcp/scripts/repair_console_search_links.py                 # dry run
+python3 mcp/scripts/repair_console_search_links.py --refresh        # refresh store lookups
+python3 mcp/scripts/repair_console_search_links.py --only-slug foo  # one game
+python3 mcp/scripts/repair_console_search_links.py --apply           # write saved plan
+```
+
+Cached results and the plan are stored under `mcp/cache/`; review
+`console_store_search_review.md` before applying. Store requests use the shared
+429 retry handling and are spaced by at least 2 seconds for PlayStation and
+0.75 seconds for Xbox. Apply rechecks each source link, updates only the URL,
+and triggers one rebuild for changed games.
+
 ## Steam wishlist imports
 
 `wishlist_import.py` reads the Steam wishlist and current Directus catalog to

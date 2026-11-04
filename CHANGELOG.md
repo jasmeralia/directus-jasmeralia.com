@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.288] - 2026-11-03
+- Games: add itch.io synopsis attribution for AVN backfills and improve the Unreleased chip contrast.
+- Scripts: add cached, rate-limited itch synopsis and PlayStation/Xbox search-link repair backfills.
+
 ## [1.0.287] - 2026-11-03
 - Filters: add a Data Curation Review filter for games missing a synopsis.
 

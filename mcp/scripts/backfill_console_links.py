@@ -187,7 +187,7 @@ def store_title_similarity(our_title, store_title):
         r"[\s\-–]+("
         r"ps[45]?[®™]?|xbox\s*(one|series\s*x)?|series\s*x\|?s?"
         r"|x\|s|x\\|s"
-        r"|standard|ultimate|digital|deluxe|gold|complete"
+        r"|standard|ultimate|digital|deluxe|gold|complete|director'?s\s+cut"
         r"|edition|bundle|collection|pack|remaster(?:ed)?"
         r").*$",
         "",
@@ -269,6 +269,22 @@ _PSN_NON_GAME = re.compile(
     r"demo|trial|add-?on|dlc|soundtrack|artbook|episode\s+\d)\b",
     re.IGNORECASE,
 )
+
+
+def psn_result_is_non_game(name, localized_type=""):
+    """Return whether a PlayStation result is DLC or other non-game content."""
+    kind = str(localized_type or "").casefold().strip()
+    return (kind and kind in _PSN_NON_GAME_TYPES) or bool(_PSN_NON_GAME.search(name))
+
+
+def xbox_result_is_pc_only(name):
+    """Return whether an Xbox result is a PC-only listing."""
+    return bool(_XBOX_PC_ONLY.search(name))
+
+
+def xbox_result_is_non_game(name):
+    """Return whether an Xbox result is DLC or other non-game content."""
+    return bool(_XBOX_NON_GAME.search(name))
 
 
 def _trailing_number(title: str) -> str | None:
@@ -378,32 +394,42 @@ PSN_H = {
 
 
 def _parse_psn_search(raw: bytes) -> list[dict]:
-    """Extract product results from a PlayStation search response."""
-    body = raw.decode("utf-8", errors="replace")
-    match = re.search(
-        r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', body, re.DOTALL
-    )
-    if not match:
-        return []
-    apollo = json.loads(match.group(1)).get("props", {}).get("apolloState", {})
+    """Extract game products from the public PlayStation catalog response."""
+    body = json.loads(raw.decode("utf-8", errors="replace"))
     results = []
-    for key, value in apollo.items():
-        if key.startswith("Product:") and isinstance(value, dict) and value.get("name"):
-            product_id = key.replace("Product:", "").replace(":en-us", "")
-            results.append(
-                {
-                    "name": value["name"],
-                    "localizedType": value.get("localizedType", ""),
-                    "url": f"https://store.playstation.com/en-us/product/{product_id}",
-                }
-            )
+    seen: set[str] = set()
+    for item in body.get("links", []):
+        if not isinstance(item, dict):
+            continue
+        product_id = str(item.get("id") or "").strip()
+        name = str(item.get("name") or "").strip()
+        content_type = str(item.get("game_contentType") or "").strip()
+        if (
+            not name
+            or not product_id
+            or product_id in seen
+            or item.get("container_type") != "product"
+            or content_type.casefold() not in {"full game", "psn game", "game"}
+        ):
+            continue
+        seen.add(product_id)
+        results.append(
+            {
+                "name": name,
+                "localizedType": content_type,
+                "url": f"https://store.playstation.com/en-us/product/{product_id}",
+            }
+        )
     return results
 
 
 def psn_search(title):
-    """Search the PlayStation store for a title with retries."""
-    q = urllib.parse.quote(title)
-    url = f"https://store.playstation.com/en-us/search/{q}"
+    """Search the PlayStation catalog for a title with retry handling."""
+    q = urllib.parse.quote(title, safe="")
+    url = (
+        "https://store.playstation.com/store/api/chihiro/00_09_000/"
+        f"tumbler/US/en/999/{q}?suggested_size=24&mode=game"
+    )
     results, err = fetch_with_backoff(
         url,
         headers=PSN_H,
