@@ -18,6 +18,29 @@ const LEGACY_STEAM_IMAGE_HOSTS = new Set([
   "steamstore-a.akamaihd.net",
 ]);
 
+const SYNOPSIS_STORE_SOURCES = new Map([
+  ["gog", {
+    label: "GOG",
+    hosts: new Set(["gog.com"]),
+    path: /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?game\/[^/]+\/?$/i,
+  }],
+  ["psn", {
+    label: "PlayStation Store",
+    hosts: new Set(["store.playstation.com"]),
+    path: /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)+(?:product|concept)\/[^/]+(?:\/[^/]+)?\/?$/i,
+  }],
+  ["xbox", {
+    label: "Xbox Store",
+    hosts: new Set(["xbox.com"]),
+    path: /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)+games\/store\/[^/]+(?:\/[^/]+)?\/?$/i,
+  }],
+  ["egs", {
+    label: "Epic Games Store",
+    hosts: new Set(["store.epicgames.com", "epicgames.com"]),
+    path: /^\/(?:(?:[a-z]{2}(?:-[a-z]{2})?\/)?(?:p|bundles)\/|store\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?p\/)[^/]+(?:\/[^/]+)?\/?$/i,
+  }],
+]);
+
 function safeSteamImageUrl(value: string): string | null {
   try {
     const url = new URL(value);
@@ -134,7 +157,8 @@ export function synopsisSourceLink(
   links: GameLink[] | null | undefined,
 ): { label: string; url: string } | null {
   const steamIds = new Set<string>();
-  const itchUrls = new Set<string>();
+  const sourceUrls = new Set<string>();
+  const sourceConfig = source ? SYNOPSIS_STORE_SOURCES.get(source) : undefined;
   for (const link of links ?? []) {
     let url: URL;
     try {
@@ -156,10 +180,23 @@ export function synopsisSourceLink(
       && url.protocol === "https:"
       && host.endsWith(".itch.io")
       && url.pathname.split("/").filter(Boolean).length >= 1) {
-      itchUrls.add(url.href);
+      sourceUrls.add(url.href);
+    }
+    if (sourceConfig && link.kind === "download"
+      && url.protocol === "https:"
+      && !url.username
+      && !url.password
+      && sourceConfig.hosts.has(host)
+      && sourceConfig.path.test(url.pathname)) {
+      url.hash = "";
+      url.search = "";
+      sourceUrls.add(url.href);
     }
   }
-  if (itchUrls.size === 1) return { label: "itch.io", url: [...itchUrls][0] };
-  if (steamIds.size !== 1) return null;
+  if (source === "itch" && sourceUrls.size === 1) return { label: "itch.io", url: [...sourceUrls][0] };
+  if (sourceConfig && sourceUrls.size === 1) {
+    return { label: sourceConfig.label, url: [...sourceUrls][0] };
+  }
+  if (source !== "steam" || steamIds.size !== 1) return null;
   return { label: "Steam", url: `https://store.steampowered.com/app/${[...steamIds][0]}/` };
 }

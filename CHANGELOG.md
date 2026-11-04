@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.289] - 2026-11-04
+- Games: support GOG, PlayStation Store, Xbox Store, and Epic Games Store synopsis attribution.
+
 ## [1.0.288] - 2026-11-03
 - Games: add itch.io synopsis attribution for AVN backfills and improve the Unreleased chip contrast.
 - Scripts: add cached, rate-limited itch synopsis and PlayStation/Xbox search-link repair backfills.

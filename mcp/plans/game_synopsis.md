@@ -83,12 +83,14 @@ AVNs, with the broader catalog left unapplied. Baseline measurements below were 
    `renderMarkdown`). GSL text stays plain text. The `||spoiler||` markdown extension is
    deliberately not used; the task's reuse requirement is met by the `.nsfw-text` pattern.
 3. **A `synopsis_source` field exists for refresh safety.** Values: `gsl`, `steam`, `itad`,
-   `itch`, `manual`. A script may only overwrite a synopsis whose source is its own; a hand-edited synopsis
-   is protected by setting the source to `manual` in Directus. The default for a script is
-   fill-empty-only. This is also what lets Phase B coexist with Phase A.
+   `itch`, `gog`, `psn`, `xbox`, `egs`, `manual`. A script may only overwrite a synopsis whose
+   source is its own; a hand-edited synopsis is protected by setting the source to `manual` in
+   Directus. The default for a script is fill-empty-only. This is also what lets Phase B coexist
+   with Phase A.
 4. **Source attribution is shown.** The panel shows a small muted source caption linking to the
-   game's existing GameStoryLog, game-specific Steam, or unique itch.io link, since the text is
-   copied from another site.
+   game's existing GameStoryLog, game-specific Steam, unique itch.io, GOG, PlayStation Store,
+   Xbox Store, or Epic Games Store link, since the text is copied from another site. Store links
+   are accepted only on their canonical hosts and expected game routes.
 5. **Normalization to ASCII punctuation** (see the pipeline below). Accented letters and emoji are
    kept; only invisible characters and the smart punctuation `AGENTS.md` prohibits are changed.
 6. **The GSL script is local-only**, under `mcp/scripts/ignored/`, following the existing GSL
@@ -109,8 +111,8 @@ AVNs, with the broader catalog left unapplied. Baseline measurements below were 
 The `synopsis` and `synopsis_source` fields were created before the original backfill. Before adding
 a new source value, take a full-database `pg_dump` through `cms-db` per `AGENTS.md` (never a
 table-scoped dump), then update the `synopsis_source` select-dropdown choices on
-`/fields/games/synopsis_source`. Adding a choice does not write any game rows. The current source
-values are `gsl`, `steam`, `itad`, `itch`, and `manual`.
+`/fields/games/synopsis_source`. Adding a choice does not write any game rows. The source values
+are `gsl`, `steam`, `itad`, `itch`, `gog`, `psn`, `xbox`, `egs`, and `manual`.
 
 ## Phase 2: site PR (merge and deploy BEFORE any backfill write)
 
