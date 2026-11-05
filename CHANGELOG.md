@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.291] - 2026-11-04
+- Filters: keep the six index charts in one two-column grid so they wrap into pairs.
+
 ## [1.0.290] - 2026-11-04
 - Games: render allowlisted itch.io description images and the YouTube trailer inside the synopsis, with NSFW media deferred until reveal.
 
