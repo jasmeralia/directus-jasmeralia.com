@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.292] - 2026-11-04
+- Filters: apply the chart panel and SVG styles to the Developer Link Platform child component.
+
 ## [1.0.291] - 2026-11-04
 - Filters: keep the six index charts in one two-column grid so they wrap into pairs.
 
