@@ -1188,10 +1188,11 @@ const chartCount = [
       .panel h3{margin:16px 0 8px 0;font-size:.95rem;opacity:.85;}
       .jump-top{margin:12px 0 0;font-size:.85rem;opacity:.8;text-align:right;}
       .pie-wrap{display:flex;justify-content:center;padding-top:45px;padding-bottom:45px;}
-      .pie-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:16px;}
+      .pie-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:16px;}
       .pie-panel{background:#151515;border:1px solid #252525;border-radius:10px;padding:12px 48px;}
       .pie-panel h3{margin:0 0 8px 0;font-size:1rem;}
       .pie{width:220px;height:220px;border-radius:50%;border:1px solid #2b2b2b;background:#222;display:block;overflow:visible;}
+      @media(max-width:700px){.pie-grid{grid-template-columns:minmax(0,1fr);}.pie-panel{padding-inline:12px;}}
     </style>
   </div>
   <main id="top">
@@ -1520,7 +1521,7 @@ const chartCount = [
     </div>
     <div class="panel" id="charts">
       <h2>Charts ({chartCount})</h2>
-      {platformPieSegments.length || platformExclusivePieSegments.length ? (
+      {platformPieSegments.length || platformExclusivePieSegments.length || downloadPlatformCountPieSegments.length || walkthroughPieSegments.length || devLinkPieSegments.length || nsfwPieSegments.length ? (
         <div class="pie-grid">
           {platformPieSegments.length ? (
           <div class="pie-panel">
@@ -1574,10 +1575,6 @@ const chartCount = [
             </div>
           </div>
           ) : null}
-        </div>
-      ) : null}
-      {downloadPlatformCountPieSegments.length || walkthroughPieSegments.length || devLinkPieSegments.length ? (
-        <div class="pie-grid">
           {downloadPlatformCountPieSegments.length ? (
           <div class="pie-panel">
             <h3>Download Platform Count</h3>
@@ -1633,10 +1630,7 @@ const chartCount = [
           {devLinkPieSegments.length ? (
             <PieChart title="Developer Link Platform" ariaLabel="Developer link platform distribution" segments={devLinkPieSegments} />
           ) : null}
-        </div>
-      ) : null}
-      {nsfwPieSegments.length ? (
-        <div class="pie-grid">
+          {nsfwPieSegments.length ? (
           <div class="pie-panel">
             <h3>SFW / NSFW</h3>
             <div class="pie-wrap">
@@ -1661,6 +1655,7 @@ const chartCount = [
               </svg>
             </div>
           </div>
+          ) : null}
         </div>
       ) : null}
       <p class="jump-top"><a href="#top">↑ Jump to top</a></p>
