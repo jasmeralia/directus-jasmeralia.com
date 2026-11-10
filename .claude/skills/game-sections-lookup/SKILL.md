@@ -18,7 +18,9 @@ Look up credible game section structures, cache the findings, write them through
 - Never use `mcp__directus__*` for writes. Send all game, `game_sections`, and researched `games_links` writes through `mcp/scripts/populate_game_sections.py`, which uses `scriptlib.DirectusClient`.
 - When research finds a credible walkthrough or strategy guide, include its URL as a walkthrough link. Do not add search-result pages or sources that are not walkthroughs.
 - Never guess or fabricate a total section count.
-- Never guess or set `current_section`. Preserve the owner's existing value.
+- Preserve any non-null `current_section` value. When populating a linear game
+  whose `player_status` is `in_progress` or `on_hold` and whose current section
+  is null, default the newly populated game's `current_section` to `1`.
 - Use only ASCII punctuation in cache and payload text.
 
 ## Optional Local Lookup Scripts
@@ -166,7 +168,7 @@ Build a JSON array in this shape:
 ]
 ```
 
-Use the real per-section title when credible evidence provides it. Otherwise omit `title` or set it to `null`; the population CLI will supply `"{Noun} {N}"`. Always pass `"current": null`, which leaves `current_section` untouched.
+Use the real per-section title when credible evidence provides it. Otherwise omit `title` or set it to `null`; the population CLI will supply `"{Noun} {N}"`. Preserve an existing non-null current section. For a linear game with null current section and status `in_progress` or `on_hold`, pass `"current": 1`; for other games omit `current` or pass `null`.
 
 For a game with named items grouped under chapters/acts/locations (see
 "Category Grouping" above), add a `category` per section and keep numbering
@@ -218,7 +220,7 @@ mcp/scripts/populate_game_sections.py --from-json - --dry-run < payload.json
 mcp/scripts/populate_game_sections.py --from-json - < payload.json
 ```
 
-Each entry may include `walkthrough_links`, an array of URLs for credible walkthroughs or strategy guides found during research. The CLI adds missing URLs as `games_links` rows with `kind: "walkthrough"`, preserves existing links, skips duplicates, and includes planned link writes in dry-run output.
+Each entry may include `walkthrough_links`, an array of URLs for credible walkthroughs or strategy guides found during research. The CLI adds missing URLs as `games_links` rows with `kind: "walkthrough"`, preserves existing links, skips duplicates, and includes planned link writes in dry-run output. If correcting a previously added walkthrough link, list the incorrect URL in `remove_walkthrough_links`; the CLI removes only the matching walkthrough row and shows the deletion in dry-run output.
 
 For an explicitly requested refresh, add `--replace` to both commands. Otherwise rely on the script's idempotent upsert by section number. Record the affected game ids from target enumeration for the rebuild.
 
