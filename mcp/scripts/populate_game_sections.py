@@ -22,6 +22,7 @@ from game_sections_lib import (
     resolve_bundle_member,
     resolve_game,
     upsert_game_sections,
+    upsert_walkthrough_links,
 )
 from scriptlib import DirectusClient, take_pg_dump_backup, trigger_site_rebuild
 
@@ -112,6 +113,8 @@ def _run_from_json(
         slug = entry.get("slug")
         noun = entry.get("noun")
         sections = entry.get("sections")
+        walkthrough_links = entry.get("walkthrough_links", [])
+        remove_walkthrough_links = entry.get("remove_walkthrough_links", [])
         current = entry.get("current")
         member_slug = entry.get("member")
         if not isinstance(slug, str) or not slug:
@@ -122,6 +125,18 @@ def _run_from_json(
             isinstance(section, dict) for section in sections
         ):
             parser.error(f"Entry '{slug}' sections must be an array of objects")
+        if not isinstance(walkthrough_links, list) or not all(
+            isinstance(url, str) and url.strip() for url in walkthrough_links
+        ):
+            parser.error(
+                f"Entry '{slug}' walkthrough_links must be an array of non-empty URLs"
+            )
+        if not isinstance(remove_walkthrough_links, list) or not all(
+            isinstance(url, str) and url.strip() for url in remove_walkthrough_links
+        ):
+            parser.error(
+                f"Entry '{slug}' remove_walkthrough_links must be an array of non-empty URLs"
+            )
         if current is not None and (
             not isinstance(current, int) or isinstance(current, bool)
         ):
@@ -148,6 +163,13 @@ def _run_from_json(
             dry_run=args.dry_run,
         )
         _print_summary(result, dry_run=args.dry_run)
+        upsert_walkthrough_links(
+            client,
+            game["id"],
+            walkthrough_links,
+            remove_urls=remove_walkthrough_links,
+            dry_run=args.dry_run,
+        )
         affected_game_ids.append(game["id"])
     if affected_game_ids and not args.dry_run:
         trigger_site_rebuild(client, affected_game_ids)

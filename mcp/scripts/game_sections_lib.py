@@ -416,6 +416,91 @@ def upsert_game_sections(
     }
 
 
+def upsert_walkthrough_links(
+    client: DirectusClient,
+    game_id: int,
+    urls: list[str],
+    *,
+    remove_urls: list[str] | None = None,
+    dry_run: bool = False,
+) -> int:
+    """Reconcile researched walkthrough URLs as idempotent games_links rows."""
+    remove_urls = remove_urls or []
+    if not urls and not remove_urls:
+        return 0
+    links = client.fetch_all(
+        _query_path(
+            "games_links",
+            fields="id,url,kind,sort",
+            filter_obj={"games_id": {"_eq": game_id}},
+        )
+    )
+    existing = {
+        row.get("url")
+        for row in links
+        if row.get("kind") == "walkthrough" and isinstance(row.get("url"), str)
+    }
+    removed = 0
+    for url in remove_urls:
+        normalized = url.strip()
+        if not normalized or not normalized.isascii():
+            raise ValueError("Walkthrough URLs must be non-empty ASCII strings")
+        row = next(
+            (
+                item
+                for item in links
+                if item.get("kind") == "walkthrough" and item.get("url") == normalized
+            ),
+            None,
+        )
+        if row is None:
+            continue
+        if dry_run:
+            print(
+                f"[DRY RUN] DELETE /items/games_links/{row['id']}: {normalized}",
+                file=sys.stderr,
+            )
+        else:
+            client.delete(f"/items/games_links/{row['id']}")
+            print(
+                f"  Removed walkthrough link id={row['id']}: {normalized}",
+                file=sys.stderr,
+            )
+        existing.discard(normalized)
+        links.remove(row)
+        removed += 1
+    next_sort = max(
+        (row.get("sort") or 0 for row in links if isinstance(row.get("sort"), int)),
+        default=0,
+    )
+    added = 0
+    for url in urls:
+        normalized = url.strip()
+        if not normalized or not normalized.isascii():
+            raise ValueError("Walkthrough URLs must be non-empty ASCII strings")
+        if normalized in existing:
+            print(f"  Walkthrough link already present: {normalized}", file=sys.stderr)
+            continue
+        next_sort += 1
+        payload = {
+            "games_id": game_id,
+            "url": normalized,
+            "kind": "walkthrough",
+            "sort": next_sort,
+        }
+        if dry_run:
+            print(f"[DRY RUN] POST /items/games_links: {payload}", file=sys.stderr)
+        else:
+            result = client.post("/items/games_links", payload).get("data", {})
+            print(
+                f"  Added walkthrough link id={result.get('id')}: {normalized}",
+                file=sys.stderr,
+            )
+        existing.add(normalized)
+        added += 1
+    return added + removed
+
+
 _LOWERCASE_CATEGORY_WORDS = {
     "a",
     "an",

@@ -46,6 +46,12 @@ When adding a game with a good, game-specific Steam app link, backfill **all ava
 
 Game thumbnail cards show published S-F tier ratings as neutral linked chips; `site/src/lib/tier-chips.ts` builds them and `GameThumbCard.astro` accepts them through its `tierChips` prop.
 
+## Researching game sections
+
+The `.claude/skills/game-sections-lookup/` skill researches ordered sections and writes them through `mcp/scripts/populate_game_sections.py`. When section research finds a credible walkthrough or strategy guide, include its URL in the JSON entry's `walkthrough_links` array; the CLI stores it in `games_links` with `kind: "walkthrough"`, skips existing duplicates, and includes it in dry-run output. Include only actual guides that help navigate or complete the researched game, not search-result pages or general references. To remove a previously added incorrect walkthrough URL, list it in `remove_walkthrough_links` so the CLI deletes only the matching walkthrough row and previews that deletion. Keep walkthrough links for included bundle members on the parent game record because `games_links` is game-scoped. Preserve any non-null `current_section`; when populating a linear game whose status is `in_progress` or `on_hold` and whose current section is null, default it to section 1.
+
+For story expansions and DLC, give each main game or expansion its own `game_sections.category` while keeping section numbers globally unique in play order. Use source wording for the names (for example, `Dragon Age: Origins` and `Awakening`, or `Shadows of Undrentide` and `Hordes of the Underdark`). Do not create bundle members solely for DLC.
+
 Genre superset relationships are virtual site behavior configured in `site/src/lib/genre-supersets.ts` (currently AVN -> Visual Novel and ARPG/CRPG/JRPG -> RPG). Apply them in code for genre membership, counts, routes, and filters; do not add inherited `games_genres` rows to Directus. Distinct genre displays may continue to suppress a superset label when a more specific subset label is present.
 
 ## Key cache files

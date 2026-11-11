@@ -15,9 +15,12 @@ Look up credible game section structures, cache the findings, write them through
 
 - Make no schema changes. Do not create, alter, or delete Directus collections, fields, relations, or permissions.
 - Use WebSearch, plus any discovered local lookup script (see "Optional Local Lookup Scripts" below), as the only lookup mechanisms. Do not use WebFetch or depend on fetching a specific wiki page.
-- Never use `mcp__directus__*` for writes. Send all game and `game_sections` writes through `mcp/scripts/populate_game_sections.py`, which uses `scriptlib.DirectusClient`.
+- Never use `mcp__directus__*` for writes. Send all game, `game_sections`, and researched `games_links` writes through `mcp/scripts/populate_game_sections.py`, which uses `scriptlib.DirectusClient`.
+- When research finds a credible walkthrough or strategy guide, include its URL as a walkthrough link. Do not add search-result pages or sources that are not walkthroughs.
 - Never guess or fabricate a total section count.
-- Never guess or set `current_section`. Preserve the owner's existing value.
+- Preserve any non-null `current_section` value. When populating a linear game
+  whose `player_status` is `in_progress` or `on_hold` and whose current section
+  is null, default the newly populated game's `current_section` to `1`.
 - Use only ASCII punctuation in cache and payload text.
 
 ## Optional Local Lookup Scripts
@@ -74,6 +77,7 @@ Use 1-2 WebSearch queries per uncached game. Start with:
 
 - `"<title>" number of chapters`
 - `"<title>" chapter list`
+- `"<title>" walkthrough guide`
 - For AVNs, `"<title>" latest version chapters` or `"<title>" episode list`
 
 Detect the noun the game uses, such as Chapter, Act, Episode, Mission, Case, Day, or Route. Default the noun to `Chapter` only when no better noun appears.
@@ -81,6 +85,7 @@ Detect the noun the game uses, such as Chapter, Act, Episode, Mission, Case, Day
 Determine a credible total from the search snippets. Require corroboration. AVN devlog text such as "Chapter 3 is now available" is valid evidence that at least three chapters exist. When sources conflict, prefer the more authoritative and most recent evidence, and save the reasoning with the cached finding.
 
 Save credible findings in `mcp/cache/game_sections_lookup.json` under the slug, including at least `slug`, `title`, `noun`, `count`, `sections`, `reason`, and the search queries or source descriptions used.
+Also cache any credible walkthrough guide URLs in `walkthrough_links` so they can be written idempotently with the section data.
 
 ## Category Grouping (Chapters/Acts That Contain Multiple Named Items)
 
@@ -122,6 +127,8 @@ single `title`:
   list/count), fall back to the plain one-row-per-chapter model with no
   `category`, exactly as documented above.
 
+For expansion and DLC content, use a distinct `category` from the base game and preserve the overall play order with globally unique section numbers. Use actual expansion names when clear, such as `Dragon Age: Origins` / `Awakening` or `Shadows of Undrentide` / `Hordes of the Underdark`; do not merge expansion sections into the base game's category.
+
 ## Mandatory Correctness Gate
 
 If WebSearch cannot establish a credible total count, do not invent one, do not create default rows, and do not write that game to Directus. Skip the game and add or update this object in `mcp/cache/game_sections_needs_manual.json`:
@@ -155,12 +162,13 @@ Build a JSON array in this shape:
     "sections": [
       {"number": 1, "title": null},
       {"number": 2, "title": "Fateful Encounters"}
-    ]
+    ],
+    "walkthrough_links": ["https://example.com/game-walkthrough"]
   }
 ]
 ```
 
-Use the real per-section title when credible evidence provides it. Otherwise omit `title` or set it to `null`; the population CLI will supply `"{Noun} {N}"`. Always pass `"current": null`, which leaves `current_section` untouched.
+Use the real per-section title when credible evidence provides it. Otherwise omit `title` or set it to `null`; the population CLI will supply `"{Noun} {N}"`. Preserve an existing non-null current section. For a linear game with null current section and status `in_progress` or `on_hold`, pass `"current": 1`; for other games omit `current` or pass `null`.
 
 For a game with named items grouped under chapters/acts/locations (see
 "Category Grouping" above), add a `category` per section and keep numbering
@@ -211,6 +219,8 @@ For more than two games, run and show the dry-run output before applying:
 mcp/scripts/populate_game_sections.py --from-json - --dry-run < payload.json
 mcp/scripts/populate_game_sections.py --from-json - < payload.json
 ```
+
+Each entry may include `walkthrough_links`, an array of URLs for credible walkthroughs or strategy guides found during research. The CLI adds missing URLs as `games_links` rows with `kind: "walkthrough"`, preserves existing links, skips duplicates, and includes planned link writes in dry-run output. If correcting a previously added walkthrough link, list the incorrect URL in `remove_walkthrough_links`; the CLI removes only the matching walkthrough row and shows the deletion in dry-run output.
 
 For an explicitly requested refresh, add `--replace` to both commands. Otherwise rely on the script's idempotent upsert by section number. Record the affected game ids from target enumeration for the rebuild.
 

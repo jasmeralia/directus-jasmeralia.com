@@ -1,5 +1,24 @@
 # MCP maintenance scripts
 
+## Game section research
+
+The project-local `game-sections-lookup` skill researches ordered chapters,
+acts, episodes, missions, or other named sections and applies credible results
+with `populate_game_sections.py --from-json`. An entry may include
+`walkthrough_links: ["https://..."]`; the CLI adds these to `games_links` with
+`kind: walkthrough`, skips URLs already linked as walkthroughs, and shows link
+writes in dry-run output. Use only URLs for actual walkthroughs or strategy
+guides found while researching the game's section structure.
+Use `remove_walkthrough_links` only to correct a previously added incorrect
+walkthrough URL; the CLI deletes only the matching walkthrough row and previews
+the deletion in dry-run output. Preserve any non-null `current_section`. When
+populating a linear game with a null current section and `player_status` of
+`in_progress` or `on_hold`, set `current` to `1`.
+
+For expansion and DLC story content, give each title its own `category` and
+keep globally unique section numbers in play order. Do not create a bundle
+member just to represent DLC.
+
 ## Game links
 
 The old `games.download_url` field no longer exists. Scripts that need a
