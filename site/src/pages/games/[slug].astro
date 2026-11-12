@@ -458,6 +458,7 @@ const coverStackStyle = [
       .label{opacity:.7;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;}
       .panel{background:#111;border:1px solid #222;border-radius:12px;padding:16px;}
       .synopsis-body p{margin:.5rem 0;}
+      .synopsis-content.collapsed{display:none;}
       .synopsis-body p:first-child{margin-top:0;}
       .synopsis-body p:last-child{margin-bottom:0;}
       :global(.synopsis-body .synopsis-image){display:block;box-sizing:border-box;max-width:100%;height:auto;margin:.75rem auto;border-radius:6px;}
@@ -472,8 +473,9 @@ const coverStackStyle = [
       :global(.synopsis-body.nsfw-text.revealed .synopsis-image){visibility:visible;}
       :global(html.nsfw-on) .synopsis-body.nsfw-text{padding:0;background:none;}
       .synopsis-heading{display:flex;align-items:center;justify-content:space-between;gap:.75rem;}
-      .synopsis-toggle{border:1px solid #555;border-radius:5px;background:#222;color:#eaeaea;padding:.25rem .5rem;cursor:pointer;}
-      .synopsis-toggle:focus-visible{outline:2px solid #8c58ff;outline-offset:2px;}
+      .synopsis-controls{display:flex;align-items:center;gap:.5rem;}
+      .synopsis-toggle,.synopsis-collapse-toggle{border:1px solid #555;border-radius:5px;background:#222;color:#eaeaea;padding:.25rem .5rem;cursor:pointer;}
+      .synopsis-toggle:focus-visible,.synopsis-collapse-toggle:focus-visible{outline:2px solid #8c58ff;outline-offset:2px;}
       :global(html.nsfw-on) .synopsis-toggle{display:none;}
       .synopsis-source{margin-top:.6rem;font-size:.85rem;opacity:.7;}
       #synopsis{outline:1px dashed #8c58ff;outline-offset:3px;}
@@ -669,24 +671,29 @@ const coverStackStyle = [
         <div class="section panel" id="synopsis">
           <div class="synopsis-heading">
             <div class="label">Synopsis</div>
-            {gameNsfw ? <button class="synopsis-toggle" type="button" aria-controls="synopsis-body" aria-expanded="false">Reveal synopsis</button> : null}
-          </div>
-          {game.synopsis_source === "steam" ? (
-            <div id="synopsis-body" class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "", "aria-hidden": "true" } : {})} set:html={steamSynopsisHtml}></div>
-          ) : (
-            <div id="synopsis-body" class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "", "aria-hidden": "true" } : {})}>
-              {synopsisContent.map((block) => block.kind === "image" ? (
-                <img class="synopsis-image" src={gameNsfw ? undefined : block.src} data-src={gameNsfw ? block.src : undefined} alt={block.alt} loading="lazy" decoding="async" referrerpolicy="no-referrer" />
-              ) : block.kind === "video" ? (
-                <iframe class="synopsis-video" src={gameNsfw ? undefined : block.src} data-src={gameNsfw ? block.src : undefined} data-synopsis-video title={block.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-              ) : (
-                <p>{block.text}</p>
-              ))}
+            <div class="synopsis-controls">
+              {gameNsfw ? <button class="synopsis-toggle" type="button" aria-controls="synopsis-body" aria-expanded="false">Reveal synopsis</button> : null}
+              <button class="synopsis-collapse-toggle" type="button" aria-controls="synopsis-content" aria-expanded="true">Collapse synopsis</button>
             </div>
-          )}
-          {synopsisAttribution ? (
-            <div class="synopsis-source">Source: <a href={synopsisAttribution.url} target="_blank" rel="noopener noreferrer">{synopsisAttribution.label}</a></div>
-          ) : null}
+          </div>
+          <div id="synopsis-content" class="synopsis-content">
+            {game.synopsis_source === "steam" ? (
+              <div id="synopsis-body" class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "", "aria-hidden": "true" } : {})} set:html={steamSynopsisHtml}></div>
+            ) : (
+              <div id="synopsis-body" class={`synopsis-body${gameNsfw ? " nsfw-text" : ""}`} {...(gameNsfw ? { "data-pagefind-ignore": "", "aria-hidden": "true" } : {})}>
+                {synopsisContent.map((block) => block.kind === "image" ? (
+                  <img class="synopsis-image" src={gameNsfw ? undefined : block.src} data-src={gameNsfw ? block.src : undefined} alt={block.alt} loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                ) : block.kind === "video" ? (
+                  <iframe class="synopsis-video" src={gameNsfw ? undefined : block.src} data-src={gameNsfw ? block.src : undefined} data-synopsis-video title={block.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                ) : (
+                  <p>{block.text}</p>
+                ))}
+              </div>
+            )}
+            {synopsisAttribution ? (
+              <div class="synopsis-source">Source: <a href={synopsisAttribution.url} target="_blank" rel="noopener noreferrer">{synopsisAttribution.label}</a></div>
+            ) : null}
+          </div>
         </div>
       ) : null}
       <div class="section panel">
@@ -1076,6 +1083,29 @@ const coverStackStyle = [
 </BaseLayout>
 
 <script>
+  (() => {
+    const collapseToggle = document.querySelector<HTMLButtonElement>(".synopsis-collapse-toggle");
+    const content = document.getElementById("synopsis-content");
+    if (collapseToggle && content) {
+      const sync = () => {
+        const collapsed = new URLSearchParams(window.location.search).get("synopsis") === "closed";
+        content.classList.toggle("collapsed", collapsed);
+        collapseToggle.setAttribute("aria-expanded", String(!collapsed));
+        collapseToggle.textContent = collapsed ? "Expand synopsis" : "Collapse synopsis";
+      };
+      collapseToggle.addEventListener("click", () => {
+        const url = new URL(window.location.href);
+        if (content.classList.contains("collapsed")) url.searchParams.delete("synopsis");
+        else url.searchParams.set("synopsis", "closed");
+        history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+        if (url.searchParams.get("synopsis") === "closed") {
+          document.getElementById("synopsis-body")?.classList.remove("revealed");
+        }
+        sync();
+      });
+      sync();
+    }
+  })();
   (() => {
     const toggle = document.querySelector<HTMLButtonElement>(".synopsis-toggle");
     const body = document.getElementById("synopsis-body");
