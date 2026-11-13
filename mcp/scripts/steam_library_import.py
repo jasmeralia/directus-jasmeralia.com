@@ -20,8 +20,8 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from pathlib import Path
 from itertools import chain
+from pathlib import Path
 from typing import Any
 
 from scriptlib import (
@@ -117,7 +117,7 @@ def fetch_library() -> list[dict[str, Any]]:
         payload = json.load(response)
     games = payload.get("response", {}).get("games")
     if not isinstance(games, list):
-        raise RuntimeError("Steam returned no owned-games list")
+        raise TypeError("Steam returned no owned-games list")
     result = [
         {
             "appid": int(game["appid"]),
@@ -313,7 +313,7 @@ def fetch_plan(delay: float) -> list[dict[str, Any]]:
             if re.search(
                 r"\b(demo|playtest|beta|public testing|sniper challenge)\b",
                 steam_game["name"],
-                re.I,
+                re.IGNORECASE,
             ):
                 rows.append(
                     {**steam_game, "action": "skip", "reason": "test_or_companion_app"}
@@ -419,7 +419,9 @@ def fetch_plan(delay: float) -> list[dict[str, Any]]:
         if (
             details.get("type") != "game"
             or details.get("is_free")
-            or re.search(r"\b(demo|playtest|beta|public testing)\b", title, re.I)
+            or re.search(
+                r"\b(demo|playtest|beta|public testing)\b", title, re.IGNORECASE
+            )
         ):
             rows.append(
                 {
