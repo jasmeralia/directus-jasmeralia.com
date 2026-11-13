@@ -132,7 +132,10 @@ def steamgriddb_cover_url(appid: int, api_key: str) -> tuple[str | None, str | N
     payload, err = fetch_with_backoff(
         url,
         headers={"Authorization": f"Bearer {api_key}"},
-        retry=RetryPolicy(rate_limit_codes=(403, 429)),
+        # SteamGridDB uses 403 for invalid/forbidden credentials, not just
+        # throttling. Retrying those responses for minutes prevents the caller
+        # from reaching the Steam CDN fallbacks below.
+        retry=RetryPolicy(rate_limit_codes=(429,)),
     )
     if payload is None:
         return None, err
@@ -169,8 +172,11 @@ def find_cover_url(
 def import_steam_cover(
     client: DirectusClient, appid: int, title: str, slug: str, cover_url: str
 ) -> str | None:
-    """Import a Steam-sourced cover into Directus, reusing a deterministic file ID."""
+    """Import a remotely sourced cover with a deterministic Directus file ID."""
     file_id = cover_uuid(appid)
+    extension = urllib.parse.urlsplit(cover_url).path.rsplit(".", 1)[-1].lower()
+    if extension not in {"jpg", "jpeg", "png", "webp", "avif"}:
+        extension = "jpg"
     try:
         result = client.request(
             "POST",
@@ -180,7 +186,7 @@ def import_steam_cover(
                 "data": {
                     "id": file_id,
                     "title": f"{title} {appid}",
-                    "filename_download": f"{slug}_{appid}.jpg",
+                    "filename_download": f"{slug}_{appid}.{extension}",
                 },
             },
         )

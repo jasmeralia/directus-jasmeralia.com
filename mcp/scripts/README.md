@@ -250,6 +250,38 @@ in the future, and `released` for a known current or past year. A release year
 alone cannot distinguish an unreleased title scheduled later in the current
 year, so verify those dates before applying proposals.
 
+## Steam owned-library imports
+
+`steam_library_import.py` compares the current Steam owned-games list with
+Directus by app ID, then proposes only unlinked Steam games. It keeps a saved
+plan and review report in `mcp/cache/`, which is gitignored. The default run is
+read-only apart from refreshing the Steam library snapshot and caches:
+
+```sh
+python3 mcp/scripts/steam_library_import.py                 # refresh and review
+python3 mcp/scripts/steam_library_import.py --apply          # create/link safe rows
+python3 mcp/scripts/steam_library_import.py --apply --enrich # also import all Steam art and synopsis
+```
+
+The importer creates game records with Steam-derived release year/status,
+family-sharing flag, genres, developers, capsule art, and a Steam download link.
+`--enrich` then runs the full Steam art backfill (capsule, wide capsule, hero,
+logo, and icon) and fills empty synopses through the existing source-aware
+workflow. Exact title matches and configured episodic/edition mappings become
+additional Steam links on existing Directus games; likely but ambiguous title
+matches remain in the review report. AVN candidates are compared with the
+cached GameStoryLog catalog. A GSL link is only added for an explicit reviewed
+mapping, since multiple seasons may intentionally share one GSL page. In the
+current mapping, Fog of War Book Two shares the existing Fog of War GSL page.
+
+Each apply rechecks current Directus links and slug collisions before writing,
+so rerunning after new Steam purchases is safe. Twice Burned and known utility
+apps are excluded. Steam's owned-games endpoint does not expose purchase
+history; current free-to-play/non-game/test apps are skipped, and Steam app
+metadata failures remain visible as skipped rows rather than being guessed.
+Rows without a suitable capsule candidate stay in cover review and are never
+created without art.
+
 ## Itch.io release-year backfill
 
 `itch_published_dates.mjs` retrieves the account-gated `Published` field for games with no release year and an itch.io link. Export the authorized itch.io cookies from Firefox to the gitignored path `mcp/scripts/ignored/cookies.json`, then run:
