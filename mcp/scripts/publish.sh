@@ -50,17 +50,17 @@ echo "==> Updating local master..."
 git checkout master
 git pull origin master
 
+if [[ $NO_BUILD -eq 1 ]]; then
+  echo "==> Skipping legacy TrueNAS pre-pull and build (--no-build)."
+  exit 0
+fi
+
 echo "==> Pulling on TrueNAS..."
 # shellcheck disable=SC2029 # TRUENAS_REPO is a fixed script constant, not user input; client-side expansion is intended.
 if ! ssh "$TRUENAS" "git -C $TRUENAS_REPO pull" 2>&1; then
   echo "    Retrying after cleaning untracked files..."
   # shellcheck disable=SC2029 # same rationale as above.
   ssh "$TRUENAS" "git -C $TRUENAS_REPO clean -f .serena/ && git -C $TRUENAS_REPO pull"
-fi
-
-if [[ $NO_BUILD -eq 1 ]]; then
-  echo "==> Skipping build (--no-build)."
-  exit 0
 fi
 
 echo "==> Triggering rebuild..."

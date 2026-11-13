@@ -39,6 +39,7 @@ STEAM_DELAY_S = 1.5
 # matches the Directus entry; the other links point to a sequel, prologue, or
 # separate game and must not be used for this synopsis.
 STEAM_APPID_PREFERENCES = {
+    "plants-vs-zombies": 3590,  # the GOTY game, not the separate demo app
     "college-kings": 1463120,  # College Kings - The Complete Season
     "sex-of-thrones": 2480200,  # Sex of Thrones (the other link is its prologue)
     "family-crush": 2600150,  # Family Crush - Season 1 (not Summer Crush)
