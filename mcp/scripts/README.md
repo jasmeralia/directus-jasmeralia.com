@@ -15,6 +15,10 @@ the deletion in dry-run output. Preserve any non-null `current_section`. When
 populating a linear game with a null current section and `player_status` of
 `in_progress` or `on_hold`, set `current` to `1`.
 
+An applied run triggers a site rebuild by default. Pass `--no-rebuild` to either
+positional or `--from-json` mode to write the Directus data without triggering
+the rebuild; dry runs never trigger one.
+
 For expansion and DLC story content, give each title its own `category` and
 keep globally unique section numbers in play order. Do not create a bundle
 member just to represent DLC.

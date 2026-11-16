@@ -57,6 +57,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Print planned writes without changing Directus",
     )
     parser.add_argument(
+        "--no-rebuild",
+        action="store_true",
+        help="Apply Directus changes without triggering a site rebuild",
+    )
+    parser.add_argument(
         "--list-targets",
         action="store_true",
         help="Print matching game targets as JSON",
@@ -171,7 +176,7 @@ def _run_from_json(
             dry_run=args.dry_run,
         )
         affected_game_ids.append(game["id"])
-    if affected_game_ids and not args.dry_run:
+    if affected_game_ids and not args.dry_run and not args.no_rebuild:
         trigger_site_rebuild(client, affected_game_ids)
 
 
@@ -230,7 +235,7 @@ def main() -> None:
         dry_run=args.dry_run,
     )
     _print_summary(result, dry_run=args.dry_run)
-    if not args.dry_run:
+    if not args.dry_run and not args.no_rebuild:
         trigger_site_rebuild(client, [game["id"]])
 
 

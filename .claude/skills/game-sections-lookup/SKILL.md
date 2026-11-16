@@ -1,6 +1,6 @@
 ---
 name: game-sections-lookup
-description: Look up per-game chapter/act/episode/mission structure via WebSearch and record it in Directus (game_sections), then trigger a site rebuild. Accepts a player_status, a single slug/title, a genre, a tier list, or a raw Directus filter.
+description: Look up per-game chapter/act/episode/mission structure via WebSearch and record it in Directus (game_sections), then trigger a site rebuild unless --no-rebuild is requested. Accepts a player_status, a single slug/title, a genre, a tier list, or a raw Directus filter.
 allowed-tools:
   - WebSearch
   - Bash
@@ -9,7 +9,7 @@ allowed-tools:
 
 # Game Sections Lookup
 
-Look up credible game section structures, cache the findings, write them through the deterministic population CLI, and rebuild the site.
+Look up credible game section structures, cache the findings, write them through the deterministic population CLI, and rebuild the site unless `--no-rebuild` is requested.
 
 ## Safety Rules
 
@@ -220,15 +220,20 @@ mcp/scripts/populate_game_sections.py --from-json - --dry-run < payload.json
 mcp/scripts/populate_game_sections.py --from-json - < payload.json
 ```
 
+Append `--no-rebuild` to the apply command when the user requests that the site
+not be rebuilt. This writes the Directus data while skipping the rebuild trigger.
+
 Each entry may include `walkthrough_links`, an array of URLs for credible walkthroughs or strategy guides found during research. The CLI adds missing URLs as `games_links` rows with `kind: "walkthrough"`, preserves existing links, skips duplicates, and includes planned link writes in dry-run output. If correcting a previously added walkthrough link, list the incorrect URL in `remove_walkthrough_links`; the CLI removes only the matching walkthrough row and shows the deletion in dry-run output.
 
-For an explicitly requested refresh, add `--replace` to both commands. Otherwise rely on the script's idempotent upsert by section number. Record the affected game ids from target enumeration for the rebuild.
+For an explicitly requested refresh, add `--replace` to both commands. Otherwise rely on the script's idempotent upsert by section number. Record the affected game ids from target enumeration when a rebuild will be triggered.
 
-The population CLI triggers one rebuild for the affected parent game IDs after
-an applied batch. Save the timestamp printed immediately before invoking the
-apply command, then monitor that triggered build.
+By default, the population CLI triggers one rebuild for the affected parent
+game IDs after an applied batch. When `--no-rebuild` is used, skip build
+monitoring and report that no rebuild was triggered.
 
 ## Rebuild and Monitor
+
+When `--no-rebuild` was not used:
 
 Poll the OpenSearch `container-logs` index for container
 `directus-site-builder` until either `Build/publish completed successfully.` or
