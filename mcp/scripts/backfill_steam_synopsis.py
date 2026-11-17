@@ -345,8 +345,18 @@ def normalize_synopsis(text: str) -> tuple[str, list[str]]:
                 next_index < len(normalized_lines) and not normalized_lines[next_index]
             ):
                 next_index += 1
-            if next_index < len(normalized_lines) and re.match(
-                r"(?:[-+*]|\d+[.)])\s+\S", normalized_lines[next_index]
+            if next_index < len(normalized_lines):
+                next_line = normalized_lines[next_index]
+                previous_is_ordered = bool(
+                    re.match(r"\d+[.)]\s+\S", compacted_lines[-1])
+                )
+                next_is_ordered = bool(re.match(r"\d+[.)]\s+\S", next_line))
+            else:
+                previous_is_ordered = next_is_ordered = False
+            if (
+                previous_is_ordered == next_is_ordered
+                and next_index < len(normalized_lines)
+                and re.match(r"(?:[-+*]|\d+[.)])\s+\S", normalized_lines[next_index])
             ):
                 index = next_index
                 continue
@@ -860,6 +870,13 @@ def self_test() -> int:
         == "**Bold** and *italic*\n\n- First\n- **Second**\n\n1. Third\n2. Fourth\n\n"
         "Literal \\*\\*asterisks\\*\\* stay literal.",
         "Steam bold, italic, unordered and ordered lists remain rich text",
+    )
+    repaired_list = normalize_synopsis(
+        "-\n\n**First**\n\n-\n\n**Second**\n\n## Heading\n\n-"
+    )[0]
+    check(
+        repaired_list == "- **First**\n- **Second**\n\n## Heading",
+        "Empty Steam list markers become compact items without swallowing headings",
     )
     linked_text = html_to_text(
         '<p><s>Removed</s> <a href="https://example.com/path_(one)?q=two&amp;x=3">'
