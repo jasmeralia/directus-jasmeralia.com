@@ -309,7 +309,42 @@ def normalize_synopsis(text: str) -> tuple[str, list[str]]:
     value = text.replace("\r\n", "\n").replace("\r", "\n").translate(SMART_MAP)
     for character in "\u200b\u200c\u200d\ufeff":
         value = value.replace(character, "")
-    value = "\n".join(SPACE_RE.sub(" ", line).strip() for line in value.split("\n"))
+    lines = [SPACE_RE.sub(" ", line).strip() for line in value.split("\n")]
+    normalized_lines: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        marker = re.fullmatch(r"([-+*]|\d+[.)])", line)
+        if marker:
+            next_index = index + 1
+            while next_index < len(lines) and not lines[next_index]:
+                next_index += 1
+            if next_index < len(lines) and not re.match(r"#{1,6}(?:\s|$)", lines[next_index]):
+                next_line = lines[next_index]
+                if not re.fullmatch(r"[-+*]|\d+[.)]", next_line):
+                    normalized_lines.append(f"{line} {next_line}")
+                    index = next_index + 1
+                    continue
+            index += 1
+            continue
+        normalized_lines.append(line)
+        index += 1
+    compacted_lines: list[str] = []
+    index = 0
+    while index < len(normalized_lines):
+        line = normalized_lines[index]
+        if not line and compacted_lines and re.match(r"(?:[-+*]|\d+[.)])\s+\S", compacted_lines[-1]):
+            next_index = index + 1
+            while next_index < len(normalized_lines) and not normalized_lines[next_index]:
+                next_index += 1
+            if next_index < len(normalized_lines) and re.match(
+                r"(?:[-+*]|\d+[.)])\s+\S", normalized_lines[next_index]
+            ):
+                index = next_index
+                continue
+        compacted_lines.append(line)
+        index += 1
+    value = "\n".join(compacted_lines)
     value = BLANK_LINE_RE.sub("\n\n", value).strip()
     flags: list[str] = []
     visible_length = len(strip_steam_media_markers(value).strip())
