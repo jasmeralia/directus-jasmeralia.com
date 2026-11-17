@@ -319,7 +319,9 @@ def normalize_synopsis(text: str) -> tuple[str, list[str]]:
             next_index = index + 1
             while next_index < len(lines) and not lines[next_index]:
                 next_index += 1
-            if next_index < len(lines) and not re.match(r"#{1,6}(?:\s|$)", lines[next_index]):
+            if next_index < len(lines) and not re.match(
+                r"#{1,6}(?:\s|$)", lines[next_index]
+            ):
                 next_line = lines[next_index]
                 if not re.fullmatch(r"[-+*]|\d+[.)]", next_line):
                     normalized_lines.append(f"{line} {next_line}")
@@ -333,9 +335,15 @@ def normalize_synopsis(text: str) -> tuple[str, list[str]]:
     index = 0
     while index < len(normalized_lines):
         line = normalized_lines[index]
-        if not line and compacted_lines and re.match(r"(?:[-+*]|\d+[.)])\s+\S", compacted_lines[-1]):
+        if (
+            not line
+            and compacted_lines
+            and re.match(r"(?:[-+*]|\d+[.)])\s+\S", compacted_lines[-1])
+        ):
             next_index = index + 1
-            while next_index < len(normalized_lines) and not normalized_lines[next_index]:
+            while (
+                next_index < len(normalized_lines) and not normalized_lines[next_index]
+            ):
                 next_index += 1
             if next_index < len(normalized_lines) and re.match(
                 r"(?:[-+*]|\d+[.)])\s+\S", normalized_lines[next_index]
