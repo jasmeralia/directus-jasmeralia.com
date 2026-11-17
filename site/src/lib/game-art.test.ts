@@ -35,11 +35,16 @@ describe("game art tab", () => {
     expect(buildArtTab({ art: [art("capsule", "cover")] })).toEqual([]);
   });
 
-  it("excludes shared Ren'Py default logo and icon files", () => {
-    expect(buildArtTab({ art: [
+  it("excludes the shared Ren'Py default logo and labels the default icon", () => {
+    const groups = buildArtTab({ art: [
       art("logo", "default-logo", { title: "Ren'Py default logo" }),
       art("icon", "default-icon", { title: "Ren'Py default icon" }),
-    ] })).toEqual([]);
+    ] });
+    expect(groups).toHaveLength(1);
+    expect(groups[0].items[0]).toMatchObject({
+      kind: "icon",
+      defaultLabel: "Ren'Py default",
+    });
   });
 
   it("orders groups by kind and items by language, scale, and sort", () => {
@@ -120,6 +125,7 @@ describe("game art tab", () => {
         scale: "2x",
         width: 1280,
         height: 720,
+        defaultLabel: null,
       },
       {
         kind: "logo",
@@ -129,6 +135,7 @@ describe("game art tab", () => {
         scale: null,
         width: null,
         height: null,
+        defaultLabel: null,
       },
     ]);
   });

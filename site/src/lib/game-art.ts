@@ -10,7 +10,6 @@ export const ART_TAB_KINDS = [
 
 export const SHARED_DEFAULT_ART_TITLES = new Set([
   "Ren'Py default logo",
-  "Ren'Py default icon",
 ]);
 
 // A games_art row as returned when expanding a game's `art` relation.
@@ -32,6 +31,7 @@ export type ArtTabItem = {
   scale: string | null;
   width: number | null;
   height: number | null;
+  defaultLabel: string | null;
 };
 
 export type ArtTabGroup = { kind: string; label: string; items: ArtTabItem[] };
@@ -102,6 +102,7 @@ export function buildArtTab(entity: HasArt | null | undefined): ArtTabGroup[] {
         scale: row.scale ?? null,
         width: file.width ?? null,
         height: file.height ?? null,
+        defaultLabel: file.title === "Ren'Py default icon" ? "Ren'Py default" : null,
       },
       sort: row.sort ?? null,
     });
