@@ -645,6 +645,7 @@ const coverStackStyle = [
                 <div class="art-grid">
                   {group.items.map((item) => {
                     const caption = [
+                      item.defaultLabel,
                       item.scale,
                       item.language,
                       item.width !== null && item.height !== null ? `${item.width} x ${item.height}` : null,
