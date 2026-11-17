@@ -868,15 +868,12 @@ def self_test() -> int:
     check(
         rich_text
         == "**Bold** and *italic*\n\n- First\n- **Second**\n\n1. Third\n2. Fourth\n\n"
-        "Literal \\*\\*asterisks\\*\\* stay literal.",
-        "Steam bold, italic, unordered and ordered lists remain rich text",
-    )
-    repaired_list = normalize_synopsis(
-        "-\n\n**First**\n\n-\n\n**Second**\n\n## Heading\n\n-"
-    )[0]
-    check(
-        repaired_list == "- **First**\n- **Second**\n\n## Heading",
-        "Empty Steam list markers become compact items without swallowing headings",
+        "Literal \\*\\*asterisks\\*\\* stay literal."
+        and normalize_synopsis("-\n\n**First**\n\n-\n\n**Second**\n\n## Heading\n\n-")[
+            0
+        ]
+        == "- **First**\n- **Second**\n\n## Heading",
+        "Steam rich text and empty list markers normalize correctly",
     )
     linked_text = html_to_text(
         '<p><s>Removed</s> <a href="https://example.com/path_(one)?q=two&amp;x=3">'
