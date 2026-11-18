@@ -139,7 +139,7 @@ sufficient if GSL can publish separate updates with the same label.
 3. **Create schema — complete:** created `game_versions`, its `games_id`
    relation, source choices, unique `source_key`, override fields, and the
    Astro Readonly `fields: ["*"]` grant. The setup is in
-   `mcp/scripts/setup_game_versions.py`.
+   `../jasmeralia.com-mcp-scripts/mcp/scripts/setup_game_versions.py`.
 4. **Backfill — complete:** pagination, blank optional trailing manifest
    cells, transient GSL retries, and the shared excluded-directory rule are
    handled. The collection has 2,612 rows: 2,215 GSL records (271 current,
@@ -198,7 +198,7 @@ sufficient if GSL can publish separate updates with the same label.
 
 The production `Rebuild Site on Content Change` Flow is active and includes
 `game_versions`. Its original definition was saved to the ignored
-`mcp/cache/rebuild_flow_before_game_versions.json`; it was paused and restored
+`../jasmeralia.com-mcp-scripts/mcp/cache/rebuild_flow_before_game_versions.json`; it was paused and restored
 around each backfill repair, with full backups recorded above. The original
 Flow-change backup was
 `/mnt/myzmirror/directus-jasmeralia/backups/directus_20260925_054745_before_game_versions_rebuild_flow.sql.gz`.
@@ -219,7 +219,7 @@ deleted field (the site build and the AVN sync would both fail outright).
 | `site/src/pages/filters/index.astro` | Lists the three scalars in the games `fields` array | Blocker for the build. Remove the three entries. |
 | `site/src/lib/game-versions.ts` | `TrackedGameVersions` type fields and the legacy fallback loop in `currentVersions()` | Remove the fallback and the type fields. Safe once the data gap below is closed. |
 | `site/src/lib/game-versions.test.ts` (37 hits), `feed-builder.test.ts`, `recentUpdates.test.ts`, `changelog.test.ts` | Fixtures and fallback tests | Delete the fallback tests; convert fixtures to `versions: [...]` rows. |
-| `mcp/scripts/backfill_game_versions.py` | One-time backfill; fetches the scalars and retains "legacy scalar values not represented by an active manifest row" | Delete the script (the backfill is complete), or strip the scalar read and legacy-retention block if kept for GSL re-imports. Remove any references to it in docs. |
+| `../jasmeralia.com-mcp-scripts/mcp/scripts/backfill_game_versions.py` | One-time backfill; fetches the scalars and retains "legacy scalar values not represented by an active manifest row" | Delete the script (the backfill is complete), or strip the scalar read and legacy-retention block if kept for GSL re-imports. Remove any references to it in docs. |
 | `AGENTS.md` (`games` row) and this plan's "Current state" section | Document the scalars as retained compatibility fields | Remove the sentence once the fields are gone. |
 
 **Keep, do not remove:** the `version_orion` / `version_typhoon` /

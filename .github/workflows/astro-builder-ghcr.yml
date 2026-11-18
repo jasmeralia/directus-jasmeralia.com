@@ -14,7 +14,8 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.event.repository.name }}
+  # Keep the published GHCR package stable across GitHub repository renames.
+  IMAGE_NAME: directus-jasmeralia.com
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
@@ -160,33 +161,6 @@ jobs:
           files: site/coverage/cobertura-coverage.xml
           fail_ci_if_error: false
 
-  lint-python:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install -r mcp/requirements-dev.txt
-
-      - name: Run ruff, pylint, mypy
-        run: make lint-python
-
-      - name: Run Steam synopsis self-test with coverage
-        run: make test-python
-
-      - name: Upload Python coverage to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: mcp/coverage.xml
-          fail_ci_if_error: false
-
   lint-docker:
     runs-on: ubuntu-latest
     steps:
@@ -216,7 +190,7 @@ jobs:
         run: make lint-shell
 
   build-publish-docker-image:
-    needs: [validate, prepare-tag, builder-changes, lint-site, lint-builder, test-site, lint-python, lint-docker, lint-shell]
+    needs: [validate, prepare-tag, builder-changes, lint-site, lint-builder, test-site, lint-docker, lint-shell]
     if: github.event_name == 'push' && needs.builder-changes.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
