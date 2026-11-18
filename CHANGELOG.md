@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.293] - 2026-11-18
+- Games: update host-install manifest links to the new Steam shortcut management repository.
+
 ## [1.0.292] - 2026-11-04
 - Filters: apply the chart panel and SVG styles to the Developer Link Platform child component.
 
