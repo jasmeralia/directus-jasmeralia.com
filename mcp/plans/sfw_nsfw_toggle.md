@@ -95,7 +95,7 @@ No permission or Flow changes needed (see Decisions) -- not re-verified a second
 Same authorization as Phase 1 (see above). Applied immediately after the Phase 1 field creates, using the script built for this purpose (see Phase 5.1, built and delivered here rather than deferred, since it's needed now):
 
 ```bash
-python3 mcp/scripts/backfill_nsfw.py \
+python3 ../jasmeralia.com-mcp-scripts/mcp/scripts/backfill_nsfw.py \
   --genre avn --tier-list avns \
   --game tamer-king-of-dinosaurs --game witch-potions-craft-of-lust \
   --apply
@@ -320,7 +320,7 @@ Each entry builder (`buildGameEntry`, `buildReviewEntry`, `buildTierListEntry`, 
 
 ## Phase 5: Backfill script (delivered) + NSFW-candidate proposal (still open)
 
-### 5.1 `mcp/scripts/backfill_nsfw.py` - delivered and already used in Phase 1.5
+### 5.1 `../jasmeralia.com-mcp-scripts/mcp/scripts/backfill_nsfw.py` - delivered and already used in Phase 1.5
 
 Built ahead of the rest of the implementation specifically so Phase 1.5 above had a real tool to apply through (per AGENTS.md, all content writes go through the Directus API, never a one-off ad hoc script outside version control). Mirrors `backfill_family_sharing.py`'s structure (`scriptlib.DirectusClient`); no `ProgressCache`/resumability was added since this patches at most a handful of rows per invocation by design (explicit `--game`/`--genre`/`--tier-list` slugs on the command line), not a Steam-library-sized sweep:
 ```python
@@ -340,6 +340,6 @@ CLI surface actually implemented: `--game SLUG` / `--genre SLUG` / `--tier-list 
 2. **`site/package.json`**: patch-bump `version` to match, same commit as the site change.
 3. `make lintfix && make lint` before committing (this repo's standing rule for any change made off-TrueNAS).
 4. Because the schema and initial data flags (Phases 1 and 1.5) are already live in Directus, local `astro dev`/`astro build` runs during implementation can render real blurred/collapsed NSFW content (AVN-genre games, the AVNs tier list board, the two named games, and their Recent Updates/RSS entries) end-to-end before a PR is ever opened -- verify the full toggle/blur/reveal/RSS/pie-chart/filter behavior locally against this real data first, per the reason this ordering was requested (avoid PR churn and GHCR image wait cycles from finding rendering bugs only after merge).
-5. `mcp/scripts/publish.sh --title "feat: add SFW/NSFW toggle with per-genre/tier-list cascading and split RSS feeds"` -- push branch, PR, squash-merge, trigger rebuild (this touches `site/`, so no `--no-build`).
+5. `scripts/publish-site.sh --title "feat: add SFW/NSFW toggle with per-genre/tier-list cascading and split RSS feeds"` -- push branch, PR, squash-merge, trigger rebuild (this touches `site/`, so no `--no-build`).
 6. Monitor the triggered build to completion via OpenSearch (`Build/publish completed successfully.` strictly after the trigger timestamp), per the standing rule against trusting local `astro build` as an acceptance test.
 7. Live spot-check after deploy: toggle the button on a page with an NSFW-flagged game (e.g. any `AVN`-genre game, `Tamer: King of Dinosaurs`, or `Witch Potions - Craft of Lust` -- already flagged, no manual flip needed), confirm blur/reveal + cookie persistence across a hard reload, confirm the Recent Updates widget and the `/filters` SFW/NSFW pie chart render correctly, confirm `/filters/misc/nsfw-not-avn/index.html` loads, and fetch all three `/feed.xml`, `/feed-sfw.xml`, `/feed-nsfw.xml` to confirm they parse as valid RSS and partition entries as expected.

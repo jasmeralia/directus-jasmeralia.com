@@ -127,7 +127,7 @@ The separate manual rebuild Flow
 
 - Run: 2026-07-28 PDT
 - Payload:
-  `mcp/cache/omnibus_initial_fixtures.json` (gitignored)
+  `../jasmeralia.com-mcp-scripts/mcp/cache/omnibus_initial_fixtures.json` (gitignored)
 - Result: passed with 14 planned member creates and no writes.
 - Halo MCC:
   - Six members.

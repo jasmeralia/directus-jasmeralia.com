@@ -199,7 +199,7 @@ games are included inside another game.
 
 ### 5.2 Section writer
 
-`mcp/scripts/game_sections_lib.py` currently queries all `game_sections` rows
+`../jasmeralia.com-mcp-scripts/mcp/scripts/game_sections_lib.py` currently queries all `game_sections` rows
 by `games_id`. Its `--replace` behavior deletes every matching row.
 
 That behavior must be changed before any bundle member sections are populated.
@@ -606,14 +606,14 @@ progress follow-up report. It must not keep the member in
 ### 8.6 External data caching
 
 Dry-run research must cache official store or publisher membership results and
-mission or chapter lookup results under `mcp/cache/`.
+mission or chapter lookup results under `../jasmeralia.com-mcp-scripts/mcp/cache/`.
 
 Apply mode must use the reviewed cache and must not repeat external API calls.
 
 Suggested files:
 
-- `mcp/cache/game_bundle_lookup.json`
-- `mcp/cache/game_bundle_members_needs_manual.json`
+- `../jasmeralia.com-mcp-scripts/mcp/cache/game_bundle_lookup.json`
+- `../jasmeralia.com-mcp-scripts/mcp/cache/game_bundle_members_needs_manual.json`
 
 Each cache record should include:
 
@@ -1266,13 +1266,13 @@ If schema rollback is required:
 Script and workflow changes:
 
 - `AGENTS.md`
-- `mcp/scripts/populate_game_bundle.py` - new
-- `mcp/scripts/populate_game_sections.py`
-- `mcp/scripts/game_sections_lib.py`
-- `mcp/scripts/scriptlib.py`
+- `../jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_bundle.py` - new
+- `../jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_sections.py`
+- `../jasmeralia.com-mcp-scripts/mcp/scripts/game_sections_lib.py`
+- `../jasmeralia.com-mcp-scripts/mcp/scripts/scriptlib.py`
 - `mcp/plans/game_sections.md`
 - `mcp/plans/omnibus_bundles_implementation.md`
-- `.claude/skills/game-sections-lookup/SKILL.md`
+- `../jasmeralia.com-mcp-scripts/.claude/skills/game-sections-lookup/SKILL.md`
 
 Astro changes:
 
@@ -1295,9 +1295,9 @@ Astro changes:
 
 Cache files, all gitignored:
 
-- `mcp/cache/game_bundle_lookup.json`
-- `mcp/cache/game_bundle_members_needs_manual.json`
-- Reviewed initial backfill payloads under `mcp/cache/`
+- `../jasmeralia.com-mcp-scripts/mcp/cache/game_bundle_lookup.json`
+- `../jasmeralia.com-mcp-scripts/mcp/cache/game_bundle_members_needs_manual.json`
+- Reviewed initial backfill payloads under `../jasmeralia.com-mcp-scripts/mcp/cache/`
 
 Live Directus changes with no normal PR diff:
 

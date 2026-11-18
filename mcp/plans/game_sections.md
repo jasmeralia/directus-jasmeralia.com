@@ -11,7 +11,7 @@ Per-game tracking of a title's chapter / act / episode / mission structure (the 
 - **Manual script is pure/deterministic: Directus-only, no LLM, no external HTTP.** Because it never touches an external API, the AGENTS.md external-API backoff / disk-cache requirement does not apply to it (same as `populate_tier_list.py`, which is Directus-only). It writes through `scriptlib.DirectusClient`.
 - **The skill shells out to the shared Python script for all Directus writes, rather than using `mcp__directus__*` tools from its own instructions.** This keeps every write in this repo on the one audited path (static token via `urllib.request` through `DirectusClient`), reusing slug resolution, default-title generation, idempotent upsert, and ASCII-only typography in one place instead of re-specifying write logic in skill prose. The skill's LLM role is confined to what only an LLM can do: enumerate targets, run WebSearch, reason over ambiguous snippets, and decide count / noun / titles, then hand a structured JSON payload to the script.
 - **WebSearch is the only lookup mechanism.** `WebFetch` against IGN / Fandom / GameFAQs / StrategyWiki is confirmed blocked (402/403/refused) and no component may depend on fetching a specific wiki URL. WebSearch is Claude Code's own tool, so the external-API backoff rule does not apply to it; the skill still paces itself (1-2 queries per game) and caches per-game findings to disk for resumability.
-- **Never fabricate a section count.** If the skill cannot find a credible total, it leaves that game unpopulated (no rows, `current_section` null) and records it in `mcp/cache/game_sections_needs_manual.json`. Defaulting applies only to individual section *titles* when the count IS known but per-section names are not: title defaults to `"{Noun} {N}"` (e.g. `Chapter 5`, `Mission 3`), where `{Noun}` is the term that game actually uses (detected during lookup or supplied manually), defaulting to `Chapter` only when no better noun is known.
+- **Never fabricate a section count.** If the skill cannot find a credible total, it leaves that game unpopulated (no rows, `current_section` null) and records it in `../jasmeralia.com-mcp-scripts/mcp/cache/game_sections_needs_manual.json`. Defaulting applies only to individual section *titles* when the count IS known but per-section names are not: title defaults to `"{Noun} {N}"` (e.g. `Chapter 5`, `Mission 3`), where `{Noun}` is the term that game actually uses (detected during lookup or supplied manually), defaulting to `Chapter` only when no better noun is known.
 - **The skill never guesses `current_section`.** Which section the owner is on is owner-knowledge, set via the manual script's `--current` flag or in the Directus admin; the skill leaves it untouched.
 - **Section progress percentages on cards and franchise lists** are computed in `site/src/lib/game-sections.ts` (`sectionProgressPercent`, `sectionProgressSummary`). Completed games always show 100% even when section rows or `current_section` are absent. In-progress and on-hold games credit the current section at 50% of its span (e.g. section 2 of 10 = 15%, between the 10% lower bound after section 1 and the 20% upper bound at section completion). Other player statuses use the upper-bound formula (`current / total`). Include DLC under a clearly named category for both linear and nonlinear section data. Linear DLC retains globally unique numbering and uses the same `current_section` sequence as the base campaign; prefix the title with `DLC:` when useful. Do not create a bundle member solely because content is DLC - reserve bundle members for independently tracked games or campaigns in a true omnibus. Nonlinear DLC retains normal per-row completion.
 - **Schema creation is gated.** Per AGENTS.md, field/collection/relation creation requires an explicit "go ahead" directed at the schema change at execution time, separate from approval of this plan. Phase 1 must not run until that go-ahead is given, and a `pg_dump` is taken first.
@@ -108,7 +108,7 @@ If Phase 0.2 found the `games` read permission is field-scoped, also PATCH it to
 
 ### 1.6 Register the junction (code, not schema; no version bump)
 
-Edit `mcp/scripts/scriptlib.py` -> add to `GAME_JUNCTIONS`:
+Edit `../jasmeralia.com-mcp-scripts/mcp/scripts/scriptlib.py` -> add to `GAME_JUNCTIONS`:
 ```python
 ("game_sections", "games_id"),
 ```
@@ -118,7 +118,7 @@ This is an `mcp/scripts` change only (no `site/` change, so no CHANGELOG / packa
 
 ## Phase 2: Manual population + shared write library
 
-### 2.1 `mcp/scripts/game_sections_lib.py` (new shared module)
+### 2.1 `../jasmeralia.com-mcp-scripts/mcp/scripts/game_sections_lib.py` (new shared module)
 
 Shared write/resolve logic reused by both the manual CLI and the skill's CLI, so there is exactly one write path. Functions:
 
@@ -134,11 +134,11 @@ Shared write/resolve logic reused by both the manual CLI and the skill's CLI, so
   5. In `dry_run`, print planned writes to stderr and perform none.
   Returns `{game_id, created, updated, deleted}`.
 
-### 2.2 `mcp/scripts/populate_game_sections.py` (new CLI)
+### 2.2 `../jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_sections.py` (new CLI)
 
 Deterministic manual tool. Required invocation preserved exactly:
 ```
-./mcp/scripts/populate_game_sections.py <game slug> <number of sections> [<section noun, defaults to Chapter>]
+../jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_sections.py <game slug> <number of sections> [<section noun, defaults to Chapter>]
 ```
 argparse (sibling in style to `populate_tier_list.py`):
 - positional `slug`
@@ -166,7 +166,7 @@ Project skills live at `<repo>/.claude/skills/<name>/SKILL.md` with YAML frontma
 
 ### 3.2 Files
 
-- `.claude/skills/game-sections-lookup/SKILL.md`
+- `../jasmeralia.com-mcp-scripts/.claude/skills/game-sections-lookup/SKILL.md`
 
 Frontmatter:
 ```yaml
@@ -196,13 +196,13 @@ The raw `--filter` accepts a Directus-style filter object, consistent with how t
 
 ### 3.4 Skill procedure (in SKILL.md body)
 
-1. **Enumerate targets:** `Bash: mcp/scripts/populate_game_sections.py --list-targets <resolver flag>` -> parse the JSON array. Skip games that already have `existing_section_count > 0` unless the user asked to refresh.
-2. **Per game, look up structure with WebSearch** (1-2 queries; cache each game's finding to `mcp/cache/game_sections_lookup.json` keyed by slug for resumability):
+1. **Enumerate targets:** `Bash: ../jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_sections.py --list-targets <resolver flag>` -> parse the JSON array. Skip games that already have `existing_section_count > 0` unless the user asked to refresh.
+2. **Per game, look up structure with WebSearch** (1-2 queries; cache each game's finding to `../jasmeralia.com-mcp-scripts/mcp/cache/game_sections_lookup.json` keyed by slug for resumability):
    - Queries such as `"{title}" number of chapters`, `"{title}" chapter list`, and for AVNs `"{title}" latest version chapters` / `"{title}" episode list`.
    - **Detect the noun** from the results (Chapter / Act / Episode / Mission / Case / Day / Route ...); default to `Chapter` only when nothing better appears.
    - **Reason over the snippets** to decide a credible total count. Require corroboration; treat AVN devlog phrasing ("Chapter 3 is now available") as evidence of count; on conflicting numbers prefer the more authoritative / most recent.
-3. **Correctness gate (mandatory):** if no credible total is found, do NOT guess. Record `{slug, title, reason}` to `mcp/cache/game_sections_needs_manual.json` and move on. Never write a fabricated count.
-4. **Write findings:** build a JSON payload `[{slug, noun, current: null, sections:[{number, title}]}]` where `title` is the real per-section name if found, else omitted/null (the script fills `"{Noun} {N}"`). Pipe it to `Bash: mcp/scripts/populate_game_sections.py --from-json -`. Do a `--dry-run` pass first when operating on more than a couple of games and show the diff before applying. Do not set `current_section`.
+3. **Correctness gate (mandatory):** if no credible total is found, do NOT guess. Record `{slug, title, reason}` to `../jasmeralia.com-mcp-scripts/mcp/cache/game_sections_needs_manual.json` and move on. Never write a fabricated count.
+4. **Write findings:** build a JSON payload `[{slug, noun, current: null, sections:[{number, title}]}]` where `title` is the real per-section name if found, else omitted/null (the script fills `"{Noun} {N}"`). Pipe it to `Bash: ../jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_sections.py --from-json -`. Do a `--dry-run` pass first when operating on more than a couple of games and show the diff before applying. Do not set `current_section`.
 5. **Rebuild + monitor:** after writes, trigger the documented flow with the affected game ids as string keys:
    - `POST https://directus.jasmer.tools/flows/trigger/e3aa03ad-3352-4ade-8156-22d53f107907`, bearer `DIRECTUS_TOKEN`, body `{"collection":"games","keys":["<id>", ...]}`.
    - Record the trigger timestamp, then poll OpenSearch (`container-logs`, container `directus-site-builder`) for `Build/publish completed successfully.` or `Build/publish FAILED with exit code N.` with a timestamp strictly after the trigger. Report the result and the contents of `game_sections_needs_manual.json` to the user.
@@ -262,23 +262,23 @@ Ordered so each layer is validated before the next is wired up.
 | File | Type | Purpose |
 |---|---|---|
 | `game_sections` collection + `games.section_noun` / `games.current_section` | Directus schema (Phase 1, gated) | Storage for ordered sections, per-game noun, and current position |
-| `mcp/scripts/scriptlib.py` (edited) | Code | Add `("game_sections", "games_id")` to `GAME_JUNCTIONS` |
-| `mcp/scripts/game_sections_lib.py` | New module | Shared resolve/upsert/default-title logic (single write path) |
-| `mcp/scripts/populate_game_sections.py` | New CLI | Manual deterministic population; `--list-targets` / `--from-json` modes for the skill |
-| `.claude/skills/game-sections-lookup/SKILL.md` | New skill | WebSearch-driven lookup + write + rebuild |
-| `mcp/cache/game_sections_lookup.json` | Cache (gitignored) | Per-slug skill findings, for resumability |
-| `mcp/cache/game_sections_needs_manual.json` | Cache (gitignored) | Games with no credible count found - needs manual entry |
+| `../jasmeralia.com-mcp-scripts/mcp/scripts/scriptlib.py` (edited) | Code | Add `("game_sections", "games_id")` to `GAME_JUNCTIONS` |
+| `../jasmeralia.com-mcp-scripts/mcp/scripts/game_sections_lib.py` | New module | Shared resolve/upsert/default-title logic (single write path) |
+| `../jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_sections.py` | New CLI | Manual deterministic population; `--list-targets` / `--from-json` modes for the skill |
+| `../jasmeralia.com-mcp-scripts/.claude/skills/game-sections-lookup/SKILL.md` | New skill | WebSearch-driven lookup + write + rebuild |
+| `../jasmeralia.com-mcp-scripts/mcp/cache/game_sections_lookup.json` | Cache (gitignored) | Per-slug skill findings, for resumability |
+| `../jasmeralia.com-mcp-scripts/mcp/cache/game_sections_needs_manual.json` | Cache (gitignored) | Games with no credible count found - needs manual entry |
 | `site/src/lib/game-sections.ts` | New lib | Noun formatting / pluralization / JS ordering |
 | `site/src/pages/games/[slug].astro` (edited) | Site | Sections panel on the game detail page |
 | `site/src/pages/filters/misc/games-missing-sections.astro` | New page | In-progress games with no section data |
 | `CHANGELOG.md` + `site/package.json` (edited) | Site | `## [1.0.151]` entry + patch bump, same commit |
 
 ### Critical Files for Implementation
-- /home/morgan/git/directus-jasmeralia.com/mcp/scripts/scriptlib.py
-- /home/morgan/git/directus-jasmeralia.com/mcp/scripts/populate_tier_list.py
-- /home/morgan/git/directus-jasmeralia.com/site/src/pages/games/[slug].astro
-- /home/morgan/git/directus-jasmeralia.com/site/src/pages/filters/misc/avn-missing-walkthrough.astro
-- /home/morgan/git/directus-jasmeralia.com/site/src/lib/download-link.ts
+- /home/morgan/git/jasmeralia.com-mcp-scripts/mcp/scripts/scriptlib.py
+- /home/morgan/git/jasmeralia.com-mcp-scripts/mcp/scripts/populate_tier_list.py
+- /home/morgan/git/jasmeralia.com-directus/site/src/pages/games/[slug].astro
+- /home/morgan/git/jasmeralia.com-directus/site/src/pages/filters/misc/avn-missing-walkthrough.astro
+- /home/morgan/git/jasmeralia.com-directus/site/src/lib/download-link.ts
 
 ---
 

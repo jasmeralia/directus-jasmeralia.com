@@ -233,7 +233,7 @@ grant is field-scoped rather than `*`.
 
 ## Phase 2: Population script
 
-### 2.1 `mcp/scripts/game_sections_lib.py` additions
+### 2.1 `../jasmeralia.com-mcp-scripts/mcp/scripts/game_sections_lib.py` additions
 
 - `parse_quest_journal_txt(text: str) -> list[dict]` — pure text parser, no
   I/O. Convention (matches `things_to_do_quests.txt` exactly):
@@ -268,10 +268,10 @@ grant is field-scoped rather than `*`.
   4. `dry_run` prints planned writes to stderr, performs none.
   Returns `{game_id, category_count, quest_count}`.
 
-### 2.2 `mcp/scripts/populate_game_quests.py` (new CLI)
+### 2.2 `../jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_quests.py` (new CLI)
 
 ```
-./mcp/scripts/populate_game_quests.py <game slug> --from-txt <path> [<section noun, defaults to Quest>]
+../jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_quests.py <game slug> --from-txt <path> [<section noun, defaults to Quest>]
 ```
 - positional `slug`
 - `--from-txt <path|->` (required) — read via `parse_quest_journal_txt`
@@ -341,7 +341,7 @@ For quest-based games with no local, parseable source — the common case for
 AAA and mainstream titles, and (until/unless a Phase 2.3 skill materializes)
 every AVN too, since the manual `--from-txt` path is the only shipped
 Ren'Py-specific option today.
-Sibling to `.claude/skills/game-sections-lookup/`, reusing its WebSearch-only
+Sibling to `../jasmeralia.com-mcp-scripts/.claude/skills/game-sections-lookup/`, reusing its WebSearch-only
 sourcing constraint (`WebFetch` is confirmed blocked on IGN/Fandom/GameFAQs/
 StrategyWiki) and its "never fabricate" posture — but the bar being checked
 is different.
@@ -363,7 +363,7 @@ optional/repeatable content, quest names drift across game versions, and
   grouping that isn't really there — matches the schema's existing
   nullable `category` design.
 - If no source clears that bar, the game is **not** written. Record
-  `{slug, title, reason}` to `mcp/cache/game_quests_needs_manual.json` (a
+  `{slug, title, reason}` to `../jasmeralia.com-mcp-scripts/mcp/cache/game_quests_needs_manual.json` (a
   sibling file to the linear skill's `game_sections_needs_manual.json`, kept
   separate since the two "why this is unresolved" reasons don't overlap) and
   move on.
@@ -583,10 +583,10 @@ lintfix && make lint` first.
 | File | Type | Purpose |
 |---|---|---|
 | `games.section_style` + `game_sections.category`/`completed`/`is_ending` + 2 partial unique indexes | Directus schema (Phase 1, gated) | Discriminator, quest grouping, completion tracking, single-ending invariant |
-| `mcp/scripts/game_sections_lib.py` (edited) | Code | `parse_quest_journal_txt`, `upsert_quest_sections` |
-| `mcp/scripts/populate_game_quests.py` | New CLI | `--from-txt`/`--from-json`/`--list-targets` quest population |
+| `../jasmeralia.com-mcp-scripts/mcp/scripts/game_sections_lib.py` (edited) | Code | `parse_quest_journal_txt`, `upsert_quest_sections` |
+| `../jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_quests.py` | New CLI | `--from-txt`/`--from-json`/`--list-targets` quest population |
 | `.claude/skills/game-quests-lookup/SKILL.md` | New skill | WebSearch-driven quest list lookup for non-extractable games |
-| `mcp/cache/game_quests_needs_manual.json` | Cache (gitignored) | Games the skill couldn't find a credible named quest list for |
+| `../jasmeralia.com-mcp-scripts/mcp/cache/game_quests_needs_manual.json` | Cache (gitignored) | Games the skill couldn't find a credible named quest list for |
 | `site/src/lib/game-fields.ts` (edited) | Site | Add `section_style`/`sections.completed` to `GAME_THUMB_FIELDS` so all ~35 card-consuming pages pick up nonlinear progress and the tag automatically |
 | `site/src/lib/game-sections.ts` (edited) | Site | Category grouping, quest-style progress math |
 | `site/src/components/GameThumbCard.astro` (edited) | Site | Add `section_style` tag; fix `Family Sharing Disabled` tag to link like the others |
@@ -595,15 +595,15 @@ lintfix && make lint` first.
 | `CHANGELOG.md` + `site/package.json` (edited) | Site | Version bump, same commit as the site change |
 
 ### Critical files for implementation
-- /home/morgan/git/directus-jasmeralia.com/mcp/plans/game_sections.md
-- /home/morgan/git/directus-jasmeralia.com/.claude/skills/game-sections-lookup/SKILL.md
-- /home/morgan/git/directus-jasmeralia.com/mcp/scripts/game_sections_lib.py
-- /home/morgan/git/directus-jasmeralia.com/mcp/scripts/populate_game_sections.py
-- /home/morgan/git/directus-jasmeralia.com/site/src/lib/game-fields.ts
-- /home/morgan/git/directus-jasmeralia.com/site/src/lib/game-sections.ts
-- /home/morgan/git/directus-jasmeralia.com/site/src/components/GameThumbCard.astro
-- /home/morgan/git/directus-jasmeralia.com/site/src/pages/game_statuses/[slug].astro (copy target for the new filter page)
-- /home/morgan/git/directus-jasmeralia.com/site/src/pages/games/[slug].astro
+- /home/morgan/git/jasmeralia.com-directus/mcp/plans/game_sections.md
+- /home/morgan/git/jasmeralia.com-mcp-scripts/.claude/skills/game-sections-lookup/SKILL.md
+- /home/morgan/git/jasmeralia.com-mcp-scripts/mcp/scripts/game_sections_lib.py
+- /home/morgan/git/jasmeralia.com-mcp-scripts/mcp/scripts/populate_game_sections.py
+- /home/morgan/git/jasmeralia.com-directus/site/src/lib/game-fields.ts
+- /home/morgan/git/jasmeralia.com-directus/site/src/lib/game-sections.ts
+- /home/morgan/git/jasmeralia.com-directus/site/src/components/GameThumbCard.astro
+- /home/morgan/git/jasmeralia.com-directus/site/src/pages/game_statuses/[slug].astro (copy target for the new filter page)
+- /home/morgan/git/jasmeralia.com-directus/site/src/pages/games/[slug].astro
 - /mnt/thor-hdd/GamesLinux/AVNs/AHouseInTheRift-0.8.14r1-pc/things_to_do_quests.txt (reference data)
 
 ---
@@ -634,7 +634,7 @@ section rows entirely and stay driven by `games.current_section`, even if
 a row happens to have `is_active: true` (e.g. leftover from a
 section-style change).
 
-**AHITR sync (`mcp/scripts/ahitr_quest_sync.py`):** synced from each save
+**AHITR sync (`../jasmeralia.com-mcp-scripts/mcp/scripts/ahitr_quest_sync.py`):** synced from each save
 quest object as `active and not hidden and not manually_hidden`, applied
 only to quests that already passed the catalog's type/placeholder/hidden
 exclusions. Raw `.active` alone is not sufficient — AHITR can keep a quest

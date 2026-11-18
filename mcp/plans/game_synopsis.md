@@ -42,7 +42,7 @@ AVNs, with the broader catalog left unapplied. Baseline measurements below were 
   new field is not confused with it.
 - **GSL coverage is complete.** 363 games have a `games_links` row with `kind = "gamestorylog"`,
   pointing at 327 distinct GSL pages. All 327 are present in the shared cache
-  `mcp/cache/gsl_game_data.json` (fetched 2026-10-28) and every one has a non-empty
+  `../jasmeralia.com-mcp-scripts/mcp/cache/gsl_game_data.json` (fetched 2026-10-28) and every one has a non-empty
   `data.game.description`. The backfill needs no network access if the cache is fresh enough.
 - **24 GSL pages are shared by 60 games.** These are series pages that Directus tracks as separate
   per-season/book/episode records (e.g. Lust Academy seasons 1-4, The Seven Realms realms 1-4,
@@ -92,9 +92,8 @@ AVNs, with the broader catalog left unapplied. Baseline measurements below were 
    are accepted only on their canonical hosts and expected game routes.
 5. **Normalization to ASCII punctuation** (see the pipeline below). Accented letters and emoji are
    kept; only invisible characters and the smart punctuation `AGENTS.md` prohibits are changed.
-6. **The GSL script is local-only**, under `mcp/scripts/ignored/`, following the existing GSL
-   tooling convention. `mcp/scripts/ignored/README.md` forbids naming individual ignored scripts in
-   tracked docs, so this plan and `AGENTS.md` describe the behavior and point at that README only.
+6. **The GSL script lives in the private `../jasmeralia.com-mcp-scripts/mcp/scripts/` repository.**
+   Its README documents the tooling; this plan and `AGENTS.md` describe the behavior and point there.
 
 ## Phase 0: pre-flight
 
@@ -154,16 +153,15 @@ the `SKIP_DELTA` entries.
      `fmtNewGame` does not include the synopsis, so game-created entries are unchanged.
 6. Process per `AGENTS.md`: bump `site/package.json` patch version, prepend a `CHANGELOG.md` entry,
    update the `AGENTS.md` `games` row (fields, plain-text/ASCII rule, `SKIP_DELTA`, query-weight
-   rule, pointer to the ignored README), run `make lintfix && make lint && make test-site`, branch
+   rule, pointer to the private scripts README), run `make lintfix && make lint && make test-site`, branch
    plus PR, rebase on `origin/master` first, and watch the TrueNAS build to `Build/publish completed
    successfully.` (no local Astro build as acceptance). A page with no synopsis must render exactly
    as before.
 
-## Phase 3: GSL backfill script (local-only)
+## Phase 3: GSL backfill script (private repository)
 
-Lives in `mcp/scripts/ignored/` (gitignored, excluded from the repo lint). Because of that exclusion,
-run `ruff`, `ruff format --check` and `mypy` on it by hand. Document it in the ignored directory's
-own README, not in tracked docs. It must not carry the `# game-sections-lookup:` header: that tag
+Lives in `../jasmeralia.com-mcp-scripts/mcp/scripts/` (private repository). Document it in the
+private scripts README, and run the private repository lint workflow before applying it. It must not carry the `# game-sections-lookup:` header: that tag
 marks read-only lookup scripts, and this one writes.
 
 ### Inputs and resolution
@@ -172,7 +170,7 @@ marks read-only lookup scripts, and this one writes.
   pass an explicit `limit`, because the helper supplies it), joined
   to game `id`, `slug`, `title`, `synopsis`, `synopsis_source`. The GSL slug is the last path
   segment of the URL, as the sibling GSL scripts compute it. Group games by GSL slug.
-- GSL data: read `mcp/cache/gsl_game_data.json` first. Only cache misses, or everything under
+- GSL data: read `../jasmeralia.com-mcp-scripts/mcp/cache/gsl_game_data.json` first. Only cache misses, or everything under
   `--refresh`, hit the public `game_details` endpoint (same endpoint and public read key as the
   sibling GSL scripts), using `fetch_with_backoff`/`RetryPolicy` from `scriptlib.py`: at least 1.0s
   between GSL requests, exponential backoff on 403/429, 5 attempt cap, failures logged and
@@ -213,9 +211,9 @@ restricts any run to specific Directus slugs.
 
 ### Dry run, then apply
 
-- **Dry run is the default.** It writes `mcp/cache/gsl_synopsis_plan.json` (one object per game:
+- **Dry run is the default.** It writes `../jasmeralia.com-mcp-scripts/mcp/cache/gsl_synopsis_plan.json` (one object per game:
   id, slug, GSL slug, action, old value, normalized new text, flags) and a
-  `mcp/cache/gsl_synopsis_review.md` listing the shared groups (all member titles side by side), the
+  `../jasmeralia.com-mcp-scripts/mcp/cache/gsl_synopsis_review.md` listing the shared groups (all member titles side by side), the
   flagged anomalies, and a summary count per action. It prints the same counts plus a few
   before/after samples showing exactly what normalization changed.
 - **`--apply` reads the plan file and does no GSL requests**, as the repo dry-run/apply rule
@@ -227,7 +225,7 @@ restricts any run to specific Directus slugs.
   - Stale-plan guard: before each PATCH compare the row's current `synopsis` and
     `synopsis_source` to the plan's recorded old values and skip (and report) on mismatch. Always
     protect a `manual` source, even when its text is empty.
-  - Resumable: progress is saved every 25 rows in `mcp/cache/gsl_synopsis_progress.json`; reruns
+  - Resumable: progress is saved every 25 rows in `../jasmeralia.com-mcp-scripts/mcp/cache/gsl_synopsis_progress.json`; reruns
     skip rows already equal to the target, so the script is idempotent.
   - Triggers no rebuild itself; the content-change Flow's debounced build covers it (verify, see
     Phase 0).
@@ -255,7 +253,7 @@ restricts any run to specific Directus slugs.
    - A search whose terms appear only in a synopsis does not surface it in results or excerpts.
    - The History tab and Recent Updates show no synopsis events; feed item counts are unchanged
      from step 3.
-8. Update the ignored README and `AGENTS.md`; mark the task's Phase A done in Odoo (stage and
+8. Update the private scripts README and the relevant `AGENTS.md` files; mark the task's Phase A done in Odoo (stage and
    `state = "1_done"` only once Phase B is also done, since the task covers both; otherwise leave it
    open and comment).
 
@@ -279,8 +277,8 @@ restricts any run to specific Directus slugs.
 
 ## Phase B: Steam first, other sources later
 
-The Steam script uses `mcp/scripts/backfill_steam_synopsis.py`, documented in
-`mcp/scripts/README.md`. It follows the same dry-run/cache/apply workflow, uses game-specific Steam
+The Steam script uses `../jasmeralia.com-mcp-scripts/mcp/scripts/backfill_steam_synopsis.py`, documented in
+`../jasmeralia.com-mcp-scripts/mcp/scripts/README.md`. It follows the same dry-run/cache/apply workflow, uses game-specific Steam
 download links, and protects existing GSL/manual synopses. Steam About HTML is converted to safe rich Markdown, preserving emphasis, links, ordered/unordered
 lists, images, and playable videos from allowlisted Steam CDN hosts; fallback descriptions, length
 anomalies, and ambiguous links are reported. Apply rechecks both source ownership and the Steam link.

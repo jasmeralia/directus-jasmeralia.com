@@ -1,20 +1,10 @@
-VENV := mcp/.venv
-PYTHON := $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
-RUFF   := $(if $(wildcard $(VENV)/bin/ruff),$(VENV)/bin/ruff,ruff)
-MYPY   := $(if $(wildcard $(VENV)/bin/mypy),$(VENV)/bin/mypy,mypy)
-PYLINT := $(if $(wildcard $(VENV)/bin/pylint),$(VENV)/bin/pylint,pylint)
-PY_SRC := mcp/scripts
+.PHONY: lint lintfix lint-site lint-builder test-site lint-docker lint-shell
 
-.PHONY: lint lintfix lint-site lint-builder test-site test-python lint-python lint-docker lint-shell \
-        ruff ruff-format pylint mypy
-
-lint: lint-site lint-builder lint-python lint-docker lint-shell
+lint: lint-site lint-builder lint-docker lint-shell
 
 lintfix:
 	cd site && npm run lint -- --fix
 	site/node_modules/.bin/eslint --fix builder/*.mjs
-	$(RUFF) check --fix $(PY_SRC)
-	$(RUFF) format $(PY_SRC)
 
 lint-site:
 	cd site && npm run lint
@@ -25,33 +15,8 @@ lint-builder:
 test-site:
 	cd site && npm test
 
-test-python:
-	$(PYTHON) -m coverage run --include='mcp/scripts/backfill_steam_synopsis.py' mcp/scripts/backfill_steam_synopsis.py --self-test
-	$(PYTHON) -m coverage run --append --include='mcp/scripts/backfill_console_links.py,mcp/scripts/backfill_itch_synopsis.py,mcp/scripts/repair_console_search_links.py' -m unittest discover -s mcp/scripts -p 'test_*.py'
-	$(PYTHON) -m coverage xml --include='mcp/scripts/backfill_steam_synopsis.py,mcp/scripts/backfill_console_links.py,mcp/scripts/backfill_itch_synopsis.py,mcp/scripts/repair_console_search_links.py' -o mcp/coverage.xml
-
-lint-python:
-	@status=0; \
-	$(RUFF) format --check $(PY_SRC) || status=1; \
-	$(RUFF) check $(PY_SRC) || status=1; \
-	$(PYLINT) $(PY_SRC) || status=1; \
-	$(MYPY) $(PY_SRC) || status=1; \
-	exit $$status
-
-ruff-format:
-	$(RUFF) format --check $(PY_SRC)
-
-ruff:
-	$(RUFF) check $(PY_SRC)
-
-pylint:
-	$(PYLINT) $(PY_SRC)
-
-mypy:
-	$(MYPY) $(PY_SRC)
-
 lint-docker:
 	hadolint builder/Dockerfile
 
 lint-shell:
-	shellcheck builder/run-build.sh mcp/scripts/publish.sh
+	shellcheck builder/run-build.sh scripts/publish-site.sh

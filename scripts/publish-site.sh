@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Usage: publish.sh --title "fix: something" [--body "PR body"] [--no-build]
+# Usage: publish-site.sh --title "fix: something" [--body "PR body"] [--no-build]
 #
 # Pushes the current branch, opens a PR, squash-merges it, pulls on TrueNAS,
 # and triggers a site rebuild via the Directus flow.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MCP_JSON="$REPO_ROOT/.mcp.json"
 TRUENAS="morgan@truenas.windsofstorm.net"
 TRUENAS_REPO="/mnt/myzmirror/directus-jasmeralia"
