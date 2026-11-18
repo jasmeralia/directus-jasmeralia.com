@@ -215,7 +215,7 @@ deleted field (the site build and the AVN sync would both fail outright).
 
 | Where | Use | Action |
 |---|---|---|
-| `~/git/steam-typhoon/scripts/avn_version_sync/sync_installed_versions.py` (private repo; `GAME_FIELDS`, `sync_gsl_version`, `sync_remaining_gsl_games`, `patch_host_versions`, `current_version_pair` in the digest) | Reads all three scalars (the digest's "old version", `gsl_version_unchanged`) and **writes** `version_gsl` (and the host scalars) as a dual-write | Blocker. Move the "old/current version" reads to `game_versions` current rows (`is_current`, per source), stop all scalar writes, drop the three names from `GAME_FIELDS` and the `{"fields": "id,slug,version_gsl"}` query, update its README. Deploy to TrueNAS and let one scheduled run succeed. |
+| `~/git/steam-shortcut-manager/scripts/avn_version_sync/sync_installed_versions.py` (private `steam-shortcut-manager` repo; `GAME_FIELDS`, `sync_gsl_version`, `sync_remaining_gsl_games`, `patch_host_versions`, `current_version_pair` in the digest) | Reads all three scalars (the digest's "old version", `gsl_version_unchanged`) and **writes** `version_gsl` (and the host scalars) as a dual-write | Blocker. Move the "old/current version" reads to `game_versions` current rows (`is_current`, per source), stop all scalar writes, drop the three names from `GAME_FIELDS` and the `{"fields": "id,slug,version_gsl"}` query, update its README. Deploy to TrueNAS and let one scheduled run succeed. |
 | `site/src/pages/filters/index.astro` | Lists the three scalars in the games `fields` array | Blocker for the build. Remove the three entries. |
 | `site/src/lib/game-versions.ts` | `TrackedGameVersions` type fields and the legacy fallback loop in `currentVersions()` | Remove the fallback and the type fields. Safe once the data gap below is closed. |
 | `site/src/lib/game-versions.test.ts` (37 hits), `feed-builder.test.ts`, `recentUpdates.test.ts`, `changelog.test.ts` | Fixtures and fallback tests | Delete the fallback tests; convert fixtures to `versions: [...]` rows. |
@@ -248,7 +248,7 @@ GSL 296), all with a current row, except:
 
 ### Steps
 
-1. Migrate and deploy the steam-typhoon sync off the scalars (see table); run
+1. Migrate and deploy the steam-shortcut-manager sync off the scalars (see table); run
    it once in production and confirm it neither reads nor writes them
    (`--dry-run` output should no longer mention `PLAN PATCH GSL SCALAR`).
 2. Site PR (branch `feat/retire-legacy-version-fields`): remove the `index.astro` field entries, the
