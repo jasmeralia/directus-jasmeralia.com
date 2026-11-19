@@ -58,9 +58,16 @@ const LIMIT_FEED_ENTRIES = 50;
 // entry in each burst, not a sliding per-gap window.
 const GAME_CONSOLIDATION_WINDOW_MS = 30 * 60 * 1000;
 
+const SKIP_FEED_DELTA = new Set([
+  "gsl_average_playtime_minutes",
+  "gsl_tags",
+]);
+
 const feedDelta = (delta: Record<string, unknown> | null): Record<string, unknown> =>
   Object.fromEntries(
-    Object.entries(delta ?? {}).filter(([field]) => !SKIP_DELTA.has(field)),
+    Object.entries(delta ?? {}).filter(
+      ([field]) => !SKIP_DELTA.has(field) && !SKIP_FEED_DELTA.has(field),
+    ),
   );
 
 // ─── XML helpers ─────────────────────────────────────────────────────────────
