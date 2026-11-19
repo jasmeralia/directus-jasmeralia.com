@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.294] - 2026-11-18
+- RSS: omit GSL playtime and tag metadata from game update descriptions so metadata refreshes do not produce raw field names or `[object Object]` in feed readers and Discord.
+
 ## [1.0.293] - 2026-11-18
 - Games: update host-install manifest links to the new Steam shortcut management repository.
 
